@@ -42,6 +42,18 @@ Safety properties:
 * A failing bot handler is isolated by the bus. Its error is counted, and the Sentinel raises an alert.
 * Safety-critical bots can't be disabled from the API while positions are open.
 
+## A fun, friendly interface
+
+TradeZone opens in **Simple view**: a colourful home screen in plain English. The **Pro** switch in the header shows the full trading dashboard.
+
+* **Hero card:** your balance, which counts up or down as it changes, and today's result with a mood (😎 great day, 🙂 up, 😌 steady, 🥶 rough day). A live price ticker scrolls across the top. Practice money is violet-pink; real money switches to a fiery red-orange so the two can't be confused.
+* **Badges:** 🔥 win streaks, 🔒 profits locked in, and ⚡ how fast the Executive decides.
+* **Your bot crew:** every bot has a mascot (🔭 Scout, 🧭 Strategist, 🧮 Quant, 🤖 Grok, 🛡️ Risk Manager, 👑 Executive, ⚡ Executor, 💼 Portfolio Manager, 🦉 Sentinel). Each one bounces while it works and says what it's doing in a speech bubble.
+* **Celebrations:** a confetti burst and a 🎉 message when a trade closes in profit. Losses get a calm note, because small losses are part of the plan.
+* **Big, friendly buttons** (Pause, Close all, Emergency stop, Use real money), in-app confirmation sheets instead of browser pop-ups, and a small vibration on Android.
+* **Texture:** drifting colour glows, film grain and frosted-glass cards, in the rounded system font on Apple devices.
+* With **Reduce Motion** turned on in your phone's settings, every animation and the confetti switch off.
+
 ## Watching the bots work, live
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:

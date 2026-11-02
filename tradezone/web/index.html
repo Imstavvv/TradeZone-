@@ -295,6 +295,106 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   .bottomnav a.on{color:var(--text);background:var(--panel2)}
   body.is-live .bottomnav{border-top-color:var(--down)}
 }
+
+/* =================== FUN THEME: vibrant, textured, playful (but money-safe) =================== */
+:root{
+  --bg:#0d0a1f; --panel:rgba(26,20,56,.72); --panel2:rgba(40,32,82,.72); --line:rgba(167,139,250,.18);
+  --text:#f5f3ff; --muted:#a5a0c8; --accent:#8b5cf6; --accent2:#22d3ee; --pink:#ec4899; --lime:#a3e635; --orange:#fb923c;
+  --up:#34d399; --down:#fb7185; --warn:#fbbf24;
+}
+body{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable Display",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);overflow-x:hidden}
+/* drifting colour glows */
+body::before{content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
+  background:radial-gradient(38% 32% at 18% 22%,rgba(139,92,246,.55),transparent 70%),
+             radial-gradient(32% 30% at 82% 18%,rgba(236,72,153,.40),transparent 70%),
+             radial-gradient(36% 34% at 72% 82%,rgba(34,211,238,.32),transparent 70%),
+             radial-gradient(30% 28% at 22% 86%,rgba(163,230,53,.20),transparent 70%);
+  filter:blur(10px);animation:drift 26s ease-in-out infinite alternate}
+@keyframes drift{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(3%,-2%) rotate(6deg)}100%{transform:translate(-3%,2%) rotate(-5deg)}}
+/* film grain + faint dot grid */
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.2px);
+  background-size:160px 160px,22px 22px}
+header{background:rgba(13,10,31,.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line)}
+.brand{font-weight:800;letter-spacing:-.2px}
+.brand .logo{background:conic-gradient(from 210deg,#8b5cf6,#ec4899,#fb923c,#a3e635,#22d3ee,#8b5cf6);box-shadow:0 0 18px rgba(236,72,153,.45);animation:spin 18s linear infinite}
+@keyframes spin{to{filter:hue-rotate(360deg)}}
+.panel,.kpi,.scard,.bot,.node{backdrop-filter:blur(12px) saturate(130%);-webkit-backdrop-filter:blur(12px) saturate(130%)}
+.panel,.scard{border-radius:20px;box-shadow:0 10px 30px rgba(8,4,30,.35),inset 0 1px 0 rgba(255,255,255,.05)}
+.kpi{border-radius:18px}
+/* chunky, tappable buttons */
+button{border-radius:14px;font-weight:700;transition:transform .08s,box-shadow .15s,filter .15s;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
+button:disabled{box-shadow:none}
+button.gopaper{background:linear-gradient(135deg,#22d3ee,#8b5cf6);border:none;color:#fff}
+button.golive{background:linear-gradient(135deg,#fb923c,#ec4899);border:none;color:#fff}
+button.danger{background:linear-gradient(135deg,#f43f5e,#be123c);border:none;color:#fff}
+button.gopaper:hover,button.golive:hover,button.danger:hover{filter:brightness(1.08)}
+.viewtoggle button{box-shadow:none}
+.viewtoggle button.on{background:linear-gradient(135deg,#8b5cf6,#ec4899)}
+/* hero */
+.hero{position:relative;overflow:hidden;border:none;border-radius:26px;padding:22px 20px 20px;
+  background:linear-gradient(135deg,#6d28d9 0%,#c026d3 48%,#f97316 100%);box-shadow:0 18px 50px rgba(192,38,211,.35)}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.16) 45%,transparent 60%);transform:translateX(-100%);animation:sheen 7s ease-in-out infinite}
+@keyframes sheen{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,255,255,.25),transparent 65%)}
+body.is-live .hero{background:linear-gradient(135deg,#991b1b 0%,#dc2626 45%,#f59e0b 100%);box-shadow:0 18px 50px rgba(220,38,38,.4)}
+.hero .lbl{color:rgba(255,255,255,.9);font-weight:700}
+.hero .lbl{flex-wrap:wrap}
+.hero .lbl #sMode{background:rgba(255,255,255,.2);padding:3px 10px;border-radius:999px;white-space:nowrap}
+.hero .lbl .muted{color:rgba(255,255,255,.75)}
+.hero .bal{font-size:46px;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.25)}
+.hero .bal.bump-up{animation:bumpUp .7s}.hero .bal.bump-down{animation:bumpDown .7s}
+@keyframes bumpUp{30%{transform:scale(1.04);color:#d9f99d}}@keyframes bumpDown{30%{transform:scale(.98);color:#fecdd3}}
+.hero .chg{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.18);padding:4px 10px;border-radius:999px}
+.hero .chg .up{color:#bbf7d0}.hero .chg .down{color:#fecdd3}
+.hero .since{color:rgba(255,255,255,.8)}
+.hero .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.hero .badge2{background:rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
+.hero .statusline{background:rgba(0,0,0,.22);color:#fff}
+.hero .actions2 button:not(.golive):not(.danger):not(.gopaper){background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);color:#fff}
+.hero .actions2 button.danger{background:rgba(127,29,29,.75);border:1px solid rgba(255,255,255,.25)}
+.hero .actions2 button.golive{background:#fff;color:#c026d3}
+body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
+/* live ticker */
+.ticker{margin:0 -20px 14px;padding:6px 0;overflow:hidden;white-space:nowrap;background:rgba(0,0,0,.16);
+  mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.ticker .run{display:inline-block;animation:tick 40s linear infinite;padding-left:100%}
+.ticker span{margin-right:26px;font-weight:700;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
+.ticker .u{color:#bbf7d0}.ticker .d{color:#fecdd3}
+@keyframes tick{to{transform:translateX(-100%)}}
+/* bot crew with mascots */
+.crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.mate2{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:10px;cursor:pointer;min-width:0;transition:border-color .3s,box-shadow .3s}
+.mate2 .face{font-size:26px;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--c);box-shadow:0 6px 16px -6px var(--c)}
+.mate2.busy{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 8px 24px -10px var(--c)}
+.mate2.busy .face{animation:bob .9s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-4px) rotate(-6deg)}}
+.mate2 .nm{font-weight:800;font-size:13px;margin-top:6px}
+.mate2 .say{margin-top:6px;font-size:11px;color:#ddd6fe;background:rgba(139,92,246,.16);border-radius:10px 10px 10px 2px;padding:5px 7px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;min-height:calc(2.7em + 10px);max-height:calc(2.7em + 10px)}
+.mate2.off{opacity:.45}
+.avatar{font-size:16px}
+/* cards & lists get a splash of colour */
+.scard h4{font-size:16px;font-weight:800}
+.ptrade{border-bottom-color:var(--line)}
+.happen .ic{border-radius:10px;font-size:15px;box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
+.toast{background:rgba(30,22,70,.92);backdrop-filter:blur(10px);border-radius:16px;font-weight:600}
+.toast.party{background:linear-gradient(135deg,#059669,#10b981);border:none;color:#fff}
+.sheet .panel2{background:rgba(26,20,56,.96);backdrop-filter:blur(16px)}
+.lockscreen{background:radial-gradient(circle at 50% 0%,#5b21b6,var(--bg) 62%)}
+.keypad button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);box-shadow:0 3px 0 rgba(0,0,0,.35);font-weight:700}
+.dots i.on{background:linear-gradient(135deg,#22d3ee,#ec4899);border-color:transparent;box-shadow:0 0 10px rgba(236,72,153,.6)}
+.bottomnav a.on{background:linear-gradient(135deg,rgba(139,92,246,.35),rgba(236,72,153,.25))}
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
+@media (max-width:700px){.hero .bal{font-size:40px}.ticker{margin:0 -20px 12px}}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .ticker .run{padding-left:0}
+}
 </style>
 </head>
 <body>
@@ -384,6 +484,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   <div class="row"><button id="pairClose">Done</button></div>
 </div></div>
 <div class="toasts" id="toasts"></div>
+<canvas id="confetti" aria-hidden="true"></canvas>
 <div class="lockscreen" id="lockScreen" aria-modal="true" role="dialog">
   <div class="logo"></div>
   <h3>TradeZone is locked</h3>
@@ -454,10 +555,12 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   <div class="banner" id="banner"></div>
   <section id="simple">
     <div class="hero">
+      <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
       <div class="bal" id="sBal">—</div>
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
+      <div class="badges" id="sBadges"></div>
       <div class="statusline" id="sStatus"><span class="led"></span><span id="sStatusText">Connecting…</span></div>
       <div class="actions2">
         <button id="sPause">Pause trading</button>
@@ -470,7 +573,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
       <div class="scard"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
       <div class="scard" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Everything ›</a></h4><div id="sHappen"></div></div>
       <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
-      <div class="scard"><h4>Your bot team <a id="sGrokLink">Grok AI ›</a></h4><div class="team" id="sTeam"></div>
+      <div class="scard" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
     </div>
   </section>
@@ -596,6 +699,8 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
+const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉'};
+const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
 const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
@@ -709,7 +814,7 @@ $('wSetupNext').onclick = () => {
   $('wPinErr').textContent = ''; wPane('wSetup2'); wPad.activate();
 };
 $('wFaceYes').onclick = async () => { await welcomeDone(); await enrollFace({'X-TZ-PIN': W.setupPin}); W.setupPin = ''; };
-$('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your PIN is set. Welcome to TradeZone!', 'ok'); welcomeDone(); };
+$('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your PIN is set. Welcome to TradeZone!', 'ok'); confetti(); welcomeDone(); };
 $('wFaceSignin').onclick = async () => {
   $('wSigninErr').textContent = '';
   const o = await post('/api/signin/faceid/options');
@@ -1000,7 +1105,7 @@ function render(){
     const mets = Object.entries(b.metrics).filter(([,v]) => typeof v !== 'object').slice(0,6)
       .map(([k,v]) => `<span>${esc(k.replace(/_/g,' '))} <b>${typeof v==='number' ? (PCT_KEYS.has(k) ? (v*100).toFixed(1)+'%' : num(v)) : esc(v)}</b></span>`).join('');
     return `<div class="bot ${b.enabled?'':'off'}" data-card="${esc(b.name)}" title="${esc(b.description)} (tap for full log)" style="cursor:pointer">
-      <div class="top"><div class="avatar" style="background:${COLORS[b.name]||'#64748b'}">${b.name === 'executive' ? '★' : esc(b.title[0])}</div>
+      <div class="top"><div class="avatar" style="background:${COLORS[b.name]||'#64748b'}">${avatarOf(b.name, b.title)}</div>
         <div><div class="name">${esc(b.title)}</div><div class="role">${esc(b.role)}</div></div>
         <span class="dot ${b.state}"></span>
         <button class="switch" data-bot="${esc(b.name)}" data-en="${b.enabled}">${b.enabled?'Disable':'Enable'}</button></div>
@@ -1073,7 +1178,7 @@ function renderFloor(st){
   const bots = Object.fromEntries(st.bots.map(b => [b.name, b]));
   if (pipe.children.length !== ORDER.length) {
     pipe.innerHTML = ORDER.map(n => `<div class="node${n === 'executive' ? ' exec' : ''}" id="node-${n}" data-node="${n}" style="--c:${COLORS[n]}">${n === 'executive' ? '<span class="crown">HEAD TRADER</span>' : ''}
-      <div class="hd"><div class="avatar" style="background:${COLORS[n]}">${n === 'executive' ? '★' : esc((bots[n]?.title || n)[0])}</div>
+      <div class="hd"><div class="avatar" style="background:${COLORS[n]}">${avatarOf(n, bots[n]?.title)}</div>
       <div style="min-width:0"><div class="nm">${esc(bots[n]?.title || n)}</div><div class="rl">${esc(bots[n]?.role || '')}</div></div></div>
       <div class="now"></div><div class="bar"><i></i></div><div class="st"><span class="apm"></span><span class="ago"></span></div></div>`).join('');
     pipe.querySelectorAll('.node').forEach(el => el.onclick = () => openBot(el.dataset.node));
@@ -1140,7 +1245,7 @@ function onAction(a){ flash(a.bot, a.level); pushStream(streamItem('action', a))
 function onEvent(e){
   if (ORDER.includes(e.source)) flash(e.source, e.topic === 'alert' ? e.payload.level : 'info');
   pushStream(streamItem('event', e));
-  if (e.topic === 'trade.log') addTradeRow(e.payload);
+  if (e.topic === 'trade.log') { addTradeRow(e.payload); celebrate(e.payload); }
 }
 function renderStream(){
   STREAM.pending = false;
@@ -1164,7 +1269,7 @@ let openBotName = null;
 async function openBot(name){
   const d = await api('/api/bots/' + name + '/log');
   openBotName = name;
-  $('bmAv').textContent = name === 'executive' ? '★' : d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
+  $('bmAv').textContent = MASCOT[name] || d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
   $('bmTitle').textContent = d.title; $('bmRole').textContent = d.role; $('bmDesc').textContent = d.description;
   $('bmMets').innerHTML = [['actions/min', Math.round(d.actions_per_min)], ['total actions', d.total_actions], ['errors', d.errors],
     ...Object.entries(d.metrics).filter(([, v]) => typeof v !== 'object')].map(([k, v]) => `<span>${esc(String(k).replace(/_/g, ' '))} <b style="color:var(--text)">${esc(typeof v === 'number' ? num(v) : v)}</b></span>`).join('');
@@ -1468,6 +1573,98 @@ $('btnSignoutAll').onclick = async () => {
 setInterval(() => { if (document.visibilityState === 'visible' && S.state) loadSecurity(); }, 15000);
 
 // =================== Simple view: the friendly home screen ===================
+const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FIRST_PRICE = {};
+function countTo(el, value){  // animate the balance like a scoreboard
+  const from = el._v ?? value; el._v = value;
+  if (from !== value) { el.classList.remove('bump-up', 'bump-down'); void el.offsetWidth; el.classList.add(value > from ? 'bump-up' : 'bump-down'); }
+  if (REDUCED || from === value) { el.textContent = money(value); return; }
+  const t0 = performance.now(), dur = 650;
+  cancelAnimationFrame(el._raf);
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = money(from + (value - from) * e); if (k < 1) el._raf = requestAnimationFrame(step); };
+  el._raf = requestAnimationFrame(step);
+}
+function renderTicker(st){
+  const key = Object.keys(st.prices).join(',');
+  for (const [sym, v] of Object.entries(st.prices)) if (!(sym in FIRST_PRICE)) FIRST_PRICE[sym] = (S.history[sym] || [v])[0] || v;
+  const item = ([sym, v]) => { const ch = FIRST_PRICE[sym] ? v / FIRST_PRICE[sym] - 1 : 0;
+    return `<span>${esc(sym.replace('-USD', ''))} ${px(v)} <b class="${ch >= 0 ? 'u' : 'd'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch * 100).toFixed(2)}%</b></span>`; };
+  const html = Object.entries(st.prices).map(item).join('');
+  const run = $('sTickerRun');
+  // rebuild when the symbol list changes, otherwise refresh numbers every few seconds (not on every tick)
+  if (run._key !== key || !run._t || Date.now() - run._t > 3000) { run._key = key; run._t = Date.now(); run.innerHTML = html + html; }
+}
+function crewSay(b){  // a bot's latest action, as something it might actually say
+  if (!b.enabled) return 'Switched off - tap to see why';
+  const a = String(b.last_action || '');
+  let m;
+  if ((m = a.match(/^warming up (\S+) \((\d+)\/(\d+)/))) return `Warming up on ${m[1]} (${m[2]}/${m[3]})… ☕`;
+  if (b.name === 'scout' && (m = a.match(/^(\S+) ([\d,.]+) rsi=/))) return `Keeping an eye on ${m[1]} at ${px(+m[2].replace(/,/g, ''))} 👀`;
+  if ((m = a.match(/regime -> (\w+)/))) return `${a.split(' ')[0]} looks ${({trending: 'like it\'s trending 📈', ranging: 'calm and range-bound 🌊', volatile: 'wild right now 🌪️'})[m[1]] || m[1]}`;
+  if ((m = a.match(/^no consensus to (\w+) (\S+): (.*)/))) return `Wanted to ${m[1]} ${m[2]}, but the team wasn't sure 🤔`;
+  if ((m = a.match(/^proposed (\w+) (\S+)/))) return `Ooh - ${m[1].toLowerCase()} ${m[2]}? Asking the team 💡`;
+  if ((m = a.match(/^REJECTED \w+ (\S+): (.*)/))) return `Passed on ${m[1]}: ${m[2].replace(/\(.*?\)/g, '').slice(0, 60)} 🛡️`;
+  if ((m = a.match(/^APPROVED (\w+) \S+ (\S+)( \(reduce-only\))?/))) return m[3] ? `OK to close ${m[2]} ✅` : `Green light to ${m[1]} ${m[2]} ✅`;
+  if ((m = a.match(/^(TRADE|EXIT) (\w+) \S+ (\S+) authorised in ([\d.]+) ms/))) return `${m[1] === 'EXIT' ? 'Closing' : 'Go!'} ${m[2].toLowerCase()} ${m[3]} - decided in ${m[4]} ms ⚡`;
+  if ((m = a.match(/^HELD \w+ (\S+): (.*)/))) return `Holding off on ${m[1]}: ${m[2].slice(0, 60)} ✋`;
+  if ((m = a.match(/^sent (\w+) \S+ (\S+) via/))) return `Order sent: ${m[1].toLowerCase()} ${m[2]} 🚀`;
+  if ((m = a.match(/^filled (\w+) \S+ (\S+) @ ([\d,.]+)/))) return `Filled! ${m[1].toLowerCase()} ${m[2]} at ${px(+m[3].replace(/,/g, ''))} 🎯`;
+  if ((m = a.match(/^closed \w+ \S+ (\S+) P&L ([+-][\d,.]+)/))) return `${m[1]} closed ${m[2].startsWith('+') ? 'with a win 🎉' : 'small loss, moving on 💪'}`;
+  if ((m = a.match(/^opened\/added (\S+)/))) return `Now holding ${m[1]} - stops are set 🔒`;
+  if (/in profit: stop raised/.test(a)) return 'Locked in some profit 🔒';
+  if (/stance -> DEFENSIVE/.test(a)) return 'Playing it safe for a bit 🧘';
+  if (/stance -> NORMAL/.test(a)) return 'Back to normal - let\'s go 💪';
+  if (/^connected to/.test(a)) return 'Online and ready to review trades 🤖';
+  if (/^not connected/.test(a) || /NOT connected/.test(a)) return 'Not connected yet - tap Grok AI to set me up';
+  if (/logged \w+ alert/.test(a)) return 'Keeping the records straight 📒';
+  if (/^standing by$/.test(a)) return 'Ready when you are 👋';
+  return a.length > 70 ? a.slice(0, 70) + '…' : (a || 'Ready! 👋');
+}
+function winStreak(){
+  let n = 0;
+  for (const t of TL.items) { if (t.pnl == null) continue; if (t.pnl > 0) n++; else break; }
+  return n;
+}
+function renderBadges(st){
+  const p = st.portfolio, d = p.daily_pnl_pct, out = [];
+  out.push(d > 0.002 ? '😎 Great day' : d > 0 ? '🙂 Up today' : d < -0.002 ? '🥶 Rough day - stops are on duty' : '😌 Steady');
+  const streak = winStreak();
+  if (streak >= 2) out.push(`🔥 ${streak} wins in a row`);
+  const locked = p.positions.filter(x => x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0).length;
+  if (locked) out.push(`🔒 ${locked} profit${locked > 1 ? 's' : ''} locked in`);
+  if (st.executive && st.executive.median_ms != null) out.push(`⚡ decides in ${st.executive.median_ms < 1 ? '<1' : Math.round(st.executive.median_ms)} ms`);
+  $('sBadges').innerHTML = out.map(b => `<span class="badge2">${esc(b)}</span>`).join('');
+}
+// ---- confetti for profitable trades ----
+function confetti(){
+  if (REDUCED) return;
+  const cv = $('confetti'), g = cv.getContext('2d'), dpr = devicePixelRatio || 1;
+  cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; g.scale(dpr, dpr);
+  const cols = ['#8b5cf6', '#ec4899', '#fb923c', '#a3e635', '#22d3ee', '#fde047'];
+  const parts = Array.from({length: 140}, () => ({x: innerWidth / 2 + (Math.random() - .5) * 120, y: innerHeight * .35,
+    vx: (Math.random() - .5) * 11, vy: -Math.random() * 11 - 4, r: Math.random() * 6 + 4, a: Math.random() * 6.3,
+    va: (Math.random() - .5) * .3, c: cols[Math.floor(Math.random() * cols.length)]}));
+  const t0 = performance.now();
+  const frame = t => {
+    g.clearRect(0, 0, innerWidth, innerHeight);
+    for (const q of parts) { q.vy += .32; q.vx *= .99; q.x += q.vx; q.y += q.vy; q.a += q.va;
+      g.save(); g.translate(q.x, q.y); g.rotate(q.a); g.fillStyle = q.c; g.fillRect(-q.r / 2, -q.r / 4, q.r, q.r / 2); g.restore(); }
+    if (t - t0 < 2200) requestAnimationFrame(frame); else g.clearRect(0, 0, innerWidth, innerHeight);
+  };
+  requestAnimationFrame(frame);
+}
+function celebrate(t){
+  if (t.pnl == null) return;
+  if (t.pnl > 0) {
+    confetti(); navigator.vibrate?.([12, 40, 12]);
+    const el = document.createElement('div'); el.className = 'toast party';
+    el.textContent = `🎉 ${t.symbol} closed with +${money(t.pnl)} profit!`; $('toasts').appendChild(el);
+    setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4500);
+  } else toast(`${t.symbol} closed ${money(t.pnl)} · ${friendlyReason(t.reason)}. Small losses are part of the plan.`, 'info', 4500);
+}
+// a tiny tap on Android when pressing buttons (iPhone ignores this)
+document.addEventListener('click', e => { if (e.target.closest('button')) navigator.vibrate?.(8); }, {passive: true});
 const px = v => v == null ? '—' : Math.abs(v) >= 1 ? money(v) : '$' + num(v);
 function ago(ts){
   const s = Date.now() / 1000 - ts;
@@ -1500,7 +1697,7 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
       return p.approved ? ['🤖', '#e5e5e5', `Grok agreed with buying ${p.signal.symbol} (${Math.round(p.confidence * 100)}% sure)`]
                         : ['🤖', '#e5e5e5', `Grok said no to ${p.signal.symbol}: ${p.rationale}`];
     case 'signal.rejected': return ['🛡️', COLORS.risk, `Risk Manager passed on ${p.signal.symbol}: ${p.reason}`];
-    case 'order.held': return ['★', COLORS.executive, `Executive held off on ${p.request.symbol}: ${p.reason}`];
+    case 'order.held': return ['👑', COLORS.executive, `Executive held off on ${p.request.symbol}: ${p.reason}`];
     case 'order.authorized': return null;
     case 'alert': return p.level === 'info' ? null : ['⚠️', 'var(--warn)', p.message];
     default: return null;
@@ -1511,7 +1708,9 @@ function renderSimple(st){
   const p = st.portfolio, live = st.mode === 'live';
   $('sMode').textContent = live ? '💵 Real money' : '🧪 Practice money';
   $('sModeHint').textContent = live ? '· trading your broker account' : '· live prices, nothing real at risk';
-  $('sBal').textContent = money(p.equity);
+  countTo($('sBal'), p.equity);
+  renderTicker(st);
+  renderBadges(st);
   const today = p.equity * p.daily_pnl_pct / (1 + p.daily_pnl_pct);
   $('sToday').innerHTML = `<span class="${cls(today)}">${today >= 0 ? '▲ +' : '▼ -'}${money(Math.abs(today))} today (${today >= 0 ? '+' : ''}${pct(p.daily_pnl_pct)})</span>`;
   $('sSince').textContent = `${p.total_pnl >= 0 ? 'Up' : 'Down'} ${money(Math.abs(p.total_pnl))} since you started (${p.return_pct >= 0 ? '+' : ''}${pct(p.return_pct)})`;
@@ -1567,9 +1766,9 @@ function renderSimple(st){
   const team = ORDER.map(nm => st.bots.find(b => b.name === nm)).filter(Boolean);
   $('sTeam').innerHTML = team.map(b => {
     const busy = b.enabled && b.last_action_ts && now - b.last_action_ts < 6;
-    return `<div class="mate${busy ? ' busy' : ''}" data-mate="${b.name}" style="--c:${COLORS[b.name]}" title="${esc(b.last_action)}">
-      <div class="avatar" style="background:${COLORS[b.name]}">${b.name === 'executive' ? '★' : esc(b.title[0])}</div>
-      <div>${esc(b.title)}<div class="st">${!b.enabled ? 'off' : busy ? 'working…' : 'ready'}</div></div></div>`;
+    return `<div class="mate2${busy ? ' busy' : ''}${b.enabled ? '' : ' off'}" data-mate="${b.name}" style="--c:${COLORS[b.name]}">
+      <div class="face">${MASCOT[b.name] || esc(b.title[0])}</div><div class="nm">${esc(b.title)}</div>
+      <div class="say" title="${esc(b.last_action)}">${esc(crewSay(b))}</div></div>`;
   }).join('');
   document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
 }
