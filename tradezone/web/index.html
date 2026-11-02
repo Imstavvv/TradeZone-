@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121826">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="TradeZone">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-180.png">
 <title>TradeZone Desk</title>
 <style>
 :root{
@@ -94,18 +102,61 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .tagchip{background:#1e1b4b;color:#c7d2fe;border-radius:6px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
 .wallets{grid-column:1/-1}
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+.bottomnav{display:none}
+section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
+@media (max-width:700px){
+  body{font-size:13px;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  header{position:sticky;top:0;z-index:5;padding:8px 12px;padding-top:calc(8px + env(safe-area-inset-top));gap:8px}
+  .brand{flex-wrap:wrap;gap:6px;font-size:16px;width:100%}
+  .brand .logo{width:24px;height:24px}
+  #conn{margin-left:auto}
+  .controls{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:6px;width:100%}
+  .controls button{min-height:40px;padding:6px 2px;font-size:12px;white-space:nowrap}
+  .controls button[style*="display: none"]{display:none}
+  button{min-height:36px}
+  main{padding:12px;gap:12px}
+  .panel{padding:12px;border-radius:10px}
+  .panel h2{flex-wrap:wrap;gap:2px 8px}
+  .panel h2 > span{font-size:10px;text-transform:none;letter-spacing:0}
+  .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px;border-radius:10px}
+  .kpi .v{font-size:17px}
+  .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin:0 -12px 8px;padding:0 12px}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:none;padding:6px 10px}
+  table{font-size:12px}
+  th,td{padding:6px 6px}
+  #orders th:last-child,#orders td:last-child{display:none}
+  .scroll{max-height:none}
+  .feed{max-height:420px}
+  .feed div{white-space:normal;overflow:visible;line-height:1.35;padding:5px 0}
+  .bot .act{white-space:normal;word-break:break-word}
+  form.row input,form.row select{font-size:16px;padding:9px 10px;flex-basis:100%}
+  form.row button{flex:1 1 100%;min-height:42px}
+  .modal{align-items:flex-end;padding:0}
+  .modal .box{border-radius:16px 16px 0 0;max-height:92vh;padding:18px 16px calc(18px + env(safe-area-inset-bottom))}
+  .modal .actions{flex-direction:column-reverse}
+  .modal .actions button{width:100%;min-height:44px}
+  .modal input{font-size:18px}
+  .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(18,24,38,.96);backdrop-filter:blur(8px);
+    border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .bottomnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--muted);text-decoration:none;font-size:10px;font-weight:600;border-radius:8px}
+  .bottomnav a svg{width:20px;height:20px}
+  .bottomnav a.on{color:var(--text);background:var(--panel2)}
+  body.is-live .bottomnav{border-top-color:var(--down)}
+}
 </style>
 </head>
 <body>
-<header>
+<header id="top">
   <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><span id="conn" class="muted"></span></div>
   <div class="controls">
-    <button id="btnMode" class="golive">Go LIVE</button>
-    <button id="btnGrok">Test Grok</button>
-    <button id="btnPause">Pause</button>
-    <button id="btnFlatten">Flatten all</button>
-    <button id="btnKill" class="danger">Kill switch</button>
-    <button id="btnReset" style="display:none">Reset kill switch</button>
+    <button id="btnMode" class="golive" data-long="Go LIVE" data-short="Go LIVE">Go LIVE</button>
+    <button id="btnGrok" data-long="Test Grok" data-short="Grok">Test Grok</button>
+    <button id="btnPause" data-long="Pause" data-short="Pause">Pause</button>
+    <button id="btnFlatten" data-long="Flatten all" data-short="Flatten">Flatten all</button>
+    <button id="btnKill" class="danger" data-long="Kill switch" data-short="Kill">Kill switch</button>
+    <button id="btnReset" style="display:none" data-long="Reset kill switch" data-short="Reset">Reset kill switch</button>
   </div>
 </header>
 
@@ -122,9 +173,10 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 <main>
   <div class="banner" id="banner"></div>
   <section class="kpis" id="kpis"></section>
+  <div id="sec-overview" style="display:none"></div>
 
   <div class="col">
-    <section class="panel">
+    <section class="panel" id="sec-market">
       <h2>Market <span id="regimeNow" class="muted"></span></h2>
       <div class="tabs" id="tabs"></div>
       <canvas id="price" height="300"></canvas>
@@ -136,22 +188,22 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
   </div>
 
   <div class="col">
-    <section class="panel">
+    <section class="panel" id="sec-bots">
       <h2>Bot team <span class="muted" id="teamCount"></span></h2>
       <div class="team" id="team"></div>
     </section>
   </div>
 
   <div class="grid2">
-    <section class="panel"><h2>Open positions</h2><div class="scroll" id="positions"></div></section>
+    <section class="panel" id="sec-trades"><h2>Open positions</h2><div class="scroll" id="positions"></div></section>
     <section class="panel"><h2>Market board · Strategist &amp; Quant</h2><div class="scroll" id="board"></div></section>
     <section class="panel"><h2>Orders</h2><div class="scroll" id="orders"></div></section>
     <section class="panel"><h2>Closed trades</h2><div class="scroll" id="trades"></div></section>
-    <section class="panel"><h2>Team activity</h2><div class="feed" id="events"></div></section>
+    <section class="panel" id="sec-activity"><h2>Team activity</h2><div class="feed" id="events"></div></section>
     <section class="panel"><h2>Alerts</h2><div class="feed" id="alerts"></div></section>
   </div>
 
-  <section class="panel wallets">
+  <section class="panel wallets" id="sec-wallet">
     <h2>Wallets &amp; funding <span class="muted" id="wdLimit"></span></h2>
     <div class="wgrid">
       <div>
@@ -191,6 +243,13 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
     </div>
   </section>
 </main>
+<nav class="bottomnav" id="bottomnav">
+  <a href="#top" data-sec="top" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Overview</a>
+  <a href="#sec-bots" data-sec="sec-bots"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/></svg>Bots</a>
+  <a href="#sec-trades" data-sec="sec-trades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Trades</a>
+  <a href="#sec-activity" data-sec="sec-activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 8L9 4l-3 8H2"/></svg>Activity</a>
+  <a href="#sec-wallet" data-sec="sec-wallet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/></svg>Wallet</a>
+</nav>
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
@@ -248,8 +307,8 @@ $('btnMode').onclick = async () => {
   const open = S.state.portfolio.positions.length;
   if (open && !confirm(`Close all ${open} LIVE position(s) at market and switch back to PAPER?`)) return;
   if (!open && !confirm('Switch back to PAPER trading? No more real orders will be sent.')) return;
-  $('btnMode').disabled = true; $('btnMode').textContent = open ? 'Closing positions…' : 'Switching…';
-  try { await api('/api/mode', {mode:'paper', flatten:true}); } finally { $('btnMode').disabled = false; }
+  const bm = $('btnMode'); bm.disabled = true; bm.dataset.long = open ? 'Closing positions…' : 'Switching…'; bm.dataset.short = 'Wait…'; applyLabels();
+  try { await api('/api/mode', {mode:'paper', flatten:true}); } finally { bm.disabled = false; bm.dataset.long = 'Back to PAPER'; }
 };
 $('btnGrok').onclick = async () => { const r = await api('/api/grok/ping', {}); alert(r.ok ? `Grok connected (${r.model}): ${r.reply}` : `Grok not connected: ${r.error}`); };
 const formData = f => Object.fromEntries(new FormData(f).entries());
@@ -305,8 +364,9 @@ function render(){
   $('mode').className = 'badge ' + st.mode;
   document.body.classList.toggle('is-live', st.mode === 'live');
   const bm = $('btnMode');
-  if (st.mode === 'live'){ bm.textContent = 'Back to PAPER'; bm.className = 'gopaper'; bm.title = ''; bm.disabled = false; }
-  else { bm.textContent = 'Go LIVE'; bm.className = 'golive'; bm.disabled = !st.live.available;
+  if (bm.disabled && bm.dataset.long !== 'Go LIVE' && bm.dataset.long !== 'Back to PAPER') {}  // mid-switch label: keep
+  else if (st.mode === 'live'){ bm.dataset.long = 'Back to PAPER'; bm.dataset.short = 'PAPER'; bm.className = 'gopaper'; bm.title = ''; bm.disabled = false; }
+  else { bm.dataset.long = bm.dataset.short = 'Go LIVE'; bm.className = 'golive'; bm.disabled = !st.live.available;
          bm.title = st.live.available ? 'Switch to real-money trading' : 'Live not configured: ' + st.live.config_blockers.join('; '); }
   const status = $('status');
   if (st.halted){ status.textContent = 'HALTED'; status.className='badge halt'; status.title = st.halt_reason; }
@@ -320,8 +380,9 @@ function render(){
     bn.style.display = 'block'; bn.className = 'banner' + (st.halted || /integrity|audit|mismatch/.test(ac.pause_reason) ? ' crit' : '');
     bn.textContent = st.halted ? `Kill switch active: ${st.halt_reason}` : `Trading paused automatically: ${ac.pause_reason}. Investigate before resuming.`;
   } else bn.style.display = 'none';
-  $('btnPause').textContent = st.paused ? 'Resume' : 'Pause';
+  $('btnPause').dataset.long = $('btnPause').dataset.short = st.paused ? 'Resume' : 'Pause';
   $('btnReset').style.display = st.halted ? '' : 'none';
+  applyLabels();
 
   const kpis = [
     ['Equity', money(p.equity), ''],
@@ -334,7 +395,7 @@ function render(){
     ['Exec accuracy', ac.books_balanced ? pct(ac.execution) : 'BOOKS MISMATCH', ac.execution < 1 || !ac.books_balanced ? 'down' : 'up',
       `${ac.fills_verified} fills verified · books ${ac.books_balanced ? 'balanced' : 'out of balance'}`],
     (() => { const pm = st.bots.find(b => b.name === 'portfolio').metrics, lost = pm.winners_turned_losers || 0;
-      return ['Profit protection', lost ? `${lost} winner${lost>1?'s':''} lost` : 'No winners lost', lost ? 'down' : 'up',
+      return ['Winners lost', String(lost), lost ? 'down' : 'up',
         `${pm.profit_locks || 0} locks · ${pm.partial_profits || 0} partials · ${pm.protected_now || 0} protected now`]; })(),
   ];
   $('kpis').innerHTML = kpis.map(([l,v,c,sub]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${sub?`<div class="muted" style="font-size:11px">${sub}</div>`:''}</div>`).join('');
@@ -397,7 +458,9 @@ function renderWallets(st){
   if (sig !== walletsBuilt) {  // rebuild selects only when the set of wallets changes (keeps user input)
     walletsBuilt = sig;
     if (!$('chainSel').options.length) { $('chainSel').innerHTML = Object.entries(W.chains).map(([k,c]) => `<option value="${k}">${esc(c.name)} (${k})</option>`).join(''); syncChainFields(); }
-    const opts = W.wallets.map(w => `<option value="${w.id}">${esc(w.label)} · ${esc(w.chain)}</option>`).join('');
+    const opts = W.wallets.map(w => `<option value="${w.id}">${esc(w.label)} · ${esc(w.chain)}</option>`).join('')
+      || '<option value="">Link a wallet first</option>';
+    for (const f of ['wdForm', 'depForm']) $(f).querySelectorAll('select,input,button').forEach(el => el.disabled = !W.wallets.length);
     $('wdWallet').innerHTML = $('depWallet').innerHTML = opts;
     $('wdAsset').innerHTML = assetOpts($('wdWallet').value); $('depAsset').innerHTML = assetOpts($('depWallet').value);
   }
@@ -443,7 +506,10 @@ function table(head, rows, empty='—'){
 }
 
 function drawLine(cv, data, opt){
-  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = +cv.getAttribute('height');
+  // base height lives in data-h: writing cv.height below would otherwise compound on high-DPI screens
+  if (!cv.dataset.h) cv.dataset.h = cv.getAttribute('height');
+  const small = window.innerWidth <= 700;
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = Math.round(+cv.dataset.h * (small ? 0.7 : 1));
   cv.width = w*dpr; cv.height = h*dpr; cv.style.height = h+'px';
   const g = cv.getContext('2d'); g.scale(dpr,dpr); g.clearRect(0,0,w,h);
   if (data.length < 2){ g.fillStyle='#8892a8'; g.fillText('collecting data…', 10, 20); return; }
@@ -462,6 +528,29 @@ function drawLine(cv, data, opt){
   g.fillStyle = opt.color; g.fillRect(w-R+2, y-8, R-4, 16); g.fillStyle = '#0b0f17'; g.fillText(num(last), w-R+6, y+4);
 }
 
+// compact button labels on phones
+function applyLabels(){
+  const small = window.innerWidth <= 700;
+  document.querySelectorAll('[data-long]').forEach(b => { const t = small ? b.dataset.short : b.dataset.long; if (b.textContent !== t) b.textContent = t; });
+}
+window.addEventListener('resize', applyLabels);
+// bottom nav: smooth scroll + highlight the section in view
+document.querySelectorAll('#bottomnav a').forEach(a => a.onclick = e => {
+  e.preventDefault();
+  const el = a.dataset.sec === 'top' ? document.body : $(a.dataset.sec);
+  const offset = $('top').offsetHeight + 8;  // keep the section title clear of the sticky header
+  window.scrollTo({top: a.dataset.sec === 'top' ? 0 : el.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth'});
+});
+(function(){
+  const ids = ['sec-bots','sec-trades','sec-activity','sec-wallet'];
+  const onScroll = () => {
+    let cur = 'top';
+    const hdr = $('top').offsetHeight;
+    for (const id of ids) { const el = $(id); if (el && el.getBoundingClientRect().top - hdr < window.innerHeight * 0.35) cur = id; }
+    document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.sec === cur));
+  };
+  window.addEventListener('scroll', onScroll, {passive: true});
+})();
 window.addEventListener('unhandledrejection', e => e.preventDefault());  // api() already alerted
 window.addEventListener('resize', () => S.state && render());
 connect();

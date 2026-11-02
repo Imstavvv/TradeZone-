@@ -20,7 +20,7 @@ tradezone = "tradezone.__main__:main"
 include = ["tradezone*"]
 
 [tool.setuptools.package-data]
-tradezone = ["web/*.html"]
+tradezone = ["web/*.html", "web/*.svg", "web/*.png", "web/*.webmanifest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

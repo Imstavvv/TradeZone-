@@ -124,6 +124,20 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     async def index():
         return FileResponse(WEB / "index.html")
 
+    @app.get("/manifest.webmanifest", include_in_schema=False)
+    async def manifest():
+        return FileResponse(WEB / "manifest.webmanifest", media_type="application/manifest+json")
+
+    @app.get("/icon.svg", include_in_schema=False)
+    async def icon_svg():
+        return FileResponse(WEB / "icon.svg", media_type="image/svg+xml")
+
+    @app.get("/icon-{size}.png", include_in_schema=False)
+    async def icon_png(size: int):
+        if size not in (180, 512):
+            raise HTTPException(404)
+        return FileResponse(WEB / f"icon-{size}.png", media_type="image/png")
+
     @app.get("/api/health")
     async def health():
         return {"ok": True, "cycles": desk.cycles, "halted": desk.halted, "mode": desk.state()["mode"]}

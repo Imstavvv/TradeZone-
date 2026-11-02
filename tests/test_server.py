@@ -27,6 +27,9 @@ def test_state_controls_and_bots():
         assert desk.bots["quant"].enabled is False
         assert c.post("/api/bots/nope", json={"enabled": False}).status_code == 404
         assert "TradeZone" in c.get("/").text
+        assert c.get("/manifest.webmanifest").json()["short_name"] == "TradeZone"
+        assert c.get("/icon-180.png").headers["content-type"] == "image/png"
+        assert c.get("/icon.svg").status_code == 200
         with c.websocket_connect("/ws") as ws:
             assert ws.receive_json()["type"] == "snapshot"
 
