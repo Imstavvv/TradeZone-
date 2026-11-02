@@ -183,6 +183,66 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:12px;min-height:auto}
 #pinSetupModal input{font-size:24px;letter-spacing:10px;text-align:center}
 .lockbtn{padding:2px 8px;font-size:12px;min-height:auto}
+/* ---- welcome / sign-in ---- */
+.welcome .card{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.welcome .pane{display:none;width:100%;flex-direction:column;align-items:center;gap:12px}
+.welcome .pane.on{display:flex}
+.welcome input.code{width:100%;max-width:280px;text-align:center;font-size:24px;letter-spacing:4px;background:var(--bg);color:var(--text);
+  border:1px solid var(--line);border-radius:12px;padding:12px;font-variant-numeric:tabular-nums}
+.welcome .big{width:100%;max-width:300px;min-height:48px;font-size:16px;border-radius:12px}
+.welcome .steps{display:flex;gap:6px}.welcome .steps i{width:28px;height:4px;border-radius:2px;background:#334155}.welcome .steps i.on{background:var(--accent2)}
+.welcome p{margin:0;max-width:340px}
+/* ---- confirm sheet / ask sheet / toasts ---- */
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+.sheet.open{display:flex}
+.sheet .panel2{background:var(--panel);border:1px solid var(--line);border-bottom:none;border-radius:18px 18px 0 0;width:100%;max-width:440px;
+  padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+  animation:rise .2s ease-out}
+@keyframes rise{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+@media (min-width:701px){.sheet{align-items:center}.sheet .panel2{border-radius:18px;border-bottom:1px solid var(--line)}}
+.sheet h3{margin:0;font-size:18px}
+.sheet .row{display:flex;gap:10px;width:100%}.sheet .row button{flex:1;min-height:46px;font-size:15px;border-radius:12px}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:50;display:flex;flex-direction:column;gap:8px;
+  width:min(440px,calc(100% - 24px));pointer-events:none}
+.toast{background:#1e293b;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;padding:10px 14px;font-size:14px;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);animation:rise .2s ease-out;pointer-events:auto}
+.toast.ok{border-left-color:var(--up)}.toast.err{border-left-color:var(--down)}.toast.warn{border-left-color:var(--warn)}
+/* ---- simple view ---- */
+.viewtoggle{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px}
+.viewtoggle button{border:none;background:none;border-radius:999px;padding:4px 12px;font-size:12px;min-height:auto;color:var(--muted)}
+.viewtoggle button.on{background:var(--accent);color:#fff}
+#simple{grid-column:1/-1;display:none;gap:14px}
+body.simple #simple{display:grid}
+body.simple .pro{display:none !important}
+body.simple header .controls{display:none}
+.hero{background:linear-gradient(135deg,#1e1b4b,#0f172a 60%);border:1px solid #312e81;border-radius:18px;padding:20px}
+body.is-live .hero{background:linear-gradient(135deg,#3b0d0d,#0f172a 60%);border-color:#7f1d1d}
+.hero .lbl{color:#a5b4fc;font-size:13px;display:flex;align-items:center;gap:8px}
+.hero .bal{font-size:40px;font-weight:800;letter-spacing:-1px;margin:4px 0;font-variant-numeric:tabular-nums}
+.hero .chg{font-size:15px;font-weight:600}
+.hero .since{color:var(--muted);font-size:13px;margin-top:2px}
+.statusline{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;border-radius:12px;background:rgba(15,23,42,.6);font-size:14px}
+.statusline .led{width:10px;height:10px;border-radius:50%;flex:none;background:var(--up);box-shadow:0 0 10px var(--up);animation:pulse 2s infinite}
+.statusline.warn .led{background:var(--warn);box-shadow:0 0 10px var(--warn)}.statusline.stop .led{background:var(--down);box-shadow:0 0 10px var(--down);animation:none}
+.actions2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
+.actions2 button{min-height:48px;border-radius:12px;font-size:14px}
+.sgrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr))}
+.scard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.scard h4{margin:0 0 10px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.scard h4 a{font-size:12px;color:var(--accent2);text-decoration:none;font-weight:600;cursor:pointer}
+.ptrade{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ptrade:last-child{border-bottom:none}
+.ptrade .s{font-weight:700;font-size:15px}.ptrade .d{color:var(--muted);font-size:12px}
+.ptrade .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.happen{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px;align-items:flex-start}
+.happen:last-child{border-bottom:none}.happen .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none;color:#0b0f17;font-weight:800}
+.happen .tm{color:var(--muted);font-size:11px;margin-left:auto;white-space:nowrap}
+.team{display:flex;flex-wrap:wrap;gap:8px}
+.mate{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;cursor:pointer;font-size:12px}
+.mate .avatar{width:26px;height:26px;font-size:12px;border-radius:50%}
+.mate.busy{border-color:var(--c);box-shadow:0 0 0 1px var(--c)}
+.mate .st{color:var(--muted)}
+.emptyhint{color:var(--muted);font-size:13px;padding:6px 0}
 .bottomnav{display:none}
 section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 @media (max-width:700px){
@@ -239,7 +299,8 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 </head>
 <body>
 <header id="top">
-  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><button id="btnLockNow" class="lockbtn" style="display:none" title="Lock the app now">🔒</button><span id="conn" class="muted"></span></div>
+  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><button id="btnLockNow" class="lockbtn" style="display:none" title="Lock the app now">🔒</button><span id="conn" class="muted"></span>
+    <div class="viewtoggle" id="viewToggle" style="margin-left:auto"><button data-view="simple">Simple</button><button data-view="pro">Pro</button></div></div>
   <div class="controls">
     <button id="btnMode" class="golive" data-long="Go LIVE" data-short="Go LIVE">Go LIVE</button>
     <button id="btnGrok" data-long="Test Grok" data-short="Grok">Test Grok</button>
@@ -250,15 +311,79 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   </div>
 </header>
 
-<div class="modal" id="authModal"><div class="box" style="border-color:var(--accent)">
-  <h3>Unlock TradeZone</h3>
-  <div class="muted">This desk is protected. Enter the access token (on Render: your service → Environment → <b>TZ_API_TOKEN</b>). It's remembered on this device.</div>
-  <form id="authForm" style="margin-top:12px">
-    <input id="authToken" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Access token" required style="letter-spacing:0">
-    <div id="authErr" class="down" style="min-height:18px;margin:-6px 0 8px;font-size:12px"></div>
-    <div class="actions"><button type="submit" class="gopaper" style="min-width:120px">Unlock</button></div>
-  </form>
+<div class="lockscreen welcome" id="welcome" aria-modal="true" role="dialog">
+  <div class="card">
+    <div class="logo"></div>
+    <!-- first-time setup -->
+    <div class="pane" id="wSetup1">
+      <div class="steps"><i class="on"></i><i></i><i></i></div>
+      <h3>Welcome to TradeZone</h3>
+      <p class="muted">Let's make this desk yours. First, enter the <b>setup code</b> from your server log
+        (Render → your service → <b>Logs</b>, the line <span class="mono">TradeZone SETUP code</span>).</p>
+      <input class="code" id="wSetupCode" inputmode="numeric" autocomplete="one-time-code" placeholder="1234-5678" maxlength="9">
+      <div class="lockerr" id="wSetupErr"></div>
+      <button class="big gopaper" id="wSetupNext">Continue</button>
+    </div>
+    <div class="pane" id="wSetup2">
+      <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
+      <h3 id="wPinTitle">Choose a 6-digit PIN</h3>
+      <p class="muted" id="wPinHint">You'll use it to open TradeZone and to confirm important actions.</p>
+      <div class="dots" id="wDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="lockerr" id="wPinErr"></div>
+      <div class="keypad" id="wPad"></div>
+    </div>
+    <div class="pane" id="wSetup3">
+      <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
+      <h3>You're all set 🎉</h3>
+      <p class="muted">Want to open TradeZone with Face ID instead of typing your PIN?</p>
+      <button class="big gopaper" id="wFaceYes">Use Face ID</button>
+      <button class="big" id="wFaceNo">Not now</button>
+    </div>
+    <!-- sign in on a new device -->
+    <div class="pane" id="wSignin">
+      <h3>Sign in to TradeZone</h3>
+      <p class="muted" id="wSigninHint">Use Face ID, or a code from a device where you're already signed in.</p>
+      <button class="big gopaper faceid" id="wFaceSignin" style="justify-content:center">Sign in with Face ID</button>
+      <div class="muted" style="font-size:12px;margin-top:6px">or enter a code from your other device<br><span style="font-size:11px">(there: Settings → Add a device)</span></div>
+      <input class="code" id="wPairCode" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6">
+      <div class="lockerr" id="wSigninErr"></div>
+      <button class="big" id="wPairGo">Sign in with code</button>
+      <button class="linkbtn" id="wTrouble">Trouble signing in?</button>
+    </div>
+    <!-- recovery -->
+    <div class="pane" id="wRecover">
+      <h3>Recover access</h3>
+      <p class="muted">Enter the newest <b>recovery code</b> from your server log (Render → your service → <b>Logs</b>,
+        the line <span class="mono">TradeZone recovery code</span>). Restarting the service prints a fresh one.</p>
+      <input class="code" id="wRecoverCode" inputmode="numeric" autocomplete="one-time-code" placeholder="1234-5678" maxlength="40">
+      <div class="lockerr" id="wRecoverErr"></div>
+      <button class="big gopaper" id="wRecoverGo">Recover</button>
+      <button class="linkbtn" id="wBack">Back</button>
+    </div>
+  </div>
+</div>
+<div class="sheet" id="confirmSheet"><div class="panel2">
+  <h3>Confirm it's you</h3>
+  <div class="muted" id="cWhat"></div>
+  <div class="dots" id="cDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="lockerr" id="cErr"></div>
+  <div class="keypad" id="cPad"></div>
+  <button class="faceid gopaper" id="cFace" style="display:none">Use Face ID</button>
+  <button class="linkbtn" id="cCancel" style="font-size:14px">Cancel</button>
 </div></div>
+<div class="sheet" id="askSheet"><div class="panel2">
+  <h3 id="askTitle"></h3>
+  <div class="muted" id="askBody" style="font-size:14px;white-space:pre-line"></div>
+  <div class="row"><button id="askNo">Cancel</button><button id="askYes" class="gopaper">OK</button></div>
+</div></div>
+<div class="sheet" id="pairSheet"><div class="panel2">
+  <h3>Add a device</h3>
+  <div class="muted" style="font-size:14px">On the new phone or computer, open TradeZone and enter this code:</div>
+  <div id="pairCode" style="font-size:44px;font-weight:800;letter-spacing:8px;font-variant-numeric:tabular-nums">——————</div>
+  <div class="muted" id="pairLeft" style="font-size:12px"></div>
+  <div class="row"><button id="pairClose">Done</button></div>
+</div></div>
+<div class="toasts" id="toasts"></div>
 <div class="lockscreen" id="lockScreen" aria-modal="true" role="dialog">
   <div class="logo"></div>
   <h3>TradeZone is locked</h3>
@@ -269,17 +394,17 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   <button class="faceid gopaper" id="btnFaceUnlock" style="display:none">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.2 4.3 1.2 6 0"/></svg>
     Unlock with Face ID</button>
-  <button class="linkbtn" id="lockUseToken">Forgot PIN? Sign in with your access token</button>
+  <button class="linkbtn" id="lockUseToken">Forgot your PIN? Use your recovery code</button>
 </div>
 <div class="modal" id="pinSetupModal"><div class="box" style="border-color:var(--accent)">
-  <h3 id="pinSetupTitle">Protect TradeZone with a PIN</h3>
+  <h3 id="pinSetupTitle">Change your PIN</h3>
   <div class="muted" style="font-size:13px">Each time you open the app, come back to it after a minute away, or leave it idle for <span id="pinLockMin">5</span> minutes, it asks for this PIN or Face ID.
     5 wrong PINs sign the device out. Avoid birthdays and patterns like 123456.</div>
   <form id="pinSetupForm" style="margin-top:12px">
     <input id="pin1" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="New PIN" required>
     <input id="pin2" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="Repeat PIN" required>
     <div class="lockerr" id="pinSetupErr"></div>
-    <div class="actions"><button type="button" id="pinSetupSkip">Not now</button><button type="submit" class="gopaper">Save PIN</button></div>
+    <div class="actions"><button type="button" id="pinSetupSkip">Cancel</button><button type="submit" class="gopaper">Save PIN</button></div>
   </form>
 </div></div>
 <div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
@@ -307,15 +432,6 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     </div>
   </form>
 </div></div>
-<div class="modal" id="reauthModal"><div class="box" style="border-color:var(--warn)">
-  <h3>Confirm with your access token</h3>
-  <div class="muted" id="reauthWhat"></div>
-  <form id="reauthForm" style="margin-top:12px">
-    <input id="reauthToken" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Access token" required style="letter-spacing:0">
-    <div class="muted" style="font-size:12px;margin:-6px 0 10px">Actions that can move money need the token again, so a stolen session alone can't do them.</div>
-    <div class="actions"><button type="button" id="reauthCancel">Cancel</button><button type="submit" class="golive">Confirm</button></div>
-  </form>
-</div></div>
 <div class="modal" id="botModal"><div class="box" style="border-color:var(--accent);max-width:640px">
   <div style="display:flex;align-items:center;gap:10px"><div class="avatar" id="bmAv"></div>
     <div><h3 id="bmTitle" style="margin:0"></h3><div class="muted" id="bmRole"></div></div>
@@ -336,14 +452,36 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 </div></div>
 <main>
   <div class="banner" id="banner"></div>
-  <section class="kpis" id="kpis"></section>
-  <section class="panel floor" id="sec-floor">
+  <section id="simple">
+    <div class="hero">
+      <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
+      <div class="bal" id="sBal">—</div>
+      <div class="chg" id="sToday"></div>
+      <div class="since" id="sSince"></div>
+      <div class="statusline" id="sStatus"><span class="led"></span><span id="sStatusText">Connecting…</span></div>
+      <div class="actions2">
+        <button id="sPause">Pause trading</button>
+        <button id="sClose">Close all trades</button>
+        <button id="sStop" class="danger">Emergency stop</button>
+        <button id="sLive" class="golive">Use real money</button>
+      </div>
+    </div>
+    <div class="sgrid">
+      <div class="scard"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
+      <div class="scard" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Everything ›</a></h4><div id="sHappen"></div></div>
+      <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
+      <div class="scard"><h4>Your bot team <a id="sGrokLink">Grok AI ›</a></h4><div class="team" id="sTeam"></div>
+        <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
+    </div>
+  </section>
+  <section class="pro kpis" id="kpis"></section>
+  <section class="pro panel floor" id="sec-floor">
     <h2><span><span class="livedot"></span>Bot floor · live</span><span class="counter" id="floorCount"></span></h2>
     <div class="pipeline" id="pipeline"></div>
   </section>
   <div id="sec-overview" style="display:none"></div>
 
-  <div class="col">
+  <div class="pro col">
     <section class="panel" id="sec-market">
       <h2>Market <span id="regimeNow" class="muted"></span></h2>
       <div class="tabs" id="tabs"></div>
@@ -355,14 +493,14 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     </section>
   </div>
 
-  <div class="col">
+  <div class="pro col">
     <section class="panel" id="sec-bots">
       <h2>Bot team <span class="muted" id="teamCount"></span></h2>
       <div class="team" id="team"></div>
     </section>
   </div>
 
-  <div class="grid2">
+  <div class="pro grid2">
     <section class="panel" id="sec-trades"><h2>Open positions</h2><div class="scroll" id="positions"></div></section>
     <section class="panel"><h2>Market board · Strategist &amp; Quant</h2><div class="scroll" id="board"></div></section>
     <section class="panel"><h2>Orders</h2><div class="scroll" id="orders"></div></section>
@@ -439,6 +577,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
         <div class="sub">Signed-in devices</div><div class="scroll" id="secSessions"></div>
         <div class="sub">Blocked addresses</div><div class="scroll" id="secBans"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="btnPair" class="gopaper">Add a device</button>
           <button id="btnSignout">Sign out</button>
           <button id="btnSignoutAll" class="danger">Sign out all devices</button>
         </div>
@@ -472,60 +611,175 @@ async function api(path, body, extraHeaders = {}, method){
   // the session cookie is sent automatically (same-origin); no secrets live in page script
   const r = await fetch(path, {method: method || (body===undefined?'GET':'POST'), credentials: 'same-origin',
     headers:{'Content-Type':'application/json', ...extraHeaders}, body: body===undefined?undefined:JSON.stringify(body)});
-  if (r.status === 401){ askToken('Your session ended - please sign in again'); throw new Error('unauthorized'); }
+  if (r.status === 401){ showWelcome('auto', 'Your session ended - please sign in again'); throw new Error('unauthorized'); }
   if (r.status === 423){ refreshLock(); throw new Error('locked'); }
   if (r.status === 429){ const j = await r.json().catch(()=>({})); const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
-    alert(`${j.detail || 'Too many requests'} (try again in about ${m} min)`); throw new Error('limited'); }
+    toast(`${j.detail || 'Too many requests'} (try again in about ${m} min)`, 'error'); throw new Error('limited'); }
   const j = await r.json().catch(()=>({}));
-  if (!r.ok) { alert(j.detail || ('Request failed: '+r.status)); throw new Error(j.detail); }
+  if (!r.ok) { toast(j.detail || ('Something went wrong (' + r.status + ')'), 'error'); throw new Error(j.detail); }
   return j;
 }
-function askToken(msg){
-  $('authErr').textContent = msg || '';
-  $('authModal').classList.add('open');
-  setTimeout(() => $('authToken').focus(), 50);
+// =================== toasts & sheets (instead of browser pop-ups) ===================
+function toast(msg, kind = 'info', ms = 4200){
+  const el = document.createElement('div');
+  el.className = 'toast ' + ({error: 'err', ok: 'ok', warn: 'warn'}[kind] || '');
+  el.textContent = msg; $('toasts').appendChild(el);
+  setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, ms);
 }
-$('authForm').onsubmit = async e => {
-  e.preventDefault();
-  const t = $('authToken').value.trim();
-  $('authErr').textContent = 'Checking…';
+function ask(title, body = '', {ok = 'OK', cancel = 'Cancel', danger = false} = {}){
+  return new Promise(resolve => {
+    $('askTitle').textContent = title; $('askBody').textContent = body;
+    $('askYes').textContent = ok; $('askNo').textContent = cancel; $('askYes').className = danger ? 'danger' : 'gopaper';
+    $('askSheet').classList.add('open');
+    const done = v => { $('askSheet').classList.remove('open'); $('askYes').onclick = $('askNo').onclick = null; resolve(v); };
+    $('askYes').onclick = () => done(true); $('askNo').onclick = () => done(false);
+  });
+}
+
+// =================== PIN pad (one component: lock screen, setup, confirmations) ===================
+let ACTIVE_PAD = null;
+function PinPad(padEl, dotsEl, onDone){
+  const pad = {pin: '', onDone,
+    draw(){ [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i < pad.pin.length)); },
+    reset(){ pad.pin = ''; pad.draw(); },
+    shake(){ dotsEl.classList.remove('shake'); void dotsEl.offsetWidth; dotsEl.classList.add('shake'); },
+    activate(){ ACTIVE_PAD = pad; pad.reset(); },
+    visible(){ return padEl.offsetParent !== null; },
+    key(k){
+      if (k === '⌫') pad.pin = pad.pin.slice(0, -1); else if (pad.pin.length < 6) pad.pin += k;
+      pad.draw();
+      if (pad.pin.length === 6) { const p = pad.pin; pad.pin = ''; setTimeout(() => { pad.draw(); pad.onDone(p); }, 120); }
+    }};
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  padEl.innerHTML = keys.map(k => k ? `<button type="button" class="${k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>` : '<span></span>').join('');
+  padEl.querySelectorAll('button').forEach(b => b.onclick = () => pad.key(b.dataset.k));
+  return pad;
+}
+document.addEventListener('keydown', e => {
+  if (!ACTIVE_PAD || !ACTIVE_PAD.visible() || e.target.tagName === 'INPUT') return;
+  if (/^[0-9]$/.test(e.key)) ACTIVE_PAD.key(e.key); else if (e.key === 'Backspace') ACTIVE_PAD.key('⌫');
+});
+
+// =================== welcome: first-time setup + sign-in on a new device (no access token) ===================
+const W = {code: '', pin1: '', setupPin: ''};
+function wPane(id){ document.querySelectorAll('#welcome .pane').forEach(p => p.classList.toggle('on', p.id === id)); }
+async function post(path, body){  // public sign-in endpoints: never redirect to sign-in on 401
   try {
-    const r = await fetch('/api/login', {method: 'POST', credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token: t})});
-    if (r.status === 401) { $('authErr').textContent = 'That token is not correct. Repeated wrong tries block this device for a while.'; return; }
-    if (r.status === 429) { const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
-      $('authErr').textContent = `Too many wrong tries - this connection is blocked for about ${m} min.`; return; }
-    if (r.status === 403) { $('authErr').textContent = 'Access from this network is not allowed.'; return; }
-    if (!r.ok) { $('authErr').textContent = 'Server error ' + r.status + ' - try again shortly.'; return; }
-  } catch { $('authErr').textContent = 'Cannot reach the server - check your connection.'; return; }
-  $('authModal').classList.remove('open'); $('authToken').value = '';
-  connect(); loadSecurity();
-  // first sign-in on this device: offer to set up the app lock
-  try { const a = await (await fetch('/api/auth', {credentials: 'same-origin'})).json(); S.lock = a.lock || {};
-        if (!S.lock.pin && !S.lock.faceid) openPinSetup(true); } catch {}
+    const r = await fetch(path, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+      body: body === undefined ? undefined : JSON.stringify(body)});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 429) j.detail = `Too many wrong tries - this connection is blocked for about ${Math.ceil((+r.headers.get('retry-after') || 60) / 60)} min.`;
+    if (r.status === 403 && !j.detail) j.detail = 'Access from this network is not allowed.';
+    return {ok: r.ok, status: r.status, j};
+  } catch { return {ok: false, status: 0, j: {detail: 'Cannot reach the server - check your connection.'}}; }
+}
+async function showWelcome(mode = 'auto', msg = ''){
+  hideLock();
+  try { S.ws && S.ws.close(); } catch {}
+  let st = {owner: true, faceid: false};
+  try { st = await (await fetch('/api/setup/status', {credentials: 'same-origin'})).json(); } catch {}
+  document.body.classList.add('locked'); $('welcome').classList.add('open');
+  if (mode === 'recover') { wPane('wRecover'); $('wRecoverErr').textContent = msg; return; }
+  if (!st.owner) { wPane('wSetup1'); $('wSetupErr').textContent = msg; setTimeout(() => $('wSetupCode').focus(), 50); return; }
+  const face = st.faceid && faceSupported();
+  wPane('wSignin'); $('wSigninErr').textContent = msg;
+  $('wFaceSignin').style.display = face ? '' : 'none';
+  $('wSigninHint').textContent = face ? "Use Face ID, or a code from a device where you're already signed in."
+                                      : "Enter the 6-digit code shown on a device where you're already signed in.";
+}
+function hideWelcome(){ $('welcome').classList.remove('open'); document.body.classList.remove('locked'); }
+async function welcomeDone(){ hideWelcome(); await refreshAuth(); connect(); loadTrades(true); loadSecurity(); }
+const wPad = PinPad($('wPad'), $('wDots'), async pin => {
+  if (!W.pin1) { W.pin1 = pin; $('wPinTitle').textContent = 'Enter it once more'; $('wPinHint').textContent = 'Just to make sure.'; $('wPinErr').textContent = ''; return; }
+  const restart = msg => { W.pin1 = ''; wPad.shake(); $('wPinTitle').textContent = 'Choose a 6-digit PIN'; $('wPinErr').textContent = msg; };
+  if (pin !== W.pin1) return restart("Those didn't match - choose your PIN again.");
+  const r = await post('/api/setup', {code: W.code, pin});
+  if (!r.ok) {
+    if (r.status === 401 || r.status === 429) { W.pin1 = ''; wPane('wSetup1'); $('wSetupErr').textContent = r.j.detail; return; }
+    return restart(r.j.detail || 'Could not save your PIN');
+  }
+  W.setupPin = pin;
+  if (faceSupported()) wPane('wSetup3'); else { toast('Your PIN is set. Welcome to TradeZone!', 'ok'); welcomeDone(); }
+});
+$('wSetupNext').onclick = () => {
+  const c = $('wSetupCode').value.replace(/\D/g, '');
+  if (c.length !== 8) { $('wSetupErr').textContent = 'The setup code has 8 digits, like 1234-5678.'; return; }
+  W.code = c; W.pin1 = ''; $('wPinTitle').textContent = 'Choose a 6-digit PIN';
+  $('wPinHint').textContent = "You'll use it to open TradeZone and to confirm important actions. Avoid 123456 and birthdays.";
+  $('wPinErr').textContent = ''; wPane('wSetup2'); wPad.activate();
 };
-// decide on start-up: does this server need a token, and is ours valid?
-async function boot(){
+$('wFaceYes').onclick = async () => { await welcomeDone(); await enrollFace({'X-TZ-PIN': W.setupPin}); W.setupPin = ''; };
+$('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your PIN is set. Welcome to TradeZone!', 'ok'); welcomeDone(); };
+$('wFaceSignin').onclick = async () => {
+  $('wSigninErr').textContent = '';
+  const o = await post('/api/signin/faceid/options');
+  if (!o.ok) { $('wSigninErr').textContent = o.j.detail || 'Face ID is not available'; return; }
+  let cred;
+  try { cred = await webauthnGet(o.j.options); }
+  catch (e) { $('wSigninErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled.' : 'Face ID failed: ' + e.message; return; }
+  const v = await post('/api/signin/faceid/verify', {ceremony: o.j.ceremony, credential: cred});
+  if (!v.ok) { $('wSigninErr').textContent = v.j.detail || 'Face ID sign-in failed'; return; }
+  toast('Signed in with Face ID', 'ok'); welcomeDone();
+};
+$('wPairGo').onclick = async () => {
+  const c = $('wPairCode').value.replace(/\D/g, '');
+  if (c.length !== 6) { $('wSigninErr').textContent = 'The code has 6 digits.'; return; }
+  const r = await post('/api/signin/pair', {code: c});
+  if (!r.ok) { $('wSigninErr').textContent = r.j.detail; return; }
+  $('wPairCode').value = ''; toast('This device is now signed in', 'ok'); welcomeDone();
+};
+$('wTrouble').onclick = () => { $('wRecoverErr').textContent = ''; wPane('wRecover'); setTimeout(() => $('wRecoverCode').focus(), 50); };
+$('wBack').onclick = () => showWelcome();
+$('wRecoverGo').onclick = async () => {
+  const r = await post('/api/signin/recover', {code: $('wRecoverCode').value.trim()});
+  if (!r.ok) { $('wRecoverErr').textContent = r.j.detail; return; }
+  $('wRecoverCode').value = ''; hideWelcome(); await refreshAuth(); connect(); loadSecurity();
+  toast("Access recovered. Choose a new PIN now.", 'warn', 6000); openPinSetup(true);
+};
+[['wSetupCode', 'wSetupNext'], ['wPairCode', 'wPairGo'], ['wRecoverCode', 'wRecoverGo']].forEach(([i, b]) =>
+  $(i).addEventListener('keydown', e => { if (e.key === 'Enter') $(b).click(); }));
+
+async function refreshAuth(){
   try {
     const r = await fetch('/api/auth', {credentials: 'same-origin'});
-    if (r.status === 401) return askToken('');
-    if (r.status === 429) return askToken('Too many wrong tries - this connection is temporarily blocked.');
-    if (r.ok) {
-      const a = await r.json();
-      S.authRequired = a.auth_required !== false; S.lock = a.lock || {};
-      if (a.locked) return showLock();
-      if (S.lock.pin || S.lock.faceid) {  // opening the app always asks for the PIN / Face ID
-        await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
-        return showLock();
-      }
+    if (!r.ok) return {status: r.status};
+    const a = await r.json(); S.authRequired = a.auth_required !== false; S.lock = a.lock || {}; return a;
+  } catch { return null; }
+}
+async function boot(){
+  const a = await refreshAuth();
+  if (a && a.status === 401) return showWelcome();
+  if (a && a.status === 429) return showWelcome('auto', 'Too many wrong tries - this connection is temporarily blocked.');
+  if (a && a.ok) {
+    if (a.locked) return showLock();
+    if (S.lock.pin || S.lock.faceid) {  // opening the app always asks for the PIN / Face ID
+      await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+      return showLock();
     }
-  } catch { /* offline: connect() will keep retrying */ }
+  }
   connect(); loadSecurity();
 }
 
-$('btnPause').onclick = () => api('/api/control/' + (S.state?.paused ? 'resume' : 'pause'), {reason:'dashboard'});
-$('btnFlatten').onclick = () => confirm('Close ALL open positions at market?') && api('/api/control/flatten', {reason:'dashboard flatten'});
-$('btnKill').onclick = () => confirm('Trip the kill switch? This halts new trades and flattens every position.') && api('/api/control/kill', {reason:'dashboard'});
+$('btnPause').onclick = () => togglePause();
+async function closeAll(){
+  if (!await ask('Close all trades?', 'Every open trade is sold at the current market price. The bots keep looking for new trades.', {ok: 'Close all', danger: true})) return;
+  const r = await api('/api/control/flatten', {reason: 'dashboard flatten'}); toast(r.closing ? `Closing ${r.closing} trade${r.closing > 1 ? 's' : ''}…` : 'No open trades to close', 'ok');
+}
+async function emergencyStop(){
+  if (!await ask('Emergency stop?', 'Stops all new trading and closes every open trade right away. You can restart afterwards.', {ok: 'Stop everything', danger: true})) return;
+  await api('/api/control/kill', {reason: 'dashboard'}); toast('Emergency stop is on - all trades are being closed', 'warn', 6000);
+}
+async function restartTrading(){
+  if (!await ask('Restart trading?', 'The bots will start looking for new trades again.', {ok: 'Restart'})) return;
+  await api('/api/control/reset', {}); toast('Trading restarted', 'ok');
+}
+async function togglePause(){
+  const paused = S.state?.paused;
+  await api('/api/control/' + (paused ? 'resume' : 'pause'), {reason: 'dashboard'});
+  toast(paused ? 'Trading resumed' : 'Trading paused - open trades keep their safety stops', paused ? 'ok' : 'warn');
+}
+$('btnFlatten').onclick = closeAll;
+$('btnKill').onclick = emergencyStop;
 // ---- paper / live switch ----
 const modal = $('liveModal');
 $('liveCancel').onclick = () => modal.classList.remove('open');
@@ -548,17 +802,17 @@ async function openLive(){
 $('liveFlatten').onclick = async () => { await api('/api/control/flatten', {reason:'switching to live'}); setTimeout(openLive, 1500); };
 $('liveGo').onclick = async () => {
   $('liveGo').disabled = true;
-  const t = await confirmWithToken('switch to LIVE, real-money trading');
+  const t = await confirmAction('switch to LIVE, real-money trading');
   if (t === null) { $('liveGo').disabled = false; return; }
-  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}, {'X-TZ-Confirm': t}); modal.classList.remove('open'); }
+  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}, t); modal.classList.remove('open'); }
   catch { openLive(); }
 };
 $('btnMode').onclick = async () => {
   if (!S.state) return;
   if (S.state.mode !== 'live') return openLive();
   const open = S.state.portfolio.positions.length;
-  if (open && !confirm(`Close all ${open} LIVE position(s) at market and switch back to PAPER?`)) return;
-  if (!open && !confirm('Switch back to PAPER trading? No more real orders will be sent.')) return;
+  if (!await ask('Back to practice money?', open ? `Your ${open} real-money trade${open > 1 ? 's' : ''} will be closed at market first. No more real orders will be sent.`
+                                                 : 'No more real orders will be sent.', {ok: open ? 'Close & switch' : 'Switch', danger: !!open})) return;
   const bm = $('btnMode'); bm.disabled = true; bm.dataset.long = open ? 'Closing positions…' : 'Switching…'; bm.dataset.short = 'Wait…'; applyLabels();
   try { await api('/api/mode', {mode:'paper', flatten:true}); } finally { bm.disabled = false; bm.dataset.long = 'Back to PAPER'; }
 };
@@ -591,36 +845,36 @@ $('grokTest').onclick = async () => { $('grokState').innerHTML = '🟡 Testing�
 $('grokForm').onsubmit = async e => {
   e.preventDefault();
   const key = $('grokKey').value.trim(), model = $('grokModel').value.trim(), mode = $('grokMode').value;
-  const t = await confirmWithToken('change the Grok connection settings'); if (t === null) return;
+  const t = await confirmAction('change the Grok connection settings'); if (t === null) return;
   $('grokState').innerHTML = '🟡 Connecting…'; $('grokErr').textContent = '';
   try {
-    const r = await api('/api/grok/config', {api_key: key || null, model, mode}, {'X-TZ-Confirm': t});
+    const r = await api('/api/grok/config', {api_key: key || null, model, mode}, t);
     $('grokState').innerHTML = grokStateHtml(r, r); $('grokKey').value = '';
   } catch (err) { $('grokErr').textContent = err.message || 'Could not save'; openGrok(false); }
 };
 $('grokForget').onclick = async () => {
-  const t = await confirmWithToken('remove the saved Grok key'); if (t === null) return;
-  await api('/api/grok/config', undefined, {'X-TZ-Confirm': t}, 'DELETE'); openGrok(false);
+  const t = await confirmAction('remove the saved Grok key'); if (t === null) return;
+  await api('/api/grok/config', undefined, t, 'DELETE'); openGrok(false);
 };
 const formData = f => Object.fromEntries(new FormData(f).entries());
 let walletsBuilt = '';
 $('linkForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
-  const t = await confirmWithToken(`link ${d.chain} wallet ${d.address.slice(0, 10)}… as a withdrawal destination`);
+  const t = await confirmAction(`link ${d.chain} wallet ${d.address.slice(0, 10)}… as a withdrawal destination`);
   if (t === null) return;
-  await api('/api/wallets', {chain:d.chain, address:d.address, tag:d.tag||null, label:d.label, no_tag_confirmed: !!d.no_tag_confirmed}, {'X-TZ-Confirm': t});
+  await api('/api/wallets', {chain:d.chain, address:d.address, tag:d.tag||null, label:d.label, no_tag_confirmed: !!d.no_tag_confirmed}, t);
   e.target.reset(); syncChainFields(); };
 $('wdForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
   const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
-  if (!confirm(`Withdraw ${d.amount} ${d.asset} to ${w.label}\n${w.address}${w.tag ? `\n${w.tag_name}: ${w.tag}` : ''}?`)) return;
-  const tok = await confirmWithToken(`withdraw ${d.amount} ${d.asset} to ${w.label}`);
+  if (!await ask(`Withdraw ${d.amount} ${d.asset}?`, `To ${w.label}\n${w.address}${w.tag ? `\n${w.tag_name}: ${w.tag}` : ''}`, {ok: 'Withdraw', danger: true})) return;
+  const tok = await confirmAction(`withdraw ${d.amount} ${d.asset} to ${w.label}`);
   if (tok === null) return;
-  const t = await api('/api/withdrawals', {wallet_id:d.wallet_id, asset:d.asset, amount:+d.amount}, {'X-TZ-Confirm': tok});
-  alert(`Withdrawal ${t.status}: ${t.note}`); e.target.reset(); };
+  const t = await api('/api/withdrawals', {wallet_id:d.wallet_id, asset:d.asset, amount:+d.amount}, tok);
+  toast(`Withdrawal ${t.status.replace('_', ' ')}: ${t.note}`, t.status === 'completed' ? 'ok' : 'warn', 6000); e.target.reset(); };
 $('depForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
   const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
   const t = await api('/api/deposits', {chain:w.chain, asset:d.asset, amount:+d.amount, tx_hash: d.tx_hash || ('sim-' + Math.random().toString(16).slice(2)),
     tag: w.tag_name ? w.deposit_tag : null, from_address: w.tag_name ? null : w.address});
-  alert(`Deposit ${t.status}: ${t.note}`); e.target.reset(); };
+  toast(`Deposit ${t.status}: ${t.note}`, t.status === 'completed' ? 'ok' : 'warn', 6000); e.target.reset(); };
 function syncChainFields(){
   const c = S.state?.wallets.chains[$('chainSel').value]; if (!c) return;
   $('tagInput').style.display = $('noTagRow').style.display = c.tag ? '' : 'none';
@@ -630,7 +884,7 @@ $('chainSel').onchange = syncChainFields;
 const assetOpts = (wid) => { const w = S.state.wallets.wallets.find(x => x.id === wid); return (w?.assets||[]).map(a => `<option>${esc(a)}</option>`).join(''); };
 $('wdWallet').onchange = () => $('wdAsset').innerHTML = assetOpts($('wdWallet').value);
 $('depWallet').onchange = () => $('depAsset').innerHTML = assetOpts($('depWallet').value);
-$('btnReset').onclick = () => confirm('Re-arm trading after kill switch?') && api('/api/control/reset', {});
+$('btnReset').onclick = restartTrading;
 
 function connect(){
   if (S.ws && S.ws.readyState <= 1) return;  // already connecting / connected
@@ -638,12 +892,12 @@ function connect(){
   ws.onopen = () => $('conn').textContent = '● live';
   ws.onclose = async (e) => {
     $('conn').textContent = '○ reconnecting…';
-    if (e.code === 4401) return askToken('Your session ended - please sign in again');
+    if (e.code === 4401) return showWelcome('auto', 'Your session ended - please sign in again');
     if (e.code === 4423) return refreshLock();
     if (e.code === 4403) { $('conn').textContent = '○ ' + (e.reason || 'connection refused'); return setTimeout(connect, 15000); }
     // a generic failure could still be auth (older server / proxy): probe before retrying
     try { const r = await fetch('/api/auth', {credentials: 'same-origin'});
-          if (r.status === 401) return askToken('Please enter the access token'); } catch {}
+          if (r.status === 401) return showWelcome(); } catch {}
     setTimeout(connect, 2000);
   };
   ws.onmessage = (m) => {
@@ -671,6 +925,7 @@ function connect(){
 
 function render(){
   const st = S.state, p = st.portfolio, perf = st.performance;
+  renderSimple(st);
   const fm = st.feed_status && st.feed_status.mode === 'stream' ? ' ⚡' : '';
   $('mode').textContent = (st.mode === 'live' ? 'LIVE · REAL MONEY' : 'PAPER') + ' · ' + st.feed + fm + ' → ' + st.broker;
   $('mode').title = st.feed_status && st.feed_status.mode === 'stream' ? 'Real-time price stream' : 'Polling prices';
@@ -752,10 +1007,10 @@ function render(){
       <div class="act">› ${esc(b.last_action)}</div>
       <div class="mets">${mets}${b.errors?`<span class="down">errors <b>${b.errors}</b></span>`:''}</div></div>`;
   }).join('');
-  document.querySelectorAll('button[data-bot]').forEach(btn => btn.onclick = (e) => {
+  document.querySelectorAll('button[data-bot]').forEach(btn => btn.onclick = async (e) => {
     e.stopPropagation();
     const on = btn.dataset.en !== 'true', b = st.bots.find(x => x.name === btn.dataset.bot);
-    if (!on && !confirm(`Disable ${b.title}? It will stop doing its job (${b.role}) until you enable it again.`)) return;
+    if (!on && !await ask(`Switch off ${b.title}?`, `It will stop doing its job (${b.role}) until you switch it back on.`, {ok: 'Switch off', danger: true})) return;
     api('/api/bots/' + btn.dataset.bot, {enabled: on});
   });
   document.querySelectorAll('[data-card]').forEach(c => c.onclick = () => openBot(c.dataset.card));
@@ -801,7 +1056,9 @@ function renderWallets(st){
     w.tag ? `<span class="tagchip">${esc(w.tag)}</span>` : (w.tag_name ? '<span class="muted">none</span>' : '<span class="muted">n/a</span>'),
     w.tag_name ? `<span class="tagchip" title="Send deposits with this ${esc(w.tag_name)}">${esc(w.deposit_tag)}</span>` : '<span class="muted">by sender</span>',
     `<button class="switch" data-unlink="${w.id}">Unlink</button>`]), 'No wallets linked');
-  document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => confirm('Unlink this wallet?') && api('/api/wallets/' + b.dataset.unlink, undefined, {}, 'DELETE'));
+  document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => {
+    if (await ask('Unlink this wallet?', 'You can link it again later (with a new 24-hour wait).', {ok: 'Unlink', danger: true})) {
+      await api('/api/wallets/' + b.dataset.unlink, undefined, {}, 'DELETE'); toast('Wallet unlinked'); } });
   $('transferList').innerHTML = table(['Time','Type','Amount','USD','Tag','Status'], W.transfers.map(t => [
     time(t.ts), t.kind === 'deposit' ? '<span class="up">deposit</span>' : '<span class="down">withdrawal</span>',
     `${num(t.amount)} ${esc(t.asset)}`, money(t.usd_value), t.tag ? `<span class="tagchip">${esc(t.tag)}</span>` : '—',
@@ -865,7 +1122,7 @@ function streamItem(kind, d){
   const it = kind === 'action'
     ? {kind, ts: d.ts, bot: d.bot, who: d.title, level: d.level, text: d.message}
     : {kind, ts: d.ts, bot: d.source, who: botTitle(d.source), topic: d.topic, level: d.topic === 'alert' ? d.payload.level : 'info',
-       text: `${d.topic} · ${describe(d)}`};
+       text: `${d.topic} · ${describe(d)}`, raw: d.payload};
   it.cat = catOf(it);
   return it;
 }
@@ -887,6 +1144,7 @@ function onEvent(e){
 }
 function renderStream(){
   STREAM.pending = false;
+  if (S.state && S.view === 'simple') renderSimple(S.state);
   const f = STREAM.filter, box = $('stream');
   const list = STREAM.items.filter(it => f === 'all' || it.cat === f || it.bot === f).slice(-250).reverse();
   box.innerHTML = list.map((it, i) => `<div class="it${i < 3 ? ' new' : ''} lvl-${it.level === 'critical' ? 'critical' : it.level === 'warning' ? 'warning' : ''}">
@@ -960,6 +1218,7 @@ function tradeCard(t, isNew){
     ${t.reason ? `<div class="why">${esc(t.reason)}</div>` : ''}</div>`;
 }
 function renderTrades(newCount = 0){
+  if (S.state && S.view === 'simple') renderSimple(S.state);
   if (window.innerWidth <= 700) {
     $('tlTable').innerHTML = TL.items.length ? TL.items.map((t, i) => tradeCard(t, i < newCount)).join('')
       : '<div class="empty">No trades yet - the log fills in as the bots trade</div>';
@@ -1004,42 +1263,29 @@ function credToJSON(c){
     out.response.signature = bufToB64u(r.signature); if (r.userHandle) out.response.userHandle = bufToB64u(r.userHandle); }
   return out;
 }
-const LOCK = {pin: ''};
-function buildKeypad(){
-  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
-  $('keypad').innerHTML = keys.map(k => k ? `<button type="button" class="${k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>` : '<span></span>').join('');
-  $('keypad').querySelectorAll('button').forEach(b => b.onclick = () => pinKey(b.dataset.k));
+async function webauthnGet(opts){
+  opts.challenge = b64uToBuf(opts.challenge);
+  (opts.allowCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
+  return credToJSON(await navigator.credentials.get({publicKey: opts}));
 }
-function drawDots(){ [...$('pinDots').children].forEach((d, i) => d.classList.toggle('on', i < LOCK.pin.length)); }
-function pinKey(k){
-  if (k === '⌫') LOCK.pin = LOCK.pin.slice(0, -1);
-  else if (LOCK.pin.length < 6) LOCK.pin += k;
-  drawDots();
-  if (LOCK.pin.length === 6) submitPin();
-}
-async function submitPin(){
-  const pin = LOCK.pin; LOCK.pin = '';
+const lockPad = PinPad($('keypad'), $('pinDots'), async pin => {
   try {
     const r = await fetch('/api/unlock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin})});
     const j = await r.json().catch(() => ({}));
     if (r.ok) return unlocked();
-    $('pinDots').classList.remove('shake'); void $('pinDots').offsetWidth; $('pinDots').classList.add('shake');
-    if (r.status === 401) { hideLock(); return askToken(j.detail || 'Please sign in again'); }
+    lockPad.shake();
+    if (r.status === 401) return showWelcome('auto', j.detail || 'Please sign in again');
     $('lockErr').textContent = j.detail || 'Could not unlock';
   } catch { $('lockErr').textContent = 'Cannot reach the server'; }
-  drawDots();
-}
+});
 async function faceUnlock(){
   $('lockErr').textContent = '';
   try {
     const r = await fetch('/api/webauthn/auth/options', {method: 'POST', credentials: 'same-origin'});
     const opts = await r.json();
     if (!r.ok) { $('lockErr').textContent = opts.detail || 'Face ID unavailable'; return; }
-    opts.challenge = b64uToBuf(opts.challenge);
-    (opts.allowCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
-    const cred = await navigator.credentials.get({publicKey: opts});
     const v = await fetch('/api/webauthn/auth/verify', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({credential: credToJSON(cred)})});
+      body: JSON.stringify({credential: await webauthnGet(opts)})});
     if (v.ok) return unlocked();
     $('lockErr').textContent = (await v.json().catch(() => ({}))).detail || 'Face ID check failed';
   } catch (e) { $('lockErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or use your PIN' : 'Face ID failed: ' + e.message; }
@@ -1049,24 +1295,23 @@ function showLock(){
   S.locked = true;
   try { S.ws && S.ws.close(); } catch {}
   document.body.classList.add('locked');
-  LOCK.pin = ''; drawDots(); $('lockErr').textContent = '';
+  $('lockErr').textContent = '';
   const hasPin = !!(S.lock && S.lock.pin), hasFace = !!(S.lock && S.lock.faceid) && faceSupported();
   $('pinDots').style.display = $('keypad').style.display = hasPin ? '' : 'none';
   $('lockHint').textContent = hasPin ? 'Enter your 6-digit PIN' : 'Use Face ID to continue';
   $('btnFaceUnlock').style.display = hasFace ? '' : 'none';
   $('lockScreen').classList.add('open');
+  lockPad.activate();
 }
 function hideLock(){ S.locked = false; document.body.classList.remove('locked'); $('lockScreen').classList.remove('open'); }
 function unlocked(){ hideLock(); connect(); loadTrades(true); loadSecurity(); }
 async function refreshLock(){
-  try { const r = await fetch('/api/auth', {credentials: 'same-origin'}); if (!r.ok) return;
-        const a = await r.json(); S.lock = a.lock || {}; if (a.locked) showLock(); } catch {}
+  const a = await refreshAuth();
+  if (a && a.status === 401) return showWelcome('auto', 'Your session ended - please sign in again');
+  if (a && a.locked) showLock();
 }
-buildKeypad();
 $('btnFaceUnlock').onclick = faceUnlock;
-$('lockUseToken').onclick = async () => { await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); hideLock(); askToken(''); };
-document.addEventListener('keydown', e => { if (!S.locked || !$('lockScreen').classList.contains('open')) return;
-  if (/^[0-9]$/.test(e.key)) pinKey(e.key); else if (e.key === 'Backspace') pinKey('⌫'); });
+$('lockUseToken').onclick = async () => { await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); showWelcome('recover'); };
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
@@ -1081,11 +1326,14 @@ setInterval(() => { if (!S.locked && document.visibilityState === 'visible') ref
 async function lockNow(){ await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); await refreshLock(); }
 $('btnLockNow').onclick = $('btnLockNow2').onclick = lockNow;
 
-// ---- PIN setup / Face ID enrolment ----
-function openPinSetup(first){
-  $('pinSetupTitle').textContent = first ? 'Protect TradeZone with a PIN' : (S.lock && S.lock.pin ? 'Change your PIN' : 'Set a PIN');
+// ---- change PIN / Face ID enrolment ----
+const PS = {afterRecovery: false};
+function openPinSetup(afterRecovery = false){
+  PS.afterRecovery = afterRecovery;
+  $('pinSetupTitle').textContent = afterRecovery ? 'Choose a new PIN' : 'Change your PIN';
   $('pinLockMin').textContent = Math.round((S.lock && S.lock.lock_after_min) || 5);
   $('pin1').value = $('pin2').value = ''; $('pinSetupErr').textContent = '';
+  $('pinSetupSkip').style.display = afterRecovery ? 'none' : '';
   $('pinSetupModal').classList.add('open'); setTimeout(() => $('pin1').focus(), 50);
 }
 $('pinSetupSkip').onclick = () => $('pinSetupModal').classList.remove('open');
@@ -1094,24 +1342,24 @@ $('pinSetupForm').onsubmit = async e => {
   const p1 = $('pin1').value.trim(), p2 = $('pin2').value.trim();
   if (!/^\d{6}$/.test(p1)) { $('pinSetupErr').textContent = 'The PIN must be exactly 6 digits.'; return; }
   if (p1 !== p2) { $('pinSetupErr').textContent = "The two PINs don't match."; return; }
-  const t = await confirmWithToken('set a new app PIN');
-  if (t === null) return;
-  const r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-TZ-Confirm': t},
+  const h = PS.afterRecovery ? {} : await confirmAction('change your PIN');  // after recovery the old PIN is unknown
+  if (h === null) return;
+  const r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', ...h},
     body: JSON.stringify({pin: p1})});
   const j = await r.json().catch(() => ({}));
   if (!r.ok) { $('pinSetupErr').textContent = j.detail || 'Could not save the PIN'; return; }
   $('pinSetupModal').classList.remove('open');
+  toast('Your new PIN is saved', 'ok');
   await refreshLock(); loadSecurity();
-  if (faceSupported() && !(S.lock && S.lock.faceid) && confirm('PIN saved. Also unlock with Face ID on this device?')) enrollFace();
 };
-async function enrollFace(){
-  if (!faceSupported()) return alert('This browser or device does not support Face ID / passkeys. Use Safari on iPhone (iOS 16+) or a recent Chrome.');
-  const t = await confirmWithToken('turn on Face ID unlock for this device');
-  if (t === null) return;
+async function enrollFace(preConfirmed){
+  if (!faceSupported()) return toast("This device or browser can't do Face ID here. Use Safari on iPhone (iOS 16+) or a recent Chrome.", 'warn', 6000);
+  const h = preConfirmed || await confirmAction('turn on Face ID for this device');
+  if (h === null) return;
   try {
-    const r = await fetch('/api/webauthn/register/options', {method: 'POST', credentials: 'same-origin', headers: {'X-TZ-Confirm': t}});
+    const r = await fetch('/api/webauthn/register/options', {method: 'POST', credentials: 'same-origin', headers: h});
     const opts = await r.json();
-    if (!r.ok) return alert(opts.detail || 'Could not start Face ID setup');
+    if (!r.ok) return toast(opts.detail || 'Could not start Face ID setup', 'error');
     opts.challenge = b64uToBuf(opts.challenge); opts.user.id = b64uToBuf(opts.user.id);
     (opts.excludeCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
     const cred = await navigator.credentials.create({publicKey: opts});
@@ -1119,49 +1367,73 @@ async function enrollFace(){
     const v = await fetch('/api/webauthn/register/verify', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({credential: credToJSON(cred), label})});
     const j = await v.json().catch(() => ({}));
-    if (!v.ok) return alert(j.detail || 'Face ID setup failed');
-    await refreshLock(); loadSecurity(); alert('Face ID is on. Next time the app locks, tap "Unlock with Face ID".');
-  } catch (e) { if (e.name !== 'NotAllowedError') alert('Face ID setup failed: ' + e.message); }
+    if (!v.ok) return toast(j.detail || 'Face ID setup failed', 'error');
+    await refreshLock(); loadSecurity(); toast('Face ID is on. You can now unlock and sign in with your face.', 'ok', 5000);
+  } catch (e) { if (e.name !== 'NotAllowedError') toast('Face ID setup failed: ' + e.message, 'error'); }
 }
 $('btnSetPin').onclick = () => openPinSetup(false);
-$('btnAddFace').onclick = enrollFace;
+$('btnAddFace').onclick = () => enrollFace();
 $('btnRemovePin').onclick = async () => {
-  if (!confirm('Remove the app PIN? Anyone holding this unlocked device could then open TradeZone.')) return;
-  const t = await confirmWithToken('remove the app PIN'); if (t === null) return;
-  await api('/api/applock/pin', undefined, {'X-TZ-Confirm': t}, 'DELETE'); await refreshLock(); loadSecurity();
+  if (!await ask('Remove your PIN?', 'You will unlock with Face ID only.', {ok: 'Remove PIN', danger: true})) return;
+  const h = await confirmAction('remove your PIN'); if (h === null) return;
+  await api('/api/applock/pin', undefined, h, 'DELETE'); toast('PIN removed'); await refreshLock(); loadSecurity();
 };
 async function loadAppLock(){
   let d; try { d = await api('/api/applock'); } catch { return; }
   const here = d.passkeys.filter(p => p.rp_id === d.rp_id);
   $('lockStatus').innerHTML = d.enabled
     ? `<b style="color:var(--up)">On</b> · ${d.pin ? 'PIN set' : 'no PIN'} · ${here.length ? here.length + ' Face ID key' + (here.length > 1 ? 's' : '') : 'no Face ID'} · asks every time you open the app, after 1 min in the background, and after ${Math.round(d.lock_after_min)} min idle`
-    : '<b style="color:var(--warn)">Off</b> · anyone holding a signed-in device can open TradeZone. Set a PIN and/or Face ID.';
+    : '<b style="color:var(--warn)">Off</b> · set a PIN so nobody else can open TradeZone on this device.';
   $('btnSetPin').textContent = d.pin ? 'Change PIN' : 'Set PIN';
-  $('btnRemovePin').style.display = d.pin ? '' : 'none';
+  $('btnRemovePin').style.display = d.pin && here.length ? '' : 'none';
   $('btnAddFace').style.display = faceSupported() ? '' : 'none';
   $('btnLockNow').style.display = d.enabled ? '' : 'none';
   $('btnLockNow2').style.display = d.enabled ? '' : 'none';
   $('faceKeys').innerHTML = here.length ? table(['Face ID key','Added','Last used',''], here.map(p => [esc(p.label), esc(new Date(p.created * 1000).toLocaleDateString()),
     esc(p.last_used ? new Date(p.last_used * 1000).toLocaleString() : '—'), `<button class="switch" data-rmkey="${esc(p.id)}">Remove</button>`])) : '';
   document.querySelectorAll('[data-rmkey]').forEach(b => b.onclick = async () => {
-    if (!confirm('Remove this Face ID key?')) return;
-    const t = await confirmWithToken('remove a Face ID key'); if (t === null) return;
-    await api('/api/webauthn/passkeys/' + encodeURIComponent(b.dataset.rmkey), undefined, {'X-TZ-Confirm': t}, 'DELETE'); refreshLock(); loadSecurity(); });
+    if (!await ask('Remove this Face ID key?', 'That device will need your PIN or a pairing code to get back in.', {ok: 'Remove', danger: true})) return;
+    const h = await confirmAction('remove a Face ID key'); if (h === null) return;
+    await api('/api/webauthn/passkeys/' + encodeURIComponent(b.dataset.rmkey), undefined, h, 'DELETE'); toast('Face ID key removed'); refreshLock(); loadSecurity(); });
 }
 
-// =================== step-up confirmation ===================
-function confirmWithToken(what){
-  if (!S.authRequired) return Promise.resolve('');
+// =================== confirm it's you: PIN or Face ID (instead of the access token) ===================
+const C = {done: null};
+const cPad = PinPad($('cPad'), $('cDots'), pin => C.done && C.done({'X-TZ-PIN': pin}));
+function confirmAction(what){
+  const L = S.lock || {};
+  if (!S.authRequired || (!L.pin && !L.faceid)) return Promise.resolve({});
   return new Promise(resolve => {
-    $('reauthWhat').textContent = 'You are about to ' + what + '.';
-    $('reauthToken').value = '';
-    $('reauthModal').classList.add('open');
-    setTimeout(() => $('reauthToken').focus(), 50);
-    const done = v => { $('reauthModal').classList.remove('open'); $('reauthForm').onsubmit = $('reauthCancel').onclick = null; resolve(v); };
-    $('reauthForm').onsubmit = e => { e.preventDefault(); done($('reauthToken').value.trim()); };
-    $('reauthCancel').onclick = () => done(null);
+    const face = L.faceid && faceSupported();
+    $('cWhat').textContent = `To ${what}, ${L.pin ? 'enter your PIN' : ''}${L.pin && face ? ' or ' : ''}${face ? 'use Face ID' : ''}.`;
+    $('cDots').style.display = $('cPad').style.display = L.pin ? '' : 'none';
+    $('cFace').style.display = face ? '' : 'none';
+    $('cErr').textContent = '';
+    $('confirmSheet').classList.add('open'); cPad.activate();
+    C.done = v => { $('confirmSheet').classList.remove('open'); C.done = null; ACTIVE_PAD = null; resolve(v); };
   });
 }
+$('cCancel').onclick = () => C.done && C.done(null);
+$('cFace').onclick = async () => {
+  try {
+    const o = await api('/api/confirm/faceid/options', {});
+    await api('/api/confirm/faceid/verify', {credential: await webauthnGet(o)});
+    C.done && C.done({});
+  } catch (e) { $('cErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled' : (e.message || 'Face ID failed'); }
+};
+let pairTimer = null;
+async function addDevice(){
+  const h = await confirmAction('let a new device sign in'); if (h === null) return;
+  const d = await api('/api/devices/pair', {}, h);
+  $('pairCode').textContent = d.code; $('pairSheet').classList.add('open');
+  const until = Date.now() + d.expires_in * 1000;
+  clearInterval(pairTimer);
+  const tick = () => { const s = Math.max(0, Math.round((until - Date.now()) / 1000));
+    $('pairLeft').textContent = s ? `Expires in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} · works once` : 'Expired - make a new code';
+    if (!s) clearInterval(pairTimer); };
+  tick(); pairTimer = setInterval(tick, 1000);
+}
+$('pairClose').onclick = () => { $('pairSheet').classList.remove('open'); clearInterval(pairTimer); };
 
 // =================== security panel ===================
 function deviceName(ua){
@@ -1185,15 +1457,171 @@ async function loadSecurity(){
     `<span class="mono">${esc(b.ip)}</span>`, esc(new Date(b.until * 1000).toLocaleString()), b.strikes, esc(b.reason),
     `<button class="switch" data-unban="${esc(b.ip)}">Unban</button>`]), 'Nobody is blocked');
   document.querySelectorAll('[data-unban]').forEach(b => b.onclick = async () => {
-    if (confirm(`Unblock ${b.dataset.unban}?`)) { await api('/api/security/unban', {ip: b.dataset.unban}); loadSecurity(); } });
+    if (await ask(`Unblock ${b.dataset.unban}?`, 'It was blocked after repeated failed sign-ins.', {ok: 'Unblock'})) { await api('/api/security/unban', {ip: b.dataset.unban}); toast('Unblocked'); loadSecurity(); } });
   $('secEvents').innerHTML = d.events.map(e => `<div class="lvl-${e.level}"><span class="t">${hms(e.ts)}</span> <b>${esc(e.kind.replace(/_/g, ' '))}</b> <span class="mono muted">${esc(e.ip)}</span> ${esc(e.detail)}</div>`).join('')
     || '<div class="empty">No security events yet</div>';
 }
 $('btnSignout').onclick = async () => { await api('/api/logout', {}); location.reload(); };
 $('btnSignoutAll').onclick = async () => {
-  if (!confirm('Sign out every device, including this one? Anyone using a stolen session is cut off immediately.')) return;
+  if (!await ask('Sign out every device?', 'Including this one. Anyone using a stolen session is cut off immediately.', {ok: 'Sign out all', danger: true})) return;
   await api('/api/security/signout-all', {}); location.reload(); };
 setInterval(() => { if (document.visibilityState === 'visible' && S.state) loadSecurity(); }, 15000);
+
+// =================== Simple view: the friendly home screen ===================
+const px = v => v == null ? '—' : Math.abs(v) >= 1 ? money(v) : '$' + num(v);
+function ago(ts){
+  const s = Date.now() / 1000 - ts;
+  if (s < 45) return 'just now';
+  if (s < 3600) return Math.round(s / 60) + ' min ago';
+  if (s < 86400) return Math.round(s / 3600) + ' h ago';
+  return new Date(ts * 1000).toLocaleDateString([], {month: 'short', day: 'numeric'});
+}
+function friendlyReason(r){
+  r = String(r || '');
+  if (/partial take-profit/.test(r)) return 'Banked half the profit at the first target';
+  if (/stop hit/.test(r)) return 'Safety stop reached';
+  if (/take-profit hit/.test(r)) return 'Profit target reached';
+  if (/kill switch|manual kill/.test(r)) return 'Emergency stop';
+  if (/flatten/.test(r)) return 'You closed it';
+  if (/switching to/.test(r)) return 'Closed when switching money mode';
+  const lead = r.split(' | ')[0].replace(/\(score [^)]*\)/, '').replace(/; consensus.*/, '');
+  return lead.length > 70 ? lead.slice(0, 70) + '…' : lead;
+}
+function plainEvent(it){  // one plain-English sentence for the "What's happening" card, or null
+  const p = it.raw || {}, who = botTitle(it.bot);
+  switch (it.topic) {
+    case 'trade.log':
+      if (p.action === 'open' || p.action === 'add') return ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
+      return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
+        `${p.action === 'partial' ? 'Sold half of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
+    case 'signal.proposed':
+      return p.kind === 'entry' && p.source === 'quant' ? ['💡', COLORS.quant, `Quant spotted a chance to ${p.side} ${p.symbol} and asked the team`] : null;
+    case 'signal.reviewed':
+      return p.approved ? ['🤖', '#e5e5e5', `Grok agreed with buying ${p.signal.symbol} (${Math.round(p.confidence * 100)}% sure)`]
+                        : ['🤖', '#e5e5e5', `Grok said no to ${p.signal.symbol}: ${p.rationale}`];
+    case 'signal.rejected': return ['🛡️', COLORS.risk, `Risk Manager passed on ${p.signal.symbol}: ${p.reason}`];
+    case 'order.held': return ['★', COLORS.executive, `Executive held off on ${p.request.symbol}: ${p.reason}`];
+    case 'order.authorized': return null;
+    case 'alert': return p.level === 'info' ? null : ['⚠️', 'var(--warn)', p.message];
+    default: return null;
+  }
+}
+function renderSimple(st){
+  if (S.view !== 'simple' || !st) return;
+  const p = st.portfolio, live = st.mode === 'live';
+  $('sMode').textContent = live ? '💵 Real money' : '🧪 Practice money';
+  $('sModeHint').textContent = live ? '· trading your broker account' : '· live prices, nothing real at risk';
+  $('sBal').textContent = money(p.equity);
+  const today = p.equity * p.daily_pnl_pct / (1 + p.daily_pnl_pct);
+  $('sToday').innerHTML = `<span class="${cls(today)}">${today >= 0 ? '▲ +' : '▼ -'}${money(Math.abs(today))} today (${today >= 0 ? '+' : ''}${pct(p.daily_pnl_pct)})</span>`;
+  $('sSince').textContent = `${p.total_pnl >= 0 ? 'Up' : 'Down'} ${money(Math.abs(p.total_pnl))} since you started (${p.return_pct >= 0 ? '+' : ''}${pct(p.return_pct)})`;
+  // status in one sentence
+  const fs = st.feed_status || {}, ex = st.executive || {}, n = p.positions.length;
+  let txt, kind = '';
+  if (st.halted) { txt = `Emergency stop is on (${st.halt_reason}). No new trades until you restart.`; kind = 'stop'; }
+  else if (st.paused) { txt = 'Trading is paused. Open trades keep their safety stops.'; kind = 'warn'; }
+  else if (fs.ok === false) { txt = 'Waiting for market prices…'; kind = 'warn'; }
+  else if (fs.warming_up) { txt = `Getting ready: loading prices (${fs.warming_up.done}/${fs.warming_up.needed})…`; kind = 'warn'; }
+  else if (st.grok && st.grok.configured && st.grok.mode === 'veto' && st.grok.connected === false) { txt = "New trades are on hold: Grok can't connect. Tap Grok AI below."; kind = 'warn'; }
+  else txt = `Your bots are watching ${Object.keys(st.prices).length} markets${n ? ` with ${n} open trade${n > 1 ? 's' : ''}` : ''}` +
+             (ex.stance === 'defensive' ? ' · playing it safe after some losses' : '') + '.';
+  $('sStatus').className = 'statusline ' + kind; $('sStatusText').textContent = txt;
+  // big buttons
+  $('sPause').textContent = st.halted ? 'Restart trading' : st.paused ? 'Resume trading' : 'Pause trading';
+  $('sPause').className = st.halted || st.paused ? 'gopaper' : '';
+  $('sClose').disabled = !n;
+  $('sLive').textContent = live ? 'Back to practice money' : 'Use real money';
+  $('sLive').className = live ? 'gopaper' : 'golive';
+  $('sLive').disabled = !live && !st.live.available;
+  $('sLive').title = !live && !st.live.available ? 'Real-money trading isn\'t set up on the server yet' : '';
+  // open trades
+  $('sOpenN').textContent = n ? `${n} open` : '';
+  $('sOpen').innerHTML = n ? p.positions.map(x => {
+    const upl = x.unrealized_pnl, cost = Math.abs(x.qty * x.avg_price), r = cost ? upl / cost : 0;
+    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
+    const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
+      : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
+    return `<div class="ptrade"><div class="s">${esc(x.symbol)}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
+      <div class="d">${x.qty > 0 ? 'Bought' : 'Sold'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
+      <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
+      ${prot ? `<div class="d" style="grid-column:1/-1">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
+  }).join('') : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';
+  // what's happening (plain English, newest first, no repeats)
+  const lines = [], seen = new Set();
+  for (let i = STREAM.items.length - 1; i >= 0 && lines.length < 7; i--) {
+    const it = STREAM.items[i]; if (it.kind !== 'event') continue;
+    const h = plainEvent(it); if (!h || seen.has(h[2])) continue;
+    seen.add(h[2]); lines.push([...h, it.ts]);
+  }
+  $('sHappen').innerHTML = lines.length ? lines.map(([ic, c, t, ts]) =>
+    `<div class="happen"><div class="ic" style="background:${c}">${ic}</div><div>${esc(t)}</div><div class="tm">${ago(ts)}</div></div>`).join('')
+    : '<div class="emptyhint">Quiet so far. The bots are watching the markets and will report here.</div>';
+  // latest results
+  const closes = TL.items.filter(t => t.pnl != null).slice(0, 5);
+  $('sResults').innerHTML = closes.length ? closes.map(t => `<div class="happen"><div class="ic" style="background:${t.pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${t.pnl >= 0 ? '▲' : '▼'}</div>
+      <div>${t.action === 'partial' ? 'Half of ' : ''}${esc(t.symbol)} <b class="${cls(t.pnl)}">${t.pnl >= 0 ? '+' : '-'}${money(Math.abs(t.pnl))}</b>
+      <div class="muted" style="font-size:12px">${esc(friendlyReason(t.reason))}</div></div><div class="tm">${ago(t.ts)}</div></div>`).join('')
+    : '<div class="emptyhint">No finished trades yet.</div>';
+  // the team
+  const now = Date.now() / 1000;
+  const team = ORDER.map(nm => st.bots.find(b => b.name === nm)).filter(Boolean);
+  $('sTeam').innerHTML = team.map(b => {
+    const busy = b.enabled && b.last_action_ts && now - b.last_action_ts < 6;
+    return `<div class="mate${busy ? ' busy' : ''}" data-mate="${b.name}" style="--c:${COLORS[b.name]}" title="${esc(b.last_action)}">
+      <div class="avatar" style="background:${COLORS[b.name]}">${b.name === 'executive' ? '★' : esc(b.title[0])}</div>
+      <div>${esc(b.title)}<div class="st">${!b.enabled ? 'off' : busy ? 'working…' : 'ready'}</div></div></div>`;
+  }).join('');
+  document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
+}
+$('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();
+$('sClose').onclick = closeAll;
+$('sStop').onclick = emergencyStop;
+$('sLive').onclick = () => $('btnMode').onclick();
+$('sGrokLink').onclick = () => openGrok(false);
+$('btnPair').onclick = addDevice;
+document.querySelectorAll('[data-jump]').forEach(a => a.onclick = () => {
+  if (a.dataset.pro) setView('pro');
+  setTimeout(() => scrollToSection(a.dataset.jump), 50);
+});
+
+// =================== Simple / Pro view + bottom navigation ===================
+const NAV = {
+  simple: [['top', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'],
+           ['sec-happening', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
+           ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+           ['sec-wallet', 'Wallet', '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>'],
+           ['sec-security', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']],
+  pro:    [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
+           ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],
+           ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+           ['sec-activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
+           ['sec-security', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>']],
+};
+function scrollToSection(id){
+  if (id === 'top') return window.scrollTo({top: 0, behavior: 'smooth'});
+  const el = $(id); if (!el) return;
+  window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - $('top').offsetHeight - 8, behavior: 'smooth'});
+}
+function updateNav(){
+  const items = NAV[S.view] || NAV.simple;
+  $('bottomnav').innerHTML = items.map(([id, label, icon], i) => `<a href="#${id}" data-sec="${id}" class="${i ? '' : 'on'}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>${label}</a>`).join('');
+  $('bottomnav').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); scrollToSection(a.dataset.sec); });
+}
+window.addEventListener('scroll', () => {
+  const hdr = $('top').offsetHeight; let cur = 'top';
+  for (const [id] of (NAV[S.view] || []).slice(1)) { const el = $(id); if (el && el.offsetParent && el.getBoundingClientRect().top - hdr < innerHeight * 0.35) cur = id; }
+  document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.sec === cur));
+}, {passive: true});
+function setView(v){
+  S.view = v === 'pro' ? 'pro' : 'simple';
+  document.body.classList.toggle('simple', S.view === 'simple');
+  document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  try { localStorage.setItem('tz_view', S.view); } catch {}
+  updateNav();
+  if (S.state) render();
+}
+document.querySelectorAll('#viewToggle button').forEach(b => b.onclick = () => setView(b.dataset.view));
 
 function describe(e){
   const p = e.payload || {};
@@ -1254,25 +1682,12 @@ function applyLabels(){
   document.querySelectorAll('[data-long]').forEach(b => { const t = small ? b.dataset.short : b.dataset.long; if (b.textContent !== t) b.textContent = t; });
 }
 window.addEventListener('resize', applyLabels);
-// bottom nav: smooth scroll + highlight the section in view
-document.querySelectorAll('#bottomnav a').forEach(a => a.onclick = e => {
-  e.preventDefault();
-  const el = a.dataset.sec === 'top' ? document.body : $(a.dataset.sec);
-  const offset = $('top').offsetHeight + 8;  // keep the section title clear of the sticky header
-  window.scrollTo({top: a.dataset.sec === 'top' ? 0 : el.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth'});
-});
-(function(){
-  const ids = ['sec-bots','sec-activity','tradelog','sec-wallet'];
-  const onScroll = () => {
-    let cur = 'top';
-    const hdr = $('top').offsetHeight;
-    for (const id of ids) { const el = $(id); if (el && el.getBoundingClientRect().top - hdr < window.innerHeight * 0.35) cur = id; }
-    document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.sec === cur));
-  };
-  window.addEventListener('scroll', onScroll, {passive: true});
-})();
+
 window.addEventListener('unhandledrejection', e => e.preventDefault());  // api() already alerted
 window.addEventListener('resize', () => S.state && render());
+let startView = 'simple';
+try { startView = localStorage.getItem('tz_view') || 'simple'; } catch {}
+setView(startView);
 boot();
 </script>
 </body>

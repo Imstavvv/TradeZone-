@@ -24,12 +24,14 @@ import json
 import re
 import secrets
 import threading
+import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.parse import urlsplit
 
+log = logging.getLogger("tradezone.security")
 SESSION_COOKIE = "tz_session"
 SESSION_TTL_S = 30 * 24 * 3600  # sliding: refreshed on use
 SCHEMA = """
@@ -68,6 +70,7 @@ class SecurityConfig:
     max_ws_per_ip: int = 6
     max_ws_total: int = 60
     lock_after_min: float = 5.0
+    public: bool = False  # served beyond localhost: sign-in is always required
 
 
 class SecurityManager:
@@ -90,6 +93,10 @@ class SecurityManager:
         from .applock import AppLock
 
         self.lock = AppLock(journal, cfg.lock_after_min)
+        self._pairing: dict[str, list[float]] = {}  # code -> [expires, attempts]
+        self.recovery_code = ""
+        self._recovery_attempts = 0
+        self.rotate_recovery_code()
 
     @staticmethod
     def sid_hash(sid: str) -> str:
@@ -108,7 +115,66 @@ class SecurityManager:
     # --------------------------------------------------------- firewall
     @property
     def auth_required(self) -> bool:
-        return bool(self.cfg.token)
+        """Sign-in is needed on any public site, once an owner PIN/Face ID exists, or with a token set."""
+        return bool(self.cfg.token) or self.cfg.public or self.lock.enabled
+
+    @property
+    def owner_exists(self) -> bool:
+        return self.lock.enabled
+
+    # ------------------------------------------------- setup / recovery / pairing codes
+    RECOVERY_MAX_ATTEMPTS = 10
+    PAIRING_TTL_S = 300
+    PAIRING_MAX_ATTEMPTS = 5
+
+    def rotate_recovery_code(self) -> None:
+        """A one-time code shown only in the server logs: used for first setup and lost-device recovery."""
+        n = secrets.randbelow(10**8)
+        self.recovery_code = f"{n // 10**4:04d}-{n % 10**4:04d}"
+        self._recovery_attempts = 0
+        log.warning("=" * 60)
+        log.warning("  TradeZone %s code: %s", "recovery" if self.owner_exists else "SETUP", self.recovery_code)
+        log.warning("  Enter it on the website to %s.",
+                    "recover access" if self.owner_exists else "create your PIN")
+        log.warning("=" * 60)
+
+    def check_recovery(self, code: str | None) -> bool:
+        """The logged setup/recovery code (any formatting), or the API token if one is configured."""
+        code = (code or "").strip()
+        if self.check_token(code):
+            return True
+        digits = "".join(c for c in code if c.isdigit())
+        ok = len(digits) == 8 and hmac.compare_digest(digits, self.recovery_code.replace("-", ""))
+        if ok:
+            self.rotate_recovery_code()  # single use
+            return True
+        self._recovery_attempts += 1
+        if self._recovery_attempts >= self.RECOVERY_MAX_ATTEMPTS:
+            self.audit("recovery_code_rotated", "", "too many wrong codes - new code written to the logs",
+                       level="critical")
+            self.rotate_recovery_code()
+        return False
+
+    def create_pairing_code(self) -> str:
+        now = time.time()
+        self._pairing = {k: v for k, v in self._pairing.items() if v[0] > now}
+        code = f"{secrets.randbelow(10**6):06d}"
+        self._pairing[code] = [now + self.PAIRING_TTL_S, 0]
+        return code
+
+    def redeem_pairing_code(self, code: str | None) -> bool:
+        code = "".join(c for c in (code or "") if c.isdigit())
+        now = time.time()
+        for k, v in list(self._pairing.items()):
+            if v[0] <= now:
+                self._pairing.pop(k, None)
+        if code in self._pairing:
+            self._pairing.pop(code)
+            return True
+        for v in self._pairing.values():  # every wrong guess burns attempts on all live codes
+            v[1] += 1
+        self._pairing = {k: v for k, v in self._pairing.items() if v[1] < self.PAIRING_MAX_ATTEMPTS}
+        return False
 
     def allowed(self, ip: str) -> bool:
         if not self.networks:

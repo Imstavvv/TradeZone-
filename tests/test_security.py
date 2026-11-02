@@ -182,13 +182,15 @@ def test_going_live_needs_the_token_again():
         assert c.post("/api/mode", json={"mode": "live", "confirm": "LIVE"}).status_code == 403
 
 
-def test_refuses_public_exposure_without_strong_token():
-    for tok in ("", "short"):
-        with pytest.raises(RuntimeError, match="strong TZ_API_TOKEN"):
-            create_app(TradingDesk(Settings(feed="sim", host="0.0.0.0", api_token=tok),
-                                   journal=Journal(":memory:")), run_desk=False)
-    create_app(TradingDesk(Settings(feed="sim", host="0.0.0.0", api_token=TOKEN),
-                           journal=Journal(":memory:")), run_desk=False)
+def test_public_site_needs_sign_in_and_rejects_weak_token():
+    with pytest.raises(RuntimeError, match="too short"):
+        create_app(TradingDesk(Settings(feed="sim", host="0.0.0.0", api_token="short"),
+                               journal=Journal(":memory:")), run_desk=False)
+    # no token at all is fine now: the site starts in first-time-setup mode, closed to everyone
+    desk = TradingDesk(Settings(feed="sim", host="0.0.0.0"), journal=Journal(":memory:"))
+    with TestClient(create_app(desk, run_desk=False)) as c:
+        assert c.get("/api/state").status_code == 401
+        assert c.get("/api/setup/status").json() == {"owner": False, "auth_required": True, "faceid": False}
 
 
 def test_local_dev_without_token_still_works():

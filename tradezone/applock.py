@@ -267,5 +267,4 @@ class AppLock:
             self.journal.conn.execute("UPDATE passkeys SET sign_count = ?, last_used = ? WHERE id = ?",
                                       (v.new_sign_count, time.time(), cid))
             self.journal.conn.commit()
-        self.unlock(sid_hash)
         return row[2] or "Face ID"

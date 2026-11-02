@@ -1,14 +1,6 @@
 """App lock: 6-digit PIN and Face ID (WebAuthn passkeys), verified with a real software authenticator."""
 
-import base64
-import hashlib
-import json
-import struct
-
-import cbor2
 import pytest
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi.testclient import TestClient
 
 from tradezone.applock import weak_pin_reason
@@ -16,53 +8,9 @@ from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
+from tests.helpers import ORIGIN, SoftAuthenticator
 
 TOKEN = "correct-horse-battery-staple-42"
-ORIGIN, RP_ID = "https://testserver", "testserver"
-
-
-def b64u(b: bytes) -> str:
-    return base64.urlsafe_b64encode(b).rstrip(b"=").decode()
-
-
-def unb64u(s: str) -> bytes:
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
-
-
-class SoftAuthenticator:
-    """A minimal platform authenticator (ES256), standing in for the iPhone's Face ID secure enclave."""
-
-    def __init__(self, user_verified=True):
-        self.key = ec.generate_private_key(ec.SECP256R1())
-        self.cred_id = b"\x01" * 16
-        self.count = 0
-        self.uv = user_verified
-
-    def _flags(self, attested=False):
-        f = 0x01 | (0x04 if self.uv else 0)  # user present (+ user verified = Face ID passed)
-        return f | (0x40 if attested else 0)
-
-    def create(self, opts):
-        nums = self.key.public_key().public_numbers()
-        cose = cbor2.dumps({1: 2, 3: -7, -1: 1, -2: nums.x.to_bytes(32, "big"), -3: nums.y.to_bytes(32, "big")})
-        auth_data = (hashlib.sha256(opts["rp"]["id"].encode()).digest() + bytes([self._flags(True)])
-                     + struct.pack(">I", self.count) + b"\x00" * 16 + struct.pack(">H", len(self.cred_id))
-                     + self.cred_id + cose)
-        cdj = json.dumps({"type": "webauthn.create", "challenge": opts["challenge"], "origin": ORIGIN}).encode()
-        att = cbor2.dumps({"fmt": "none", "attStmt": {}, "authData": auth_data})
-        return {"id": b64u(self.cred_id), "rawId": b64u(self.cred_id), "type": "public-key",
-                "response": {"clientDataJSON": b64u(cdj), "attestationObject": b64u(att)},
-                "clientExtensionResults": {}}
-
-    def get(self, opts, origin=ORIGIN):
-        self.count += 1
-        auth_data = (hashlib.sha256(opts["rpId"].encode()).digest() + bytes([self._flags()])
-                     + struct.pack(">I", self.count))
-        cdj = json.dumps({"type": "webauthn.get", "challenge": opts["challenge"], "origin": origin}).encode()
-        sig = self.key.sign(auth_data + hashlib.sha256(cdj).digest(), ec.ECDSA(hashes.SHA256()))
-        return {"id": b64u(self.cred_id), "rawId": b64u(self.cred_id), "type": "public-key",
-                "response": {"clientDataJSON": b64u(cdj), "authenticatorData": b64u(auth_data),
-                             "signature": b64u(sig)}, "clientExtensionResults": {}}
 
 
 CONFIRM = {"X-TZ-Confirm": TOKEN}
@@ -212,5 +160,7 @@ def test_remove_face_id_key(c):
     enroll(c, SoftAuthenticator())
     keys = c.get("/api/applock").json()["passkeys"]
     assert c.delete(f"/api/webauthn/passkeys/{keys[0]['id']}").status_code == 403  # step-up
+    assert c.delete(f"/api/webauthn/passkeys/{keys[0]['id']}", headers=CONFIRM).status_code == 409  # only way in
+    c.post("/api/applock/pin", json={"pin": "482915"}, headers=CONFIRM)
     assert c.delete(f"/api/webauthn/passkeys/{keys[0]['id']}", headers=CONFIRM).status_code == 200
-    assert c.get("/api/applock").json()["enabled"] is False
+    assert c.get("/api/applock").json()["passkeys"] == []
