@@ -74,17 +74,21 @@ def test_coinbase_feed_parses_and_skips_failures():
 
 
 def test_live_mode_requires_explicit_confirmation():
-    s = Settings(mode="live", feed="alpaca", broker="alpaca", alpaca_key="k", alpaca_secret="s")
+    live = dict(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s")
+    s = Settings(mode="live", **live)
     with pytest.raises(ValueError, match="TZ_LIVE_CONFIRM"):
         s.validate()
-    s.live_confirm = LIVE_CONFIRM_PHRASE
-    s.validate()
-    assert s.alpaca_paper is False
-    with pytest.raises(ValueError):
-        Settings(mode="live", feed="sim", broker="alpaca", alpaca_key="k", alpaca_secret="s",
+    Settings(mode="live", live_confirm=LIVE_CONFIRM_PHRASE, **live).validate()
+    with pytest.raises(ValueError, match="simulated"):
+        Settings(mode="live", feed="sim", alpaca_live_key="k", alpaca_live_secret="s",
                  live_confirm=LIVE_CONFIRM_PHRASE).validate()
-    with pytest.raises(ValueError):
-        Settings(mode="live", broker="paper", feed="coinbase", live_confirm=LIVE_CONFIRM_PHRASE).validate()
+    with pytest.raises(ValueError, match="LIVE_KEY"):
+        Settings(mode="live", feed="coinbase", live_confirm=LIVE_CONFIRM_PHRASE).validate()
+
+
+def test_live_availability_reported():
+    assert Settings().live_blockers()  # default demo config can't go live
+    assert Settings(feed="coinbase", alpaca_live_key="k", alpaca_live_secret="s").live_blockers() == []
 
 
 def test_settings_from_env(monkeypatch):

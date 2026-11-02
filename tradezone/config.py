@@ -6,6 +6,8 @@ import os
 from dataclasses import dataclass, field, fields
 
 LIVE_CONFIRM_PHRASE = "I UNDERSTAND THE RISKS"
+#: what the operator types in the dashboard to switch to live trading
+LIVE_SWITCH_WORD = "LIVE"
 
 
 def _env(name: str, default):
@@ -40,9 +42,11 @@ class RiskLimits:
 
 @dataclass
 class Settings:
+    # Startup mode. The desk always starts in paper unless this is "live" AND TZ_LIVE_CONFIRM is set.
+    # Day to day, switch with the dashboard's Go LIVE / Back to PAPER button instead.
     mode: str = "paper"  # paper | live
     feed: str = "sim"  # sim | coinbase | alpaca
-    broker: str = "paper"  # paper | alpaca
+    broker: str = "paper"  # broker used in PAPER mode: paper (internal simulator) | alpaca (Alpaca paper account)
     symbols: list[str] = field(
         default_factory=lambda: ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
     )
@@ -56,9 +60,11 @@ class Settings:
     port: int = 8000
     api_token: str = ""  # if set, control endpoints require "Authorization: Bearer <token>"
     live_confirm: str = ""
-    alpaca_key: str = ""
+    alpaca_key: str = ""  # Alpaca PAPER account keys (paper broker / market data)
     alpaca_secret: str = ""
-    alpaca_paper: bool = True
+    alpaca_live_key: str = ""  # Alpaca LIVE (real money) account keys - enables the Go LIVE button
+    alpaca_live_secret: str = ""
+    live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- Grok (xAI) AI analyst ----
     grok_api_key: str = ""
     grok_model: str = "grok-4"
@@ -77,6 +83,22 @@ class Settings:
     take_profit_atr_mult: float = 6.0
     trailing_stop: bool = True
     risk: RiskLimits = field(default_factory=RiskLimits)
+
+    def data_keys(self) -> tuple[str, str] | None:
+        if self.alpaca_key and self.alpaca_secret:
+            return self.alpaca_key, self.alpaca_secret
+        if self.alpaca_live_key and self.alpaca_live_secret:
+            return self.alpaca_live_key, self.alpaca_live_secret
+        return None
+
+    def live_blockers(self) -> list[str]:
+        """Configuration problems preventing live trading (empty = live can be enabled)."""
+        out = []
+        if not (self.alpaca_live_key and self.alpaca_live_secret):
+            out.append("set TZ_ALPACA_LIVE_KEY and TZ_ALPACA_LIVE_SECRET (your Alpaca live-account keys)")
+        if self.feed == "sim":
+            out.append("live orders can't be priced off simulated data - set TZ_FEED=alpaca or coinbase")
+        return out
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -99,20 +121,17 @@ class Settings:
         if self.mode == "live":
             if self.live_confirm != LIVE_CONFIRM_PHRASE:
                 raise ValueError(
-                    f"Live trading requires TZ_LIVE_CONFIRM='{LIVE_CONFIRM_PHRASE}'"
+                    f"Starting directly in live mode requires TZ_LIVE_CONFIRM='{LIVE_CONFIRM_PHRASE}' "
+                    "(or start in paper and use the dashboard's Go LIVE button)"
                 )
-            if self.broker == "paper":
-                raise ValueError("Live mode needs a real broker (TZ_BROKER=alpaca)")
-            if self.feed == "sim":
-                raise ValueError("Live mode cannot trade on simulated prices (set TZ_FEED)")
-        if self.broker == "alpaca" or self.feed == "alpaca":
-            if not (self.alpaca_key and self.alpaca_secret):
-                raise ValueError("Alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET")
-        if self.broker == "alpaca" and self.mode == "paper" and not self.alpaca_paper:
-            raise ValueError("TZ_MODE=paper with TZ_ALPACA_PAPER=false would trade real money")
-        if self.mode == "live" and self.broker == "alpaca" and self.alpaca_paper:
-            # live mode explicitly targets the real-money endpoint
-            self.alpaca_paper = False
+            if self.live_blockers():
+                raise ValueError("Live mode unavailable: " + "; ".join(self.live_blockers()))
+        if self.broker == "alpaca" and not (self.alpaca_key and self.alpaca_secret):
+            raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
+        if self.feed == "alpaca" and not self.data_keys():
+            raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
+        if self.live_max_capital < 0:
+            raise ValueError("TZ_LIVE_MAX_CAPITAL must be >= 0")
         if not self.grok_api_key:
             self.grok_api_key = os.environ.get("XAI_API_KEY", "")
         if self.grok_mode not in ("auto", "veto", "advisory", "off"):

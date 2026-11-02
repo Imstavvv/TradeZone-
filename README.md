@@ -121,24 +121,45 @@ All settings are environment variables with the `TZ_` prefix. A `.env` file in t
 | Demo (default): synthetic market, paper fills | nothing |
 | Real crypto prices, paper fills (no account needed) | `TZ_FEED=coinbase TZ_SYMBOLS=BTC-USD,ETH-USD,SOL-USD` |
 | Alpaca paper account | `TZ_FEED=alpaca TZ_BROKER=alpaca TZ_ALPACA_KEY=… TZ_ALPACA_SECRET=…` |
+| Paper by default, with one-click live switching | add `TZ_ALPACA_LIVE_KEY=… TZ_ALPACA_LIVE_SECRET=…` and use a real feed (see [Live trading](#live-trading)) |
 
 ## Live trading
 
-> **Warning.** Live mode places real orders with real money. The bundled strategies are examples. They're tested only on synthetic data, which says nothing about real-world profitability. Run on paper for a long time first, start small, and use a dedicated account.
+> **Warning.** Live mode places real orders with real money. The bundled strategies have only been tested on synthetic data, which says nothing about real-world profitability. Only trade money you can afford to lose, and use a dedicated account.
 
-Live mode refuses to start unless **all** of the following are set:
+**The desk always starts in PAPER.** It stays there until you switch it yourself.
+
+### One-time setup
 
 ```bash
-TZ_MODE=live
-TZ_BROKER=alpaca
-TZ_FEED=alpaca            # live mode can't trade on simulated prices
-TZ_ALPACA_KEY=...
-TZ_ALPACA_SECRET=...
-TZ_LIVE_CONFIRM="I UNDERSTAND THE RISKS"
-TZ_API_TOKEN=<long random string>   # protects the control API and dashboard
+TZ_FEED=alpaca                # or coinbase (crypto). Live can't trade on simulated prices.
+TZ_ALPACA_LIVE_KEY=...        # your Alpaca *live* account keys
+TZ_ALPACA_LIVE_SECRET=...
+TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
+TZ_API_TOKEN=<long random>    # required if the dashboard is reachable beyond localhost
 ```
 
-At startup, the desk syncs cash and equity from the broker account. It does **not** import existing positions, so start from a flat account. The ledger is reconciled against broker equity every 30 cycles, and a drift above 2% raises an alert.
+With live keys set, the **Go LIVE** button in the dashboard header becomes active. Without them, it's greyed out, and hovering over it says what's missing.
+
+### Switching
+
+* **Go LIVE (red button):** opens a dialog that connects to your live account and shows its cash and equity, how much the bots may trade (after `TZ_LIVE_MAX_CAPITAL`), and where the kill switch trips. Type `LIVE` to enable the confirm button. Once live, the page gets a red frame and a `LIVE · REAL MONEY` badge.
+* **Back to PAPER (blue button):** one click plus a confirmation. If live positions are open, the desk pauses new entries, closes them at market, waits until the book is flat, switches, then restores its previous pause state.
+* Pause, Flatten all and Kill switch work the same in both modes.
+
+### What the switch protects against
+
+| Check | Why |
+| --- | --- |
+| Live keys configured, real price feed | No orders priced off synthetic data |
+| Live account reachable and **flat** | The desk doesn't import existing positions, so it refuses accounts that already hold any |
+| Paper book flat (the dialog offers **Flatten paper positions**) | Positions never carry across modes |
+| Kill switch not tripped | Investigate first, then reset |
+| API token set when exposed beyond localhost | Nobody else on the network can flip you to live |
+
+Paper and live keep **separate books**, so P&L, trades and the audit ledger never mix, and paper resumes where it left off. In live mode, Portfolio Manager checks positions against the broker every 30 cycles, and any mismatch pauses trading. Wallet deposits are recorded but not added to trading capital (your broker balance is the source of truth), and withdrawals are `manual_required`.
+
+To start directly in live mode (for example, on a server after a restart), set `TZ_MODE=live` and `TZ_LIVE_CONFIRM="I UNDERSTAND THE RISKS"`. If any check fails at startup, the desk stays in paper and raises a critical alert.
 
 ## API
 
@@ -150,6 +171,8 @@ At startup, the desk syncs cash and equity from the broker account. It does **no
 | POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
 | GET | `/api/journal?topic=order.filled` | Audit trail from SQLite |
+| GET | `/api/mode` | Preview a paper/live switch: blockers, live account, trading capital |
+| POST | `/api/mode` | `{"mode": "live", "confirm": "LIVE"}` or `{"mode": "paper", "flatten": true}` |
 | POST | `/api/grok/ping` | Test the Grok connection |
 | GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` |
 | DELETE | `/api/wallets/{id}` | Unlink a wallet |

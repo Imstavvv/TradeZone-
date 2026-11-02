@@ -14,7 +14,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Query, WebSocket, W
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
-from .desk import TradingDesk
+from .config import LIVE_SWITCH_WORD
+from .desk import ModeSwitchError, TradingDesk
 from .wallets import WalletError
 
 log = logging.getLogger(__name__)
@@ -46,6 +47,12 @@ class BotToggle(BaseModel):
 
 class ControlBody(BaseModel):
     reason: str = "operator"
+
+
+class ModeBody(BaseModel):
+    mode: str
+    confirm: str = ""
+    flatten: bool = False  # close open positions first
 
 
 class LinkWalletBody(BaseModel):
@@ -161,6 +168,20 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     @app.get("/api/journal", dependencies=[Depends(check_token)])
     async def journal(topic: str | None = None, limit: int = Query(100, ge=1, le=1000)):
         return desk.journal.query(topic, limit)
+
+    # -- paper / live switch -------------------------------------------------
+    @app.get("/api/mode", dependencies=[Depends(check_token)])
+    async def mode_check():
+        return _clean(await desk.mode_check())
+
+    @app.post("/api/mode", dependencies=[Depends(check_token)])
+    async def switch_mode(body: ModeBody):
+        if body.mode == "live" and body.confirm.strip().upper() != LIVE_SWITCH_WORD:
+            raise HTTPException(400, f"type {LIVE_SWITCH_WORD} to confirm switching to real-money trading")
+        try:
+            return _clean(await desk.switch_mode(body.mode, flatten=body.flatten))
+        except ModeSwitchError as exc:
+            raise HTTPException(409, str(exc)) from None
 
     # -- wallets / funding -------------------------------------------------
     def wallet_call(fn, *args, **kwargs):

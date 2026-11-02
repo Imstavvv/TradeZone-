@@ -68,6 +68,21 @@ td.r,th.r{text-align:right}
 .grid2{grid-column:1/-1;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))}
 .empty{color:var(--muted);padding:10px 0;text-align:center}
 #conn{font-size:11px}
+body.is-live{box-shadow:inset 0 0 0 4px var(--down)}
+body.is-live header{background:linear-gradient(90deg,#2a0b0b,var(--panel) 40%)}
+button.golive{background:#7f1d1d;border-color:#ef4444;color:#fff}
+button.golive:hover{background:#991b1b}
+button.gopaper{background:#0d2a3b;border-color:#0e7490;color:#a5f3fc}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.modal.open{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--down);border-radius:14px;max-width:520px;width:100%;padding:20px;max-height:90vh;overflow:auto}
+.modal h3{margin:0 0 6px;font-size:18px}
+.modal ul{margin:8px 0;padding-left:18px}
+.modal .acct{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.modal .acct > div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.modal input{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;font-size:16px;letter-spacing:2px;margin:6px 0 12px}
+.modal .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+button:disabled{opacity:.45;cursor:not-allowed}
 .banner{grid-column:1/-1;background:#3b2a0d;border:1px solid #78350f;color:#fcd34d;border-radius:10px;padding:10px 14px;font-weight:600;display:none}
 .banner.crit{background:#450a0a;border-color:#7f1d1d;color:#fecaca}
 .badge.grok-on{background:#1f1f1f;color:#f5f5f5;border-color:#525252}.badge.grok-err{background:#450a0a;color:#fecaca;border-color:#7f1d1d}
@@ -85,6 +100,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 <header>
   <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><span id="conn" class="muted"></span></div>
   <div class="controls">
+    <button id="btnMode" class="golive">Go LIVE</button>
     <button id="btnGrok">Test Grok</button>
     <button id="btnPause">Pause</button>
     <button id="btnFlatten">Flatten all</button>
@@ -93,6 +109,16 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
   </div>
 </header>
 
+<div class="modal" id="liveModal"><div class="box">
+  <h3>Switch to LIVE trading</h3>
+  <div class="muted">Real orders with real money will be sent to your broker. The bots trade on their own until you switch back, pause, or hit the kill switch.</div>
+  <div id="liveBody" style="margin-top:12px">Checking live account…</div>
+  <div class="actions">
+    <button id="liveCancel">Stay on paper</button>
+    <button id="liveFlatten" style="display:none">Flatten paper positions</button>
+    <button id="liveGo" class="golive" disabled>Go LIVE</button>
+  </div>
+</div></div>
 <main>
   <div class="banner" id="banner"></div>
   <section class="kpis" id="kpis"></section>
@@ -190,6 +216,41 @@ function askToken(){ const t = prompt('API token required'); if (t){ S.token=t; 
 $('btnPause').onclick = () => api('/api/control/' + (S.state?.paused ? 'resume' : 'pause'), {reason:'dashboard'});
 $('btnFlatten').onclick = () => confirm('Close ALL open positions at market?') && api('/api/control/flatten', {reason:'dashboard flatten'});
 $('btnKill').onclick = () => confirm('Trip the kill switch? This halts new trades and flattens every position.') && api('/api/control/kill', {reason:'dashboard'});
+// ---- paper / live switch ----
+const modal = $('liveModal');
+$('liveCancel').onclick = () => modal.classList.remove('open');
+async function openLive(){
+  modal.classList.add('open'); $('liveGo').disabled = true; $('liveFlatten').style.display = 'none';
+  $('liveBody').textContent = 'Checking live account…';
+  const c = await api('/api/mode');
+  const blockers = c.blockers.length ? `<div class="sub" style="color:var(--down)">Can't switch yet</div><ul>${c.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : '';
+  const a = c.account;
+  const acct = a ? `<div class="acct"><div><div class="muted">Account cash</div><b>${money(a.cash)}</b></div><div><div class="muted">Account equity</div><b>${money(a.equity)}</b></div>
+    <div><div class="muted">Bots may trade</div><b>${money(a.trading_capital)}</b>${c.live_max_capital ? '<div class="muted" style="font-size:11px">capped by TZ_LIVE_MAX_CAPITAL</div>' : ''}</div>
+    <div><div class="muted">Kill switch at</div><b>-${pct(c.risk.max_daily_loss_pct,0)} day / -${pct(c.risk.max_drawdown_pct,0)} DD</b></div></div>
+    <div class="muted" style="font-size:12px">Risk per trade ${pct(c.risk.risk_per_trade,1)} · max ${pct(c.risk.max_position_pct,0)} per position</div>` : '';
+  const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">Type <b>LIVE</b> to confirm</div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
+  $('liveBody').innerHTML = blockers + acct + confirmBox;
+  $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
+  const w = $('liveWord');
+  if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
+}
+$('liveFlatten').onclick = async () => { await api('/api/control/flatten', {reason:'switching to live'}); setTimeout(openLive, 1500); };
+let switching = false;
+$('liveGo').onclick = async () => {
+  $('liveGo').disabled = true;
+  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}); modal.classList.remove('open'); }
+  catch { openLive(); }
+};
+$('btnMode').onclick = async () => {
+  if (!S.state) return;
+  if (S.state.mode !== 'live') return openLive();
+  const open = S.state.portfolio.positions.length;
+  if (open && !confirm(`Close all ${open} LIVE position(s) at market and switch back to PAPER?`)) return;
+  if (!open && !confirm('Switch back to PAPER trading? No more real orders will be sent.')) return;
+  $('btnMode').disabled = true; $('btnMode').textContent = open ? 'Closing positions…' : 'Switching…';
+  try { await api('/api/mode', {mode:'paper', flatten:true}); } finally { $('btnMode').disabled = false; }
+};
 $('btnGrok').onclick = async () => { const r = await api('/api/grok/ping', {}); alert(r.ok ? `Grok connected (${r.model}): ${r.reply}` : `Grok not connected: ${r.error}`); };
 const formData = f => Object.fromEntries(new FormData(f).entries());
 let walletsBuilt = '';
@@ -232,6 +293,7 @@ function connect(){
       }
       S.equity.push(msg.data.portfolio.equity); if (S.equity.length > 1500) S.equity.shift();
     }
+    if (S.state && S.state.mode !== msg.data.mode) S.equity = [msg.data.portfolio.equity];  // new book, new curve
     S.state = msg.data;
     render();
   };
@@ -239,8 +301,13 @@ function connect(){
 
 function render(){
   const st = S.state, p = st.portfolio, perf = st.performance;
-  $('mode').textContent = st.mode.toUpperCase() + ' · ' + st.feed + ' → ' + st.broker;
+  $('mode').textContent = (st.mode === 'live' ? 'LIVE · REAL MONEY' : 'PAPER') + ' · ' + st.feed + ' → ' + st.broker;
   $('mode').className = 'badge ' + st.mode;
+  document.body.classList.toggle('is-live', st.mode === 'live');
+  const bm = $('btnMode');
+  if (st.mode === 'live'){ bm.textContent = 'Back to PAPER'; bm.className = 'gopaper'; bm.title = ''; bm.disabled = false; }
+  else { bm.textContent = 'Go LIVE'; bm.className = 'golive'; bm.disabled = !st.live.available;
+         bm.title = st.live.available ? 'Switch to real-money trading' : 'Live not configured: ' + st.live.config_blockers.join('; '); }
   const status = $('status');
   if (st.halted){ status.textContent = 'HALTED'; status.className='badge halt'; status.title = st.halt_reason; }
   else if (st.paused){ status.textContent = 'PAUSED'; status.className='badge pause'; status.title=''; }

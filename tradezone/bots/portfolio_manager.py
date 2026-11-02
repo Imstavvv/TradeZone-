@@ -138,7 +138,8 @@ class PortfolioBot(Bot):
         if self._cycles % self.RECONCILE_EVERY == 0:
             await self.reconcile_positions()
             acct = await self.desk.broker.account()
-            if acct and acct.get("equity"):
+            capped = self.desk.is_live and self.settings.live_max_capital > 0
+            if acct and acct.get("equity") and not capped:  # a capital cap makes equities differ by design
                 diff = abs(acct["equity"] - p.equity) / max(acct["equity"], 1)
                 self.metrics["broker_equity"] = acct["equity"]
                 if diff > 0.02:

@@ -259,7 +259,9 @@ class WalletService:
         t = Transfer(f"dep_{secrets.token_hex(6)}", "deposit", code, asset, amount, usd,
                      "completed" if wallet else "held", wallet.id if wallet else None,
                      from_address, tag, tx_hash)
-        if wallet:
+        if wallet and self.desk.is_live:
+            t.note = "live mode: recorded only - your broker balance is the source of truth for trading capital"
+        elif wallet:
             t.note = f"credited via {'deposit tag' if c.tag else 'sender address'} to {wallet.label}"
             self.desk.portfolio.apply_flow(usd)
             self._event("funds.deposit", t.to_dict())
@@ -281,8 +283,11 @@ class WalletService:
             raise WalletError("wallet must exist and be on the same chain")
         t.status, t.wallet_id = "completed", w.id
         t.note = f"manually attributed to {w.label}"
-        self.desk.portfolio.apply_flow(t.usd_value)
-        self._event("funds.deposit", t.to_dict())
+        if self.desk.is_live:
+            t.note += " (live mode: recorded only)"
+        else:
+            self.desk.portfolio.apply_flow(t.usd_value)
+            self._event("funds.deposit", t.to_dict())
         with self.db._lock:
             self.db.conn.execute("UPDATE transfers SET data = ? WHERE id = ?", (json.dumps(t.to_dict()), t.id))
             self.db.conn.commit()
@@ -314,11 +319,11 @@ class WalletService:
             raise WalletError(f"insufficient free cash ({self.desk.portfolio.cash:,.2f} USD available)")
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:
             raise WalletError(f"daily withdrawal limit {s.max_daily_withdrawal:,.0f} USD would be exceeded")
-        if self.desk.settings.mode == "live" and not s.api_token:
+        if self.desk.is_live and not s.api_token:
             raise WalletError("live withdrawals require TZ_API_TOKEN to be set")
         t = Transfer(f"wd_{secrets.token_hex(6)}", "withdrawal", w.chain, asset, amount, usd, "completed",
                      w.id, w.address, w.tag)
-        if self.desk.settings.mode == "live":
+        if self.desk.is_live:
             t.status = "manual_required"
             t.note = "funds are held at your broker - complete this withdrawal there (not debited here)"
         else:
