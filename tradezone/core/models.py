@@ -1,0 +1,165 @@
+"""Shared domain models passed between bots over the event bus."""
+
+from __future__ import annotations
+
+import itertools
+import time
+from dataclasses import asdict, dataclass, field
+from enum import Enum
+from typing import Any
+
+
+class Side(str, Enum):
+    BUY = "buy"
+    SELL = "sell"
+
+    @property
+    def sign(self) -> int:
+        return 1 if self is Side.BUY else -1
+
+    @property
+    def opposite(self) -> "Side":
+        return Side.SELL if self is Side.BUY else Side.BUY
+
+
+class SignalKind(str, Enum):
+    ENTRY = "entry"  # open / flip a position (subject to full risk checks)
+    EXIT = "exit"  # reduce-only close (always allowed, even when halted)
+
+
+class OrderStatus(str, Enum):
+    NEW = "new"
+    SUBMITTED = "submitted"
+    PARTIALLY_FILLED = "partially_filled"
+    FILLED = "filled"
+    CANCELED = "canceled"
+    REJECTED = "rejected"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self in (OrderStatus.FILLED, OrderStatus.CANCELED, OrderStatus.REJECTED)
+
+
+class Regime(str, Enum):
+    UNKNOWN = "unknown"
+    TRENDING = "trending"
+    RANGING = "ranging"
+    VOLATILE = "volatile"
+
+
+_ids = itertools.count(1)
+
+
+def new_id(prefix: str) -> str:
+    return f"{prefix}-{next(_ids):06d}"
+
+
+def now() -> float:
+    return time.time()
+
+
+class Model:
+    def to_dict(self) -> dict[str, Any]:
+        def conv(v: Any) -> Any:
+            if isinstance(v, Enum):
+                return v.value
+            if isinstance(v, Model):
+                return v.to_dict()
+            if isinstance(v, dict):
+                return {k: conv(x) for k, x in v.items()}
+            if isinstance(v, (list, tuple)):
+                return [conv(x) for x in v]
+            return v
+
+        return {k: conv(v) for k, v in asdict(self).items()}  # type: ignore[call-overload]
+
+
+@dataclass
+class Tick(Model):
+    symbol: str
+    price: float
+    volume: float = 0.0
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class Snapshot(Model):
+    """Market Scout output: price plus computed indicators."""
+
+    symbol: str
+    price: float
+    indicators: dict[str, float]
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class RegimeUpdate(Model):
+    symbol: str
+    regime: Regime
+    confidence: float
+    metrics: dict[str, float] = field(default_factory=dict)
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class Signal(Model):
+    symbol: str
+    side: Side
+    strength: float  # 0..1
+    reason: str
+    source: str
+    kind: SignalKind = SignalKind.ENTRY
+    id: str = field(default_factory=lambda: new_id("sig"))
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class OrderRequest(Model):
+    symbol: str
+    side: Side
+    qty: float
+    reason: str
+    signal_id: str
+    reduce_only: bool = False
+    stop_price: float | None = None
+    take_profit: float | None = None
+    id: str = field(default_factory=lambda: new_id("req"))
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class Order(Model):
+    symbol: str
+    side: Side
+    qty: float
+    request_id: str
+    status: OrderStatus = OrderStatus.NEW
+    filled_qty: float = 0.0
+    avg_fill_price: float = 0.0
+    broker_id: str | None = None
+    reason: str = ""
+    reduce_only: bool = False
+    stop_price: float | None = None
+    take_profit: float | None = None
+    id: str = field(default_factory=lambda: new_id("ord"))
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class Fill(Model):
+    order_id: str
+    symbol: str
+    side: Side
+    qty: float
+    price: float
+    commission: float = 0.0
+    id: str = field(default_factory=lambda: new_id("fill"))
+    ts: float = field(default_factory=now)
+
+
+@dataclass
+class Alert(Model):
+    level: str  # info | warning | critical
+    message: str
+    source: str
+    ts: float = field(default_factory=now)

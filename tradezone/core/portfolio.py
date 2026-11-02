@@ -1,0 +1,169 @@
+"""Position ledger with average-cost accounting and mark-to-market."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from .models import Fill, Model, now
+
+EPS = 1e-9
+
+
+@dataclass
+class Position(Model):
+    symbol: str
+    qty: float = 0.0
+    avg_price: float = 0.0
+    realized_pnl: float = 0.0
+    last_price: float = 0.0
+    stop_price: float | None = None
+    take_profit: float | None = None
+    high_water: float | None = None  # best price since entry, for trailing stops
+    opened_ts: float | None = None
+
+    @property
+    def market_value(self) -> float:
+        return self.qty * self.last_price
+
+    @property
+    def unrealized_pnl(self) -> float:
+        return (self.last_price - self.avg_price) * self.qty
+
+    @property
+    def is_flat(self) -> bool:
+        return abs(self.qty) < EPS
+
+    def to_dict(self):  # type: ignore[override]
+        d = super().to_dict()
+        d["market_value"] = self.market_value
+        d["unrealized_pnl"] = self.unrealized_pnl
+        return d
+
+
+@dataclass
+class ClosedTrade(Model):
+    symbol: str
+    side: str  # side of the position that was closed (long/short)
+    qty: float
+    entry_price: float
+    exit_price: float
+    pnl: float
+    ts: float = field(default_factory=now)
+
+
+class Portfolio:
+    def __init__(self, starting_cash: float) -> None:
+        self.starting_cash = starting_cash
+        self.cash = starting_cash
+        self.positions: dict[str, Position] = {}
+        self.closed_trades: list[ClosedTrade] = []
+        self.commissions = 0.0
+        self.peak_equity = starting_cash
+        self.day_start_equity = starting_cash
+
+    def position(self, symbol: str) -> Position:
+        if symbol not in self.positions:
+            self.positions[symbol] = Position(symbol)
+        return self.positions[symbol]
+
+    def mark(self, symbol: str, price: float) -> None:
+        pos = self.position(symbol)
+        pos.last_price = price
+
+    def apply_fill(self, fill: Fill) -> ClosedTrade | None:
+        pos = self.position(fill.symbol)
+        signed = fill.qty * fill.side.sign
+        self.cash -= signed * fill.price + fill.commission
+        self.commissions += fill.commission
+        pos.last_price = fill.price or pos.last_price
+        closed: ClosedTrade | None = None
+
+        if pos.is_flat or (pos.qty > 0) == (signed > 0):
+            # opening or adding: blend average cost
+            new_qty = pos.qty + signed
+            pos.avg_price = (pos.avg_price * pos.qty + fill.price * signed) / new_qty
+            if pos.is_flat:
+                pos.opened_ts = fill.ts
+                pos.high_water = fill.price
+            pos.qty = new_qty
+        else:
+            # reducing, closing or flipping
+            close_qty = min(abs(signed), abs(pos.qty))
+            direction = 1 if pos.qty > 0 else -1
+            pnl = (fill.price - pos.avg_price) * close_qty * direction - fill.commission
+            pos.realized_pnl += pnl
+            closed = ClosedTrade(
+                fill.symbol,
+                "long" if direction > 0 else "short",
+                close_qty,
+                pos.avg_price,
+                fill.price,
+                pnl,
+            )
+            self.closed_trades.append(closed)
+            remainder = abs(signed) - close_qty
+            if remainder > EPS:  # flipped through zero
+                pos.qty = remainder * (1 if signed > 0 else -1)
+                pos.avg_price = fill.price
+                pos.opened_ts = fill.ts
+                pos.high_water = fill.price
+                pos.stop_price = pos.take_profit = None
+            else:
+                pos.qty += signed
+                if pos.is_flat:
+                    pos.qty = 0.0
+                    pos.avg_price = 0.0
+                    pos.stop_price = pos.take_profit = pos.high_water = None
+                    pos.opened_ts = None
+        return closed
+
+    @property
+    def open_positions(self) -> list[Position]:
+        return [p for p in self.positions.values() if not p.is_flat]
+
+    @property
+    def equity(self) -> float:
+        return self.cash + sum(p.market_value for p in self.positions.values())
+
+    @property
+    def gross_exposure(self) -> float:
+        return sum(abs(p.market_value) for p in self.positions.values())
+
+    @property
+    def realized_pnl(self) -> float:
+        return sum(p.realized_pnl for p in self.positions.values())
+
+    @property
+    def unrealized_pnl(self) -> float:
+        return sum(p.unrealized_pnl for p in self.positions.values())
+
+    def update_watermarks(self) -> None:
+        self.peak_equity = max(self.peak_equity, self.equity)
+
+    @property
+    def drawdown(self) -> float:
+        return 0.0 if self.peak_equity <= 0 else 1 - self.equity / self.peak_equity
+
+    @property
+    def daily_pnl_pct(self) -> float:
+        if self.day_start_equity <= 0:
+            return 0.0
+        return self.equity / self.day_start_equity - 1
+
+    def to_dict(self) -> dict:
+        return {
+            "cash": self.cash,
+            "equity": self.equity,
+            "starting_cash": self.starting_cash,
+            "gross_exposure": self.gross_exposure,
+            "realized_pnl": self.realized_pnl,
+            "unrealized_pnl": self.unrealized_pnl,
+            "total_pnl": self.equity - self.starting_cash,
+            "return_pct": self.equity / self.starting_cash - 1 if self.starting_cash else 0.0,
+            "commissions": self.commissions,
+            "drawdown": self.drawdown,
+            "peak_equity": self.peak_equity,
+            "daily_pnl_pct": self.daily_pnl_pct,
+            "positions": [p.to_dict() for p in self.open_positions],
+            "closed_trades": len(self.closed_trades),
+        }

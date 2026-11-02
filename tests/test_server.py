@@ -1,0 +1,40 @@
+from fastapi.testclient import TestClient
+
+from tradezone.config import Settings
+from tradezone.desk import TradingDesk
+from tradezone.journal import Journal
+from tradezone.server import create_app
+
+
+def make(token=""):
+    s = Settings(api_token=token)
+    desk = TradingDesk(s, journal=Journal(":memory:"))
+    return desk, TestClient(create_app(desk, run_desk=False))
+
+
+def test_state_controls_and_bots():
+    desk, c = make()
+    with c:
+        assert c.get("/api/health").json()["ok"]
+        st = c.get("/api/state").json()
+        assert len(st["bots"]) == 7 and st["mode"] == "paper"
+        assert c.post("/api/control/pause").json()["paused"] is True
+        assert c.post("/api/control/resume").json()["paused"] is False
+        assert c.post("/api/control/kill", json={"reason": "test"}).json()["halted"] is True
+        assert c.post("/api/control/reset").json()["halted"] is False
+        assert c.post("/api/control/bogus").status_code == 400
+        assert c.post("/api/bots/quant", json={"enabled": False}).json()["enabled"] is False
+        assert desk.bots["quant"].enabled is False
+        assert c.post("/api/bots/nope", json={"enabled": False}).status_code == 404
+        assert "TradeZone" in c.get("/").text
+        with c.websocket_connect("/ws") as ws:
+            assert ws.receive_json()["type"] == "snapshot"
+
+
+def test_token_required_when_configured():
+    _, c = make("s3cret")
+    with c:
+        assert c.get("/api/state").status_code == 401
+        assert c.post("/api/control/kill").status_code == 401
+        assert c.get("/api/state", headers={"Authorization": "Bearer s3cret"}).status_code == 200
+        assert c.get("/api/health").status_code == 200
