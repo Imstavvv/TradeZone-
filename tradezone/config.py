@@ -9,6 +9,9 @@ LIVE_CONFIRM_PHRASE = "I UNDERSTAND THE RISKS"
 #: what the operator types in the dashboard to switch to live trading
 LIVE_SWITCH_WORD = "LIVE"
 
+CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD"]
+MIXED_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
+
 
 def _env(name: str, default):
     raw = os.environ.get(f"TZ_{name.upper()}")
@@ -37,6 +40,9 @@ class RiskLimits:
     min_signal_strength: float = 0.35
     symbol_cooldown_s: float = 10.0
     allow_short: bool = False
+    # Buys need team consensus: no voter may object and at least this many must actively agree.
+    # Voters: momentum, mean-reversion and breakout models plus the Strategist (then Grok, then Risk).
+    consensus_min_yes: int = 2
     fractional: bool = True
 
 
@@ -45,11 +51,14 @@ class Settings:
     # Startup mode. The desk always starts in paper unless this is "live" AND TZ_LIVE_CONFIRM is set.
     # Day to day, switch with the dashboard's Go LIVE / Back to PAPER button instead.
     mode: str = "paper"  # paper | live
-    feed: str = "sim"  # sim | coinbase | alpaca
+    # Price feed. "auto" = real market data: Alpaca if keys are set, else Coinbase (crypto, no key).
+    # "sim" (synthetic prices) is only for offline demos and tests.
+    feed: str = "auto"  # auto | coinbase | alpaca | sim
     broker: str = "paper"  # broker used in PAPER mode: paper (internal simulator) | alpaca (Alpaca paper account)
-    symbols: list[str] = field(
-        default_factory=lambda: ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
-    )
+    symbols: list[str] = field(default_factory=list)  # empty = sensible default for the feed
+    # Indicators are computed on bars of this many seconds when trading off real data (ticks still
+    # drive stops/targets in real time). 1-second ticks are mostly noise.
+    bar_seconds: float = 15.0
     starting_cash: float = 100_000.0
     cycle_seconds: float = 1.0
     commission_bps: float = 1.0
@@ -82,6 +91,14 @@ class Settings:
     stop_atr_mult: float = 3.0
     take_profit_atr_mult: float = 6.0
     trailing_stop: bool = True
+    # ---- profit protection: a trade that has gone green must not end red ----
+    # Once open profit reaches this multiple of the initial risk (entry-to-stop distance), the stop
+    # moves to break-even plus round-trip costs, and then locks in profit_lock_pct of peak profit.
+    breakeven_trigger_r: float = 0.5
+    profit_lock_pct: float = 0.5
+    scale_out_r: float = 1.0  # at +1R, take partial profit...
+    scale_out_fraction: float = 0.5  # ...on this share of the position (0 disables)
+    exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
 
     def data_keys(self) -> tuple[str, str] | None:
@@ -114,8 +131,16 @@ class Settings:
     def validate(self) -> None:
         if self.mode not in ("paper", "live"):
             raise ValueError("TZ_MODE must be 'paper' or 'live'")
-        if self.feed not in ("sim", "coinbase", "alpaca"):
-            raise ValueError("TZ_FEED must be sim, coinbase or alpaca")
+        if self.feed not in ("auto", "sim", "coinbase", "alpaca"):
+            raise ValueError("TZ_FEED must be auto, coinbase, alpaca or sim")
+        if self.feed == "auto":
+            self.feed = "alpaca" if self.data_keys() else "coinbase"
+        if not self.symbols:
+            self.symbols = list(CRYPTO_SYMBOLS if self.feed == "coinbase" else MIXED_SYMBOLS)
+        if self.feed == "coinbase":
+            bad = [s for s in self.symbols if not s.endswith("-USD")]
+            if bad:
+                raise ValueError(f"Coinbase only quotes crypto pairs like BTC-USD; not: {', '.join(bad)}")
         if self.broker not in ("paper", "alpaca"):
             raise ValueError("TZ_BROKER must be paper or alpaca")
         if self.mode == "live":

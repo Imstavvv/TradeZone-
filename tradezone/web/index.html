@@ -329,11 +329,13 @@ function render(){
     ['Today', pct(p.daily_pnl_pct), cls(p.daily_pnl_pct)],
     ['Unrealized', money(p.unrealized_pnl), cls(p.unrealized_pnl)],
     ['Exposure', money(p.gross_exposure,0), '', p.equity ? pct(p.gross_exposure/p.equity,0) : ''],
-    ['Cash', money(p.cash,0), ''],
     ['Win rate', perf.trades ? pct(perf.win_rate,0) : '—', '', perf.trades + ' trades'],
     ['Drawdown', pct(p.drawdown), p.drawdown > 0.05 ? 'down' : ''],
     ['Exec accuracy', ac.books_balanced ? pct(ac.execution) : 'BOOKS MISMATCH', ac.execution < 1 || !ac.books_balanced ? 'down' : 'up',
       `${ac.fills_verified} fills verified · books ${ac.books_balanced ? 'balanced' : 'out of balance'}`],
+    (() => { const pm = st.bots.find(b => b.name === 'portfolio').metrics, lost = pm.winners_turned_losers || 0;
+      return ['Profit protection', lost ? `${lost} winner${lost>1?'s':''} lost` : 'No winners lost', lost ? 'down' : 'up',
+        `${pm.profit_locks || 0} locks · ${pm.partial_profits || 0} partials · ${pm.protected_now || 0} protected now`]; })(),
   ];
   $('kpis').innerHTML = kpis.map(([l,v,c,sub]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${sub?`<div class="muted" style="font-size:11px">${sub}</div>`:''}</div>`).join('');
 
@@ -367,7 +369,8 @@ function render(){
   document.querySelectorAll('[data-bot]').forEach(btn => btn.onclick = () => api('/api/bots/'+btn.dataset.bot, {enabled: btn.dataset.en !== 'true'}));
 
   $('positions').innerHTML = table(['Symbol','Qty','Entry','Last','Stop','Target','Value','Unrealized'], p.positions.map(x => [
-    `<b>${esc(x.symbol)}</b>`, `<span class="${cls(x.qty)}">${num(x.qty)}</span>`, num(x.avg_price), num(x.last_price), num(x.stop_price), num(x.take_profit), money(x.market_value), `<span class="${cls(x.unrealized_pnl)}">${money(x.unrealized_pnl)}</span>`]), 'No open positions');
+    `<b>${esc(x.symbol)}</b>`, `<span class="${cls(x.qty)}">${num(x.qty)}</span>`, num(x.avg_price), num(x.last_price),
+    x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0 ? `<span class="up" title="profit locked: can't close at a loss">🔒 ${num(x.stop_price)}</span>` : num(x.stop_price), num(x.take_profit), money(x.market_value), `<span class="${cls(x.unrealized_pnl)}">${money(x.unrealized_pnl)}</span>`]), 'No open positions');
 
   $('board').innerHTML = table(['Symbol','Price','Regime','Momentum','Mean rev.','Breakout','Ensemble'], syms.map(s => {
     const sc = st.scores[s] || {}, rg = st.regimes[s];
@@ -415,7 +418,9 @@ function renderWallets(st){
 function describe(e){
   const p = e.payload || {};
   switch (e.topic){
-    case 'signal.proposed': return `${p.side} ${p.symbol} (${p.kind}, ${p.strength}) ${p.reason}`;
+    case 'signal.proposed': {
+      const v = Object.entries(p.votes || {}).map(([k, x]) => `${k.replace('_reversion','-rev')}:${x === 'yes' ? '✓' : x === 'no' ? '✗' : '–'}`).join(' ');
+      return `${p.side} ${p.symbol} (${p.kind}${p.fraction < 1 ? ' ' + Math.round(p.fraction*100) + '%' : ''}, ${p.strength}) ${p.reason}${v ? ' [' + v + ']' : ''}`; }
     case 'signal.rejected': return `${p.signal.side} ${p.signal.symbol}: ${p.reason}`;
     case 'order.approved': return `${p.side} ${num(p.qty)} ${p.symbol}`;
     case 'order.update': return `${p.id} ${p.side} ${p.symbol} ${p.status}`;

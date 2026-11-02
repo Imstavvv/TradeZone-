@@ -35,7 +35,8 @@ class FakeLiveBroker(PaperBroker):
 
 
 def make_desk(live_broker=None, **kw):
-    s = Settings(feed="coinbase", alpaca_live_key="k", alpaca_live_secret="s", **kw)
+    kw.setdefault("symbols", ["BTC-USD", "ETH-USD", "AAPL", "NVDA"])
+    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", **kw)
     s.risk.symbol_cooldown_s = 0
     feed = SimulatedFeed(s.symbols)
     return TradingDesk(s, feed=feed, journal=Journal(":memory:"), live_broker=live_broker or FakeLiveBroker())

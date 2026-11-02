@@ -23,7 +23,7 @@ def grok_desk(reply=None, status=200, fail_open=False):
             return httpx.Response(status)
         return httpx.Response(200, json={"choices": [{"message": {"content": reply}}]})
 
-    s = Settings(grok_api_key="xai-test", grok_fail_open=fail_open)
+    s = Settings(grok_api_key="xai-test", grok_fail_open=fail_open, feed="sim")
     s.risk.symbol_cooldown_s = 0
     desk = TradingDesk(s, journal=Journal(":memory:"))
     grok = desk.bots["grok"]

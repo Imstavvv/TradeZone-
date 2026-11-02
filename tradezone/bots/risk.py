@@ -98,9 +98,21 @@ class RiskBot(Bot):
                 return self.reject(sig, "nothing to close")
             if not closing:
                 return self.reject(sig, "exit signal on wrong side")
+            if sig.kind is SignalKind.ENTRY and self.settings.exit_only_in_profit:
+                # discretionary (strategy) exit: only to bank a net profit; losers are left to the stop
+                pm = self.desk.bots.get("portfolio")
+                cost = pm.round_trip_cost(pos.avg_price) * abs(pos.qty) if pm else 0.0
+                net = (price - pos.avg_price) * pos.qty - cost
+                if net <= 0:
+                    return self.reject(sig, f"strategy exit skipped: not in profit ({net:+,.2f}); stop-loss still protects")
+            qty = abs(pos.qty)
+            if sig.fraction < 1.0:
+                part = self._round_qty(qty * sig.fraction, price)
+                if part > 0 and (qty - part) * price >= 1.0:  # keep a meaningful remainder
+                    qty = part
             # reduce-only exits are always allowed: they lower risk
             return self.approve(
-                OrderRequest(sig.symbol, sig.side, abs(pos.qty), sig.reason, sig.id, reduce_only=True)
+                OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, reduce_only=True)
             )
 
         # ---- new risk from here on ----

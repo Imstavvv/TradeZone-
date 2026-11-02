@@ -7,7 +7,7 @@ from tradezone.journal import Journal
 
 @pytest.fixture
 def settings():
-    s = Settings()
+    s = Settings(feed="sim")
     s.risk.symbol_cooldown_s = 0
     s.risk.max_orders_per_minute = 10**6
     return s

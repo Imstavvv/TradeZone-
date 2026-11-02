@@ -25,6 +25,8 @@ class _Book:
         self.donchian = RollingWindow(20)
         self.last_ts = 0.0
         self.count = 0
+        self.bar_bucket: int | None = None  # current bar index (bar mode)
+        self.bar_close = 0.0
 
 
 class ScoutBot(Bot):
@@ -42,6 +44,9 @@ class ScoutBot(Bot):
         self.books: dict[str, _Book] = {}
         self.stale_after = max(15.0, desk.settings.cycle_seconds * 15)
         self._stale_alerted: set[str] = set()
+        # real feeds: build indicators on time bars; the synthetic feed is already bar-like
+        self.bar_seconds = desk.settings.bar_seconds if desk.settings.feed != "sim" else 0.0
+        self.metrics["bar_seconds"] = self.bar_seconds or "tick"
 
     def subscriptions(self):
         return {"market.tick": self.on_tick}
@@ -53,6 +58,27 @@ class ScoutBot(Bot):
             self.publish("alert", Alert("warning", f"discarded bad tick {t.symbol}={t.price}", self.name))
             return
         b = self.books.setdefault(t.symbol, _Book())
+        self.desk.prices[t.symbol] = t.price
+        b.last_ts = now()
+        self._stale_alerted.discard(t.symbol)
+        self.bump("ticks")
+        if self.bar_seconds > 0:
+            bucket = int(t.ts // self.bar_seconds)
+            if b.bar_bucket is None:
+                b.bar_bucket, b.bar_close = bucket, t.price
+                return
+            if bucket == b.bar_bucket:
+                b.bar_close = t.price
+                return
+            close, b.bar_bucket, b.bar_close = b.bar_close, bucket, t.price
+            self.bump("bars")
+            self._on_close(t.symbol, b, close, t.ts)
+            return
+        self._on_close(t.symbol, b, t.price, t.ts)
+
+    def _on_close(self, symbol: str, b: "_Book", price: float, ts: float) -> None:
+        """Update indicators with one closing price (a tick in sim mode, a bar otherwise)."""
+        t = Tick(symbol, price, 0.0, ts)
         prev_high = b.donchian.max() if b.donchian.full else None
         prev_low = b.donchian.min() if b.donchian.full else None
         if b.prices:
@@ -72,14 +98,11 @@ class ScoutBot(Bot):
         b.sma.push(t.price)
         b.rsi.update(t.price)
         b.donchian.push(t.price)
-        b.last_ts = now()
         b.count += 1
-        self._stale_alerted.discard(t.symbol)
-        self.bump("ticks")
-        self.desk.prices[t.symbol] = t.price
 
         if b.count < WARMUP:
-            self.act(f"warming up {t.symbol} ({b.count}/{WARMUP})")
+            unit = f"{self.bar_seconds:g}s bars" if self.bar_seconds else "ticks"
+            self.act(f"warming up {t.symbol} ({b.count}/{WARMUP} {unit})")
             return
         ind = {
             "ema_fast": b.ema_fast.value or t.price,

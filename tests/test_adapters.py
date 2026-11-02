@@ -87,8 +87,19 @@ def test_live_mode_requires_explicit_confirmation():
 
 
 def test_live_availability_reported():
-    assert Settings().live_blockers()  # default demo config can't go live
+    assert Settings(feed="sim").live_blockers()  # synthetic prices can't go live
     assert Settings(feed="coinbase", alpaca_live_key="k", alpaca_live_secret="s").live_blockers() == []
+
+
+def test_paper_defaults_to_real_market_data():
+    s = Settings()
+    s.validate()
+    assert s.feed == "coinbase" and all(x.endswith("-USD") for x in s.symbols)
+    s = Settings(alpaca_key="k", alpaca_secret="s")
+    s.validate()
+    assert s.feed == "alpaca" and "AAPL" in s.symbols
+    with pytest.raises(ValueError, match="crypto"):
+        Settings(feed="coinbase", symbols=["AAPL"]).validate()
 
 
 def test_settings_from_env(monkeypatch):

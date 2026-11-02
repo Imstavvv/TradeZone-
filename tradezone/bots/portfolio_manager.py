@@ -21,8 +21,12 @@ class PortfolioBot(Bot):
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
-        self.trail_dist: dict[str, float] = {}
+        self.trail_dist: dict[str, float] = {}  # initial risk distance (1R) per symbol
         self.exiting: set[str] = set()
+        self.protected: set[str] = set()  # profit protection armed (stop at/above break-even)
+        self.scaled_out: set[str] = set()
+        self.tick_move: dict[str, float] = {}  # EWMA of absolute tick-to-tick price change
+        self._last_px: dict[str, float] = {}
         self._cycles = 0
 
     def subscriptions(self):
@@ -40,16 +44,31 @@ class PortfolioBot(Bot):
         pos = p.position(f.symbol)
         exe = self.desk.bots.get("execution")
         order = exe.orders.get(f.order_id) if exe else None
+        was_protected = f.symbol in self.protected
         if pos.is_flat:
             self.exiting.discard(f.symbol)
             self.trail_dist.pop(f.symbol, None)
-        elif (was_flat or closed) and order and order.stop_price:
+            self.protected.discard(f.symbol)
+            self.scaled_out.discard(f.symbol)
+        elif order is not None and order.reduce_only:
+            self.exiting.discard(f.symbol)  # partial exit done; full exits may fire again
+        if (was_flat or (closed and not pos.is_flat and not (order and order.reduce_only))) \
+                and not pos.is_flat and order and order.stop_price:
             pos.stop_price = order.stop_price
             pos.take_profit = order.take_profit
             self.trail_dist[f.symbol] = abs(pos.avg_price - order.stop_price)
+            self.protected.discard(f.symbol)
+            self.scaled_out.discard(f.symbol)
         if closed:
             self.bump("closed_trades")
             self.bump("wins" if closed.pnl > 0 else "losses")
+            if was_protected:
+                self.bump("protected_exits")
+                if closed.pnl < 0:  # only possible through a price gap or bad slippage
+                    self.bump("winners_turned_losers")
+                    self.publish("alert", Alert(
+                        "warning", f"{closed.symbol} was in profit but closed at {closed.pnl:+,.2f} "
+                        "(price gapped through the protective stop)", self.name))
             self.publish("trade.closed", closed)
             self.act(f"closed {closed.side} {closed.qty:g} {closed.symbol} P&L {closed.pnl:+,.2f}")
         else:
@@ -61,34 +80,76 @@ class PortfolioBot(Bot):
         if o.reduce_only and o.status in (OrderStatus.REJECTED, OrderStatus.CANCELED):
             self.exiting.discard(o.symbol)  # allow the exit to be retried
 
-    def _exit(self, symbol: str, reason: str) -> None:
+    def _exit(self, symbol: str, reason: str, fraction: float = 1.0) -> None:
         pos = self.portfolio.position(symbol)
         if pos.is_flat or symbol in self.exiting:
             return
-        self.exiting.add(symbol)
+        if fraction >= 1.0:
+            self.exiting.add(symbol)
         side = Side.SELL if pos.qty > 0 else Side.BUY
-        self.publish("signal.proposed", Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT))
+        self.publish("signal.proposed",
+                     Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction))
         self.bump("exits_triggered")
         self.act(f"EXIT {symbol}: {reason}", "warning")
 
     def on_tick(self, ev: Event) -> None:
         t: Tick = ev.payload
         p = self.portfolio
+        last = self._last_px.get(t.symbol)
+        if last is not None:
+            move = abs(t.price - last)
+            prev = self.tick_move.get(t.symbol, move)
+            self.tick_move[t.symbol] = 0.95 * prev + 0.05 * move
+        self._last_px[t.symbol] = t.price
         p.mark(t.symbol, t.price)
         pos = p.position(t.symbol)
         if pos.is_flat:
             return
         long = pos.qty > 0
-        if self.settings.trailing_stop and pos.stop_price is not None and t.symbol in self.trail_dist:
-            hw = pos.high_water if pos.high_water is not None else t.price
-            hw = max(hw, t.price) if long else min(hw, t.price)
-            pos.high_water = hw
-            trail = hw - self.trail_dist[t.symbol] if long else hw + self.trail_dist[t.symbol]
-            pos.stop_price = max(pos.stop_price, trail) if long else min(pos.stop_price, trail)
+        d = 1 if long else -1
+        hw = pos.high_water if pos.high_water is not None else t.price
+        hw = max(hw, t.price) if long else min(hw, t.price)
+        pos.high_water = hw
+        tighten = (lambda a, b: max(a, b)) if long else (lambda a, b: min(a, b))  # noqa: E731
+        r = self.trail_dist.get(t.symbol)
+        if self.settings.trailing_stop and pos.stop_price is not None and r:
+            pos.stop_price = tighten(pos.stop_price, hw - d * r)
+        if r and pos.stop_price is not None:
+            self._protect_profit(t.symbol, pos, t.price, hw, r, d, tighten)
         if pos.stop_price is not None and ((long and t.price <= pos.stop_price) or (not long and t.price >= pos.stop_price)):
             self._exit(t.symbol, f"stop hit at {t.price:,.2f} (stop {pos.stop_price:,.2f})")
         elif pos.take_profit is not None and ((long and t.price >= pos.take_profit) or (not long and t.price <= pos.take_profit)):
             self._exit(t.symbol, f"take-profit hit at {t.price:,.2f}")
+
+    def round_trip_cost(self, price: float) -> float:
+        """Per-unit cost of getting in and out (fees + slippage both ways), with a small margin."""
+        s = self.settings
+        return price * (2 * (s.commission_bps + s.slippage_bps) + 2) / 10_000
+
+    def _protect_profit(self, sym, pos, price, hw, r, d, tighten) -> None:
+        s = self.settings
+        entry = pos.avg_price
+        cost = self.round_trip_cost(entry)
+        # cushion so one ordinary tick can't jump from above the stop to below break-even
+        cushion = cost + 2.0 * self.tick_move.get(sym, 0.0)
+        peak_gain = (hw - entry) * d
+        # 1) once comfortably green, the stop can never again sit below break-even + costs
+        if peak_gain >= max(s.breakeven_trigger_r * r, 2 * cushion):
+            floor = entry + d * max(cushion, s.profit_lock_pct * peak_gain)
+            before = pos.stop_price
+            pos.stop_price = tighten(pos.stop_price, floor)
+            if sym not in self.protected:
+                self.protected.add(sym)
+                self.bump("profit_locks")
+                self.act(f"{sym} in profit: stop raised to {pos.stop_price:,.4g} (locks gain)")
+            elif pos.stop_price != before:
+                self.metrics["last_lock"] = sym
+        # 2) bank part of the winner at +scale_out_r
+        if (s.scale_out_fraction > 0 and sym not in self.scaled_out
+                and (price - entry) * d >= s.scale_out_r * r + cost):
+            self.scaled_out.add(sym)
+            self.bump("partial_profits")
+            self._exit(sym, f"partial take-profit +{s.scale_out_r:g}R at {price:,.4g}", s.scale_out_fraction)
 
     def flatten_all(self, reason: str) -> int:
         n = 0
@@ -128,6 +189,7 @@ class PortfolioBot(Bot):
         self._cycles += 1
         self.metrics.update(
             {
+                "protected_now": len(self.protected),
                 "equity": round(p.equity, 2),
                 "open_positions": len(p.open_positions),
                 "realized_pnl": round(p.realized_pnl, 2),

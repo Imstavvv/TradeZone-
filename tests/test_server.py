@@ -7,7 +7,7 @@ from tradezone.server import create_app
 
 
 def make(token=""):
-    s = Settings(api_token=token)
+    s = Settings(api_token=token, feed="sim")
     desk = TradingDesk(s, journal=Journal(":memory:"))
     return desk, TestClient(create_app(desk, run_desk=False))
 

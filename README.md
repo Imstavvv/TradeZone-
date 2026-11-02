@@ -2,7 +2,7 @@
 
 A multi-bot trading platform. Eight specialised bots, including an AI analyst powered by xAI's Grok,, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
-It runs in **paper mode by default**: simulated or real market prices, simulated fills, no money at risk. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
+It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
 ## The bot team
 
@@ -10,11 +10,11 @@ It runs in **paper mode by default**: simulated or real market prices, simulated
 | --- | --- | --- |
 | **Scout** | Market data and signal prep | Ingests every tick, rejects bad data, detects shock moves and stale feeds, and computes EMA, RSI, volatility, ATR and Donchian channels |
 | **Strategist** | Market regime analysis | Classifies each symbol as *trending*, *ranging* or *volatile* (Kaufman efficiency ratio and volatility ratio, with hysteresis) |
-| **Quant** | Strategy and signal generation | Runs momentum, mean-reversion and breakout models, weights them by the Strategist's regime call, and proposes signals with a conviction score |
+| **Quant** | Strategy and signal generation | Runs momentum, mean-reversion and breakout models, weights them by the Strategist's regime call, and only proposes a buy when the team reaches consensus (see below) |
 | **Grok** | AI analyst (xAI Grok) | Sends every proposed new position, with indicators, regime, recent prices and portfolio context, to Grok for an independent second opinion. In `veto` mode, trades Grok doesn't approve are never placed |
 | **Risk Manager** | Risk control and position sizing | Gates every signal: kill switch, pause, exposure, concentration, max positions, cooldowns, order-rate limit. Sizes positions by volatility (risk to stop) and halves size in volatile regimes. Trips the kill switch on daily-loss or drawdown limits |
 | **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
-| **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit and trailing stops, and reconciles against the broker |
+| **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit, trailing stops and profit protection, and reconciles against the broker |
 | **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
 
 ### How a trade flows
@@ -38,6 +38,37 @@ Safety properties:
 * Exits are reduce-only and are always allowed, even while paused or halted, because they only lower risk.
 * A failing bot handler is isolated by the bus. Its error is counted, and the Sentinel raises an alert.
 * Safety-critical bots can't be disabled from the API while positions are open.
+
+## Market data: paper trades live prices
+
+By default (`TZ_FEED=auto`), paper trading uses **real market data**. If Alpaca keys are set it uses Alpaca (stocks and crypto). Otherwise it uses Coinbase's public feed (crypto, no account needed). The default Coinbase symbols are BTC, ETH, SOL, XRP, AVAX and LINK against USD.
+
+Prices are polled every `TZ_CYCLE_SECONDS`. Indicators and signals run on **15-second bars** (`TZ_BAR_SECONDS`), because raw one-second ticks are mostly noise. Stops, targets and profit locks still react to every tick. Expect about 7–8 minutes of warm-up (30 bars) before the first trade. Scout shows the progress.
+
+`TZ_FEED=sim` (synthetic prices) remains available for offline demos, the tests and `python -m tradezone sim`.
+
+## Buys need team consensus
+
+A buy only happens when the team agrees. Each voter says yes, no or abstain:
+
+| Voter | Votes yes when… | Votes no when… |
+| --- | --- | --- |
+| Momentum model | fast trend is up | fast trend is down |
+| Mean-reversion model | price is oversold | price is overbought |
+| Breakout model | price breaks the 20-bar high | price breaks the 20-bar low |
+| Strategist | trending up, or ranging and oversold | volatility storm, or trending down |
+
+**Rule:** no voter may say no, and at least `TZ_CONSENSUS_MIN_YES` (default 2) must say yes. After that, **Grok** must approve (if connected) and the **Risk Manager** must approve. The Quant re-checks on every bar while its view holds, so a buy goes ahead as soon as the last objection clears. Each signal's votes appear in Team activity, for example `[momentum:✓ mean-rev:– breakout:✓ strategist:✓]`. Selling to close a position needs no vote.
+
+## Profit protection
+
+**No system can guarantee every trade ends in profit.** A price can fall right after a buy, before the trade is ever green. Removing stop-losses wouldn't change that; it would only turn small losses into large ones. What TradeZone enforces is the next best thing: **once a trade has been in profit, it's not allowed to turn into a loss.**
+
+1. **Break-even lock:** when open profit reaches 0.5R (half the distance from entry to the initial stop), the stop moves above break-even plus round-trip fees, slippage and a cushion sized to the symbol's typical tick move. From then on it locks in 50% of the best open profit seen. These positions show a 🔒 in the dashboard.
+2. **Partial take-profit:** at +1R, half the position is sold to bank the gain. The rest rides with the locked stop toward the target.
+3. **Strategy exits only in profit:** a bearish model signal closes a position only if that nets a profit. Losing positions are left to the stop-loss, which still cuts them. Your Flatten button and the kill switch always work regardless.
+
+The **Profit protection** tile counts any winner that still closed at a loss. That can only happen if the price jumps straight through the stop between two ticks, and each case raises an alert. In offline simulation runs (4 seeds × 3,000 steps), the count was 0 and the win rate went from about 40% to about 70%. That's synthetic data, not a promise about real markets.
 
 ## Grok (xAI) connection
 
@@ -90,7 +121,7 @@ Link wallets in the **Wallets & funding** panel or via the API. Supported chains
 
 ```bash
 pip install -r requirements.txt
-python -m tradezone serve            # dashboard at http://127.0.0.1:8000
+python -m tradezone serve            # dashboard at http://127.0.0.1:8000 (paper, live prices)
 ```
 
 Fast headless simulation report:
@@ -118,8 +149,8 @@ All settings are environment variables with the `TZ_` prefix. A `.env` file in t
 
 | Setup | Variables |
 | --- | --- |
-| Demo (default): synthetic market, paper fills | nothing |
-| Real crypto prices, paper fills (no account needed) | `TZ_FEED=coinbase TZ_SYMBOLS=BTC-USD,ETH-USD,SOL-USD` |
+| **Default:** live crypto prices (Coinbase), paper fills | nothing |
+| Offline demo with synthetic prices | `TZ_FEED=sim` |
 | Alpaca paper account | `TZ_FEED=alpaca TZ_BROKER=alpaca TZ_ALPACA_KEY=… TZ_ALPACA_SECRET=…` |
 | Paper by default, with one-click live switching | add `TZ_ALPACA_LIVE_KEY=… TZ_ALPACA_LIVE_SECRET=…` and use a real feed (see [Live trading](#live-trading)) |
 
