@@ -21,16 +21,17 @@ def test_ws_rejects_bad_token_with_4401_after_accept():
     with TestClient(create_app(desk, run_desk=False)) as c:
         try:
             with c.websocket_connect("/ws") as ws:
+                ws.send_json({"type": "auth", "token": "wrong"})
                 ws.receive_json()
             raise AssertionError("expected close")
         except WebSocketDisconnect as e:
             assert e.code == 4401
-        with c.websocket_connect("/ws?token=s3cret") as ws:
+        with c.websocket_connect("/ws?token=s3cret") as ws:  # tokens in URLs are no longer accepted
+            ws.send_json({"type": "auth", "token": "s3cret"})  # ...but a first auth message is
             assert ws.receive_json()["type"] == "snapshot"
         assert c.get("/api/auth").status_code == 401
         assert c.get("/api/auth", headers={"Authorization": "Bearer s3cret"}).json()["ok"]
-        h = c.get("/api/health").json()
-        assert h["auth_required"] is True and h["feed_ok"] is True
+        assert c.get("/api/health").json() == {"ok": True}  # reveals nothing
 
 
 def test_coinbase_backs_off_when_rate_limited():

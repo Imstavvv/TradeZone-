@@ -231,6 +231,15 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <div class="actions"><button type="submit" class="gopaper" style="min-width:120px">Unlock</button></div>
   </form>
 </div></div>
+<div class="modal" id="reauthModal"><div class="box" style="border-color:var(--warn)">
+  <h3>Confirm with your access token</h3>
+  <div class="muted" id="reauthWhat"></div>
+  <form id="reauthForm" style="margin-top:12px">
+    <input id="reauthToken" type="password" autocomplete="current-password" autocapitalize="off" spellcheck="false" placeholder="Access token" required style="letter-spacing:0">
+    <div class="muted" style="font-size:12px;margin:-6px 0 10px">Actions that can move money need the token again, so a stolen session alone can't do them.</div>
+    <div class="actions"><button type="button" id="reauthCancel">Cancel</button><button type="submit" class="golive">Confirm</button></div>
+  </form>
+</div></div>
 <div class="modal" id="botModal"><div class="box" style="border-color:var(--accent);max-width:640px">
   <div style="display:flex;align-items:center;gap:10px"><div class="avatar" id="bmAv"></div>
     <div><h3 id="bmTitle" style="margin:0"></h3><div class="muted" id="bmRole"></div></div>
@@ -338,6 +347,20 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
       </div>
     </div>
   </section>
+  <section class="panel secpanel" id="sec-security" style="grid-column:1/-1">
+    <h2><span>🔒 Security</span><span class="counter" id="secStatus"></span></h2>
+    <div class="wgrid">
+      <div>
+        <div class="sub">Signed-in devices</div><div class="scroll" id="secSessions"></div>
+        <div class="sub">Blocked addresses</div><div class="scroll" id="secBans"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+          <button id="btnSignout">Sign out</button>
+          <button id="btnSignoutAll" class="danger">Sign out all devices</button>
+        </div>
+      </div>
+      <div><div class="sub">Security log</div><div class="feed" id="secEvents"></div></div>
+    </div>
+  </section>
 </main>
 <nav class="bottomnav" id="bottomnav">
   <a href="#top" data-sec="top" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Overview</a>
@@ -350,7 +373,8 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
 const COLORS = {grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
-const S = {state:null, history:{}, equity:[], symbol:null, token:localStorage.getItem('tz_token')||''};
+const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
+try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (v, d=2) => v==null ? '—' : (v<0?'-':'') + '$' + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -359,14 +383,17 @@ const num = v => v==null ? '—' : Math.abs(v) >= 1000 ? v.toLocaleString(undefi
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
 const time = ts => new Date(ts*1000).toLocaleTimeString();
 
-async function api(path, body){
-  const r = await fetch(path, {method: body===undefined?'GET':'POST', headers:{'Content-Type':'application/json', ...(S.token?{Authorization:'Bearer '+S.token}:{})}, body: body===undefined?undefined:JSON.stringify(body)});
-  if (r.status === 401){ askToken('Token rejected - please re-enter it'); throw new Error('unauthorized'); }
+async function api(path, body, extraHeaders = {}, method){
+  // the session cookie is sent automatically (same-origin); no secrets live in page script
+  const r = await fetch(path, {method: method || (body===undefined?'GET':'POST'), credentials: 'same-origin',
+    headers:{'Content-Type':'application/json', ...extraHeaders}, body: body===undefined?undefined:JSON.stringify(body)});
+  if (r.status === 401){ askToken('Your session ended - please sign in again'); throw new Error('unauthorized'); }
+  if (r.status === 429){ const j = await r.json().catch(()=>({})); const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
+    alert(`${j.detail || 'Too many requests'} (try again in about ${m} min)`); throw new Error('limited'); }
   const j = await r.json().catch(()=>({}));
   if (!r.ok) { alert(j.detail || ('Request failed: '+r.status)); throw new Error(j.detail); }
   return j;
 }
-function saveToken(t){ S.token = t; try { t ? localStorage.setItem('tz_token', t) : localStorage.removeItem('tz_token'); } catch {} }
 function askToken(msg){
   $('authErr').textContent = msg || '';
   $('authModal').classList.add('open');
@@ -377,20 +404,26 @@ $('authForm').onsubmit = async e => {
   const t = $('authToken').value.trim();
   $('authErr').textContent = 'Checking…';
   try {
-    const r = await fetch('/api/auth', {headers: {Authorization: 'Bearer ' + t}});
-    if (r.status === 401) { $('authErr').textContent = 'That token is not correct.'; return; }
+    const r = await fetch('/api/login', {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'}, body: JSON.stringify({token: t})});
+    if (r.status === 401) { $('authErr').textContent = 'That token is not correct. Repeated wrong tries block this device for a while.'; return; }
+    if (r.status === 429) { const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
+      $('authErr').textContent = `Too many wrong tries - this connection is blocked for about ${m} min.`; return; }
+    if (r.status === 403) { $('authErr').textContent = 'Access from this network is not allowed.'; return; }
     if (!r.ok) { $('authErr').textContent = 'Server error ' + r.status + ' - try again shortly.'; return; }
   } catch { $('authErr').textContent = 'Cannot reach the server - check your connection.'; return; }
-  saveToken(t); $('authModal').classList.remove('open'); $('authToken').value = '';
-  connect();
+  $('authModal').classList.remove('open'); $('authToken').value = '';
+  connect(); loadSecurity();
 };
 // decide on start-up: does this server need a token, and is ours valid?
 async function boot(){
   try {
-    const r = await fetch('/api/auth', {headers: S.token ? {Authorization: 'Bearer ' + S.token} : {}});
-    if (r.status === 401) { const had = !!S.token; saveToken(''); return askToken(had ? 'Saved token is no longer valid - please re-enter it.' : ''); }
+    const r = await fetch('/api/auth', {credentials: 'same-origin'});
+    if (r.status === 401) return askToken('');
+    if (r.status === 429) return askToken('Too many wrong tries - this connection is temporarily blocked.');
+    if (r.ok) S.authRequired = (await r.json()).auth_required !== false;
   } catch { /* offline: connect() will keep retrying */ }
-  connect();
+  connect(); loadSecurity();
 }
 
 $('btnPause').onclick = () => api('/api/control/' + (S.state?.paused ? 'resume' : 'pause'), {reason:'dashboard'});
@@ -419,7 +452,9 @@ $('liveFlatten').onclick = async () => { await api('/api/control/flatten', {reas
 let switching = false;
 $('liveGo').onclick = async () => {
   $('liveGo').disabled = true;
-  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}); modal.classList.remove('open'); }
+  const t = await confirmWithToken('switch to LIVE, real-money trading');
+  if (t === null) { $('liveGo').disabled = false; return; }
+  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}, {'X-TZ-Confirm': t}); modal.classList.remove('open'); }
   catch { openLive(); }
 };
 $('btnMode').onclick = async () => {
@@ -435,12 +470,16 @@ $('btnGrok').onclick = async () => { const r = await api('/api/grok/ping', {}); 
 const formData = f => Object.fromEntries(new FormData(f).entries());
 let walletsBuilt = '';
 $('linkForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
-  await api('/api/wallets', {chain:d.chain, address:d.address, tag:d.tag||null, label:d.label, no_tag_confirmed: !!d.no_tag_confirmed});
+  const t = await confirmWithToken(`link ${d.chain} wallet ${d.address.slice(0, 10)}… as a withdrawal destination`);
+  if (t === null) return;
+  await api('/api/wallets', {chain:d.chain, address:d.address, tag:d.tag||null, label:d.label, no_tag_confirmed: !!d.no_tag_confirmed}, {'X-TZ-Confirm': t});
   e.target.reset(); syncChainFields(); };
 $('wdForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
   const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
   if (!confirm(`Withdraw ${d.amount} ${d.asset} to ${w.label}\n${w.address}${w.tag ? `\n${w.tag_name}: ${w.tag}` : ''}?`)) return;
-  const t = await api('/api/withdrawals', {wallet_id:d.wallet_id, asset:d.asset, amount:+d.amount});
+  const tok = await confirmWithToken(`withdraw ${d.amount} ${d.asset} to ${w.label}`);
+  if (tok === null) return;
+  const t = await api('/api/withdrawals', {wallet_id:d.wallet_id, asset:d.asset, amount:+d.amount}, {'X-TZ-Confirm': tok});
   alert(`Withdrawal ${t.status}: ${t.note}`); e.target.reset(); };
 $('depForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
   const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
@@ -460,13 +499,14 @@ $('btnReset').onclick = () => confirm('Re-arm trading after kill switch?') && ap
 
 function connect(){
   if (S.ws && S.ws.readyState <= 1) return;  // already connecting / connected
-  const ws = S.ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws' + (S.token?'?token='+encodeURIComponent(S.token):''));
+  const ws = S.ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws');
   ws.onopen = () => $('conn').textContent = '● live';
   ws.onclose = async (e) => {
     $('conn').textContent = '○ reconnecting…';
-    if (e.code === 4401) return askToken('Token rejected - please re-enter it');
+    if (e.code === 4401) return askToken('Your session ended - please sign in again');
+    if (e.code === 4403) { $('conn').textContent = '○ ' + (e.reason || 'connection refused'); return setTimeout(connect, 15000); }
     // a generic failure could still be auth (older server / proxy): probe before retrying
-    try { const r = await fetch('/api/auth', {headers: S.token ? {Authorization: 'Bearer ' + S.token} : {}});
+    try { const r = await fetch('/api/auth', {credentials: 'same-origin'});
           if (r.status === 401) return askToken('Please enter the access token'); } catch {}
     setTimeout(connect, 2000);
   };
@@ -621,7 +661,7 @@ function renderWallets(st){
     w.tag ? `<span class="tagchip">${esc(w.tag)}</span>` : (w.tag_name ? '<span class="muted">none</span>' : '<span class="muted">n/a</span>'),
     w.tag_name ? `<span class="tagchip" title="Send deposits with this ${esc(w.tag_name)}">${esc(w.deposit_tag)}</span>` : '<span class="muted">by sender</span>',
     `<button class="switch" data-unlink="${w.id}">Unlink</button>`]), 'No wallets linked');
-  document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => confirm('Unlink this wallet?') && fetch('/api/wallets/'+b.dataset.unlink, {method:'DELETE', headers: S.token?{Authorization:'Bearer '+S.token}:{}}));
+  document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => confirm('Unlink this wallet?') && api('/api/wallets/' + b.dataset.unlink, undefined, {}, 'DELETE'));
   $('transferList').innerHTML = table(['Time','Type','Amount','USD','Tag','Status'], W.transfers.map(t => [
     time(t.ts), t.kind === 'deposit' ? '<span class="up">deposit</span>' : '<span class="down">withdrawal</span>',
     `${num(t.amount)} ${esc(t.asset)}`, money(t.usd_value), t.tag ? `<span class="tagchip">${esc(t.tag)}</span>` : '—',
@@ -750,7 +790,7 @@ async function loadTrades(reset){
       <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`;
     renderTrades();
   } finally { TL.loading = false; }
-  $('csvLink').href = `/api/trades.csv?${tlQuery()}${S.token ? '&token=' + encodeURIComponent(S.token) : ''}`;
+  $('csvLink').href = `/api/trades.csv?${tlQuery()}`;  // the session cookie authorises the download
 }
 function tradeRow(t, isNew){
   const pnl = t.pnl == null ? '<span class="muted">—</span>' : `<span class="${cls(t.pnl)}">${money(t.pnl)}</span>`;
@@ -799,6 +839,50 @@ function updateSymbolFilter(syms){
 }
 $('tlMode').onchange = $('tlSym').onchange = () => loadTrades(true);
 $('tlMore').onclick = () => loadTrades(false);
+
+// =================== step-up confirmation ===================
+function confirmWithToken(what){
+  if (!S.authRequired) return Promise.resolve('');
+  return new Promise(resolve => {
+    $('reauthWhat').textContent = 'You are about to ' + what + '.';
+    $('reauthToken').value = '';
+    $('reauthModal').classList.add('open');
+    setTimeout(() => $('reauthToken').focus(), 50);
+    const done = v => { $('reauthModal').classList.remove('open'); $('reauthForm').onsubmit = $('reauthCancel').onclick = null; resolve(v); };
+    $('reauthForm').onsubmit = e => { e.preventDefault(); done($('reauthToken').value.trim()); };
+    $('reauthCancel').onclick = () => done(null);
+  });
+}
+
+// =================== security panel ===================
+function deviceName(ua){
+  if (!ua) return 'Unknown device';
+  const os = /iPhone/.test(ua) ? 'iPhone' : /iPad/.test(ua) ? 'iPad' : /Android/.test(ua) ? 'Android' : /Mac OS/.test(ua) ? 'Mac'
+    : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Device';
+  const br = /Edg\//.test(ua) ? 'Edge' : /CriOS|Chrome\//.test(ua) ? 'Chrome' : /FxiOS|Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : /python|curl|httpx/i.test(ua) ? 'API client' : 'Browser';
+  return `${br} on ${os}`;
+}
+async function loadSecurity(){
+  let d; try { d = await api('/api/security'); } catch { return; }
+  const L = d.limits;
+  $('secStatus').textContent = (d.auth_required ? 'sign-in required' : 'NO TOKEN SET (local only)') +
+    ` · ${d.allowlist.length ? 'IP allowlist on' : 'open to all IPs'} · lockout after ${L.login_failures_before_ban} wrong tries · ${L.requests_per_min} req/min per IP`;
+  $('secSessions').innerHTML = table(['Device','IP','Signed in','Last active'], d.sessions.map(x => [
+    esc(deviceName(x.agent)), `<span class="mono">${esc(x.ip)}</span>`, esc(new Date(x.created * 1000).toLocaleDateString()), esc(new Date(x.last_seen * 1000).toLocaleString())]),
+    d.auth_required ? 'No active sessions' : 'Sign-in is off on this local server');
+  $('secBans').innerHTML = table(['IP','Until','Strikes','Why',''], d.bans.map(b => [
+    `<span class="mono">${esc(b.ip)}</span>`, esc(new Date(b.until * 1000).toLocaleString()), b.strikes, esc(b.reason),
+    `<button class="switch" data-unban="${esc(b.ip)}">Unban</button>`]), 'Nobody is blocked');
+  document.querySelectorAll('[data-unban]').forEach(b => b.onclick = async () => {
+    if (confirm(`Unblock ${b.dataset.unban}?`)) { await api('/api/security/unban', {ip: b.dataset.unban}); loadSecurity(); } });
+  $('secEvents').innerHTML = d.events.map(e => `<div class="lvl-${e.level}"><span class="t">${hms(e.ts)}</span> <b>${esc(e.kind.replace(/_/g, ' '))}</b> <span class="mono muted">${esc(e.ip)}</span> ${esc(e.detail)}</div>`).join('')
+    || '<div class="empty">No security events yet</div>';
+}
+$('btnSignout').onclick = async () => { await api('/api/logout', {}); location.reload(); };
+$('btnSignoutAll').onclick = async () => {
+  if (!confirm('Sign out every device, including this one? Anyone using a stolen session is cut off immediately.')) return;
+  await api('/api/security/signout-all', {}); location.reload(); };
+setInterval(() => { if (document.visibilityState === 'visible' && S.state) loadSecurity(); }, 15000);
 
 function describe(e){
   const p = e.payload || {};

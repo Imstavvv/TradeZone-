@@ -74,7 +74,13 @@ class Settings:
     journal_path: str = "tradezone.db"
     host: str = "127.0.0.1"
     port: int = 8000
-    api_token: str = ""  # if set, control endpoints require "Authorization: Bearer <token>"
+    api_token: str = ""  # access token; REQUIRED (16+ chars) whenever the site is reachable beyond localhost
+    # ---- firewall / abuse protection ----
+    allowed_ips: list[str] = field(default_factory=list)  # optional allowlist of IPs/CIDRs, e.g. 203.0.113.7,10.0.0.0/8
+    rate_limit_per_min: int = 600  # requests per IP per minute
+    login_failures_before_ban: int = 5  # wrong tokens within 15 min before the IP is banned
+    ban_minutes: float = 30.0  # first ban; repeat offenders are banned twice as long each time (max 7 days)
+    trusted_proxies: str = ""  # IPs whose X-Forwarded-For is trusted ("*" behind Render's proxy)
     live_confirm: str = ""
     alpaca_key: str = ""  # Alpaca PAPER account keys (paper broker / market data)
     alpaca_secret: str = ""

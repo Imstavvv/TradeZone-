@@ -58,7 +58,16 @@ def main() -> None:
     desk = TradingDesk(settings)
     if desk.settings.mode == "live":
         logging.warning("*** LIVE TRADING ENABLED - real money is at risk ***")
-    uvicorn.run(create_app(desk), host=host, port=port, log_level=args.log_level.lower())
+    # behind a hosting proxy (Render sets PORT) the real client IP arrives in X-Forwarded-For;
+    # only trust that header from the proxy, otherwise per-IP limits and bans could be dodged
+    proxies = settings.trusted_proxies or ("*" if "PORT" in os.environ else "127.0.0.1")
+    uvicorn.run(
+        create_app(desk), host=host, port=port, log_level=args.log_level.lower(),
+        proxy_headers=True, forwarded_allow_ips=proxies,
+        server_header=False,  # don't advertise the server software
+        ws_max_size=64 * 1024,  # clients only ever send tiny messages
+        limit_concurrency=300, timeout_keep_alive=5,
+    )
 
 
 async def _sim(settings: Settings, steps: int) -> None:

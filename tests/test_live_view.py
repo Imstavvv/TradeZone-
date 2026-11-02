@@ -67,7 +67,9 @@ def test_api_trades_csv_and_bot_log():
         assert d["total"] == 2 and d["items"][0]["symbol"] == "AAPL"
         assert c.get("/api/trades").status_code == 401
         assert c.get("/api/trades.csv").status_code == 401
-        rows = list(csv.reader(io.StringIO(c.get("/api/trades.csv?token=tok").text)))
+        assert c.get("/api/trades.csv?token=tok").status_code == 401  # never in URLs
+        assert c.post("/api/login", json={"token": "tok"}).status_code == 200  # session cookie
+        rows = list(csv.reader(io.StringIO(c.get("/api/trades.csv").text)))
         assert rows[0][:4] == ["time_utc", "mode", "symbol", "side"] and len(rows) == 3
         log = c.get("/api/bots/risk/log", headers=hdr).json()
         assert log["title"] == "Risk Manager" and any("APPROVED" in e["message"] for e in log["log"])
