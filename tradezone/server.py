@@ -12,6 +12,7 @@ import math
 from pathlib import Path
 
 import secrets
+import time
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
@@ -19,6 +20,7 @@ from pydantic import BaseModel
 
 from .config import LIVE_SWITCH_WORD
 from .desk import ModeSwitchError, TradingDesk
+from .applock import LockError
 from .security import (SESSION_COOKIE, SecurityConfig, SecurityManager, SecurityMiddleware, client_ip,
                        is_local_host)
 from .wallets import WalletError
@@ -50,6 +52,15 @@ def light_state(desk: TradingDesk) -> dict:
 
 class LoginBody(BaseModel):
     token: str
+
+
+class PinBody(BaseModel):
+    pin: str
+
+
+class CredentialBody(BaseModel):
+    credential: dict
+    label: str = ""
 
 
 class UnbanBody(BaseModel):
@@ -112,28 +123,63 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     sec = SecurityManager(SecurityConfig(
         token=token, allowed_ips=s.allowed_ips, requests_per_min=s.rate_limit_per_min,
         login_failures_before_ban=s.login_failures_before_ban, ban_s=s.ban_minutes * 60,
+        lock_after_min=s.lock_after_min,
     ), desk.journal)
+    applock = sec.lock
     desk.security = sec  # type: ignore[attr-defined]
     clients: set[asyncio.Queue] = set()
 
     def agent(request) -> str:
         return request.headers.get("user-agent", "")[:200]
 
-    def authorized(request) -> bool:
-        """Session cookie or 'Authorization: Bearer <token>'. A wrong bearer token counts as a failed login."""
+    def auth_state(request) -> tuple[str, str | None]:
+        """('ok' | 'unauth' | 'locked', session hash). Session cookie or 'Authorization: Bearer <token>'.
+
+        A wrong bearer token counts as a failed login. Bearer clients (scripts holding the master
+        token) skip the app lock; browser sessions need the PIN / Face ID when the lock is enabled.
+        """
         if not sec.auth_required:
-            return True
+            return "ok", None
         auth = request.headers.get("authorization", "")
         if auth.startswith("Bearer "):
             if sec.check_token(auth[7:]):
-                return True
+                return "ok", None
             sec.login_failed(client_ip(request.scope), agent(request))
-            return False
-        return sec.session_valid(request.cookies.get(SESSION_COOKIE), client_ip(request.scope))
+            return "unauth", None
+        sid = request.cookies.get(SESSION_COOKIE)
+        if not sec.session_valid(sid, client_ip(request.scope)):
+            return "unauth", None
+        h = sec.sid_hash(sid)  # type: ignore[arg-type]
+        if not applock.is_unlocked(h):
+            return "locked", h
+        applock.touch(h)
+        return "ok", h
+
+    def authorized(request) -> bool:
+        return auth_state(request)[0] == "ok"
 
     def check_token(request: Request) -> None:
-        if not authorized(request):
+        state, _ = auth_state(request)
+        if state == "unauth":
             raise HTTPException(401, "sign in required")
+        if state == "locked":
+            raise HTTPException(423, "locked - unlock with your PIN or Face ID")
+
+    def session_any(request: Request) -> str | None:
+        """A trusted device, locked or not (for the unlock endpoints). Returns the session hash."""
+        state, h = auth_state(request)
+        if state == "unauth":
+            raise HTTPException(401, "sign in required")
+        return h
+
+    def rp(request: Request) -> tuple[str, str]:
+        """WebAuthn relying-party id (domain) and expected origin."""
+        if s.public_url:
+            from urllib.parse import urlsplit
+            u = urlsplit(s.public_url)
+            return u.hostname or "", f"{u.scheme}://{u.netloc}"
+        host = request.headers.get("host", "")
+        return request.url.hostname or host.split(":")[0], f"{request.url.scheme}://{host}"
 
     def reauth(request: Request) -> None:
         """Step-up check for actions that can move money: the access token must be re-entered."""
@@ -232,6 +278,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             sec.login_failed(ip, agent(request))
             raise HTTPException(401, "that access token is not correct")
         sid = sec.create_session(ip, agent(request))
+        applock.unlock(sec.sid_hash(sid))  # the access token outranks the PIN: start unlocked
         response.set_cookie(SESSION_COOKIE, sid, max_age=30 * 24 * 3600, httponly=True,
                             secure=request.url.scheme == "https", samesite="strict", path="/")
         return {"ok": True, "auth_required": True}
@@ -243,9 +290,110 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         sec.audit("logout", client_ip(request.scope), "signed out", agent(request))
         return {"ok": True}
 
-    @app.get("/api/auth", dependencies=[Depends(check_token)])
-    async def auth_check():
-        return {"ok": True, "auth_required": sec.auth_required}
+    @app.get("/api/auth")
+    async def auth_check(request: Request):
+        state, _ = auth_state(request)
+        if state == "unauth":
+            raise HTTPException(401, "sign in required")
+        rp_id, _ = rp(request)
+        return {"ok": True, "auth_required": sec.auth_required, "locked": state == "locked",
+                "lock": {"pin": applock.pin_set, "lock_after_min": applock.lock_after_s / 60,
+                         "faceid": any(p["rp_id"] == rp_id for p in applock.passkeys())}}
+
+    # -- app lock: PIN / Face ID ------------------------------------------------
+    @app.post("/api/unlock/pin")
+    async def unlock_pin(body: PinBody, request: Request, response: Response):
+        h = session_any(request)
+        if h is None:
+            return {"ok": True}
+        if not applock.pin_set:
+            raise HTTPException(400, "no PIN is set")
+        ip = client_ip(request.scope)
+        if applock.check_pin(body.pin.strip()):
+            applock.unlock(h)
+            sec.audit("unlock", ip, "unlocked with PIN", agent(request))
+            return {"ok": True}
+        left = applock.pin_failed(h)
+        if left == 0:
+            response.delete_cookie(SESSION_COOKIE, path="/")
+            sec.audit("pin_lockout", ip, "5 wrong PINs - device signed out", agent(request), "critical")
+            raise HTTPException(401, "Too many wrong PINs - this device was signed out. Sign in with your access token.")
+        sec.audit("pin_failed", ip, f"wrong PIN ({left} tries left)", agent(request), "warning")
+        raise HTTPException(403, f"Wrong PIN - {left} {'try' if left == 1 else 'tries'} left")
+
+    @app.post("/api/lock")
+    async def lock_now(request: Request):
+        h = session_any(request)
+        if h:
+            applock.lock(h)
+        return {"ok": True}
+
+    @app.post("/api/webauthn/auth/options")
+    async def faceid_options(request: Request):
+        h = session_any(request)
+        try:
+            return Response(applock.authentication_options(h or "bearer", rp(request)[0]), media_type="application/json")
+        except LockError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.post("/api/webauthn/auth/verify")
+    async def faceid_verify(body: CredentialBody, request: Request):
+        h = session_any(request)
+        rp_id, origin = rp(request)
+        try:
+            label = applock.authenticate(h or "bearer", body.credential, rp_id, origin)
+        except LockError as exc:
+            sec.audit("faceid_failed", client_ip(request.scope), str(exc)[:120], agent(request), "warning")
+            raise HTTPException(403, str(exc)) from None
+        sec.audit("unlock", client_ip(request.scope), f"unlocked with {label}", agent(request))
+        return {"ok": True}
+
+    @app.get("/api/applock", dependencies=[Depends(check_token)])
+    async def applock_status(request: Request):
+        return _clean({**applock.status(), "rp_id": rp(request)[0]})
+
+    @app.post("/api/applock/pin", dependencies=[Depends(check_token), Depends(reauth)])
+    async def set_pin(body: PinBody, request: Request):
+        try:
+            applock.set_pin(body.pin)
+        except LockError as exc:
+            raise HTTPException(400, str(exc)) from None
+        _, h = auth_state(request)
+        if h:
+            applock.unlock(h)
+        audit(request, "PIN set / changed", "warning")
+        return {"ok": True}
+
+    @app.delete("/api/applock/pin", dependencies=[Depends(check_token), Depends(reauth)])
+    async def remove_pin(request: Request):
+        applock.remove_pin()
+        audit(request, "PIN removed", "warning")
+        return {"ok": True}
+
+    @app.post("/api/webauthn/register/options", dependencies=[Depends(check_token), Depends(reauth)])
+    async def faceid_register_options(request: Request):
+        _, h = auth_state(request)
+        return Response(applock.registration_options(h or "bearer", rp(request)[0]), media_type="application/json")
+
+    @app.post("/api/webauthn/register/verify", dependencies=[Depends(check_token)])
+    async def faceid_register(body: CredentialBody, request: Request):
+        _, h = auth_state(request)
+        rp_id, origin = rp(request)
+        try:
+            res = applock.register(h or "bearer", body.credential, rp_id, origin, body.label or "Face ID")
+        except LockError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if h:
+            applock.unlock(h)
+        audit(request, f"Face ID added ({res['label']})", "warning")
+        return res
+
+    @app.delete("/api/webauthn/passkeys/{cred_id}", dependencies=[Depends(check_token), Depends(reauth)])
+    async def faceid_remove(cred_id: str, request: Request):
+        if not applock.remove_passkey(cred_id):
+            raise HTTPException(404, "no such Face ID key")
+        audit(request, "Face ID key removed", "warning")
+        return {"ok": True}
 
     @app.get("/api/security", dependencies=[Depends(check_token)])
     async def security_summary():
@@ -408,7 +556,11 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     @app.websocket("/ws")
     async def ws(socket: WebSocket):
         await socket.accept()  # accept first: a pre-accept close reaches browsers as a bare 403/1006
-        ok = authorized(socket)
+        state, ws_sid = auth_state(socket)
+        if state == "locked":
+            await socket.close(code=4423, reason="locked")
+            return
+        ok = state == "ok"
         if not ok and sec.auth_required:
             # non-browser clients may authenticate with a first message {"type":"auth","token":...}
             try:
@@ -425,8 +577,17 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         clients.add(q)
         try:
             await socket.send_text(json.dumps(_clean({"type": "snapshot", "data": desk.state()}), default=str))
+            last_check = time.monotonic()
             while True:
-                await socket.send_text(await q.get())
+                try:
+                    await socket.send_text(await asyncio.wait_for(q.get(), 5))
+                except asyncio.TimeoutError:
+                    pass
+                if ws_sid and time.monotonic() - last_check > 5:  # stop streaming the moment the app locks
+                    last_check = time.monotonic()
+                    if not applock.is_unlocked(ws_sid):
+                        await socket.close(code=4423, reason="locked")
+                        return
         except (WebSocketDisconnect, RuntimeError):
             pass
         finally:

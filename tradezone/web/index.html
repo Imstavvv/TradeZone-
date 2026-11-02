@@ -155,6 +155,31 @@ tr.flashrow td{animation:fadein 1.5s}
 #tradelog .scroll{max-height:460px}
 .botlog{font-family:ui-monospace,Menlo,monospace;font-size:12px;max-height:55vh;overflow:auto;margin-top:10px}
 .botlog div{padding:4px 0;border-bottom:1px dashed #1c2436}
+/* ---- app lock ---- */
+body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:hidden}
+.lockscreen{position:fixed;inset:0;z-index:30;background:radial-gradient(circle at 50% 0%,#1e1b4b,var(--bg) 60%);display:none;
+  flex-direction:column;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom));gap:14px;text-align:center}
+.lockscreen.open{display:flex}
+.lockscreen{overflow-y:auto;justify-content:safe center}
+.lockscreen > *{flex:none}
+@media (max-height:700px){.keypad{grid-template-columns:repeat(3,60px);gap:10px}.keypad button{height:60px;font-size:22px}
+  .lockscreen{gap:8px}.lockscreen .logo{display:none}.lockscreen h3{font-size:18px}.dots{margin:4px 0 0}}
+.lockscreen .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.lockscreen h3{margin:4px 0 0;font-size:20px}
+.dots{display:flex;gap:14px;margin:10px 0 2px}
+.dots i{width:14px;height:14px;border-radius:50%;border:2px solid #475569;transition:background .15s,border-color .15s}
+.dots i.on{background:var(--text);border-color:var(--text)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.keypad{display:grid;grid-template-columns:repeat(3,72px);gap:14px;margin-top:6px}
+.keypad button{height:72px;border-radius:50%;font-size:26px;font-weight:500;background:#182033;border:1px solid var(--line)}
+.keypad button:active{background:#232c40}
+.keypad button.ghost{background:transparent;border-color:transparent;font-size:15px}
+.lockerr{min-height:20px;color:#fca5a5;font-size:13px}
+.faceid{display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;font-size:15px}
+.linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:12px;min-height:auto}
+#pinSetupModal input{font-size:24px;letter-spacing:10px;text-align:center}
+.lockbtn{padding:2px 8px;font-size:12px;min-height:auto}
 .bottomnav{display:none}
 section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 @media (max-width:700px){
@@ -211,7 +236,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 </head>
 <body>
 <header id="top">
-  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><span id="conn" class="muted"></span></div>
+  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><button id="btnLockNow" class="lockbtn" style="display:none" title="Lock the app now">🔒</button><span id="conn" class="muted"></span></div>
   <div class="controls">
     <button id="btnMode" class="golive" data-long="Go LIVE" data-short="Go LIVE">Go LIVE</button>
     <button id="btnGrok" data-long="Test Grok" data-short="Grok">Test Grok</button>
@@ -229,6 +254,29 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <input id="authToken" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Access token" required style="letter-spacing:0">
     <div id="authErr" class="down" style="min-height:18px;margin:-6px 0 8px;font-size:12px"></div>
     <div class="actions"><button type="submit" class="gopaper" style="min-width:120px">Unlock</button></div>
+  </form>
+</div></div>
+<div class="lockscreen" id="lockScreen" aria-modal="true" role="dialog">
+  <div class="logo"></div>
+  <h3>TradeZone is locked</h3>
+  <div class="muted" id="lockHint">Enter your 6-digit PIN</div>
+  <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="lockerr" id="lockErr"></div>
+  <div class="keypad" id="keypad"></div>
+  <button class="faceid gopaper" id="btnFaceUnlock" style="display:none">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.2 4.3 1.2 6 0"/></svg>
+    Unlock with Face ID</button>
+  <button class="linkbtn" id="lockUseToken">Forgot PIN? Sign in with your access token</button>
+</div>
+<div class="modal" id="pinSetupModal"><div class="box" style="border-color:var(--accent)">
+  <h3 id="pinSetupTitle">Protect TradeZone with a PIN</h3>
+  <div class="muted" style="font-size:13px">Each time you open the app, come back to it after a minute away, or leave it idle for <span id="pinLockMin">5</span> minutes, it asks for this PIN or Face ID.
+    5 wrong PINs sign the device out. Avoid birthdays and patterns like 123456.</div>
+  <form id="pinSetupForm" style="margin-top:12px">
+    <input id="pin1" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="New PIN" required>
+    <input id="pin2" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="Repeat PIN" required>
+    <div class="lockerr" id="pinSetupErr"></div>
+    <div class="actions"><button type="button" id="pinSetupSkip">Not now</button><button type="submit" class="gopaper">Save PIN</button></div>
   </form>
 </div></div>
 <div class="modal" id="reauthModal"><div class="box" style="border-color:var(--warn)">
@@ -351,6 +399,15 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <h2><span>🔒 Security</span><span class="counter" id="secStatus"></span></h2>
     <div class="wgrid">
       <div>
+        <div class="sub">App lock</div>
+        <div id="lockStatus" class="muted" style="font-size:12px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnSetPin">Set PIN</button>
+          <button id="btnRemovePin" style="display:none">Remove PIN</button>
+          <button id="btnAddFace" class="gopaper" style="display:none">Enable Face ID on this device</button>
+          <button id="btnLockNow2">Lock now</button>
+        </div>
+        <div class="scroll" id="faceKeys" style="margin-top:8px"></div>
         <div class="sub">Signed-in devices</div><div class="scroll" id="secSessions"></div>
         <div class="sub">Blocked addresses</div><div class="scroll" id="secBans"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
@@ -388,6 +445,7 @@ async function api(path, body, extraHeaders = {}, method){
   const r = await fetch(path, {method: method || (body===undefined?'GET':'POST'), credentials: 'same-origin',
     headers:{'Content-Type':'application/json', ...extraHeaders}, body: body===undefined?undefined:JSON.stringify(body)});
   if (r.status === 401){ askToken('Your session ended - please sign in again'); throw new Error('unauthorized'); }
+  if (r.status === 423){ refreshLock(); throw new Error('locked'); }
   if (r.status === 429){ const j = await r.json().catch(()=>({})); const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
     alert(`${j.detail || 'Too many requests'} (try again in about ${m} min)`); throw new Error('limited'); }
   const j = await r.json().catch(()=>({}));
@@ -414,6 +472,9 @@ $('authForm').onsubmit = async e => {
   } catch { $('authErr').textContent = 'Cannot reach the server - check your connection.'; return; }
   $('authModal').classList.remove('open'); $('authToken').value = '';
   connect(); loadSecurity();
+  // first sign-in on this device: offer to set up the app lock
+  try { const a = await (await fetch('/api/auth', {credentials: 'same-origin'})).json(); S.lock = a.lock || {};
+        if (!S.lock.pin && !S.lock.faceid) openPinSetup(true); } catch {}
 };
 // decide on start-up: does this server need a token, and is ours valid?
 async function boot(){
@@ -421,7 +482,15 @@ async function boot(){
     const r = await fetch('/api/auth', {credentials: 'same-origin'});
     if (r.status === 401) return askToken('');
     if (r.status === 429) return askToken('Too many wrong tries - this connection is temporarily blocked.');
-    if (r.ok) S.authRequired = (await r.json()).auth_required !== false;
+    if (r.ok) {
+      const a = await r.json();
+      S.authRequired = a.auth_required !== false; S.lock = a.lock || {};
+      if (a.locked) return showLock();
+      if (S.lock.pin || S.lock.faceid) {  // opening the app always asks for the PIN / Face ID
+        await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+        return showLock();
+      }
+    }
   } catch { /* offline: connect() will keep retrying */ }
   connect(); loadSecurity();
 }
@@ -504,6 +573,7 @@ function connect(){
   ws.onclose = async (e) => {
     $('conn').textContent = '○ reconnecting…';
     if (e.code === 4401) return askToken('Your session ended - please sign in again');
+    if (e.code === 4423) return refreshLock();
     if (e.code === 4403) { $('conn').textContent = '○ ' + (e.reason || 'connection refused'); return setTimeout(connect, 15000); }
     // a generic failure could still be auth (older server / proxy): probe before retrying
     try { const r = await fetch('/api/auth', {credentials: 'same-origin'});
@@ -840,6 +910,167 @@ function updateSymbolFilter(syms){
 $('tlMode').onchange = $('tlSym').onchange = () => loadTrades(true);
 $('tlMore').onclick = () => loadTrades(false);
 
+// =================== app lock: PIN + Face ID ===================
+const b64uToBuf = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); const bin = atob(s + '='.repeat((4 - s.length % 4) % 4));
+  const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b.buffer; };
+const bufToB64u = buf => { let bin = ''; new Uint8Array(buf).forEach(c => bin += String.fromCharCode(c));
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const faceSupported = () => !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+function credToJSON(c){
+  const r = c.response, out = {id: c.id, rawId: bufToB64u(c.rawId), type: c.type,
+    authenticatorAttachment: c.authenticatorAttachment || undefined, clientExtensionResults: c.getClientExtensionResults ? c.getClientExtensionResults() : {}, response: {
+      clientDataJSON: bufToB64u(r.clientDataJSON)}};
+  if (r.attestationObject) { out.response.attestationObject = bufToB64u(r.attestationObject);
+    if (r.getTransports) out.response.transports = r.getTransports(); }
+  if (r.authenticatorData) { out.response.authenticatorData = bufToB64u(r.authenticatorData);
+    out.response.signature = bufToB64u(r.signature); if (r.userHandle) out.response.userHandle = bufToB64u(r.userHandle); }
+  return out;
+}
+const LOCK = {pin: ''};
+function buildKeypad(){
+  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
+  $('keypad').innerHTML = keys.map(k => k ? `<button type="button" class="${k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>` : '<span></span>').join('');
+  $('keypad').querySelectorAll('button').forEach(b => b.onclick = () => pinKey(b.dataset.k));
+}
+function drawDots(){ [...$('pinDots').children].forEach((d, i) => d.classList.toggle('on', i < LOCK.pin.length)); }
+function pinKey(k){
+  if (k === '⌫') LOCK.pin = LOCK.pin.slice(0, -1);
+  else if (LOCK.pin.length < 6) LOCK.pin += k;
+  drawDots();
+  if (LOCK.pin.length === 6) submitPin();
+}
+async function submitPin(){
+  const pin = LOCK.pin; LOCK.pin = '';
+  try {
+    const r = await fetch('/api/unlock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin})});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return unlocked();
+    $('pinDots').classList.remove('shake'); void $('pinDots').offsetWidth; $('pinDots').classList.add('shake');
+    if (r.status === 401) { hideLock(); return askToken(j.detail || 'Please sign in again'); }
+    $('lockErr').textContent = j.detail || 'Could not unlock';
+  } catch { $('lockErr').textContent = 'Cannot reach the server'; }
+  drawDots();
+}
+async function faceUnlock(){
+  $('lockErr').textContent = '';
+  try {
+    const r = await fetch('/api/webauthn/auth/options', {method: 'POST', credentials: 'same-origin'});
+    const opts = await r.json();
+    if (!r.ok) { $('lockErr').textContent = opts.detail || 'Face ID unavailable'; return; }
+    opts.challenge = b64uToBuf(opts.challenge);
+    (opts.allowCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
+    const cred = await navigator.credentials.get({publicKey: opts});
+    const v = await fetch('/api/webauthn/auth/verify', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({credential: credToJSON(cred)})});
+    if (v.ok) return unlocked();
+    $('lockErr').textContent = (await v.json().catch(() => ({}))).detail || 'Face ID check failed';
+  } catch (e) { $('lockErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or use your PIN' : 'Face ID failed: ' + e.message; }
+}
+function showLock(){
+  if (S.locked) return;
+  S.locked = true;
+  try { S.ws && S.ws.close(); } catch {}
+  document.body.classList.add('locked');
+  LOCK.pin = ''; drawDots(); $('lockErr').textContent = '';
+  const hasPin = !!(S.lock && S.lock.pin), hasFace = !!(S.lock && S.lock.faceid) && faceSupported();
+  $('pinDots').style.display = $('keypad').style.display = hasPin ? '' : 'none';
+  $('lockHint').textContent = hasPin ? 'Enter your 6-digit PIN' : 'Use Face ID to continue';
+  $('btnFaceUnlock').style.display = hasFace ? '' : 'none';
+  $('lockScreen').classList.add('open');
+}
+function hideLock(){ S.locked = false; document.body.classList.remove('locked'); $('lockScreen').classList.remove('open'); }
+function unlocked(){ hideLock(); connect(); loadTrades(true); loadSecurity(); }
+async function refreshLock(){
+  try { const r = await fetch('/api/auth', {credentials: 'same-origin'}); if (!r.ok) return;
+        const a = await r.json(); S.lock = a.lock || {}; if (a.locked) showLock(); } catch {}
+}
+buildKeypad();
+$('btnFaceUnlock').onclick = faceUnlock;
+$('lockUseToken').onclick = async () => { await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); hideLock(); askToken(''); };
+document.addEventListener('keydown', e => { if (!S.locked || !$('lockScreen').classList.contains('open')) return;
+  if (/^[0-9]$/.test(e.key)) pinKey(e.key); else if (e.key === 'Backspace') pinKey('⌫'); });
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+  if (S.locked) return;
+  // back from the app switcher / another app after more than a minute: lock, like a banking app
+  if (hiddenAt && Date.now() - hiddenAt > 60000 && S.lock && (S.lock.pin || S.lock.faceid)) {
+    await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+  }
+  refreshLock();
+});
+setInterval(() => { if (!S.locked && document.visibilityState === 'visible') refreshLock(); }, 30000);
+async function lockNow(){ await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); await refreshLock(); }
+$('btnLockNow').onclick = $('btnLockNow2').onclick = lockNow;
+
+// ---- PIN setup / Face ID enrolment ----
+function openPinSetup(first){
+  $('pinSetupTitle').textContent = first ? 'Protect TradeZone with a PIN' : (S.lock && S.lock.pin ? 'Change your PIN' : 'Set a PIN');
+  $('pinLockMin').textContent = Math.round((S.lock && S.lock.lock_after_min) || 5);
+  $('pin1').value = $('pin2').value = ''; $('pinSetupErr').textContent = '';
+  $('pinSetupModal').classList.add('open'); setTimeout(() => $('pin1').focus(), 50);
+}
+$('pinSetupSkip').onclick = () => $('pinSetupModal').classList.remove('open');
+$('pinSetupForm').onsubmit = async e => {
+  e.preventDefault();
+  const p1 = $('pin1').value.trim(), p2 = $('pin2').value.trim();
+  if (!/^\d{6}$/.test(p1)) { $('pinSetupErr').textContent = 'The PIN must be exactly 6 digits.'; return; }
+  if (p1 !== p2) { $('pinSetupErr').textContent = "The two PINs don't match."; return; }
+  const t = await confirmWithToken('set a new app PIN');
+  if (t === null) return;
+  const r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', 'X-TZ-Confirm': t},
+    body: JSON.stringify({pin: p1})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { $('pinSetupErr').textContent = j.detail || 'Could not save the PIN'; return; }
+  $('pinSetupModal').classList.remove('open');
+  await refreshLock(); loadSecurity();
+  if (faceSupported() && !(S.lock && S.lock.faceid) && confirm('PIN saved. Also unlock with Face ID on this device?')) enrollFace();
+};
+async function enrollFace(){
+  if (!faceSupported()) return alert('This browser or device does not support Face ID / passkeys. Use Safari on iPhone (iOS 16+) or a recent Chrome.');
+  const t = await confirmWithToken('turn on Face ID unlock for this device');
+  if (t === null) return;
+  try {
+    const r = await fetch('/api/webauthn/register/options', {method: 'POST', credentials: 'same-origin', headers: {'X-TZ-Confirm': t}});
+    const opts = await r.json();
+    if (!r.ok) return alert(opts.detail || 'Could not start Face ID setup');
+    opts.challenge = b64uToBuf(opts.challenge); opts.user.id = b64uToBuf(opts.user.id);
+    (opts.excludeCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
+    const cred = await navigator.credentials.create({publicKey: opts});
+    const label = deviceName(navigator.userAgent).replace(/^.* on /, '') + ' Face ID';
+    const v = await fetch('/api/webauthn/register/verify', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({credential: credToJSON(cred), label})});
+    const j = await v.json().catch(() => ({}));
+    if (!v.ok) return alert(j.detail || 'Face ID setup failed');
+    await refreshLock(); loadSecurity(); alert('Face ID is on. Next time the app locks, tap "Unlock with Face ID".');
+  } catch (e) { if (e.name !== 'NotAllowedError') alert('Face ID setup failed: ' + e.message); }
+}
+$('btnSetPin').onclick = () => openPinSetup(false);
+$('btnAddFace').onclick = enrollFace;
+$('btnRemovePin').onclick = async () => {
+  if (!confirm('Remove the app PIN? Anyone holding this unlocked device could then open TradeZone.')) return;
+  const t = await confirmWithToken('remove the app PIN'); if (t === null) return;
+  await api('/api/applock/pin', undefined, {'X-TZ-Confirm': t}, 'DELETE'); await refreshLock(); loadSecurity();
+};
+async function loadAppLock(){
+  let d; try { d = await api('/api/applock'); } catch { return; }
+  const here = d.passkeys.filter(p => p.rp_id === d.rp_id);
+  $('lockStatus').innerHTML = d.enabled
+    ? `<b style="color:var(--up)">On</b> · ${d.pin ? 'PIN set' : 'no PIN'} · ${here.length ? here.length + ' Face ID key' + (here.length > 1 ? 's' : '') : 'no Face ID'} · asks every time you open the app, after 1 min in the background, and after ${Math.round(d.lock_after_min)} min idle`
+    : '<b style="color:var(--warn)">Off</b> · anyone holding a signed-in device can open TradeZone. Set a PIN and/or Face ID.';
+  $('btnSetPin').textContent = d.pin ? 'Change PIN' : 'Set PIN';
+  $('btnRemovePin').style.display = d.pin ? '' : 'none';
+  $('btnAddFace').style.display = faceSupported() ? '' : 'none';
+  $('btnLockNow').style.display = d.enabled ? '' : 'none';
+  $('btnLockNow2').style.display = d.enabled ? '' : 'none';
+  $('faceKeys').innerHTML = here.length ? table(['Face ID key','Added','Last used',''], here.map(p => [esc(p.label), esc(new Date(p.created * 1000).toLocaleDateString()),
+    esc(p.last_used ? new Date(p.last_used * 1000).toLocaleString() : '—'), `<button class="switch" data-rmkey="${esc(p.id)}">Remove</button>`])) : '';
+  document.querySelectorAll('[data-rmkey]').forEach(b => b.onclick = async () => {
+    if (!confirm('Remove this Face ID key?')) return;
+    const t = await confirmWithToken('remove a Face ID key'); if (t === null) return;
+    await api('/api/webauthn/passkeys/' + encodeURIComponent(b.dataset.rmkey), undefined, {'X-TZ-Confirm': t}, 'DELETE'); refreshLock(); loadSecurity(); });
+}
+
 // =================== step-up confirmation ===================
 function confirmWithToken(what){
   if (!S.authRequired) return Promise.resolve('');
@@ -863,6 +1094,8 @@ function deviceName(ua){
   return `${br} on ${os}`;
 }
 async function loadSecurity(){
+  if (S.locked) return;
+  loadAppLock();
   let d; try { d = await api('/api/security'); } catch { return; }
   const L = d.limits;
   $('secStatus').textContent = (d.auth_required ? 'sign-in required' : 'NO TOKEN SET (local only)') +

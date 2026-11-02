@@ -67,6 +67,7 @@ class SecurityConfig:
     max_body_bytes: int = 64 * 1024
     max_ws_per_ip: int = 6
     max_ws_total: int = 60
+    lock_after_min: float = 5.0
 
 
 class SecurityManager:
@@ -86,6 +87,13 @@ class SecurityManager:
         self.bans: dict[str, dict[str, Any]] = {
             ip: {"until": until, "strikes": strikes, "reason": reason} for ip, until, strikes, reason in rows
         }
+        from .applock import AppLock
+
+        self.lock = AppLock(journal, cfg.lock_after_min)
+
+    @staticmethod
+    def sid_hash(sid: str) -> str:
+        return _hash(sid)
 
     # ------------------------------------------------------------ audit
     def audit(self, kind: str, ip: str = "", detail: str = "", agent: str = "", level: str = "info") -> None:

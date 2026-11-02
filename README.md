@@ -187,6 +187,16 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 
 Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. Keep your access token in a password manager. If you suspect it leaked, change `TZ_API_TOKEN` on Render (which signs everyone out) and redeploy.
 
+### App lock: PIN and Face ID
+
+On top of the access token you can choose a **6-digit PIN** and/or **Face ID**. After your first sign-in on a device, the app offers to set them up. You can also do it later under **Security → App lock**.
+
+* **How it works (like a banking app):** a device is trusted once with the access token. From then on, the app asks for your PIN or Face ID **every time you open it**, after 1 minute in the background, and after `TZ_LOCK_AFTER_MIN` (default 5) minutes idle. You can also tap 🔒 to lock it straight away. While locked, the dashboard is hidden, the API refuses everything except unlocking, and the live stream disconnects.
+* **PIN:** must be exactly 6 digits. Weak choices (123456, 111111, 121212, sequences, common PINs) are refused. It's stored only as a salted scrypt hash. **5 wrong PINs sign the device out**, so it needs the access token again. A PIN therefore can't be guessed: 5 tries per token sign-in, and token sign-ins are locked out separately. Forgot the PIN? "Sign in with your access token" on the lock screen.
+* **Face ID:** uses passkeys (WebAuthn) with the phone's built-in authenticator and *user verification required*. Your phone's secure hardware checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Replayed responses, look-alike phishing sites and unverified attempts are rejected. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello. Needs HTTPS (Render provides it) and iOS 16+ / a recent Chrome. If you move the site to a new address, set up Face ID again (or pin it with `TZ_PUBLIC_URL`).
+* **Changing settings:** setting or removing the PIN and adding or removing Face ID need the access token again, so someone holding your unlocked phone can't quietly change them. Every unlock, failed PIN and change is in the Security log.
+* Scripts using `Authorization: Bearer <token>` aren't affected by the app lock (they hold the master token).
+
 ## Getting a web address for the dashboard
 
 The dashboard is served by TradeZone itself. **It's ready the moment the server starts.** The header shows `● live` once your browser connects, and the Scout card counts down the warm-up (30 bars, about 7–8 minutes on live data) before the bots start trading.
