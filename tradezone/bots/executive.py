@@ -22,12 +22,12 @@ Exits (stops, targets, flatten, kill switch) are authorised instantly and are ne
 from __future__ import annotations
 
 import math
-import time
 from collections import deque
 from dataclasses import replace
 
 from ..core.bus import Event
 from ..core.models import Alert, OrderRequest, now
+from ..core.util import round_qty, us_market_open
 from .base import Bot
 
 CRITICAL_TEAM = ("scout", "risk", "execution", "portfolio", "sentinel")
@@ -157,6 +157,9 @@ class ExecutiveBot(Bot):
             if risk_dist > 0 and moved > s.exec_max_chase_r * risk_dist:
                 return self.hold(req, f"price ran {moved / risk_dist:.2f}R since the signal - not chasing", latency())
 
+        if s.exec_market_hours_only and not s.is_crypto(req.symbol) and self.desk.feed.name != "sim" \
+                and not us_market_open():
+            return self.hold(req, "US stock market is closed - prices are stale until the open", latency())
         if (n := self.correlated_count(req)) >= s.exec_max_correlated:
             return self.hold(req, f"already {n} crypto positions the same way (correlated)", latency())
 
@@ -166,7 +169,7 @@ class ExecutiveBot(Bot):
             if strength is not None and strength < s.exec_defensive_min_strength:
                 return self.hold(req, f"defensive stance needs conviction {s.exec_defensive_min_strength:.2f}+ "
                                       f"(this {strength:.2f})", latency())
-            qty = self._round(req.qty * 0.5, price)
+            qty = round_qty(req.qty * 0.5, price, s.risk.fractional)
             if qty <= 0:
                 return self.hold(req, "defensive half-size rounds to zero", latency())
             why = f"defensive stance: half size ({self.mode_reason})"
@@ -175,12 +178,6 @@ class ExecutiveBot(Bot):
     def _strength(self, req: OrderRequest) -> float | None:
         risk = self.desk.bots.get("risk")
         return getattr(risk, "strength_by_signal", {}).get(req.signal_id) if risk else None
-
-    def _round(self, qty: float, price: float) -> float:
-        if self.settings.risk.fractional:
-            f = 10 ** (6 if price > 1000 else 4)
-            return math.floor(qty * f) / f
-        return float(math.floor(qty))
 
     # ------------------------------------------------------------------ cycle
     async def on_cycle(self) -> None:

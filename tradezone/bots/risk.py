@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import math
 from collections import deque
 
 from ..core.bus import Event
 from ..core.models import Alert, OrderRequest, Regime, Side, Signal, SignalKind, Snapshot, now
 from ..core.stops import StopRejected, plan_stop
+from ..core.util import is_closing, round_qty
 from .base import Bot
 
 
@@ -60,11 +60,7 @@ class RiskBot(Bot):
         return len(self.order_times) >= self.settings.risk.max_orders_per_minute
 
     def _round_qty(self, qty: float, price: float) -> float:
-        if self.settings.risk.fractional:
-            decimals = 6 if price > 1000 else 4
-            f = 10**decimals
-            return math.floor(qty * f) / f
-        return float(math.floor(qty))
+        return round_qty(qty, price, self.settings.risk.fractional)
 
     def on_signal(self, ev: Event) -> None:
         sig: Signal = ev.payload
@@ -94,7 +90,7 @@ class RiskBot(Bot):
         if not price:
             return self.reject(sig, "no market price")
 
-        closing = (pos.qty > 0 and sig.side is Side.SELL) or (pos.qty < 0 and sig.side is Side.BUY)
+        closing = is_closing(pos.qty, sig.side)
         if sig.kind is SignalKind.EXIT or closing:
             if pos.is_flat:
                 return self.reject(sig, "nothing to close")
@@ -102,7 +98,6 @@ class RiskBot(Bot):
                 return self.reject(sig, "exit signal on wrong side")
             if sig.kind is SignalKind.ENTRY and self.settings.exit_only_in_profit:
                 # discretionary (strategy) exit: only to bank a net profit; losers are left to the stop
-                pm = self.desk.bots.get("portfolio")
                 cost = self.settings.round_trip_cost(sig.symbol, pos.avg_price) * abs(pos.qty)
                 net = (price - pos.avg_price) * pos.qty - cost
                 if net <= 0:

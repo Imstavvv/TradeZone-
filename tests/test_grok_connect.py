@@ -11,7 +11,7 @@ from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.test_bots import capture, run
+from tests.helpers import capture, run
 
 KEY = "xai-" + "a" * 60
 TOKEN = "correct-horse-battery-staple-42"

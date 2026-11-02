@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ..core.bus import Event
 from ..core.models import Alert, Fill, OrderStatus, Side, Signal, SignalKind, Tick
+from ..core.util import norm_symbol, position_mismatches
 from .base import Bot
 
 
@@ -18,6 +19,7 @@ class PortfolioBot(Bot):
     critical = True
 
     RECONCILE_EVERY = 30
+    FEE_TOLERANCE = 0.01  # differences up to 1% (fee-sized) on crypto are the broker's fee, not an error
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
@@ -185,14 +187,20 @@ class PortfolioBot(Bot):
         broker_pos = await self.desk.broker.positions()
         if broker_pos is None:
             return []
-        norm = lambda s: s.replace("-", "").replace("/", "").upper()  # noqa: E731
-        theirs = {norm(k): v for k, v in broker_pos.items()}
-        ours = {norm(p.symbol): p.qty for p in self.portfolio.positions.values() if not p.is_flat}
-        problems = [
-            f"{sym}: ledger {ours.get(sym, 0.0):g} vs broker {theirs.get(sym, 0.0):g}"
-            for sym in set(ours) | set(theirs)
-            if abs(ours.get(sym, 0.0) - theirs.get(sym, 0.0)) > 1e-6 * max(1.0, abs(theirs.get(sym, 0.0)))
-        ]
+        ours = {p.symbol: p.qty for p in self.portfolio.open_positions}
+        problems = []
+        for sym, (a, b) in position_mismatches(ours, broker_pos).items():
+            pos = next((p for p in self.portfolio.open_positions if norm_symbol(p.symbol) == sym), None)
+            # fee taken in the coin: the broker holds slightly less than we bought -> adopt its number
+            if pos is not None and self.settings.is_crypto(pos.symbol) and 0 < abs(b) < abs(a) \
+                    and (abs(a) - abs(b)) <= abs(a) * self.FEE_TOLERANCE and (a > 0) == (b > 0):
+                delta = b - a
+                pos.qty = b
+                self.publish("position.adjusted", {"symbol": pos.symbol, "delta": delta,
+                                                   "reason": "broker fee taken in coin"})
+                self.act(f"{pos.symbol}: adopted broker quantity {b:g} (fee in coin {delta:+g})")
+                continue
+            problems.append(f"{sym}: ledger {a:g} vs broker {b:g}")
         self.metrics["positions_reconciled"] = not problems
         if problems:
             msg = "; ".join(problems)

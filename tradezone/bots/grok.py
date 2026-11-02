@@ -20,7 +20,8 @@ from dataclasses import dataclass
 import httpx
 
 from ..core.bus import Event
-from ..core.models import Alert, Side, Signal, SignalKind, now
+from ..core.models import Alert, Signal, SignalKind, now
+from ..core.util import is_closing
 from .base import Bot
 
 log = logging.getLogger(__name__)
@@ -198,8 +199,8 @@ class GrokBot(Bot):
         old = self.client
         self.client = GrokClient(api_key, model or s.grok_model, s.grok_base_url, s.grok_timeout_s) \
             if api_key and mode != "off" else None
-        if old is not None:
-            asyncio.ensure_future(old.close()) if _loop_running() else None
+        if old is not None and _loop_running():
+            asyncio.ensure_future(old.close())  # release the previous HTTP connection pool
         self.mode = mode if self.client else "off"
         if self.mode == "auto":
             self.mode = "veto"
@@ -227,9 +228,7 @@ class GrokBot(Bot):
             return False
         if sig.kind is SignalKind.EXIT:
             return False
-        pos = self.portfolio.position(sig.symbol)
-        closing = (pos.qty > 0 and sig.side is Side.SELL) or (pos.qty < 0 and sig.side is Side.BUY)
-        return not closing
+        return not is_closing(self.portfolio.position(sig.symbol).qty, sig.side)
 
     def on_signal(self, ev: Event) -> None:
         sig: Signal = ev.payload
@@ -270,6 +269,7 @@ class GrokBot(Bot):
 
     async def _review(self, sig: Signal) -> None:
         self.bump("reviews")
+        was_connected = self.connected is not False
         try:
             reply = await self.client.complete(SYSTEM_PROMPT, self.build_prompt(sig))  # type: ignore[union-attr]
             verdict = parse_verdict(reply)
@@ -282,7 +282,7 @@ class GrokBot(Bot):
             log.warning("Grok review failed: %s", exc)
             ok = self.settings.grok_fail_open
             verdict = Verdict(ok, 0.0, f"Grok unavailable ({type(exc).__name__}); fail-{'open' if ok else 'closed'}")
-            if self.bot_alerted_ok():
+            if was_connected:  # first failure of a new outage; the health check owns ongoing outage alerts
                 self.desk.bus.publish("alert", Alert("warning", f"Grok review failed: {exc}", self.name), self.name)
         age = now() - sig.ts
         if verdict.approved and age > self.settings.grok_max_signal_age_s:
@@ -344,12 +344,6 @@ class GrokBot(Bot):
                       "model": self.client.model if self.client else "-"}
         return st
 
-    def bot_alerted_ok(self) -> bool:
-        """Alert on a failed review only once per outage (the health check owns outage alerts)."""
-        first = not getattr(self, "_outage_alerted", False)
-        self._outage_alerted = not self.connected
-        return first and self.connected is not False
-
     # ---- dashboard-managed settings (stored server-side, never sent back to the browser) ----
     def _table(self):
         j = self.desk.journal
@@ -380,8 +374,6 @@ class GrokBot(Bot):
             cur["model"] = model.strip()
         if mode:
             cur["mode"] = mode
-        if cur.get("mode") == "off":
-            cur["mode"] = "off"
         with j._lock:
             j.conn.execute("INSERT OR REPLACE INTO grok_config(id, data) VALUES (1, ?)", (json.dumps(cur),))
             j.conn.commit()

@@ -9,7 +9,7 @@ from tradezone.config import Settings
 from tradezone.core.models import Side, Signal, SignalKind
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
-from tests.test_bots import capture, prime
+from tests.helpers import capture, prime
 
 
 def grok_desk(reply=None, status=200, fail_open=False):

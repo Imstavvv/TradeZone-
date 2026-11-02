@@ -120,6 +120,13 @@ class ExecutionBot(Bot):
         if req.reduce_only:
             held = self.effective_qty(req.symbol)
             qty = min(qty, abs(held))
+            if self.desk.broker.name == "alpaca":
+                # Alpaca takes crypto fees out of the coins received, so the broker can hold slightly
+                # less than our book: never try to sell more than the broker actually has
+                actual = await self.desk.broker.position_qty(req.symbol)
+                if actual is not None and 0 < abs(actual) < qty:
+                    self.act(f"{req.symbol}: selling broker's actual {abs(actual):g} (book {qty:g}; fee taken in coin)")
+                    qty = abs(actual)
             if qty <= 1e-12 or (held > 0) == (req.side.sign > 0):
                 self.act(f"dropped reduce-only {req.symbol}: no position to reduce", "warning")
                 return

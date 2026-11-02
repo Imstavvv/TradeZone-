@@ -26,7 +26,6 @@ class StopPlan:
     target: float
     distance: float  # |entry - stop|, i.e. 1R
     method: str  # human-readable description
-    atr_multiple: float
 
 
 class StopRejected(ValueError):
@@ -102,4 +101,4 @@ def plan_stop(
                 f"at {barrier:,.6g} (need {min_room_r:g}R)"
             )
     target = price + direction * reward_risk * dist
-    return StopPlan(stop, target, dist, "; ".join(notes), dist / atr)
+    return StopPlan(stop, target, dist, "; ".join(notes))

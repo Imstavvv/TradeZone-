@@ -15,6 +15,7 @@ from .config import Settings
 from .core.bus import Event, EventBus
 from .core.models import Alert
 from .core.portfolio import Portfolio
+from .core.util import position_mismatches
 from .journal import Journal
 from .market.base import MarketFeed
 
@@ -94,7 +95,6 @@ class TradingDesk:
         self.feed_down = False
         self.started_at = time.time()
         self.running = False
-        self._task: asyncio.Task | None = None
         self._day = self._today()
         self.listeners: list[Callable[[Event], None]] = []  # every bus event
         self.ui_listeners: list[Callable[[dict], None]] = []  # bot actions for the live page
@@ -467,13 +467,9 @@ class TradingDesk:
         if acct is None:
             return "live account unreachable"
         theirs = await self.live_broker.positions() or {}
-        norm = lambda s: s.replace("-", "").replace("/", "").upper()  # noqa: E731
-        ours = {norm(p.symbol): p.qty for p in book.open_positions}
-        theirs = {norm(k): v for k, v in theirs.items() if abs(v) > 1e-12}
-        for sym in set(ours) | set(theirs):
-            a, b = ours.get(sym, 0.0), theirs.get(sym, 0.0)
-            if abs(a - b) > 1e-6 * max(1.0, abs(b)):
-                return f"broker shows {sym} {b:g} but saved book has {a:g}"
+        diff = position_mismatches({p.symbol: p.qty for p in book.open_positions}, theirs)
+        for sym, (a, b) in diff.items():
+            return f"broker shows {sym} {b:g} but saved book has {a:g}"
         return None
 
     FEED_DOWN_AFTER = 10  # cycles without data before alerting

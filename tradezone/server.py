@@ -161,9 +161,6 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         applock.touch(h)
         return "ok", h
 
-    def authorized(request) -> bool:
-        return auth_state(request)[0] == "ok"
-
     def check_token(request: Request) -> None:
         state, _ = auth_state(request)
         if state == "unauth":

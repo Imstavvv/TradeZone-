@@ -546,7 +546,6 @@ async function openLive(){
   if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
 }
 $('liveFlatten').onclick = async () => { await api('/api/control/flatten', {reason:'switching to live'}); setTimeout(openLive, 1500); };
-let switching = false;
 $('liveGo').onclick = async () => {
   $('liveGo').disabled = true;
   const t = await confirmWithToken('switch to LIVE, real-money trading');
@@ -930,24 +929,30 @@ async function loadTrades(reset){
     if (reset) { TL.items = []; TL.offset = 0; }
     const d = await api(`/api/trades?${tlQuery()}&limit=100&offset=${TL.offset}`);
     TL.items.push(...d.items); TL.offset += d.items.length; TL.total = d.total;
-    $('tlSum').innerHTML = `<span><b>${d.total}</b> fills</span><span>realized <b class="${cls(d.realized_pnl)}">${money(d.realized_pnl)}</b></span>
-      <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`;
+    tradeSummary(d);
     renderTrades();
   } finally { TL.loading = false; }
   $('csvLink').href = `/api/trades.csv?${tlQuery()}`;  // the session cookie authorises the download
 }
+function tradeWhen(ts){  // time today, date + time for older fills
+  const d = new Date(ts * 1000);
+  return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString()
+    : d.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+function tradeSummary(d){
+  $('tlSum').innerHTML = `<span><b>${d.total}</b> fills</span><span>realized <b class="${cls(d.realized_pnl)}">${money(d.realized_pnl)}</b></span>
+    <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`;
+}
 function tradeRow(t, isNew){
   const pnl = t.pnl == null ? '<span class="muted">—</span>' : `<span class="${cls(t.pnl)}">${money(t.pnl)}</span>`;
-  const d = new Date(t.ts * 1000), today = d.toDateString() === new Date().toDateString();
-  const when = today ? d.toLocaleTimeString() : d.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  const when = tradeWhen(t.ts);
   return `<tr${isNew ? ' class="flashrow"' : ''}><td>${when}</td><td><span class="pill ${t.mode === 'live' ? 'volatile' : 'unknown'}">${esc(t.mode)}</span></td>
     <td><b>${esc(t.symbol)}</b></td><td class="act-${t.action}">${esc(t.action)}</td><td class="${t.side === 'buy' ? 'up' : 'down'}">${esc(t.side.toUpperCase())}</td>
     <td class="r">${num(t.qty)}</td><td class="r">${num(t.price)}</td><td class="r">${money(t.fee)}</td><td class="r">${pnl}</td>
     <td class="muted" style="max-width:340px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.reason)}">${esc(t.reason)}</td></tr>`;
 }
 function tradeCard(t, isNew){
-  const d = new Date(t.ts * 1000), today = d.toDateString() === new Date().toDateString();
-  const when = today ? d.toLocaleTimeString() : d.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  const when = tradeWhen(t.ts);
   const pnl = t.pnl == null ? '' : `<b class="${cls(t.pnl)}">${money(t.pnl)}</b>`;
   return `<div class="tcard${isNew ? ' flashrow' : ''}">
     <div class="r1"><span><b>${esc(t.symbol)}</b> <span class="act-${t.action}">${esc(t.action)}</span> <span class="${t.side === 'buy' ? 'up' : 'down'}">${esc(t.side.toUpperCase())}</span></span>${pnl}</div>
@@ -971,9 +976,8 @@ function addTradeRow(t){
   if ((m && t.mode !== m) || (sy && t.symbol !== sy)) return;
   TL.items.unshift(t); TL.offset++; TL.total++;
   renderTrades(1);
-  clearTimeout(TL.sumTimer); TL.sumTimer = setTimeout(() => api(`/api/trades?${tlQuery()}&limit=1`).then(d => {
-    $('tlSum').innerHTML = `<span><b>${d.total}</b> fills</span><span>realized <b class="${cls(d.realized_pnl)}">${money(d.realized_pnl)}</b></span>
-      <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`; }), 800);
+  clearTimeout(TL.sumTimer);
+  TL.sumTimer = setTimeout(() => api(`/api/trades?${tlQuery()}&limit=1`).then(tradeSummary).catch(() => {}), 800);
 }
 let knownSyms = '';
 function updateSymbolFilter(syms){

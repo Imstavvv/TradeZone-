@@ -3,35 +3,13 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from tradezone.brokers.paper import PaperBroker
 from tradezone.config import Settings
 from tradezone.core.models import Side, Signal
 from tradezone.desk import ModeSwitchError, TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
 from tradezone.server import create_app
-from tests.test_bots import prime, run
-
-
-class FakeLiveBroker(PaperBroker):
-    """Stands in for the Alpaca live account."""
-
-    name = "alpaca"
-    is_live = True
-
-    def __init__(self, cash=2_500.0, positions=None):
-        super().__init__(0, 0)
-        self.cash, self._positions, self.submitted = cash, positions or {}, []
-
-    async def submit(self, order):
-        self.submitted.append(order)
-        return await super().submit(order)
-
-    async def account(self):
-        return {"cash": self.cash, "equity": self.cash}
-
-    async def positions(self):
-        return dict(self._positions)
+from tests.helpers import FakeLiveBroker, prime, run
 
 
 def make_desk(live_broker=None, **kw):

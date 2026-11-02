@@ -109,6 +109,7 @@ class Settings:
     exec_stale_after_s: float = 20.0  # hold entries when a symbol's price is older than this
     exec_max_correlated: int = 3  # max same-direction crypto positions at once
     exec_lookback_trades: int = 20
+    exec_market_hours_only: bool = True  # stocks: only open positions during regular US market hours
     exec_defensive_after_losses: int = 3  # losses in a row that switch to the defensive stance
     exec_defensive_min_strength: float = 0.45  # conviction needed while defensive (normal minimum is 0.35)
     exec_defensive_cooloff_min: float = 30.0  # a losing streak stops counting this long after its last loss

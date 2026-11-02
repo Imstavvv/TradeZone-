@@ -13,7 +13,7 @@ from tradezone.journal import Journal
 from tradezone.market.base import MarketFeed
 from tradezone.market.coinbase import CoinbaseFeed
 from tradezone.server import create_app
-from tests.test_bots import capture, run
+from tests.helpers import capture, run
 
 
 def test_ws_rejects_bad_token_with_4401_after_accept():

@@ -29,6 +29,14 @@ class Broker(abc.ABC):
         """Broker-side account snapshot used for reconciliation, if available."""
         return None
 
+    async def position_qty(self, symbol: str) -> float | None:
+        """The broker's actual quantity for one symbol (None if this broker doesn't track positions)."""
+        pos = await self.positions()
+        if pos is None:
+            return None
+        from ..core.util import norm_symbol
+        return next((q for s, q in pos.items() if norm_symbol(s) == norm_symbol(symbol)), 0.0)
+
     async def positions(self) -> dict[str, float] | None:
         """Broker-side positions (symbol -> signed qty) for reconciliation, if available."""
         return None

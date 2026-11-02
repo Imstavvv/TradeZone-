@@ -1,8 +1,8 @@
 import pytest
 
-from tradezone.core.models import Side, Signal, Snapshot
+from tradezone.core.models import Side, Signal
 from tradezone.core.stops import StopRejected, avoid_round_number, plan_stop, round_step
-from tests.test_bots import capture, prime, run
+from tests.helpers import capture, prime, run
 
 
 def test_round_steps():
@@ -75,7 +75,6 @@ def test_portfolio_heat_cap(desk):
     desk.settings.risk.max_portfolio_heat = 0.004  # room for about one trade (~0.3% each)
     for sym in ("AAPL", "NVDA"):
         prime(desk, sym, 100.0)
-    rejected = capture(desk, "signal.rejected")
     for sym in ("AAPL", "NVDA"):
         desk.bus.publish("signal.proposed", Signal(sym, Side.BUY, 1.0, "t", "quant"))
         run(desk.bus.drain())

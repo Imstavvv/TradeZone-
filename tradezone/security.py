@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import re
 import secrets
 import threading
 import time
@@ -31,7 +32,6 @@ from urllib.parse import urlsplit
 
 SESSION_COOKIE = "tz_session"
 SESSION_TTL_S = 30 * 24 * 3600  # sliding: refreshed on use
-PUBLIC_PATHS = {"/api/health", "/manifest.webmanifest", "/icon.svg", "/icon-180.png", "/icon-512.png", "/"}
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
     id_hash TEXT PRIMARY KEY, created REAL, last_seen REAL, expires REAL, ip TEXT, agent TEXT
@@ -261,7 +261,7 @@ def same_origin(scope) -> bool:
 
 def security_headers(scope, nonce: str | None = None) -> list[tuple[bytes, bytes]]:
     script = f"'nonce-{nonce}'" if nonce else "'self'"
-    host = _headers(scope).get("host", "")
+    host = re.sub(r"[^A-Za-z0-9.:\-\[\]]", "", _headers(scope).get("host", ""))[:255]  # never echo junk
     ws_src = f"wss://{host} ws://{host}" if host else ""
     csp = (
         "default-src 'self'; "

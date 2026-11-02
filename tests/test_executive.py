@@ -6,7 +6,7 @@ import pytest
 
 from tradezone.core.models import OrderRequest, Side, Signal
 from tradezone.core.portfolio import ClosedTrade
-from tests.test_bots import capture, prime, run
+from tests.helpers import capture, prime, run
 
 
 def approve(desk, req):
@@ -63,7 +63,7 @@ def test_holds_on_stale_prices_and_offline_team(desk):
 
 
 def test_limits_correlated_crypto_bets(desk):
-    for i, sym in enumerate(["BTC-USD", "ETH-USD", "SOL-USD"]):
+    for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
         desk.portfolio.position(sym).qty = 1.0
         desk.portfolio.position(sym).avg_price = 100.0
     prime(desk, "XRP-USD", 2.5, atr=0.01)

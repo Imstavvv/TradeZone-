@@ -5,7 +5,7 @@ from tradezone.core.models import Regime, Side, Signal, Snapshot, Tick
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
-from tests.test_bots import capture, prime, run
+from tests.helpers import capture, prime, run
 
 
 def snap(price=100.0, rsi=50.0, ema_fast=100.0, ema_slow=100.0, hi=200.0, lo=1.0):

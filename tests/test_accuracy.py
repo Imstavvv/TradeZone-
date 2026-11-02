@@ -4,7 +4,7 @@ import pytest
 
 from tradezone.brokers.paper import PaperBroker
 from tradezone.core.models import Fill, OrderRequest, Side, Signal
-from tests.test_bots import prime, run
+from tests.helpers import prime, run
 
 
 class BadBroker(PaperBroker):
@@ -113,7 +113,6 @@ def test_simultaneous_exits_never_oversell(desk):
 
 
 def test_unexpected_short_pauses_trading(desk):
-    from tradezone.core.models import Fill
     desk.bus.publish("order.filled", Fill("x", "AAPL", Side.SELL, 1, 100))
     run(desk.bus.drain())
     run(desk.bots["sentinel"].on_cycle())

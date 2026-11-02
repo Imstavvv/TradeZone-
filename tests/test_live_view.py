@@ -10,7 +10,7 @@ from tradezone.core.models import Side, Signal, Tick
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.test_bots import capture, prime, run
+from tests.helpers import capture, prime, run
 
 
 def round_trip(desk, sym="AAPL"):

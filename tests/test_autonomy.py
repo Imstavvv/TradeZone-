@@ -7,8 +7,8 @@ from tradezone.core.models import Side, Signal, Tick
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
-from tests.test_bots import capture, prime, run
-from tests.test_live_switch import FakeLiveBroker
+from tests.helpers import capture, prime, run
+from tests.helpers import FakeLiveBroker
 
 
 def live_settings(**kw):

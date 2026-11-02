@@ -74,7 +74,7 @@ def test_coinbase_feed_parses_and_skips_failures():
 
 
 def test_live_mode_requires_explicit_confirmation():
-    live = dict(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s")
+    live = {"feed": "alpaca", "alpaca_live_key": "k", "alpaca_live_secret": "s"}
     s = Settings(mode="live", **live)
     with pytest.raises(ValueError, match="TZ_LIVE_CONFIRM"):
         s.validate()

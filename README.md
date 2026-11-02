@@ -67,7 +67,7 @@ Once started, the desk runs on its own around the clock:
 
 Paper fills charge what live trading costs: **0.25% per side on crypto** (Alpaca's base taker fee) and 0% on US stocks, plus 0.03% slippage. A trade is skipped unless its profit target is at least **3× the round-trip cost** (`TZ_MIN_EDGE_COST_MULTIPLE`), and position sizing counts fees as part of the risk. That's the main defence against the most common way fast bots lose money: many small trades that each pay the fee and add up to a loss.
 
-With realistic fees, the bundled strategies came out roughly break-even in offline simulation (−1.1% to +0.6% across 4 seeds, max drawdown ≤1.4%, no winner closing as a loss). Synthetic data says little about real markets. Paper-trade on live prices for a good while before going live.
+With realistic fees, the bundled strategies came out roughly break-even in offline simulation (−0.7% to +0.5% across 4 seeds, 26–34 trades each, max drawdown ≤1.4%, no winner closing as a loss). Synthetic data says little about real markets. Paper-trade on live prices for a good while before going live.
 
 ## Market data: paper trades live prices
 
@@ -121,7 +121,7 @@ Every approved trade's reason in Team activity and Orders shows its stop, how it
 2. **Partial take-profit:** at +1R, half the position is sold to bank the gain. The rest rides with the locked stop toward the target.
 3. **Strategy exits only in profit:** a bearish model signal closes a position only if that nets a profit. Losing positions are left to the stop-loss, which still cuts them. Your Flatten button and the kill switch always work regardless.
 
-The **Profit protection** tile counts any winner that still closed at a loss. That can only happen if the price jumps straight through the stop between two ticks, and each case raises an alert. In offline simulation runs (4 seeds × 3,000 steps), the count was 0 and the win rate went from about 40% to about 70%. That's synthetic data, not a promise about real markets.
+The **Winners lost** tile counts any winner that still closed at a loss. That can only happen if the price jumps straight through the stop between two ticks, and each case raises an alert. In offline simulation (4 seeds × 3,000 steps, realistic fees) the count was 0 in every run, with win rates of 50–72%. That's synthetic data, not a promise about real markets.
 
 ## Grok (xAI) connection
 
@@ -213,7 +213,7 @@ On top of the access token you can choose a **6-digit PIN** and/or **Face ID**. 
 
 ## Getting a web address for the dashboard
 
-The dashboard is served by TradeZone itself. **It's ready the moment the server starts.** The header shows `● live` once your browser connects, and the Scout card counts down the warm-up (30 bars, about 7–8 minutes on live data) before the bots start trading.
+The dashboard is served by TradeZone itself. **It's ready the moment the server starts.** The header shows `● live` once your browser connects. Recent price history is pre-loaded at startup, so the bots can trade within seconds (an Alpaca-only setup shows a 30-bar warm-up banner first).
 
 **On your computer:** run `python -m tradezone serve` and open http://127.0.0.1:8000.
 
@@ -303,29 +303,36 @@ To start directly in live mode (for example, on a server after a restart), set `
 
 ## API
 
+The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scripts can instead send `Authorization: Bearer <TZ_API_TOKEN>` on every request; Bearer clients skip the app lock. Tokens are never accepted in URLs. Endpoints marked **step-up** also need the header `X-TZ-Confirm: <TZ_API_TOKEN>`.
+
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/api/health` | Liveness (no auth) |
-| GET | `/api/state` | Full desk state: portfolio, bots, orders, trades, events |
-| GET | `/api/bots` | Bot team status |
-| POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot |
+| GET | `/api/health` | Liveness, returns `{"ok": true}` only (no auth) |
+| POST | `/api/login` · `/api/logout` | `{"token": …}` → session cookie / end the session |
+| GET | `/api/auth` | Signed in? Locked? Which unlock methods (PIN / Face ID) are set |
+| POST | `/api/unlock/pin` · `/api/lock` | Unlock with `{"pin": "482915"}` / lock now |
+| POST | `/api/webauthn/auth/options` · `/api/webauthn/auth/verify` | Face ID unlock (WebAuthn) |
+| GET | `/api/applock` | App-lock status: PIN set, Face ID keys, lock timeout |
+| POST / DELETE | `/api/applock/pin` | Set or change / remove the PIN (**step-up**) |
+| POST | `/api/webauthn/register/options` (**step-up**) · `/api/webauthn/register/verify` | Turn on Face ID for this device |
+| DELETE | `/api/webauthn/passkeys/{id}` | Remove a Face ID key (**step-up**) |
+| GET | `/api/security` | Sessions, bans, security log, limits |
+| POST | `/api/security/unban` · `/api/security/signout-all` | Unblock an IP / sign out every device |
+| GET | `/api/state` | Full desk state: portfolio, bots, orders, events, Executive, Grok status |
+| GET | `/api/bots` · `/api/bots/{name}/log` | Bot team status / one bot's last 200 actions |
+| POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot (safety-critical bots can't be disabled with positions open) |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
-| GET | `/api/journal?topic=order.filled` | Audit trail from SQLite |
-| GET | `/api/trades?mode=&symbol=&limit=&offset=` | Permanent trade log (every fill) with totals |
-| GET | `/api/trades.csv` | Trade log as CSV (`?token=` accepted for download links) |
-| GET | `/api/bots/{name}/log` | A bot's status and its last 200 actions |
-| GET | `/api/mode` | Preview a paper/live switch: blockers, live account, trading capital |
-| POST | `/api/mode` | `{"mode": "live", "confirm": "LIVE"}` or `{"mode": "paper", "flatten": true}` |
+| GET | `/api/trades?mode=&symbol=&limit=&offset=` · `/api/trades.csv` | Permanent trade log with totals / as CSV |
+| GET | `/api/journal?topic=order.filled` | Raw audit trail |
+| GET / POST | `/api/mode` | Preview a paper/live switch / switch: `{"mode": "live", "confirm": "LIVE"}` (**step-up**) or `{"mode": "paper", "flatten": true}` |
+| GET · POST · DELETE | `/api/grok` · `/api/grok/config` (**step-up**) | Grok status / save key, model and mode / remove the saved key |
 | POST | `/api/grok/ping` | Test the Grok connection |
-| GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` |
+| GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` (**step-up**) |
 | DELETE | `/api/wallets/{id}` | Unlink a wallet |
 | GET | `/api/deposits/info` | Deposit address and deposit tag for each wallet |
-| POST | `/api/deposits` | Record an incoming deposit `{chain, asset, amount, tx_hash, tag?, from_address?}` |
-| POST | `/api/deposits/{id}/credit` | Attribute a held deposit `{wallet_id}` |
-| POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` |
-| WS | `/ws` | Live stream: `snapshot` on connect, then `action` (bot thoughts), `event` (team events) as they happen, and `state` every cycle (`?token=` when an API token is set) |
-
-When `TZ_API_TOKEN` is set, every endpoint except health requires `Authorization: Bearer <token>`.
+| POST | `/api/deposits` · `/api/deposits/{id}/credit` | Record an incoming deposit / attribute a held one |
+| POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` (**step-up**) |
+| WS | `/ws` | Live stream: `snapshot` on connect, then `action` (bot thoughts) and `event` (team events) as they happen, and `state` every cycle. Authorised by the session cookie; scripts send `{"type": "auth", "token": …}` as their first message. |
 
 ## Project layout
 

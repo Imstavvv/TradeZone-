@@ -1,27 +1,8 @@
-import asyncio
 
 import pytest
 
-from tradezone.core.models import Side, Signal, SignalKind, Snapshot, Tick
-
-
-def run(coro):
-    return asyncio.run(coro)
-
-
-def prime(desk, symbol="AAPL", price=100.0, atr=0.5):
-    desk.prices[symbol] = price
-    desk.broker.on_prices([Tick(symbol, price)])
-    desk.portfolio.mark(symbol, price)
-    ind = {"atr": atr, "volatility": 0.003, "rsi": 50, "ema_fast": price, "ema_slow": price,
-           "sma50": price, "donchian_high": price, "donchian_low": price}
-    desk.bots["risk"].snapshots[symbol] = Snapshot(symbol, price, ind)
-
-
-def capture(desk, topic):
-    out = []
-    desk.bus.subscribe(topic, lambda e: out.append(e.payload), owner="test")
-    return out
+from tradezone.core.models import Side, Signal, SignalKind, Tick
+from tests.helpers import capture, prime, run
 
 
 def test_team_has_at_least_six_distinct_roles(desk):

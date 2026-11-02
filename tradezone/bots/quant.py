@@ -6,6 +6,7 @@ import math
 
 from ..core.bus import Event
 from ..core.models import Regime, Side, Signal, Snapshot
+from ..core.util import is_closing
 from .base import Bot
 
 # strategy weights per regime
@@ -92,7 +93,7 @@ class QuantBot(Bot):
             return
         side = Side.BUY if new > 0 else Side.SELL
         pos = self.portfolio.position(s.symbol)
-        closing = (pos.qty > 0 and side is Side.SELL) or (pos.qty < 0 and side is Side.BUY)
+        closing = is_closing(pos.qty, side)
         top = max(parts, key=lambda k: abs(parts[k] * weights[k]))
         reason = f"{top} lead in {regime.value} regime (score {score:+.2f})"
         votes: dict[str, str] = {}

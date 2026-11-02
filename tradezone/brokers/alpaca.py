@@ -109,6 +109,20 @@ class AlpacaBroker(Broker):
             log.warning("alpaca account fetch failed: %s", exc)
             return None
 
+    async def position_qty(self, symbol: str) -> float | None:
+        sym = symbol.replace("-", "").replace("/", "")
+        try:
+            r = await self.client.get(f"/v2/positions/{sym}")
+            if r.status_code == 404:
+                return 0.0
+            r.raise_for_status()
+            p = r.json()
+        except Exception as exc:
+            log.warning("alpaca position %s fetch failed: %s", symbol, exc)
+            return None
+        qty = float(p["qty"])
+        return -abs(qty) if p.get("side") == "short" else qty
+
     async def positions(self) -> dict[str, float] | None:
         try:
             r = await self.client.get("/v2/positions")

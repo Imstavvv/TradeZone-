@@ -12,7 +12,7 @@ from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.coinbase import CoinbaseFeed
-from tests.test_bots import capture
+from tests.helpers import capture
 
 
 def rest_client(handler):

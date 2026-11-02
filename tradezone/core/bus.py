@@ -58,19 +58,14 @@ class EventBus:
         self._lock = asyncio.Lock()
         self._max = max_events_per_drain
         self.on_error: ErrorHook | None = None
-        self.published = 0
 
     def subscribe(self, topic: str, handler: Handler, owner: str = "anon") -> None:
         """Subscribe to an exact topic, a prefix wildcard (``order.*``) or ``*``."""
         self._subs.append(_Sub(topic, handler, owner))
 
-    def unsubscribe_owner(self, owner: str) -> None:
-        self._subs = [s for s in self._subs if s.owner != owner]
-
     def publish(self, topic: str, payload: Any = None, source: str = "system") -> Event:
         ev = Event(topic, payload, source)
         self._queue.append(ev)
-        self.published += 1
         return ev
 
     @staticmethod
@@ -102,7 +97,3 @@ class EventBus:
                         if self.on_error:
                             self.on_error(sub.owner, ev, exc)
             return n
-
-    @property
-    def pending(self) -> int:
-        return len(self._queue)
