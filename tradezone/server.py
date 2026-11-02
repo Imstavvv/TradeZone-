@@ -63,6 +63,12 @@ class CredentialBody(BaseModel):
     label: str = ""
 
 
+class GrokConfigBody(BaseModel):
+    api_key: str | None = None
+    model: str | None = None
+    mode: str | None = None
+
+
 class UnbanBody(BaseModel):
     ip: str
 
@@ -551,7 +557,30 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     # -- grok ----------------------------------------------------------------
     @app.post("/api/grok/ping", dependencies=[Depends(check_token)])
     async def grok_ping():
-        return await desk.bots["grok"].ping()  # type: ignore[attr-defined]
+        res = await desk.bots["grok"].ping()  # type: ignore[attr-defined]
+        return {**res, **desk.bots["grok"].info()}  # type: ignore[attr-defined]
+
+    @app.get("/api/grok", dependencies=[Depends(check_token)])
+    async def grok_info():
+        return desk.bots["grok"].info()  # type: ignore[attr-defined]
+
+    @app.post("/api/grok/config", dependencies=[Depends(check_token), Depends(reauth)])
+    async def grok_config(body: GrokConfigBody, request: Request):
+        if body.mode and body.mode not in ("veto", "advisory", "off"):
+            raise HTTPException(400, "mode must be veto, advisory or off")
+        if body.api_key is not None and body.api_key.strip() and len(body.api_key.strip()) < 20:
+            raise HTTPException(400, "that doesn't look like a full xAI API key - copy it again from console.x.ai")
+        grok = desk.bots["grok"]
+        grok.save(body.api_key, body.model, body.mode)  # type: ignore[attr-defined]
+        audit(request, f"Grok settings changed (mode {grok.mode}{', new key' if body.api_key else ''})", "warning")
+        res = await grok.ping() if grok.client else {"ok": False, "error": "Grok is off"}  # type: ignore[attr-defined]
+        return {**res, **grok.info()}  # type: ignore[attr-defined]
+
+    @app.delete("/api/grok/config", dependencies=[Depends(check_token), Depends(reauth)])
+    async def grok_forget(request: Request):
+        desk.bots["grok"].forget()  # type: ignore[attr-defined]
+        audit(request, "Grok key removed from dashboard settings", "warning")
+        return desk.bots["grok"].info()  # type: ignore[attr-defined]
 
     @app.websocket("/ws")
     async def ws(socket: WebSocket):

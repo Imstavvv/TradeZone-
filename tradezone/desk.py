@@ -348,6 +348,7 @@ class TradingDesk:
         return total
 
     async def start(self) -> None:
+        self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
         await self.feed.start()
         await self.backfill()
@@ -559,9 +560,7 @@ class TradingDesk:
             "equity_curve": list(sentinel.equity_curve)[-500:],  # type: ignore[attr-defined]
             "wallets": self.wallets.to_dict(),
             "grok": {
-                "mode": self.bots["grok"].mode,  # type: ignore[attr-defined]
-                "model": self.settings.grok_model,
-                "connected": self.bots["grok"].connected,  # type: ignore[attr-defined]
+                **self.bots["grok"].info(),  # type: ignore[attr-defined]  (never includes the key itself)
                 "opinions": self.bots["grok"].opinions,  # type: ignore[attr-defined]
             },
             "accuracy": {

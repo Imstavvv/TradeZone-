@@ -122,20 +122,31 @@ The **Profit protection** tile counts any winner that still closed at a loss. Th
 
 ## Grok (xAI) connection
 
-Set an xAI API key to connect the Grok bot:
+**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your access token). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
+
+Or set it on Render as an environment variable:
 
 ```bash
-TZ_GROK_API_KEY=xai-...        # XAI_API_KEY also works
-TZ_GROK_MODEL=grok-4           # any chat model your xAI account can use
+TZ_GROK_API_KEY=xai-...        # XAI_API_KEY or GROK_API_KEY also work
+TZ_GROK_MODEL=grok-4           # optional: if the account lacks it, the best available Grok model is picked
 TZ_GROK_MODE=veto              # veto (default when a key is set) | advisory | off
-TZ_GROK_FAIL_OPEN=false        # if Grok is unreachable, reject new entries (the safe default)
+TZ_GROK_FAIL_OPEN=false        # if Grok is unreachable, hold new entries (the safe default)
 ```
 
-* **veto:** new positions need Grok's approval. Its confidence is blended into the position size. Signals that go stale while waiting for Grok (`TZ_GROK_MAX_SIGNAL_AGE_S`) are dropped.
-* **advisory:** Grok's opinion is logged and shown, but it doesn't block trades.
+* **veto:** new positions need Grok's approval. Its confidence is blended into the position size, and signals that go stale while waiting are dropped.
+* **advisory:** Grok's opinion is logged and shown, but it never blocks.
 * **Exits never wait for Grok.** Stops, targets, flattening and the kill switch always go straight through.
 
-Use **Test Grok** in the dashboard header (or `POST /api/grok/ping`) to check the connection.
+**If it won't connect**, the Grok screen and a dashboard banner say why, in plain English:
+
+| Message | Fix |
+| --- | --- |
+| *xAI rejected the API key* | Copy a fresh key from console.x.ai → API Keys. They start with `xai-`. |
+| *no credits / spending limit* | Add credits or raise the spending limit at console.x.ai. |
+| *Model … isn't available* | Usually fixed automatically by switching to the best available Grok model. Otherwise clear the Model field. |
+| *rate limit* / *timeout* / *can't reach api.x.ai* | Temporary. The connection is re-checked every minute while down. |
+
+While Grok is down in veto mode, **new trades are on hold**: the team requires Grok's approval and it can't be had. Fix the key, or switch Grok to *Advisory* or *Off* to trade without it.
 
 ## Accuracy: what is and isn't guaranteed
 

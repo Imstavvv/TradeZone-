@@ -197,7 +197,8 @@ class Settings:
         if self.live_max_capital < 0:
             raise ValueError("TZ_LIVE_MAX_CAPITAL must be >= 0")
         if not self.grok_api_key:
-            self.grok_api_key = os.environ.get("XAI_API_KEY", "")
+            self.grok_api_key = os.environ.get("XAI_API_KEY") or os.environ.get("GROK_API_KEY") or ""
+        self.grok_api_key = self.grok_api_key.strip()
         if self.grok_mode not in ("auto", "veto", "advisory", "off"):
             raise ValueError("TZ_GROK_MODE must be auto, veto, advisory or off")
         if self.grok_mode == "auto":

@@ -279,6 +279,31 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <div class="actions"><button type="button" id="pinSetupSkip">Not now</button><button type="submit" class="gopaper">Save PIN</button></div>
   </form>
 </div></div>
+<div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
+  <div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:#e5e5e5">G</div>
+    <div><h3 style="margin:0">Grok AI analyst</h3><div class="muted" style="font-size:12px">xAI's Grok double-checks every new trade</div></div>
+    <button id="grokClose" style="margin-left:auto">Close</button></div>
+  <div id="grokState" style="margin:12px 0;padding:10px 12px;border-radius:10px;background:var(--panel2);font-size:13px"></div>
+  <form id="grokForm">
+    <div class="sub">xAI API key</div>
+    <input id="grokKey" type="password" autocomplete="off" spellcheck="false" placeholder="xai-…" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+    <div class="muted" style="font-size:12px;margin-top:4px">Create one at <b>console.x.ai</b> → API Keys (the account needs credits). Stored on your server only; never shown again.</div>
+    <div class="sub">Model</div>
+    <input id="grokModel" placeholder="automatic (best available)" autocomplete="off" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+    <div class="sub">What Grok may do</div>
+    <select id="grokMode" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+      <option value="veto">Veto - a new trade needs Grok's approval</option>
+      <option value="advisory">Advisory - Grok comments, never blocks</option>
+      <option value="off">Off</option>
+    </select>
+    <div class="lockerr" id="grokErr" style="margin-top:8px"></div>
+    <div class="actions" style="margin-top:8px">
+      <button type="button" id="grokForget" style="display:none">Remove saved key</button>
+      <button type="button" id="grokTest">Test connection</button>
+      <button type="submit" class="gopaper">Save &amp; connect</button>
+    </div>
+  </form>
+</div></div>
 <div class="modal" id="reauthModal"><div class="box" style="border-color:var(--warn)">
   <h3>Confirm with your access token</h3>
   <div class="muted" id="reauthWhat"></div>
@@ -535,7 +560,46 @@ $('btnMode').onclick = async () => {
   const bm = $('btnMode'); bm.disabled = true; bm.dataset.long = open ? 'Closing positions…' : 'Switching…'; bm.dataset.short = 'Wait…'; applyLabels();
   try { await api('/api/mode', {mode:'paper', flatten:true}); } finally { bm.disabled = false; bm.dataset.long = 'Back to PAPER'; }
 };
-$('btnGrok').onclick = async () => { const r = await api('/api/grok/ping', {}); alert(r.ok ? `Grok connected (${r.model}): ${r.reply}` : `Grok not connected: ${r.error}`); };
+// ---- Grok connection ----
+function grokStateHtml(g, res){
+  if (!g.configured) return '⚪ <b>Not set up.</b> Paste your xAI API key below to connect Grok.';
+  if (g.connected) return `🟢 <b>Connected</b> to <span class="mono">${esc(g.model)}</span> · ${esc(g.mode)} mode · key ${esc(g.key)} (${g.source === 'dashboard' ? 'saved here' : 'from Render'})` +
+    (res && res.reply ? `<div class="muted" style="margin-top:4px">Test reply: “${esc(res.reply)}”</div>` : '');
+  if (g.connected === false) return `🔴 <b>Can't connect.</b> ${esc(g.error)}` +
+    (g.mode === 'veto' && !g.fail_open ? '<div style="margin-top:6px;color:#fcd34d">New trades are on hold while Grok is unreachable in veto mode. Fix the key, or switch to Advisory/Off.</div>' : '');
+  return `🟡 Checking connection to <span class="mono">${esc(g.model)}</span>…`;
+}
+async function openGrok(test){
+  $('grokErr').textContent = ''; $('grokKey').value = '';
+  $('grokModal').classList.add('open');
+  let g = await api('/api/grok'), res = null;
+  const paint = () => {
+    $('grokState').innerHTML = grokStateHtml(g, res);
+    $('grokKey').placeholder = g.key ? `saved key ${g.key} - paste a new one to replace it` : 'xai-…';
+    $('grokModel').value = g.configured ? g.model : '';
+    $('grokMode').value = g.mode === 'off' ? (g.configured ? 'off' : 'veto') : g.mode;
+    $('grokForget').style.display = g.source === 'dashboard' ? '' : 'none';
+  };
+  paint();
+  if (test && g.configured) { $('grokState').innerHTML = '🟡 Testing…'; res = await api('/api/grok/ping', {}); g = res; paint(); }
+}
+$('btnGrok').onclick = () => openGrok(true);
+$('grokClose').onclick = () => $('grokModal').classList.remove('open');
+$('grokTest').onclick = async () => { $('grokState').innerHTML = '🟡 Testing…'; const r = await api('/api/grok/ping', {}); $('grokState').innerHTML = grokStateHtml(r, r); };
+$('grokForm').onsubmit = async e => {
+  e.preventDefault();
+  const key = $('grokKey').value.trim(), model = $('grokModel').value.trim(), mode = $('grokMode').value;
+  const t = await confirmWithToken('change the Grok connection settings'); if (t === null) return;
+  $('grokState').innerHTML = '🟡 Connecting…'; $('grokErr').textContent = '';
+  try {
+    const r = await api('/api/grok/config', {api_key: key || null, model, mode}, {'X-TZ-Confirm': t});
+    $('grokState').innerHTML = grokStateHtml(r, r); $('grokKey').value = '';
+  } catch (err) { $('grokErr').textContent = err.message || 'Could not save'; openGrok(false); }
+};
+$('grokForget').onclick = async () => {
+  const t = await confirmWithToken('remove the saved Grok key'); if (t === null) return;
+  await api('/api/grok/config', undefined, {'X-TZ-Confirm': t}, 'DELETE'); openGrok(false);
+};
 const formData = f => Object.fromEntries(new FormData(f).entries());
 let walletsBuilt = '';
 $('linkForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
@@ -620,7 +684,8 @@ function render(){
   else if (st.paused){ status.textContent = 'PAUSED'; status.className='badge pause'; status.title=''; }
   else { status.textContent = 'TRADING'; status.className='badge run'; status.title=''; }
   const gk = st.grok, gb = $('grokBadge');
-  gb.textContent = gk.mode === 'off' ? 'GROK OFF' : `GROK ${gk.mode.toUpperCase()}${gk.connected === false ? ' · ERROR' : ''}`;
+  gb.textContent = !gk.configured ? 'GROK · SET UP' : gk.mode === 'off' ? 'GROK OFF' : `GROK ${gk.mode.toUpperCase()}${gk.connected === false ? ' · ERROR' : gk.connected ? ' ✓' : ' …'}`;
+  gb.style.cursor = 'pointer'; gb.onclick = () => openGrok(false);
   gb.className = 'badge ' + (gk.mode === 'off' ? '' : gk.connected === false ? 'grok-err' : 'grok-on');
   const ac = st.accuracy, bn = $('banner');
   if (st.halted || (st.paused && ac.pause_reason && ac.pause_reason !== 'dashboard' && ac.pause_reason !== 'operator')) {
@@ -629,6 +694,9 @@ function render(){
   } else if (st.feed_status && !st.feed_status.ok) {
     bn.style.display = 'block'; bn.className = 'banner crit';
     bn.textContent = `No market data from ${st.feed}: ${st.feed_status.error || 'no response'}. The bots can't trade until prices arrive - retrying automatically.`;
+  } else if (st.grok && st.grok.configured && st.grok.mode === 'veto' && st.grok.connected === false && !st.grok.fail_open) {
+    bn.style.display = 'block'; bn.className = 'banner';
+    bn.textContent = `Grok can't connect - new trades are on hold: ${st.grok.error || 'no response'} (tap the Grok button to fix, or switch it to Advisory/Off).`;
   } else if (st.feed_status && st.feed_status.warming_up) {
     const w = st.feed_status.warming_up, left = (w.needed - w.done) * (w.bar_seconds || 1);
     bn.style.display = 'block'; bn.className = 'banner info';
