@@ -29,10 +29,24 @@ class ExecutionBot(Bot):
         self.ref_price: dict[str, float] = {}
         self._cum_filled: dict[str, float] = {}
         self._processed_requests: set[str] = set()
+        # fills emitted but not yet booked by the ledger (they sit in the event queue)
+        self.unbooked: dict[str, float] = {}
         self.metrics.update({"fills_verified": 0, "integrity_violations": 0, "pretrade_blocks": 0})
 
     def subscriptions(self):
-        return {"order.approved": self.on_approved}
+        return {"order.approved": self.on_approved, "order.filled": self.on_booked}
+
+    def on_booked(self, ev: Event) -> None:
+        f: Fill = ev.payload
+        left = self.unbooked.get(f.symbol, 0.0) - f.qty * f.side.sign
+        if abs(left) < 1e-12:
+            self.unbooked.pop(f.symbol, None)
+        else:
+            self.unbooked[f.symbol] = left
+
+    def effective_qty(self, symbol: str) -> float:
+        """Position including fills that are still on their way to the ledger."""
+        return self.portfolio.position(symbol).qty + self.unbooked.get(symbol, 0.0)
 
     def working_for(self, symbol: str) -> Order | None:
         return next((o for o in self.working.values() if o.symbol == symbol), None)
@@ -103,9 +117,9 @@ class ExecutionBot(Bot):
             return
         qty = req.qty
         if req.reduce_only:
-            pos = self.portfolio.position(req.symbol)
-            qty = min(qty, abs(pos.qty))
-            if qty <= 0 or (pos.qty > 0) == (req.side.sign > 0):
+            held = self.effective_qty(req.symbol)
+            qty = min(qty, abs(held))
+            if qty <= 1e-12 or (held > 0) == (req.side.sign > 0):
                 self.act(f"dropped reduce-only {req.symbol}: no position to reduce", "warning")
                 return
         order = Order(
@@ -131,6 +145,7 @@ class ExecutionBot(Bot):
 
     def _emit(self, order: Order, fills: list[Fill]) -> None:
         for f in fills:
+            self.unbooked[f.symbol] = self.unbooked.get(f.symbol, 0.0) + f.qty * f.side.sign
             self.verify_fill(order, f)  # violations pause the desk but the fill is still booked
             self.bump("fills")
             self.bump("notional", abs(f.qty * f.price))

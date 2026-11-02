@@ -94,3 +94,27 @@ def test_broker_position_mismatch_pauses(desk):
     desk.broker.positions = broker_positions
     problems = asyncio.run(desk.bots["portfolio"].reconcile_positions())
     assert problems and desk.paused
+
+
+def test_simultaneous_exits_never_oversell(desk):
+    """A partial take-profit and a full stop in the same instant must not flip the position short."""
+    from tradezone.core.models import SignalKind
+    prime(desk)
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    q = desk.portfolio.position("AAPL").qty
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 1, "partial", "portfolio", SignalKind.EXIT, fraction=0.5))
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 1, "stop", "portfolio", SignalKind.EXIT))
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 1, "flatten", "portfolio", SignalKind.EXIT))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("AAPL").is_flat
+    sold = sum(o.filled_qty for o in desk.bots["execution"].orders.values() if o.reduce_only)
+    assert sold == pytest.approx(q)
+
+
+def test_unexpected_short_pauses_trading(desk):
+    from tradezone.core.models import Fill
+    desk.bus.publish("order.filled", Fill("x", "AAPL", Side.SELL, 1, 100))
+    run(desk.bus.drain())
+    run(desk.bots["sentinel"].on_cycle())
+    assert desk.paused and "short" in desk.pause_reason

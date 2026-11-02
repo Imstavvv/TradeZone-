@@ -37,6 +37,7 @@ class RiskLimits:
     max_daily_loss_pct: float = 0.05  # kill switch trips beyond this daily loss
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30
+    max_portfolio_heat: float = 0.05  # total risk to all stops, as a fraction of equity
     min_signal_strength: float = 0.35
     symbol_cooldown_s: float = 10.0
     allow_short: bool = False
@@ -88,7 +89,14 @@ class Settings:
     deposit_addresses: list[str] = field(default_factory=list)  # "CHAIN:address", e.g. XRP:rXXXX
     withdrawal_cooldown_h: float = 24.0  # newly linked wallets can't receive withdrawals until then
     max_daily_withdrawal: float = 10_000.0
-    stop_atr_mult: float = 3.0
+    # ---- stop-loss placement (see core/stops.py) ----
+    stop_method: str = "structure"  # structure (beyond recent swing low/high) | atr (fixed ATR multiple)
+    stop_buffer_atr: float = 1.0  # buffer beyond the swing level
+    min_stop_atr: float = 1.5  # never tighter than this (noise)
+    max_stop_atr: float = 4.0  # skip the trade if the structural stop is wider than this
+    reward_risk: float = 2.0  # target = this x stop distance
+    min_room_r: float = 1.0  # need this much room (in R) before the nearest resistance/support
+    stop_atr_mult: float = 3.0  # used when stop_method=atr
     take_profit_atr_mult: float = 6.0
     trailing_stop: bool = True
     # ---- profit protection: a trade that has gone green must not end red ----
@@ -155,6 +163,8 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
+        if self.stop_method not in ("structure", "atr"):
+            raise ValueError("TZ_STOP_METHOD must be structure or atr")
         if self.live_max_capital < 0:
             raise ValueError("TZ_LIVE_MAX_CAPITAL must be >= 0")
         if not self.grok_api_key:

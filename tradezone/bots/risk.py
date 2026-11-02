@@ -7,6 +7,7 @@ from collections import deque
 
 from ..core.bus import Event
 from ..core.models import Alert, OrderRequest, Regime, Side, Signal, SignalKind, Snapshot, now
+from ..core.stops import StopRejected, plan_stop
 from .base import Bot
 
 
@@ -137,8 +138,27 @@ class RiskBot(Bot):
         snap = self.snapshots.get(sig.symbol)
         if snap is None:
             return self.reject(sig, "no indicator data")
-        atr = max(snap.indicators["atr"], price * 0.001)
-        stop_dist = self.settings.stop_atr_mult * atr
+        ind = snap.indicators
+        atr = max(ind["atr"], price * 0.001)
+        s = self.settings
+        direction = sig.side.sign
+        if s.stop_method == "structure" and "swing_low" in ind:
+            try:
+                plan = plan_stop(
+                    direction, price, atr, ind.get("swing_low"), ind.get("swing_high"),
+                    ind.get("donchian_high"), ind.get("donchian_low"),
+                    buffer_atr=s.stop_buffer_atr, min_stop_atr=s.min_stop_atr, max_stop_atr=s.max_stop_atr,
+                    reward_risk=s.reward_risk, min_room_r=s.min_room_r,
+                )
+            except StopRejected as exc:
+                self.bump("rejected_stop_placement")
+                return self.reject(sig, str(exc))
+            stop, tp, stop_dist, how = plan.stop, plan.target, plan.distance, plan.method
+        else:
+            stop_dist = s.stop_atr_mult * atr
+            stop = price - stop_dist * direction
+            tp = price + s.take_profit_atr_mult * atr * direction
+            how = f"{s.stop_atr_mult:g}x ATR"
 
         equity = self.portfolio.equity
         risk_budget = equity * limits.risk_per_trade * (0.5 + 0.5 * sig.strength)
@@ -151,13 +171,28 @@ class RiskBot(Bot):
         qty = min(qty, max(room, 0) / price)
         if sig.side is Side.BUY:
             qty = min(qty, max(self.portfolio.cash, 0) * 0.995 / price)
+        # portfolio heat: total money at risk to all stops stays under the cap
+        heat_room = equity * limits.max_portfolio_heat - self.open_risk()
+        if heat_room <= 0:
+            return self.reject(sig, f"portfolio heat at limit ({limits.max_portfolio_heat:.0%} of equity at risk)")
+        qty = min(qty, heat_room / stop_dist)
         qty = self._round_qty(qty, price)
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 
-        stop = price - stop_dist * sig.side.sign
-        tp = price + self.settings.take_profit_atr_mult * atr * sig.side.sign
+        risk_amt = qty * stop_dist
+        sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp))
+
+    def open_risk(self) -> float:
+        """Money that would be lost if every open position hit its stop (locked profits count 0)."""
+        total = 0.0
+        for p in self.portfolio.open_positions:
+            if p.stop_price is None:
+                total += abs(p.market_value)  # unprotected position: whole value at risk
+                continue
+            total += max(0.0, (p.avg_price - p.stop_price) * p.qty)
+        return total
 
     # ------------------------------------------------------------------
     async def on_cycle(self) -> None:
@@ -168,6 +203,7 @@ class RiskBot(Bot):
                 "drawdown": round(p.drawdown, 4),
                 "daily_pnl_pct": round(p.daily_pnl_pct, 4),
                 "gross_exposure": round(p.gross_exposure / p.equity if p.equity > 0 else 0, 4),
+                "portfolio_heat": round(self.open_risk() / p.equity if p.equity > 0 else 0, 4),
             }
         )
         if self.desk.halted:

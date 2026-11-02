@@ -40,6 +40,9 @@ def main() -> None:
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     load_dotenv()
+    if "PORT" in os.environ and "TZ_PORT" not in os.environ:  # hosting platforms (Render, Railway, Fly)
+        os.environ["TZ_PORT"] = os.environ["PORT"]
+        os.environ.setdefault("TZ_HOST", "0.0.0.0")
     settings = Settings.from_env()
     if args.cmd == "sim":
         asyncio.run(_sim(settings, args.steps))

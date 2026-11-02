@@ -135,6 +135,9 @@ class SentinelBot(Bot):
                 self.metrics["degraded"] = True
         self.metrics["audit_checks"] = self.metrics.get("audit_checks", 0) + 1
         problems = self.audit_books()
+        if not self.settings.risk.allow_short:
+            problems += [f"{p.symbol} is short {p.qty:g} but shorting is disabled"
+                         for p in self.portfolio.open_positions if p.qty < 0]
         balanced = not problems
         if not balanced and self.books_balanced:
             msg = "; ".join(problems)

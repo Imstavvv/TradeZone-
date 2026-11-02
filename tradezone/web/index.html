@@ -193,7 +193,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 </main>
 
 <script>
-const PCT_KEYS = new Set(['drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
+const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
 const COLORS = {grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
 const S = {state:null, history:{}, equity:[], symbol:null, token:localStorage.getItem('tz_token')||''};
 const $ = id => document.getElementById(id);

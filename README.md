@@ -60,6 +60,29 @@ A buy only happens when the team agrees. Each voter says yes, no or abstain:
 
 **Rule:** no voter may say no, and at least `TZ_CONSENSUS_MIN_YES` (default 2) must say yes. After that, **Grok** must approve (if connected) and the **Risk Manager** must approve. The Quant re-checks on every bar while its view holds, so a buy goes ahead as soon as the last objection clears. Each signal's votes appear in Team activity, for example `[momentum:✓ mean-rev:– breakout:✓ strategist:✓]`. Selling to close a position needs no vote.
 
+## Stop-loss placement and risk management
+
+Stops go where most traders put them, **just beyond the most recent swing point**:
+
+* **Long:** below the lowest low of the last 10 bars (the last dip buyers defended), minus a 1×ATR buffer so ordinary noise doesn't tag it. Shorts mirror this above the swing high.
+* **Off round numbers:** if the stop lands on or near a round number (100, 105, 65,000…), where stops cluster and get hunted, it moves just beyond it.
+* **Never too tight:** at least 1.5×ATR from entry.
+* **Never too wide:** if the swing stop is more than 4×ATR away, the trade is **skipped** rather than taken with oversized risk.
+* **Target:** 2× the stop distance (2:1 reward-to-risk). The trade is skipped if resistance is less than 1R away, because it would have no room to work.
+* **Fallback:** if there's no swing level yet, the stop is 2×ATR. `TZ_STOP_METHOD=atr` switches everything to plain ATR stops.
+
+Risk management layered on top:
+
+| Rule | Default |
+| --- | --- |
+| Risk per trade: position sized so hitting the stop loses at most this | 1% of equity (half that in volatile regimes) |
+| Portfolio heat: total loss if *every* open stop is hit | 5% of equity |
+| Max position size / total exposure / open positions | 20% / 100% / 5 |
+| Daily loss / drawdown kill switch (flattens everything) | −5% / −15% |
+| Profit protection after +0.5R | stop to break-even + costs, then locks 50% of peak profit |
+
+Every approved trade's reason in Team activity and Orders shows its stop, how it was placed, the target and the money at risk. For example: `stop 98.8 (below swing low 99.2 - 1 ATR buffer), target 102.4, risk 412.50`.
+
 ## Profit protection
 
 **No system can guarantee every trade ends in profit.** A price can fall right after a buy, before the trade is ever green. Removing stop-losses wouldn't change that; it would only turn small losses into large ones. What TradeZone enforces is the next best thing: **once a trade has been in profit, it's not allowed to turn into a loss.**
@@ -116,6 +139,21 @@ Link wallets in the **Wallets & funding** panel or via the API. Supported chains
 * **Deposit addresses:** set the desk's own receiving addresses with `TZ_DEPOSIT_ADDRESSES=XRP:r...,ETH:0x...`.
 
 > **Paper vs live.** In paper mode, deposits and withdrawals move simulated cash. The "Record deposit" form stands in for an on-chain watcher, which isn't included. In live mode, your funds sit at your broker, so withdrawals are recorded as `manual_required` and aren't debited until you complete them at the broker. TradeZone never moves real crypto on its own.
+
+## Getting a web address for the dashboard
+
+The dashboard is served by TradeZone itself. **It's ready the moment the server starts.** The header shows `● live` once your browser connects, and the Scout card counts down the warm-up (30 bars, about 7–8 minutes on live data) before the bots start trading.
+
+**On your computer:** run `python -m tradezone serve` and open http://127.0.0.1:8000.
+
+**On the internet (Render, about 5 minutes):**
+
+1. Push this repo to GitHub.
+2. In Render: **New → Blueprint**, then pick the repo. `render.yaml` sets up an always-on service with a disk for the trade journal, and generates a random `TZ_API_TOKEN`.
+3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. Paste the API token when the page asks for it (it's under Environment in Render).
+4. Optionally add your Alpaca / Grok keys under Environment. Never commit keys.
+
+Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Always set `TZ_API_TOKEN` when the dashboard is reachable from the internet, because it controls real-money trading.
 
 ## Quick start
 

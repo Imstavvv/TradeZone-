@@ -23,10 +23,14 @@ class _Book:
         self.returns = RollingWindow(30)
         self.abs_moves = RollingWindow(14)
         self.donchian = RollingWindow(20)
+        self.lows = RollingWindow(10)  # swing lookback (bar lows)
+        self.highs = RollingWindow(10)
         self.last_ts = 0.0
         self.count = 0
         self.bar_bucket: int | None = None  # current bar index (bar mode)
         self.bar_close = 0.0
+        self.bar_low = math.inf
+        self.bar_high = -math.inf
 
 
 class ScoutBot(Bot):
@@ -64,23 +68,25 @@ class ScoutBot(Bot):
         self.bump("ticks")
         if self.bar_seconds > 0:
             bucket = int(t.ts // self.bar_seconds)
+            if b.bar_bucket is not None and bucket != b.bar_bucket:
+                self.bump("bars")
+                self._on_close(t.symbol, b, b.bar_close, t.ts, b.bar_low, b.bar_high)
+                b.bar_bucket = None
             if b.bar_bucket is None:
-                b.bar_bucket, b.bar_close = bucket, t.price
-                return
-            if bucket == b.bar_bucket:
-                b.bar_close = t.price
-                return
-            close, b.bar_bucket, b.bar_close = b.bar_close, bucket, t.price
-            self.bump("bars")
-            self._on_close(t.symbol, b, close, t.ts)
+                b.bar_bucket, b.bar_low, b.bar_high = bucket, t.price, t.price
+            b.bar_close = t.price
+            b.bar_low, b.bar_high = min(b.bar_low, t.price), max(b.bar_high, t.price)
             return
-        self._on_close(t.symbol, b, t.price, t.ts)
+        self._on_close(t.symbol, b, t.price, t.ts, t.price, t.price)
 
-    def _on_close(self, symbol: str, b: "_Book", price: float, ts: float) -> None:
-        """Update indicators with one closing price (a tick in sim mode, a bar otherwise)."""
+    def _on_close(self, symbol: str, b: "_Book", price: float, ts: float,
+                  low: float, high: float) -> None:
+        """Update indicators with one bar (a single tick in sim mode)."""
         t = Tick(symbol, price, 0.0, ts)
         prev_high = b.donchian.max() if b.donchian.full else None
         prev_low = b.donchian.min() if b.donchian.full else None
+        swing_low = b.lows.min() if b.lows.full else None  # excludes the current bar
+        swing_high = b.highs.max() if b.highs.full else None
         if b.prices:
             r = math.log(t.price / b.prices[-1])
             sigma = b.returns.std()
@@ -98,6 +104,8 @@ class ScoutBot(Bot):
         b.sma.push(t.price)
         b.rsi.update(t.price)
         b.donchian.push(t.price)
+        b.lows.push(low)
+        b.highs.push(high)
         b.count += 1
 
         if b.count < WARMUP:
@@ -113,6 +121,8 @@ class ScoutBot(Bot):
             "atr": b.abs_moves.mean(),
             "donchian_high": prev_high if prev_high is not None else t.price,
             "donchian_low": prev_low if prev_low is not None else t.price,
+            "swing_low": swing_low if swing_low is not None else min(low, t.price),
+            "swing_high": swing_high if swing_high is not None else max(high, t.price),
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts))
         self.bump("snapshots")

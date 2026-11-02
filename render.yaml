@@ -1,0 +1,26 @@
+# One-click hosting on Render (https://render.com): New > Blueprint > pick this repo.
+# The dashboard gets a public https URL. A random TZ_API_TOKEN is generated for you
+# (Render dashboard > tradezone > Environment) - the site asks for it on first visit.
+services:
+  - type: web
+    name: tradezone
+    runtime: docker
+    plan: starter          # always-on; the free plan sleeps, which would stop the bots
+    healthCheckPath: /api/health
+    autoDeploy: false      # redeploys restart the bots - deploy deliberately
+    envVars:
+      - key: TZ_API_TOKEN
+        generateValue: true
+      - key: TZ_HOST
+        value: 0.0.0.0
+      - key: TZ_JOURNAL_PATH
+        value: /data/tradezone.db
+      # Add these yourself in the Render dashboard (never commit keys):
+      #   TZ_ALPACA_KEY / TZ_ALPACA_SECRET            (optional, Alpaca paper + stock data)
+      #   TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET  (enables the Go LIVE button)
+      #   TZ_LIVE_MAX_CAPITAL                         (recommended when live)
+      #   TZ_GROK_API_KEY                             (Grok AI analyst)
+    disk:
+      name: tradezone-data
+      mountPath: /data
+      sizeGB: 1
