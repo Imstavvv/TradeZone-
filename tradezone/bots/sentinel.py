@@ -11,7 +11,8 @@ from .base import Bot
 
 JOURNALED = (
     "signal.proposed", "signal.rejected", "order.approved", "order.update", "order.filled",
-    "trade.closed", "regime.update", "alert", "desk.control",
+    "trade.closed", "regime.update", "alert", "desk.control", "signal.reviewed", "grok.opinion",
+    "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed",
 )
 
 
@@ -31,11 +32,46 @@ class SentinelBot(Bot):
         self.equity_curve: deque[tuple[float, float]] = deque(maxlen=5000)
         self._last_errors: dict[str, int] = {}
         self._cycles = 0
+        self.reset_shadow()
+
+    # -- independent shadow ledger ------------------------------------------
+    def reset_shadow(self) -> None:
+        """Rebuild the audit ledger from the current book (called at desk start)."""
+        p = self.portfolio
+        self.shadow_cash = p.cash
+        self.shadow_qty: dict[str, float] = {s: x.qty for s, x in p.positions.items()}
+        self.books_balanced = True
+        self.metrics["books_balanced"] = True
+        self.metrics["audit_checks"] = 0
+
+    def _shadow(self, ev: Event) -> None:
+        if ev.topic == "order.filled":
+            f = ev.payload
+            signed = f.qty * f.side.sign
+            self.shadow_cash -= signed * f.price + f.commission
+            self.shadow_qty[f.symbol] = self.shadow_qty.get(f.symbol, 0.0) + signed
+        elif ev.topic == "funds.deposit":
+            self.shadow_cash += ev.payload["usd_value"]
+        elif ev.topic == "funds.withdrawal":
+            self.shadow_cash -= ev.payload["usd_value"]
+
+    def audit_books(self) -> list[str]:
+        p = self.portfolio
+        problems = []
+        tol = 0.01 + 1e-9 * abs(self.shadow_cash)
+        if abs(self.shadow_cash - p.cash) > tol:
+            problems.append(f"cash ledger {p.cash:,.2f} != audit {self.shadow_cash:,.2f}")
+        for sym in set(self.shadow_qty) | set(p.positions):
+            a, b = self.shadow_qty.get(sym, 0.0), p.positions[sym].qty if sym in p.positions else 0.0
+            if abs(a - b) > 1e-9 * max(1.0, abs(a)):
+                problems.append(f"{sym} qty ledger {b:g} != audit {a:g}")
+        return problems
 
     def subscriptions(self):
         return {"*": self.on_event}
 
     def on_event(self, ev: Event) -> None:
+        self._shadow(ev)
         if ev.topic in ("market.tick", "market.snapshot", "portfolio.update"):
             return
         d = ev.to_dict()
@@ -97,5 +133,15 @@ class SentinelBot(Bot):
             self._last_errors[name] = bot.errors
             if not bot.enabled and bot.critical:
                 self.metrics["degraded"] = True
+        self.metrics["audit_checks"] = self.metrics.get("audit_checks", 0) + 1
+        problems = self.audit_books()
+        balanced = not problems
+        if not balanced and self.books_balanced:
+            msg = "; ".join(problems)
+            self.act(f"BOOKS OUT OF BALANCE: {msg}", "critical")
+            self.publish("alert", Alert("critical", f"Audit mismatch - trading paused: {msg}", self.name))
+            self.desk.pause(f"audit mismatch: {msg}")
+        self.books_balanced = balanced
+        self.metrics["books_balanced"] = balanced
         perf = self.performance()
         self.metrics.update({k: round(v, 4) if isinstance(v, float) and math.isfinite(v) else v for k, v in perf.items()})

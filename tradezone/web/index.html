@@ -68,12 +68,24 @@ td.r,th.r{text-align:right}
 .grid2{grid-column:1/-1;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))}
 .empty{color:var(--muted);padding:10px 0;text-align:center}
 #conn{font-size:11px}
+.banner{grid-column:1/-1;background:#3b2a0d;border:1px solid #78350f;color:#fcd34d;border-radius:10px;padding:10px 14px;font-weight:600;display:none}
+.banner.crit{background:#450a0a;border-color:#7f1d1d;color:#fecaca}
+.badge.grok-on{background:#1f1f1f;color:#f5f5f5;border-color:#525252}.badge.grok-err{background:#450a0a;color:#fecaca;border-color:#7f1d1d}
+form.row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+form.row input,form.row select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;min-width:0;flex:1 1 120px}
+form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;flex:1 1 100%}
+.sub{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin:12px 0 6px}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.tagchip{background:#1e1b4b;color:#c7d2fe;border-radius:6px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+.wallets{grid-column:1/-1}
+.wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
 </style>
 </head>
 <body>
 <header>
-  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="conn" class="muted"></span></div>
+  <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><span id="conn" class="muted"></span></div>
   <div class="controls">
+    <button id="btnGrok">Test Grok</button>
     <button id="btnPause">Pause</button>
     <button id="btnFlatten">Flatten all</button>
     <button id="btnKill" class="danger">Kill switch</button>
@@ -82,6 +94,7 @@ td.r,th.r{text-align:right}
 </header>
 
 <main>
+  <div class="banner" id="banner"></div>
   <section class="kpis" id="kpis"></section>
 
   <div class="col">
@@ -111,11 +124,51 @@ td.r,th.r{text-align:right}
     <section class="panel"><h2>Team activity</h2><div class="feed" id="events"></div></section>
     <section class="panel"><h2>Alerts</h2><div class="feed" id="alerts"></div></section>
   </div>
+
+  <section class="panel wallets">
+    <h2>Wallets &amp; funding <span class="muted" id="wdLimit"></span></h2>
+    <div class="wgrid">
+      <div>
+        <div class="sub">Link a wallet</div>
+        <form class="row" id="linkForm">
+          <select name="chain" id="chainSel"></select>
+          <input name="address" placeholder="Wallet address" required style="flex-basis:100%">
+          <input name="tag" id="tagInput" placeholder="Destination tag / memo">
+          <input name="label" placeholder="Label (optional)">
+          <label id="noTagRow"><input type="checkbox" name="no_tag_confirmed" style="flex:none"> This address doesn't need a tag/memo</label>
+          <button type="submit">Link wallet</button>
+        </form>
+        <div class="sub">Withdraw</div>
+        <form class="row" id="wdForm">
+          <select name="wallet_id" id="wdWallet" required></select>
+          <select name="asset" id="wdAsset" required></select>
+          <input name="amount" type="number" step="any" min="0" placeholder="Amount" required>
+          <button type="submit">Withdraw</button>
+        </form>
+        <div id="depSim">
+          <div class="sub">Record deposit <span class="muted" style="text-transform:none">(paper: simulates an incoming transfer)</span></div>
+          <form class="row" id="depForm">
+            <select name="wallet_id" id="depWallet" required></select>
+            <select name="asset" id="depAsset" required></select>
+            <input name="amount" type="number" step="any" min="0" placeholder="Amount" required>
+            <input name="tx_hash" placeholder="Tx hash (blank = random)">
+            <button type="submit">Record deposit</button>
+          </form>
+        </div>
+      </div>
+      <div>
+        <div class="sub">Linked wallets</div>
+        <div class="scroll" id="walletList"></div>
+        <div class="sub">Transfers</div>
+        <div class="scroll" id="transferList"></div>
+      </div>
+    </div>
+  </section>
 </main>
 
 <script>
 const PCT_KEYS = new Set(['drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const COLORS = {scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
+const COLORS = {grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
 const S = {state:null, history:{}, equity:[], symbol:null, token:localStorage.getItem('tz_token')||''};
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -137,6 +190,31 @@ function askToken(){ const t = prompt('API token required'); if (t){ S.token=t; 
 $('btnPause').onclick = () => api('/api/control/' + (S.state?.paused ? 'resume' : 'pause'), {reason:'dashboard'});
 $('btnFlatten').onclick = () => confirm('Close ALL open positions at market?') && api('/api/control/flatten', {reason:'dashboard flatten'});
 $('btnKill').onclick = () => confirm('Trip the kill switch? This halts new trades and flattens every position.') && api('/api/control/kill', {reason:'dashboard'});
+$('btnGrok').onclick = async () => { const r = await api('/api/grok/ping', {}); alert(r.ok ? `Grok connected (${r.model}): ${r.reply}` : `Grok not connected: ${r.error}`); };
+const formData = f => Object.fromEntries(new FormData(f).entries());
+let walletsBuilt = '';
+$('linkForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
+  await api('/api/wallets', {chain:d.chain, address:d.address, tag:d.tag||null, label:d.label, no_tag_confirmed: !!d.no_tag_confirmed});
+  e.target.reset(); syncChainFields(); };
+$('wdForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
+  const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
+  if (!confirm(`Withdraw ${d.amount} ${d.asset} to ${w.label}\n${w.address}${w.tag ? `\n${w.tag_name}: ${w.tag}` : ''}?`)) return;
+  const t = await api('/api/withdrawals', {wallet_id:d.wallet_id, asset:d.asset, amount:+d.amount});
+  alert(`Withdrawal ${t.status}: ${t.note}`); e.target.reset(); };
+$('depForm').onsubmit = async e => { e.preventDefault(); const d = formData(e.target);
+  const w = S.state.wallets.wallets.find(x => x.id === d.wallet_id);
+  const t = await api('/api/deposits', {chain:w.chain, asset:d.asset, amount:+d.amount, tx_hash: d.tx_hash || ('sim-' + Math.random().toString(16).slice(2)),
+    tag: w.tag_name ? w.deposit_tag : null, from_address: w.tag_name ? null : w.address});
+  alert(`Deposit ${t.status}: ${t.note}`); e.target.reset(); };
+function syncChainFields(){
+  const c = S.state?.wallets.chains[$('chainSel').value]; if (!c) return;
+  $('tagInput').style.display = $('noTagRow').style.display = c.tag ? '' : 'none';
+  $('tagInput').placeholder = c.tag ? c.tag[0].toUpperCase() + c.tag.slice(1) : '';
+}
+$('chainSel').onchange = syncChainFields;
+const assetOpts = (wid) => { const w = S.state.wallets.wallets.find(x => x.id === wid); return (w?.assets||[]).map(a => `<option>${esc(a)}</option>`).join(''); };
+$('wdWallet').onchange = () => $('wdAsset').innerHTML = assetOpts($('wdWallet').value);
+$('depWallet').onchange = () => $('depAsset').innerHTML = assetOpts($('depWallet').value);
 $('btnReset').onclick = () => confirm('Re-arm trading after kill switch?') && api('/api/control/reset', {});
 
 function connect(){
@@ -167,6 +245,14 @@ function render(){
   if (st.halted){ status.textContent = 'HALTED'; status.className='badge halt'; status.title = st.halt_reason; }
   else if (st.paused){ status.textContent = 'PAUSED'; status.className='badge pause'; status.title=''; }
   else { status.textContent = 'TRADING'; status.className='badge run'; status.title=''; }
+  const gk = st.grok, gb = $('grokBadge');
+  gb.textContent = gk.mode === 'off' ? 'GROK OFF' : `GROK ${gk.mode.toUpperCase()}${gk.connected === false ? ' · ERROR' : ''}`;
+  gb.className = 'badge ' + (gk.mode === 'off' ? '' : gk.connected === false ? 'grok-err' : 'grok-on');
+  const ac = st.accuracy, bn = $('banner');
+  if (st.halted || (st.paused && ac.pause_reason && ac.pause_reason !== 'dashboard' && ac.pause_reason !== 'operator')) {
+    bn.style.display = 'block'; bn.className = 'banner' + (st.halted || /integrity|audit|mismatch/.test(ac.pause_reason) ? ' crit' : '');
+    bn.textContent = st.halted ? `Kill switch active: ${st.halt_reason}` : `Trading paused automatically: ${ac.pause_reason}. Investigate before resuming.`;
+  } else bn.style.display = 'none';
   $('btnPause').textContent = st.paused ? 'Resume' : 'Pause';
   $('btnReset').style.display = st.halted ? '' : 'none';
 
@@ -179,6 +265,8 @@ function render(){
     ['Cash', money(p.cash,0), ''],
     ['Win rate', perf.trades ? pct(perf.win_rate,0) : '—', '', perf.trades + ' trades'],
     ['Drawdown', pct(p.drawdown), p.drawdown > 0.05 ? 'down' : ''],
+    ['Exec accuracy', ac.books_balanced ? pct(ac.execution) : 'BOOKS MISMATCH', ac.execution < 1 || !ac.books_balanced ? 'down' : 'up',
+      `${ac.fills_verified} fills verified · books ${ac.books_balanced ? 'balanced' : 'out of balance'}`],
   ];
   $('kpis').innerHTML = kpis.map(([l,v,c,sub]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div>${sub?`<div class="muted" style="font-size:11px">${sub}</div>`:''}</div>`).join('');
 
@@ -226,8 +314,35 @@ function render(){
   $('trades').innerHTML = table(['Time','Symbol','Side','Qty','Entry','Exit','P&L'], st.trades.slice().reverse().map(t => [
     time(t.ts), esc(t.symbol), esc(t.side), num(t.qty), num(t.entry_price), num(t.exit_price), `<span class="${cls(t.pnl)}">${money(t.pnl)}</span>`]), 'No closed trades yet');
 
+  renderWallets(st);
   $('events').innerHTML = st.events.slice().reverse().map(e => `<div><span class="t">${time(e.ts)}</span> <span class="src" style="color:${COLORS[e.source]||''}">${esc(e.source)}</span> ${esc(e.topic)} <span class="muted">${esc(describe(e))}</span></div>`).join('') || '<div class="empty">Waiting for the team…</div>';
   $('alerts').innerHTML = st.alerts.slice().reverse().map(a => `<div class="lvl-${a.payload.level}"><span class="t">${time(a.ts)}</span> [${esc(a.payload.level)}] <span class="src">${esc(a.source)}</span> ${esc(a.payload.message)}</div>`).join('') || '<div class="empty">No alerts</div>';
+}
+
+function renderWallets(st){
+  const W = st.wallets;
+  $('wdLimit').textContent = `withdrawn 24h ${money(W.withdrawn_today,0)} / ${money(W.max_daily_withdrawal,0)} · new-wallet cooldown ${W.cooldown_h}h`;
+  $('depSim').style.display = st.mode === 'paper' ? '' : 'none';
+  const sig = JSON.stringify([Object.keys(W.chains), W.wallets.map(w => w.id)]);
+  if (sig !== walletsBuilt) {  // rebuild selects only when the set of wallets changes (keeps user input)
+    walletsBuilt = sig;
+    if (!$('chainSel').options.length) { $('chainSel').innerHTML = Object.entries(W.chains).map(([k,c]) => `<option value="${k}">${esc(c.name)} (${k})</option>`).join(''); syncChainFields(); }
+    const opts = W.wallets.map(w => `<option value="${w.id}">${esc(w.label)} · ${esc(w.chain)}</option>`).join('');
+    $('wdWallet').innerHTML = $('depWallet').innerHTML = opts;
+    $('wdAsset').innerHTML = assetOpts($('wdWallet').value); $('depAsset').innerHTML = assetOpts($('depWallet').value);
+  }
+  const now = Date.now()/1000;
+  $('walletList').innerHTML = table(['Wallet','Address','Withdraw tag','Deposit tag',''], W.wallets.map(w => [
+    `<b>${esc(w.label)}</b><div class="muted">${esc(w.chain_name)}${w.withdrawals_enabled_at > now ? ' · <span class="lvl-warning">cooldown ' + ((w.withdrawals_enabled_at-now)/3600).toFixed(1) + 'h</span>' : ''}</div>`,
+    `<span class="mono" title="${esc(w.address)}">${esc(w.address.slice(0,8))}…${esc(w.address.slice(-6))}</span>`,
+    w.tag ? `<span class="tagchip">${esc(w.tag)}</span>` : (w.tag_name ? '<span class="muted">none</span>' : '<span class="muted">n/a</span>'),
+    w.tag_name ? `<span class="tagchip" title="Send deposits with this ${esc(w.tag_name)}">${esc(w.deposit_tag)}</span>` : '<span class="muted">by sender</span>',
+    `<button class="switch" data-unlink="${w.id}">Unlink</button>`]), 'No wallets linked');
+  document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = () => confirm('Unlink this wallet?') && fetch('/api/wallets/'+b.dataset.unlink, {method:'DELETE', headers: S.token?{Authorization:'Bearer '+S.token}:{}}));
+  $('transferList').innerHTML = table(['Time','Type','Amount','USD','Tag','Status'], W.transfers.map(t => [
+    time(t.ts), t.kind === 'deposit' ? '<span class="up">deposit</span>' : '<span class="down">withdrawal</span>',
+    `${num(t.amount)} ${esc(t.asset)}`, money(t.usd_value), t.tag ? `<span class="tagchip">${esc(t.tag)}</span>` : '—',
+    `<span title="${esc(t.note)}" class="${t.status==='held'?'lvl-warning':t.status==='completed'?'':'lvl-warning'}">${esc(t.status)}</span>`]), 'No transfers yet');
 }
 
 function describe(e){
@@ -242,6 +357,10 @@ function describe(e){
     case 'regime.update': return `${p.symbol} → ${p.regime}`;
     case 'alert': return p.message;
     case 'desk.control': return `${p.action} (${p.reason})`;
+    case 'signal.reviewed': return `${p.approved ? 'approved' : 'vetoed'} ${p.signal.side} ${p.signal.symbol} (${Math.round(p.confidence*100)}%) ${p.rationale}`;
+    case 'grok.opinion': return `${p.approved ? 'likes' : 'dislikes'} ${p.signal.side} ${p.signal.symbol}: ${p.rationale}`;
+    case 'funds.deposit': case 'funds.withdrawal': return `${num(p.amount)} ${p.asset} (${money(p.usd_value)})${p.tag ? ' tag ' + p.tag : ''}`;
+    case 'wallet.linked': return `${p.chain} ${p.address.slice(0,10)}…`;
     default: return '';
   }
 }
@@ -271,6 +390,7 @@ function drawLine(cv, data, opt){
   g.fillStyle = opt.color; g.fillRect(w-R+2, y-8, R-4, 16); g.fillStyle = '#0b0f17'; g.fillText(num(last), w-R+6, y+4);
 }
 
+window.addEventListener('unhandledrejection', e => e.preventDefault());  // api() already alerted
 window.addEventListener('resize', () => S.state && render());
 connect();
 </script>

@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Seven specialised bots, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Eight specialised bots, including an AI analyst powered by xAI's Grok,, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It runs in **paper mode by default**: simulated or real market prices, simulated fills, no money at risk. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -11,16 +11,17 @@ It runs in **paper mode by default**: simulated or real market prices, simulated
 | **Scout** | Market data and signal prep | Ingests every tick, rejects bad data, detects shock moves and stale feeds, and computes EMA, RSI, volatility, ATR and Donchian channels |
 | **Strategist** | Market regime analysis | Classifies each symbol as *trending*, *ranging* or *volatile* (Kaufman efficiency ratio and volatility ratio, with hysteresis) |
 | **Quant** | Strategy and signal generation | Runs momentum, mean-reversion and breakout models, weights them by the Strategist's regime call, and proposes signals with a conviction score |
+| **Grok** | AI analyst (xAI Grok) | Sends every proposed new position, with indicators, regime, recent prices and portfolio context, to Grok for an independent second opinion. In `veto` mode, trades Grok doesn't approve are never placed |
 | **Risk Manager** | Risk control and position sizing | Gates every signal: kill switch, pause, exposure, concentration, max positions, cooldowns, order-rate limit. Sizes positions by volatility (risk to stop) and halves size in volatile regimes. Trips the kill switch on daily-loss or drawdown limits |
-| **Executor** | Order execution and routing | Sends approved orders to the broker, blocks duplicates, enforces reduce-only exits, tracks partial fills and cancels stale orders |
+| **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
 | **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit and trailing stops, and reconciles against the broker |
-| **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
+| **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
 
 ### How a trade flows
 
 ```
 market.tick ─► Scout ─► market.snapshot ─► Strategist ─► (regime)
-                                     └──► Quant ─► signal.proposed ─► Risk Manager
+                                     └──► Quant ─► signal.proposed ─► Grok (veto) ─► Risk Manager
                                                                          │ approve / reject
                                                      order.approved ◄────┘
                                                         │
@@ -37,6 +38,53 @@ Safety properties:
 * Exits are reduce-only and are always allowed, even while paused or halted, because they only lower risk.
 * A failing bot handler is isolated by the bus. Its error is counted, and the Sentinel raises an alert.
 * Safety-critical bots can't be disabled from the API while positions are open.
+
+## Grok (xAI) connection
+
+Set an xAI API key to connect the Grok bot:
+
+```bash
+TZ_GROK_API_KEY=xai-...        # XAI_API_KEY also works
+TZ_GROK_MODEL=grok-4           # any chat model your xAI account can use
+TZ_GROK_MODE=veto              # veto (default when a key is set) | advisory | off
+TZ_GROK_FAIL_OPEN=false        # if Grok is unreachable, reject new entries (the safe default)
+```
+
+* **veto:** new positions need Grok's approval. Its confidence is blended into the position size. Signals that go stale while waiting for Grok (`TZ_GROK_MAX_SIGNAL_AGE_S`) are dropped.
+* **advisory:** Grok's opinion is logged and shown, but it doesn't block trades.
+* **Exits never wait for Grok.** Stops, targets, flattening and the kill switch always go straight through.
+
+Use **Test Grok** in the dashboard header (or `POST /api/grok/ping`) to check the connection.
+
+## Accuracy: what is and isn't guaranteed
+
+**No system can make every trade profitable.** Markets aren't predictable enough, and anything promising "100% winning trades" is misleading. What TradeZone enforces is **100% execution accuracy**: every trade happens exactly as intended, and the desk stops itself the moment anything doesn't match.
+
+| Check | Where | On failure |
+| --- | --- | --- |
+| Symbol on the approved list, finite positive quantity, valid reference price | Executor (pre-trade) | Order blocked |
+| Fat-finger guard: entry notional within the position cap | Executor (pre-trade) | Order blocked |
+| Idempotency: no replayed order requests or duplicate signal ids | Executor, Risk Manager | Order blocked |
+| Every fill matches the order's symbol and side, never overfills, and stays within `TZ_MAX_SLIPPAGE_BPS` of the reference price | Executor (post-fill) | Trading paused, critical alert |
+| Independent audit ledger (cash and every position) rebuilt from fills and funding events, compared to the books **every cycle** | Sentinel | Trading paused, critical alert |
+| Ledger positions match the broker's positions | Portfolio Manager (every 30 cycles) | Trading paused, critical alert |
+
+The dashboard shows **Exec accuracy** (verified fills ÷ all fills) and whether the books are balanced. When something trips, it shows a banner with the reason.
+
+To make the desk more selective, rather than "more accurate", raise `TZ_MIN_SIGNAL_STRENGTH` or run Grok in `veto` mode. You'll get fewer trades, with stronger evidence behind each one.
+
+## Wallets, deposits and withdrawals
+
+Link wallets in the **Wallets & funding** panel or via the API. Supported chains: BTC, ETH, SOL, XRP, XLM, ATOM, HBAR and EOS.
+
+* **Address validation:** every address is format-checked for its chain.
+* **Withdrawal tags and memos:** XRP destination tags, and XLM, ATOM, HBAR and EOS memos, are validated and attached to every withdrawal to that wallet. If you leave the tag empty on a tag chain, you must explicitly confirm the destination doesn't need one, because a missing tag is the classic way to lose exchange deposits.
+* **Deposit tags:** every linked wallet gets a unique numeric deposit tag. Deposits that carry it are credited to that wallet. On chains without tags, deposits are matched by sender address. Unmatched deposits are **held** for review and credited only when you attribute them (`POST /api/deposits/{id}/credit`). A transaction hash can't be credited twice.
+* **Withdrawal safety:** withdrawals go only to linked wallets, only after a cooldown on newly linked wallets (`TZ_WITHDRAWAL_COOLDOWN_H`, default 24h), within a rolling 24h limit (`TZ_MAX_DAILY_WITHDRAWAL`) and never above free cash.
+* **Funding isn't P&L:** deposits and withdrawals move the P&L baselines, so returns and the kill switch aren't distorted.
+* **Deposit addresses:** set the desk's own receiving addresses with `TZ_DEPOSIT_ADDRESSES=XRP:r...,ETH:0x...`.
+
+> **Paper vs live.** In paper mode, deposits and withdrawals move simulated cash. The "Record deposit" form stands in for an on-chain watcher, which isn't included. In live mode, your funds sit at your broker, so withdrawals are recorded as `manual_required` and aren't debited until you complete them at the broker. TradeZone never moves real crypto on its own.
 
 ## Quick start
 
@@ -102,6 +150,13 @@ At startup, the desk syncs cash and equity from the broker account. It does **no
 | POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
 | GET | `/api/journal?topic=order.filled` | Audit trail from SQLite |
+| POST | `/api/grok/ping` | Test the Grok connection |
+| GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` |
+| DELETE | `/api/wallets/{id}` | Unlink a wallet |
+| GET | `/api/deposits/info` | Deposit address and deposit tag for each wallet |
+| POST | `/api/deposits` | Record an incoming deposit `{chain, asset, amount, tx_hash, tag?, from_address?}` |
+| POST | `/api/deposits/{id}/credit` | Attribute a held deposit `{wallet_id}` |
+| POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` |
 | WS | `/ws` | Live state stream (`?token=` when an API token is set) |
 
 When `TZ_API_TOKEN` is set, every endpoint except health requires `Authorization: Bearer <token>`.
@@ -111,7 +166,8 @@ When `TZ_API_TOKEN` is set, every endpoint except health requires `Authorization
 ```
 tradezone/
   core/        event bus, models, indicators, portfolio ledger
-  bots/        the 7-bot team
+  bots/        the 8-bot team (incl. Grok AI analyst)
+  wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
   brokers/     paper broker, Alpaca broker
   desk.py      orchestrator: cycle loop, controls, kill switch

@@ -98,6 +98,30 @@ class PortfolioBot(Bot):
             n += 1
         return n
 
+    async def reconcile_positions(self) -> list[str]:
+        """Compare ledger positions with the broker's. Mismatch pauses trading."""
+        exe = self.desk.bots.get("execution")
+        if exe is not None and exe.working:
+            return []  # in-flight orders legitimately cause temporary differences
+        broker_pos = await self.desk.broker.positions()
+        if broker_pos is None:
+            return []
+        norm = lambda s: s.replace("-", "").replace("/", "").upper()  # noqa: E731
+        theirs = {norm(k): v for k, v in broker_pos.items()}
+        ours = {norm(p.symbol): p.qty for p in self.portfolio.positions.values() if not p.is_flat}
+        problems = [
+            f"{sym}: ledger {ours.get(sym, 0.0):g} vs broker {theirs.get(sym, 0.0):g}"
+            for sym in set(ours) | set(theirs)
+            if abs(ours.get(sym, 0.0) - theirs.get(sym, 0.0)) > 1e-6 * max(1.0, abs(theirs.get(sym, 0.0)))
+        ]
+        self.metrics["positions_reconciled"] = not problems
+        if problems:
+            msg = "; ".join(problems)
+            self.act(f"POSITION MISMATCH: {msg}", "critical")
+            self.publish("alert", Alert("critical", f"Broker position mismatch - trading paused: {msg}", self.name))
+            self.desk.pause(f"position mismatch: {msg}")
+        return problems
+
     async def on_cycle(self) -> None:
         p = self.portfolio
         p.update_watermarks()
@@ -112,6 +136,7 @@ class PortfolioBot(Bot):
         )
         self.publish("portfolio.update", p.to_dict())
         if self._cycles % self.RECONCILE_EVERY == 0:
+            await self.reconcile_positions()
             acct = await self.desk.broker.account()
             if acct and acct.get("equity"):
                 diff = abs(acct["equity"] - p.equity) / max(acct["equity"], 1)

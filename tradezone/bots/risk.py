@@ -25,11 +25,13 @@ class RiskBot(Bot):
         self.snapshots: dict[str, Snapshot] = {}
         self.order_times: deque[float] = deque()
         self.last_trade: dict[str, float] = {}
+        self.seen_signals: set[str] = set()
 
     def subscriptions(self):
         return {
             "market.snapshot": self.on_snapshot,
             "signal.proposed": self.on_signal,
+            "signal.reviewed": self.on_reviewed,
         }
 
     def on_snapshot(self, ev: Event) -> None:
@@ -64,6 +66,26 @@ class RiskBot(Bot):
 
     def on_signal(self, ev: Event) -> None:
         sig: Signal = ev.payload
+        grok = self.desk.bots.get("grok")
+        if grok is not None and grok.gates(sig):
+            return  # waits for Grok's verdict (signal.reviewed)
+        self.evaluate(sig)
+
+    def on_reviewed(self, ev: Event) -> None:
+        r = ev.payload
+        sig: Signal = r["signal"]
+        if not r["approved"]:
+            return self.reject(sig, f"Grok veto: {r['rationale']}")
+        # blend the model's conviction with Grok's confidence
+        sig.strength = round((sig.strength + r["confidence"]) / 2, 3)
+        self.evaluate(sig)
+
+    def evaluate(self, sig: Signal) -> None:
+        if sig.id in self.seen_signals:
+            return self.reject(sig, "duplicate signal id")
+        self.seen_signals.add(sig.id)
+        if len(self.seen_signals) > 50_000:
+            self.seen_signals.clear()
         limits = self.settings.risk
         pos = self.portfolio.position(sig.symbol)
         price = self.desk.prices.get(sig.symbol)

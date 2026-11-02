@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from .desk import TradingDesk
+from .wallets import WalletError
 
 log = logging.getLogger(__name__)
 WEB = Path(__file__).parent / "web"
@@ -45,6 +46,33 @@ class BotToggle(BaseModel):
 
 class ControlBody(BaseModel):
     reason: str = "operator"
+
+
+class LinkWalletBody(BaseModel):
+    chain: str
+    address: str
+    tag: str | None = None
+    label: str = ""
+    no_tag_confirmed: bool = False
+
+
+class DepositBody(BaseModel):
+    chain: str
+    asset: str
+    amount: float
+    tx_hash: str
+    tag: str | None = None
+    from_address: str | None = None
+
+
+class CreditBody(BaseModel):
+    wallet_id: str
+
+
+class WithdrawBody(BaseModel):
+    wallet_id: str
+    asset: str
+    amount: float
 
 
 def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
@@ -133,6 +161,52 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     @app.get("/api/journal", dependencies=[Depends(check_token)])
     async def journal(topic: str | None = None, limit: int = Query(100, ge=1, le=1000)):
         return desk.journal.query(topic, limit)
+
+    # -- wallets / funding -------------------------------------------------
+    def wallet_call(fn, *args, **kwargs):
+        try:
+            return fn(*args, **kwargs).to_dict()
+        except WalletError as exc:
+            raise HTTPException(400, str(exc)) from None
+
+    @app.get("/api/wallets", dependencies=[Depends(check_token)])
+    async def wallets():
+        return _clean(desk.wallets.to_dict())
+
+    @app.post("/api/wallets", dependencies=[Depends(check_token)])
+    async def link_wallet(body: LinkWalletBody):
+        w = desk.wallets
+        return wallet_call(w.link, body.chain, body.address, body.tag, body.label, body.no_tag_confirmed)
+
+    @app.delete("/api/wallets/{wallet_id}", dependencies=[Depends(check_token)])
+    async def unlink_wallet(wallet_id: str):
+        try:
+            desk.wallets.unlink(wallet_id)
+        except WalletError as exc:
+            raise HTTPException(404, str(exc)) from None
+        return {"ok": True}
+
+    @app.get("/api/deposits/info", dependencies=[Depends(check_token)])
+    async def deposit_info():
+        return desk.wallets.deposit_info()
+
+    @app.post("/api/deposits", dependencies=[Depends(check_token)])
+    async def deposit(body: DepositBody):
+        return wallet_call(desk.wallets.record_deposit, body.chain, body.asset, body.amount, body.tx_hash,
+                           body.tag, body.from_address)
+
+    @app.post("/api/deposits/{transfer_id}/credit", dependencies=[Depends(check_token)])
+    async def credit(transfer_id: str, body: CreditBody):
+        return wallet_call(desk.wallets.credit_held, transfer_id, body.wallet_id)
+
+    @app.post("/api/withdrawals", dependencies=[Depends(check_token)])
+    async def withdraw(body: WithdrawBody):
+        return wallet_call(desk.wallets.withdraw, body.wallet_id, body.asset, body.amount)
+
+    # -- grok ----------------------------------------------------------------
+    @app.post("/api/grok/ping", dependencies=[Depends(check_token)])
+    async def grok_ping():
+        return await desk.bots["grok"].ping()  # type: ignore[attr-defined]
 
     @app.websocket("/ws")
     async def ws(socket: WebSocket, token_q: str | None = Query(default=None, alias="token")):

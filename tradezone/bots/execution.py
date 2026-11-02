@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from ..core.bus import Event
+import math
+
 from ..core.models import Alert, Fill, Order, OrderRequest, OrderStatus, now
 from .base import Bot
 
@@ -24,6 +26,10 @@ class ExecutionBot(Bot):
         self.orders: dict[str, Order] = {}
         self.working: dict[str, Order] = {}
         self._submitted_at: dict[str, float] = {}
+        self.ref_price: dict[str, float] = {}
+        self._cum_filled: dict[str, float] = {}
+        self._processed_requests: set[str] = set()
+        self.metrics.update({"fills_verified": 0, "integrity_violations": 0, "pretrade_blocks": 0})
 
     def subscriptions(self):
         return {"order.approved": self.on_approved}
@@ -31,8 +37,66 @@ class ExecutionBot(Bot):
     def working_for(self, symbol: str) -> Order | None:
         return next((o for o in self.working.values() if o.symbol == symbol), None)
 
+    # -- pre-trade validation ------------------------------------------------
+    def pretrade_check(self, req: OrderRequest) -> str | None:
+        """Return a reason to block the order, or None if it is safe to send."""
+        if req.id in self._processed_requests:
+            return "duplicate order request (idempotency)"
+        if req.symbol not in self.settings.symbols:
+            return f"{req.symbol} is not on the approved symbol list"
+        if not (math.isfinite(req.qty) and req.qty > 0):
+            return f"invalid quantity {req.qty}"
+        px = self.desk.prices.get(req.symbol)
+        if not px or not math.isfinite(px) or px <= 0:
+            return "no valid reference price"
+        if not req.reduce_only:
+            cap = self.portfolio.equity * self.settings.risk.max_position_pct * 1.05
+            if req.qty * px > cap:
+                return f"fat-finger guard: notional {req.qty * px:,.0f} exceeds cap {cap:,.0f}"
+        return None
+
+    def integrity_violation(self, message: str) -> None:
+        self.bump("integrity_violations")
+        self.act(f"INTEGRITY: {message}", "critical")
+        self.publish("alert", Alert("critical", f"Execution integrity: {message} - trading paused", self.name))
+        self.desk.pause(f"execution integrity: {message}")
+
+    def verify_fill(self, order: Order, f: Fill) -> bool:
+        problems = []
+        if f.symbol != order.symbol:
+            problems.append(f"symbol {f.symbol} != {order.symbol}")
+        if f.side is not order.side:
+            problems.append(f"side {f.side.value} != {order.side.value}")
+        if not (math.isfinite(f.qty) and f.qty > 0 and math.isfinite(f.price) and f.price > 0):
+            problems.append(f"invalid fill qty/price {f.qty}@{f.price}")
+        cum = self._cum_filled.get(order.id, 0.0) + f.qty
+        self._cum_filled[order.id] = cum
+        if cum > order.qty * (1 + 1e-9) + 1e-12:
+            problems.append(f"overfill {cum:g} > ordered {order.qty:g}")
+        ref = self.ref_price.get(order.id)
+        if ref and math.isfinite(f.price):
+            adverse_bps = (f.price - ref) / ref * 10_000 * order.side.sign
+            if adverse_bps > self.settings.max_slippage_bps:
+                problems.append(f"slippage {adverse_bps:.0f}bps > limit {self.settings.max_slippage_bps:.0f}bps")
+        if problems:
+            self.integrity_violation(f"{order.id} {'; '.join(problems)}")
+            return False
+        self.bump("fills_verified")
+        return True
+
+    @property
+    def accuracy(self) -> float:
+        total = self.metrics.get("fills", 0)
+        return 1.0 if not total else self.metrics.get("fills_verified", 0) / total
+
     async def on_approved(self, ev: Event) -> None:
         req: OrderRequest = ev.payload
+        if (why := self.pretrade_check(req)) is not None:
+            self.bump("pretrade_blocks")
+            self.act(f"blocked {req.side.value} {req.symbol}: {why}", "warning")
+            self.publish("alert", Alert("warning", f"pre-trade check blocked {req.symbol}: {why}", self.name))
+            return
+        self._processed_requests.add(req.id)
         if (w := self.working_for(req.symbol)) is not None:
             self.bump("duplicates_blocked")
             self.act(f"blocked {req.side.value} {req.symbol}: order {w.id} still working", "warning")
@@ -49,6 +113,7 @@ class ExecutionBot(Bot):
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
         )
         self.orders[order.id] = order
+        self.ref_price[order.id] = self.desk.prices[req.symbol]
         fills = await self.desk.broker.submit(order)
         self.bump("orders")
         if order.status is OrderStatus.REJECTED:
@@ -66,6 +131,7 @@ class ExecutionBot(Bot):
 
     def _emit(self, order: Order, fills: list[Fill]) -> None:
         for f in fills:
+            self.verify_fill(order, f)  # violations pause the desk but the fill is still booked
             self.bump("fills")
             self.bump("notional", abs(f.qty * f.price))
             self.publish("order.filled", f)
@@ -89,3 +155,4 @@ class ExecutionBot(Bot):
                 self.publish("order.update", order)
                 self.act(f"canceled stale order {oid}", "warning")
         self.metrics["working"] = len(self.working)
+        self.metrics["accuracy"] = round(self.accuracy, 6)

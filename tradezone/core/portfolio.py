@@ -60,6 +60,15 @@ class Portfolio:
         self.commissions = 0.0
         self.peak_equity = starting_cash
         self.day_start_equity = starting_cash
+        self.net_flows = 0.0  # deposits - withdrawals
+
+    def apply_flow(self, amount: float) -> None:
+        """Deposit (+) or withdraw (-) cash. Baselines move too, so funding isn't counted as P&L."""
+        self.cash += amount
+        self.net_flows += amount
+        self.starting_cash += amount
+        self.peak_equity += amount
+        self.day_start_equity += amount
 
     def position(self, symbol: str) -> Position:
         if symbol not in self.positions:
@@ -161,6 +170,7 @@ class Portfolio:
             "total_pnl": self.equity - self.starting_cash,
             "return_pct": self.equity / self.starting_cash - 1 if self.starting_cash else 0.0,
             "commissions": self.commissions,
+            "net_flows": self.net_flows,
             "drawdown": self.drawdown,
             "peak_equity": self.peak_equity,
             "daily_pnl_pct": self.daily_pnl_pct,

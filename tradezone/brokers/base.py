@@ -29,5 +29,9 @@ class Broker(abc.ABC):
         """Broker-side account snapshot used for reconciliation, if available."""
         return None
 
+    async def positions(self) -> dict[str, float] | None:
+        """Broker-side positions (symbol -> signed qty) for reconciliation, if available."""
+        return None
+
     async def close(self) -> None:
         return None

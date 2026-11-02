@@ -63,6 +63,7 @@ class TradingDesk:
         self.portfolio = Portfolio(settings.starting_cash)
         self.prices: dict[str, float] = {}
         self.paused = False
+        self.pause_reason = ""
         self.halted = False
         self.halt_reason = ""
         self.cycles = 0
@@ -78,6 +79,9 @@ class TradingDesk:
         for bot in self.bots.values():
             bot.attach()
         self.bus.subscribe("*", self._fanout, owner="desk")
+        from .wallets import WalletService
+
+        self.wallets = WalletService(self)
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -107,10 +111,12 @@ class TradingDesk:
 
     def pause(self, reason: str = "operator") -> None:
         self.paused = True
+        self.pause_reason = reason
         self.control("pause", reason)
 
     def resume(self) -> None:
         self.paused = False
+        self.pause_reason = ""
         self.control("resume")
 
     def halt(self, reason: str, flatten: bool = True) -> None:
@@ -149,6 +155,7 @@ class TradingDesk:
             self.portfolio.cash = acct["cash"]
             self.portfolio.starting_cash = acct["equity"]
             self.portfolio.peak_equity = self.portfolio.day_start_equity = acct["equity"]
+        self.bots["sentinel"].reset_shadow()  # type: ignore[attr-defined]
         mode = "LIVE" if self.is_live else "PAPER"
         self.bus.publish(
             "alert",
@@ -200,6 +207,7 @@ class TradingDesk:
         self.running = False
         await self.feed.close()
         await self.broker.close()
+        await self.bots["grok"].close()  # type: ignore[attr-defined]
         self.journal.commit()
 
     # -- views -----------------------------------------------------------
@@ -227,4 +235,19 @@ class TradingDesk:
             "scores": self.bots["quant"].scores,  # type: ignore[attr-defined]
             "history": {s: self.bots["scout"].history(s)[-200:] for s in self.prices},  # type: ignore[attr-defined]
             "equity_curve": list(sentinel.equity_curve)[-500:],  # type: ignore[attr-defined]
+            "wallets": self.wallets.to_dict(),
+            "grok": {
+                "mode": self.bots["grok"].mode,  # type: ignore[attr-defined]
+                "model": self.settings.grok_model,
+                "connected": self.bots["grok"].connected,  # type: ignore[attr-defined]
+                "opinions": self.bots["grok"].opinions,  # type: ignore[attr-defined]
+            },
+            "accuracy": {
+                "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
+                "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),
+                "integrity_violations": self.bots["execution"].metrics.get("integrity_violations", 0),
+                "books_balanced": sentinel.books_balanced,  # type: ignore[attr-defined]
+                "audit_checks": sentinel.metrics.get("audit_checks", 0),
+                "pause_reason": self.pause_reason,
+            },
         }

@@ -59,6 +59,20 @@ class Settings:
     alpaca_key: str = ""
     alpaca_secret: str = ""
     alpaca_paper: bool = True
+    # ---- Grok (xAI) AI analyst ----
+    grok_api_key: str = ""
+    grok_model: str = "grok-4"
+    grok_base_url: str = "https://api.x.ai/v1"
+    grok_mode: str = "auto"  # auto (veto if key set) | veto | advisory | off
+    grok_timeout_s: float = 20.0
+    grok_max_signal_age_s: float = 30.0
+    grok_fail_open: bool = False  # if Grok is unreachable: False = reject entries (safer)
+    # ---- execution accuracy ----
+    max_slippage_bps: float = 50.0  # fills worse than this vs. reference price -> auto-pause
+    # ---- wallets / funding ----
+    deposit_addresses: list[str] = field(default_factory=list)  # "CHAIN:address", e.g. XRP:rXXXX
+    withdrawal_cooldown_h: float = 24.0  # newly linked wallets can't receive withdrawals until then
+    max_daily_withdrawal: float = 10_000.0
     stop_atr_mult: float = 3.0
     take_profit_atr_mult: float = 6.0
     trailing_stop: bool = True
@@ -99,6 +113,12 @@ class Settings:
         if self.mode == "live" and self.broker == "alpaca" and self.alpaca_paper:
             # live mode explicitly targets the real-money endpoint
             self.alpaca_paper = False
+        if not self.grok_api_key:
+            self.grok_api_key = os.environ.get("XAI_API_KEY", "")
+        if self.grok_mode not in ("auto", "veto", "advisory", "off"):
+            raise ValueError("TZ_GROK_MODE must be auto, veto, advisory or off")
+        if self.grok_mode == "auto":
+            self.grok_mode = "veto" if self.grok_api_key else "off"
         if not self.symbols:
             raise ValueError("TZ_SYMBOLS must list at least one symbol")
         if self.cycle_seconds <= 0:
