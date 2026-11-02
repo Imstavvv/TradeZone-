@@ -8,7 +8,7 @@ version = "1.0.0"
 description = "Multi-bot live trading desk with a 7-bot team, risk controls and a real-time dashboard"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "httpx>=0.27"]
+dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "httpx>=0.27", "websockets>=13"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

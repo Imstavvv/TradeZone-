@@ -39,11 +39,30 @@ Safety properties:
 * A failing bot handler is isolated by the bus. Its error is counted, and the Sentinel raises an alert.
 * Safety-critical bots can't be disabled from the API while positions are open.
 
+## Autonomous operation
+
+Once started, the desk runs on its own around the clock:
+
+| What happens | How |
+| --- | --- |
+| **Real-time prices** | Coinbase's WebSocket stream delivers every trade as it happens (⚡ in the header). If the stream drops, it reconnects with back-off and polls the REST API in the meantime, a few symbols per cycle to stay under Coinbase's rate limit. |
+| **Instant start** | 5 hours of 1-minute candles are loaded at startup, so the bots trade within seconds instead of after a warm-up. Historical bars warm the indicators but are never traded on. |
+| **10 markets scanned** | BTC, ETH, SOL, XRP, DOGE, ADA, AVAX, LINK, LTC and DOT against USD, each on 1-minute bars. Exits react to every streamed trade. |
+| **Restarts don't lose positions** | Books (cash, positions, stops, targets, profit locks), mode and kill-switch state are saved to the journal database after every fill and control action. On restart everything is restored. If the desk was live, it resumes live, but **only** if the broker's positions match the saved book. Otherwise it stays on paper and raises a critical alert. |
+| **Daily loss limit re-arms itself** | A kill switch tripped by the daily-loss limit resets at the next UTC day (`TZ_AUTO_REARM_DAILY`). |
+| **Waits for you** | The drawdown kill switch, execution-integrity pauses and book mismatches are deliberate stop-and-look moments, so they don't auto-resume. Going live is always your decision (Go LIVE button). |
+
+### Costs are realistic, and trades must beat them
+
+Paper fills charge what live trading costs: **0.25% per side on crypto** (Alpaca's base taker fee) and 0% on US stocks, plus 0.03% slippage. A trade is skipped unless its profit target is at least **3× the round-trip cost** (`TZ_MIN_EDGE_COST_MULTIPLE`), and position sizing counts fees as part of the risk. That's the main defence against the most common way fast bots lose money: many small trades that each pay the fee and add up to a loss.
+
+With realistic fees, the bundled strategies came out roughly break-even in offline simulation (−1.1% to +0.6% across 4 seeds, max drawdown ≤1.4%, no winner closing as a loss). Synthetic data says little about real markets. Paper-trade on live prices for a good while before going live.
+
 ## Market data: paper trades live prices
 
-By default (`TZ_FEED=auto`), paper trading uses **real market data**. If Alpaca keys are set it uses Alpaca (stocks and crypto). Otherwise it uses Coinbase's public feed (crypto, no account needed). The default Coinbase symbols are BTC, ETH, SOL, XRP, AVAX and LINK against USD.
+By default (`TZ_FEED=auto`), paper trading uses **real market data**. If Alpaca keys are set it uses Alpaca (stocks and crypto, polled). Otherwise it uses Coinbase's public real-time stream (crypto, no account needed).
 
-Prices are polled every `TZ_CYCLE_SECONDS`. Indicators and signals run on **15-second bars** (`TZ_BAR_SECONDS`), because raw one-second ticks are mostly noise. Stops, targets and profit locks still react to every tick. Expect about 7–8 minutes of warm-up (30 bars) before the first trade. Scout shows the progress.
+Indicators and signals run on **1-minute bars** (`TZ_BAR_SECONDS`), pre-loaded from history on Coinbase. Stops, targets and profit locks react to every trade. On Alpaca there's no history pre-load yet, so expect a 30-bar warm-up (shown in a banner).
 
 `TZ_FEED=sim` (synthetic prices) remains available for offline demos, the tests and `python -m tradezone sim`.
 

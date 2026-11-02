@@ -102,7 +102,7 @@ class RiskBot(Bot):
             if sig.kind is SignalKind.ENTRY and self.settings.exit_only_in_profit:
                 # discretionary (strategy) exit: only to bank a net profit; losers are left to the stop
                 pm = self.desk.bots.get("portfolio")
-                cost = pm.round_trip_cost(pos.avg_price) * abs(pos.qty) if pm else 0.0
+                cost = self.settings.round_trip_cost(sig.symbol, pos.avg_price) * abs(pos.qty)
                 net = (price - pos.avg_price) * pos.qty - cost
                 if net <= 0:
                     return self.reject(sig, f"strategy exit skipped: not in profit ({net:+,.2f}); stop-loss still protects")
@@ -160,12 +160,20 @@ class RiskBot(Bot):
             tp = price + s.take_profit_atr_mult * atr * direction
             how = f"{s.stop_atr_mult:g}x ATR"
 
+        # accuracy: only take trades whose target clearly pays for the fees
+        cost = s.round_trip_cost(sig.symbol, price)
+        reward = abs(tp - price)
+        if reward < s.min_edge_cost_multiple * cost:
+            self.bump("rejected_fees")
+            return self.reject(sig, f"target +{reward / price:.2%} doesn't clear fees "
+                                    f"({cost / price:.2%} round trip x{s.min_edge_cost_multiple:g})")
+
         equity = self.portfolio.equity
         risk_budget = equity * limits.risk_per_trade * (0.5 + 0.5 * sig.strength)
         strategist = self.desk.bots.get("strategist")
         if strategist and strategist.regime(sig.symbol) is Regime.VOLATILE:
             risk_budget *= 0.5
-        qty = risk_budget / stop_dist
+        qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
@@ -175,12 +183,12 @@ class RiskBot(Bot):
         heat_room = equity * limits.max_portfolio_heat - self.open_risk()
         if heat_room <= 0:
             return self.reject(sig, f"portfolio heat at limit ({limits.max_portfolio_heat:.0%} of equity at risk)")
-        qty = min(qty, heat_room / stop_dist)
+        qty = min(qty, heat_room / (stop_dist + cost))
         qty = self._round_qty(qty, price)
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 
-        risk_amt = qty * stop_dist
+        risk_amt = qty * (stop_dist + cost)
         sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp))
 
@@ -208,12 +216,12 @@ class RiskBot(Bot):
         )
         if self.desk.halted:
             return
-        reason = None
+        reason, kind = None, "manual"
         if p.daily_pnl_pct <= -limits.max_daily_loss_pct:
-            reason = f"daily loss {p.daily_pnl_pct:.2%} breached limit"
+            reason, kind = f"daily loss {p.daily_pnl_pct:.2%} breached limit", "daily"
         elif p.drawdown >= limits.max_drawdown_pct:
-            reason = f"drawdown {p.drawdown:.2%} breached limit"
+            reason, kind = f"drawdown {p.drawdown:.2%} breached limit", "drawdown"
         if reason:
             self.act(f"KILL SWITCH: {reason}", "critical")
             self.publish("alert", Alert("critical", f"Kill switch tripped: {reason}", self.name))
-            self.desk.halt(reason, flatten=True)
+            self.desk.halt(reason, flatten=True, kind=kind)

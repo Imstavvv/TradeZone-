@@ -72,7 +72,7 @@ def test_wide_structure_skips_trade(desk):
 
 
 def test_portfolio_heat_cap(desk):
-    desk.settings.risk.max_portfolio_heat = 0.012  # room for roughly one trade's risk
+    desk.settings.risk.max_portfolio_heat = 0.004  # room for about one trade (~0.3% each)
     for sym in ("AAPL", "NVDA"):
         prime(desk, sym, 100.0)
     rejected = capture(desk, "signal.rejected")
@@ -80,5 +80,5 @@ def test_portfolio_heat_cap(desk):
         desk.bus.publish("signal.proposed", Signal(sym, Side.BUY, 1.0, "t", "quant"))
         run(desk.bus.drain())
     risk = desk.bots["risk"]
-    assert risk.open_risk() <= desk.portfolio.equity * 0.012 + 1
+    assert risk.open_risk() <= desk.portfolio.equity * 0.004 + 1
     assert desk.portfolio.position("NVDA").is_flat or desk.portfolio.position("NVDA").qty < desk.portfolio.position("AAPL").qty

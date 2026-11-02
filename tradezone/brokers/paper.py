@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Callable
+
 from ..core.models import Fill, Order, OrderStatus, Tick
 from .base import Broker
 
@@ -9,8 +11,9 @@ from .base import Broker
 class PaperBroker(Broker):
     name = "paper"
 
-    def __init__(self, commission_bps: float = 1.0, slippage_bps: float = 2.0) -> None:
-        self.commission_bps = commission_bps
+    def __init__(self, commission_bps: float | Callable[[str], float] = 1.0, slippage_bps: float = 2.0) -> None:
+        # a number, or a function symbol -> fee in bps (crypto and stocks are charged differently)
+        self.fee = commission_bps if callable(commission_bps) else (lambda _s, c=commission_bps: c)
         self.slippage_bps = slippage_bps
         self.prices: dict[str, float] = {}
         self._seq = 0
@@ -29,7 +32,7 @@ class PaperBroker(Broker):
             return []
         slip = px * self.slippage_bps / 10_000 * order.side.sign
         fill_px = px + slip
-        commission = abs(fill_px * order.qty) * self.commission_bps / 10_000
+        commission = abs(fill_px * order.qty) * self.fee(order.symbol) / 10_000
         order.status = OrderStatus.FILLED
         order.filled_qty = order.qty
         order.avg_fill_price = fill_px

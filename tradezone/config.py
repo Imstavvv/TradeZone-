@@ -9,7 +9,8 @@ LIVE_CONFIRM_PHRASE = "I UNDERSTAND THE RISKS"
 #: what the operator types in the dashboard to switch to live trading
 LIVE_SWITCH_WORD = "LIVE"
 
-CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD"]
+CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD",
+                  "ADA-USD", "AVAX-USD", "LINK-USD", "LTC-USD", "DOT-USD"]
 MIXED_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
 
 
@@ -59,11 +60,16 @@ class Settings:
     symbols: list[str] = field(default_factory=list)  # empty = sensible default for the feed
     # Indicators are computed on bars of this many seconds when trading off real data (ticks still
     # drive stops/targets in real time). 1-second ticks are mostly noise.
-    bar_seconds: float = 15.0
+    bar_seconds: float = 60.0  # 1-minute bars; history is pre-loaded so trading starts immediately
     starting_cash: float = 100_000.0
     cycle_seconds: float = 1.0
-    commission_bps: float = 1.0
-    slippage_bps: float = 2.0
+    # Realistic trading costs (paper fills use these; profit locks and the fee filter account for them).
+    # Defaults match Alpaca's base tier: crypto 0.25% taker, US stocks commission-free.
+    crypto_fee_bps: float = 25.0
+    stock_fee_bps: float = 0.0
+    slippage_bps: float = 3.0
+    # Skip trades whose profit target is less than this multiple of the round-trip cost.
+    min_edge_cost_multiple: float = 3.0
     seed: int = 7
     journal_path: str = "tradezone.db"
     host: str = "127.0.0.1"
@@ -89,6 +95,9 @@ class Settings:
     deposit_addresses: list[str] = field(default_factory=list)  # "CHAIN:address", e.g. XRP:rXXXX
     withdrawal_cooldown_h: float = 24.0  # newly linked wallets can't receive withdrawals until then
     max_daily_withdrawal: float = 10_000.0
+    # ---- autonomy ----
+    auto_rearm_daily: bool = True  # a daily-loss kill switch re-arms itself at the next UTC day
+    resume_on_restart: bool = True  # restore books, stops and mode (incl. live) after a restart
     # ---- stop-loss placement (see core/stops.py) ----
     stop_method: str = "structure"  # structure (beyond recent swing low/high) | atr (fixed ATR multiple)
     stop_buffer_atr: float = 1.0  # buffer beyond the swing level
@@ -108,6 +117,17 @@ class Settings:
     scale_out_fraction: float = 0.5  # ...on this share of the position (0 disables)
     exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
+
+    @staticmethod
+    def is_crypto(symbol: str) -> bool:
+        return "-" in symbol or "/" in symbol
+
+    def fee_bps(self, symbol: str) -> float:
+        return self.crypto_fee_bps if self.is_crypto(symbol) else self.stock_fee_bps
+
+    def round_trip_cost(self, symbol: str, price: float) -> float:
+        """Per-unit cost to enter and exit: fees + slippage both ways, plus a small margin."""
+        return price * (2 * (self.fee_bps(symbol) + self.slippage_bps) + 2) / 10_000
 
     def data_keys(self) -> tuple[str, str] | None:
         if self.alpaca_key and self.alpaca_secret:

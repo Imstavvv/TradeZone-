@@ -51,6 +51,7 @@ class ScoutBot(Bot):
         # real feeds: build indicators on time bars; the synthetic feed is already bar-like
         self.bar_seconds = desk.settings.bar_seconds if desk.settings.feed != "sim" else 0.0
         self.metrics["bar_seconds"] = self.bar_seconds or "tick"
+        self._historical = False
 
     def subscriptions(self):
         return {"market.tick": self.on_tick}
@@ -90,7 +91,7 @@ class ScoutBot(Bot):
         if b.prices:
             r = math.log(t.price / b.prices[-1])
             sigma = b.returns.std()
-            if b.returns.full and sigma > 0 and abs(r) > 6 * sigma:
+            if b.returns.full and sigma > 0 and abs(r) > 6 * sigma and not self._historical:
                 self.publish(
                     "alert",
                     Alert("warning", f"{t.symbol} shock move {r:+.2%} ({abs(r)/sigma:.1f} sigma)", self.name),
@@ -124,9 +125,24 @@ class ScoutBot(Bot):
             "swing_low": swing_low if swing_low is not None else min(low, t.price),
             "swing_high": swing_high if swing_high is not None else max(high, t.price),
         }
-        self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts))
+        self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
         self.bump("snapshots")
         self.act(f"{t.symbol} {t.price:,.2f} rsi={ind['rsi']:.0f} vol={ind['volatility']:.2%}")
+
+    def backfill(self, symbol: str, candles: list[dict]) -> int:
+        """Feed historical candles through the indicators (no trading on them)."""
+        b = self.books.setdefault(symbol, _Book())
+        self._historical = True
+        try:
+            for c in candles:
+                self._on_close(symbol, b, c["close"], c["ts"], c["low"], c["high"])
+        finally:
+            self._historical = False
+        if candles:
+            self.desk.prices.setdefault(symbol, candles[-1]["close"])
+            b.last_ts = now()
+            self.bump("backfilled_bars", len(candles))
+        return len(candles)
 
     def warmup_status(self) -> dict | None:
         """Progress toward the first indicator snapshot, or None once every symbol is warm."""

@@ -121,15 +121,14 @@ class PortfolioBot(Bot):
         elif pos.take_profit is not None and ((long and t.price >= pos.take_profit) or (not long and t.price <= pos.take_profit)):
             self._exit(t.symbol, f"take-profit hit at {t.price:,.2f}")
 
-    def round_trip_cost(self, price: float) -> float:
+    def round_trip_cost(self, price: float, symbol: str = "") -> float:
         """Per-unit cost of getting in and out (fees + slippage both ways), with a small margin."""
-        s = self.settings
-        return price * (2 * (s.commission_bps + s.slippage_bps) + 2) / 10_000
+        return self.settings.round_trip_cost(symbol, price)
 
     def _protect_profit(self, sym, pos, price, hw, r, d, tighten) -> None:
         s = self.settings
         entry = pos.avg_price
-        cost = self.round_trip_cost(entry)
+        cost = self.round_trip_cost(entry, sym)
         # cushion so one ordinary tick can't jump from above the stop to below break-even
         cushion = cost + 2.0 * self.tick_move.get(sym, 0.0)
         peak_gain = (hw - entry) * d

@@ -67,6 +67,8 @@ class QuantBot(Bot):
 
     def on_snapshot(self, ev: Event) -> None:
         s: Snapshot = ev.payload
+        if s.historical:
+            return  # warm-up data: never trade on the past
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
         weights = WEIGHTS[regime]

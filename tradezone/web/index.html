@@ -403,7 +403,9 @@ function connect(){
 
 function render(){
   const st = S.state, p = st.portfolio, perf = st.performance;
-  $('mode').textContent = (st.mode === 'live' ? 'LIVE · REAL MONEY' : 'PAPER') + ' · ' + st.feed + ' → ' + st.broker;
+  const fm = st.feed_status && st.feed_status.mode === 'stream' ? ' ⚡' : '';
+  $('mode').textContent = (st.mode === 'live' ? 'LIVE · REAL MONEY' : 'PAPER') + ' · ' + st.feed + fm + ' → ' + st.broker;
+  $('mode').title = st.feed_status && st.feed_status.mode === 'stream' ? 'Real-time price stream' : 'Polling prices';
   $('mode').className = 'badge ' + st.mode;
   document.body.classList.toggle('is-live', st.mode === 'live');
   const bm = $('btnMode');

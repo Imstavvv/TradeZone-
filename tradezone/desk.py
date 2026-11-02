@@ -43,7 +43,7 @@ def build_broker(s: Settings) -> Broker:
         return AlpacaBroker(s.alpaca_key, s.alpaca_secret, paper=True)
     from .brokers.paper import PaperBroker
 
-    return PaperBroker(s.commission_bps, s.slippage_bps)
+    return PaperBroker(s.fee_bps, s.slippage_bps)
 
 
 def build_live_broker(s: Settings) -> Broker | None:
@@ -86,7 +86,9 @@ class TradingDesk:
         self.pause_reason = ""
         self.halted = False
         self.halt_reason = ""
+        self.halt_kind = ""  # daily | drawdown | manual
         self.cycles = 0
+        self._dirty = True
         self.empty_polls = 0  # consecutive cycles without any market data
         self.last_tick_at: float | None = None
         self.feed_down = False
@@ -102,6 +104,11 @@ class TradingDesk:
         for bot in self.bots.values():
             bot.attach()
         self.bus.subscribe("*", self._fanout, owner="desk")
+        for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
+            self.bus.subscribe(topic, self._mark_dirty, owner="desk")
+        from .persistence import StateStore
+
+        self.store = StateStore(self.journal)
         from .wallets import WalletService
 
         self.wallets = WalletService(self)
@@ -239,6 +246,7 @@ class TradingDesk:
                if target == "live" else "Switched back to PAPER trading - no real orders will be sent")
         self.bus.publish("alert", Alert(level, msg, "operator"), source="operator")
         self.control(f"mode_{target}", msg)
+        self.save_state()  # persist the switch immediately
         return {"mode": self.mode, "changed": True, "capital": self.portfolio.cash}
 
     # -- controls --------------------------------------------------------
@@ -255,9 +263,10 @@ class TradingDesk:
         self.pause_reason = ""
         self.control("resume")
 
-    def halt(self, reason: str, flatten: bool = True) -> None:
+    def halt(self, reason: str, flatten: bool = True, kind: str = "manual") -> None:
         self.halted = True
         self.halt_reason = reason
+        self.halt_kind = kind
         self.control("halt", reason)
         if flatten:
             self.flatten(f"kill switch: {reason}")
@@ -265,6 +274,7 @@ class TradingDesk:
     def reset_halt(self) -> None:
         self.halted = False
         self.halt_reason = ""
+        self.halt_kind = ""
         # re-baseline so the same loss doesn't instantly re-trip the switch
         self.portfolio.day_start_equity = self.portfolio.equity
         self.portfolio.peak_equity = self.portfolio.equity
@@ -284,14 +294,44 @@ class TradingDesk:
                                         f"{bot.title} {'enabled' if enabled else 'disabled'}", "operator"))
 
     # -- lifecycle -------------------------------------------------------
+    async def backfill(self, timeout: float = 20.0) -> int:
+        """Pre-warm indicators from recent candles so the bots can trade right away."""
+        scout = self.bots["scout"]
+        gran = int(scout.bar_seconds)  # type: ignore[attr-defined]
+        if gran <= 0:
+            return 0
+
+        async def one(sym: str) -> tuple[str, list[dict] | None]:
+            return sym, await self.feed.history(sym, gran, 300)
+
+        try:
+            results = await asyncio.wait_for(
+                asyncio.gather(*(one(s) for s in self.settings.symbols)), timeout)
+        except asyncio.TimeoutError:
+            return 0
+        total = 0
+        for sym, candles in results:
+            if candles:
+                total += scout.backfill(sym, candles)  # type: ignore[attr-defined]
+                await self.bus.drain()
+        if total:
+            self.bus.publish("alert", Alert(
+                "info", f"Loaded {total} bars of recent history - bots ready to trade", "desk"))
+        return total
+
     async def start(self) -> None:
-        if self.paper_broker.name == "alpaca":
+        restored = await self.restore_state()
+        await self.feed.start()
+        await self.backfill()
+        if restored:
+            self.bus.publish("alert", Alert("info", f"Resumed after restart: {restored}", "desk"))
+        if self.paper_broker.name == "alpaca" and not restored:
             acct = await self.paper_broker.account()
             if acct:  # mirror the Alpaca paper account's buying power
                 p = self.paper_portfolio
                 p.cash = p.starting_cash = p.peak_equity = p.day_start_equity = acct["cash"]
         self.bots["sentinel"].reset_shadow()  # type: ignore[attr-defined]
-        if self.settings.mode == "live":
+        if self.settings.mode == "live" and not self.is_live:
             try:
                 await self.switch_mode("live")
             except ModeSwitchError as exc:
@@ -309,6 +349,10 @@ class TradingDesk:
         if today != self._day:
             self._day = today
             self.portfolio.day_start_equity = self.portfolio.equity
+            if self.halted and self.halt_kind == "daily" and self.settings.auto_rearm_daily:
+                self.reset_halt()
+                self.bus.publish("alert", Alert(
+                    "warning", "New trading day: daily-loss kill switch re-armed automatically", "desk"))
         try:
             ticks = await self.feed.poll()
         except Exception as exc:  # a broken feed must never stop the desk loop
@@ -332,6 +376,76 @@ class TradingDesk:
                 log.exception("bot %s cycle failed", bot.name)
             await self.bus.drain()
         self.cycles += 1
+        if self.cycles == 1 or self.cycles % 30 == 0:  # keep the status page fresh
+            self.bots["scout"].metrics["feed_mode"] = getattr(self.feed, "mode", "poll")
+        if self._dirty or self.cycles % 10 == 0:
+            self.save_state()
+
+    # -- persistence ---------------------------------------------------------
+    def _mark_dirty(self, ev: Event) -> None:
+        self._dirty = True
+
+    def save_state(self) -> None:
+        from .persistence import snapshot
+
+        try:
+            self.store.save("desk", snapshot(self))
+            self._dirty = False
+        except Exception:
+            log.exception("could not save desk state")
+
+    async def restore_state(self) -> str | None:
+        """Restore books and mode after a restart. Returns a description, or None if nothing saved."""
+        from .persistence import portfolio_from_state
+
+        data = self.store.load("desk")
+        if not data or not self.settings.resume_on_restart:
+            return None
+        self.paper_portfolio = self.portfolio = portfolio_from_state(data["paper"])
+        self.paused, self.pause_reason = data.get("paused", False), data.get("pause_reason", "")
+        self.halted, self.halt_reason = data.get("halted", False), data.get("halt_reason", "")
+        self.halt_kind = data.get("halt_kind", "")
+        if data.get("day") and data["day"] != self._day and self.halted and self.halt_kind == "daily" \
+                and self.settings.auto_rearm_daily:
+            self.halted, self.halt_reason, self.halt_kind = False, "", ""
+        pm = self.bots["portfolio"]
+        saved_pm = data.get("pm", {})
+        msg = f"restored paper book ({len(self.paper_portfolio.open_positions)} open)"
+        if data.get("mode") == "live" and data.get("live"):
+            book = portfolio_from_state(data["live"])
+            problem = await self._can_resume_live(book)
+            if problem:
+                self.bus.publish("alert", Alert(
+                    "critical", f"Was LIVE before restart but could not resume: {problem}. Staying in PAPER - "
+                    "check your broker account.", "desk"))
+                msg += f"; live NOT resumed ({problem})"
+            else:
+                self.live_portfolio = self.portfolio = book
+                self.mode = "live"
+                self.mode_changed_at = time.time()
+                msg += f"; resumed LIVE ({len(book.open_positions)} open)"
+        active = {p.symbol for p in self.portfolio.open_positions}
+        pm.trail_dist.update({k: v for k, v in saved_pm.get("trail_dist", {}).items() if k in active})  # type: ignore[attr-defined]
+        pm.protected.update(s for s in saved_pm.get("protected", []) if s in active)  # type: ignore[attr-defined]
+        pm.scaled_out.update(s for s in saved_pm.get("scaled_out", []) if s in active)  # type: ignore[attr-defined]
+        self.bots["sentinel"].reset_shadow()  # type: ignore[attr-defined]
+        return msg
+
+    async def _can_resume_live(self, book: Portfolio) -> str | None:
+        if self.settings.live_blockers() or self.live_broker is None:
+            return "live trading is not configured"
+        acct = await self.live_broker.account()
+        if acct is None:
+            return "live account unreachable"
+        theirs = await self.live_broker.positions() or {}
+        norm = lambda s: s.replace("-", "").replace("/", "").upper()  # noqa: E731
+        ours = {norm(p.symbol): p.qty for p in book.open_positions}
+        theirs = {norm(k): v for k, v in theirs.items() if abs(v) > 1e-12}
+        for sym in set(ours) | set(theirs):
+            a, b = ours.get(sym, 0.0), theirs.get(sym, 0.0)
+            if abs(a - b) > 1e-6 * max(1.0, abs(b)):
+                return f"broker shows {sym} {b:g} but saved book has {a:g}"
+        return None
 
     FEED_DOWN_AFTER = 10  # cycles without data before alerting
 
@@ -385,6 +499,7 @@ class TradingDesk:
             "feed": self.feed.name,
             "feed_status": {
                 "ok": not self.feed_down,
+                "mode": getattr(self.feed, "mode", "poll"),  # stream | rest | poll
                 "error": self.feed.last_error,
                 "last_tick_at": self.last_tick_at,
                 "warming_up": self.bots["scout"].warmup_status(),  # type: ignore[attr-defined]

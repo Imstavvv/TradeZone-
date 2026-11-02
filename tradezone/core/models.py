@@ -90,6 +90,7 @@ class Snapshot(Model):
     price: float
     indicators: dict[str, float]
     ts: float = field(default_factory=now)
+    historical: bool = False  # built from back-filled candles: update state, never trade on it
 
 
 @dataclass
