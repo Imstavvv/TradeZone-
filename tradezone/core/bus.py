@@ -30,10 +30,18 @@ class Event:
     ts: float = field(default_factory=now)
 
     def to_dict(self) -> dict[str, Any]:
-        p = self.payload
-        if hasattr(p, "to_dict"):
-            p = p.to_dict()
-        return {"topic": self.topic, "source": self.source, "ts": self.ts, "payload": p}
+        return {"topic": self.topic, "source": self.source, "ts": self.ts, "payload": jsonable(self.payload)}
+
+
+def jsonable(x: Any) -> Any:
+    """Convert models nested anywhere in dicts/lists (e.g. a Signal inside a review) to plain data."""
+    if hasattr(x, "to_dict"):
+        return x.to_dict()
+    if isinstance(x, dict):
+        return {k: jsonable(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [jsonable(v) for v in x]
+    return x
 
 
 @dataclass

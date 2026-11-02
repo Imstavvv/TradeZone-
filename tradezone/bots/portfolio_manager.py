@@ -59,6 +59,25 @@ class PortfolioBot(Bot):
             self.trail_dist[f.symbol] = abs(pos.avg_price - order.stop_price)
             self.protected.discard(f.symbol)
             self.scaled_out.discard(f.symbol)
+        pos_after = pos.qty
+        if was_flat:
+            action = "open"
+        elif pos.is_flat:
+            action = "close"
+        elif closed and (pos_after > 0) != (closed.side == "long"):
+            action = "flip"
+        elif closed:
+            action = "partial" if order is not None and order.reduce_only else "reduce"
+        else:
+            action = "add"
+        self.publish("trade.log", {
+            "ts": f.ts, "mode": self.desk.mode, "symbol": f.symbol, "side": f.side.value, "action": action,
+            "qty": f.qty, "price": f.price, "notional": f.qty * f.price, "fee": f.commission,
+            "pnl": closed.pnl if closed else None, "position_after": pos_after,
+            "avg_price": pos.avg_price if not pos.is_flat else None,
+            "reason": order.reason if order else "", "order_id": f.order_id, "fill_id": f.id,
+            "broker": self.desk.broker.name,
+        })
         if closed:
             self.bump("closed_trades")
             self.bump("wins" if closed.pnl > 0 else "losses")

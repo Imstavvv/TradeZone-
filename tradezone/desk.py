@@ -96,7 +96,9 @@ class TradingDesk:
         self.running = False
         self._task: asyncio.Task | None = None
         self._day = self._today()
-        self.listeners: list[Callable[[Event], None]] = []
+        self.listeners: list[Callable[[Event], None]] = []  # every bus event
+        self.ui_listeners: list[Callable[[dict], None]] = []  # bot actions for the live page
+        self._ui_rate: dict[str, tuple[float, int]] = {}
         self.bots: dict[str, Bot] = {}
         for cls in TEAM:
             bot = cls(self)
@@ -123,6 +125,32 @@ class TradingDesk:
         if bot:
             bot.errors += 1
             bot.act(f"error handling {ev.topic}: {exc}", "critical")
+
+    UI_MAX_PER_BOT_PER_SEC = 8
+
+    def ui_emit(self, msg: dict) -> None:
+        """Push a bot action to live dashboards (throttled per bot so a busy bot can't flood them)."""
+        if not self.ui_listeners:
+            return
+        sec = int(time.time())
+        key = msg.get("bot", "")
+        window, n = self._ui_rate.get(key, (sec, 0))
+        if window != sec:
+            window, n = sec, 0
+        if n >= self.UI_MAX_PER_BOT_PER_SEC:
+            return
+        self._ui_rate[key] = (window, n + 1)
+        for fn in list(self.ui_listeners):
+            try:
+                fn(msg)
+            except Exception:
+                log.exception("ui listener failed")
+
+    def recent_actions(self, limit: int = 150) -> list[dict]:
+        out = []
+        for b in self.bots.values():
+            out += [{"type": "action", "bot": b.name, "title": b.title, **e} for e in list(b._log)[-40:]]
+        return sorted(out, key=lambda e: e["ts"])[-limit:]
 
     def _fanout(self, ev: Event) -> None:
         for fn in list(self.listeners):
@@ -523,6 +551,7 @@ class TradingDesk:
             "orders": [o.to_dict() for o in list(execution.orders.values())[-50:]],  # type: ignore[attr-defined]
             "trades": [t.to_dict() for t in self.portfolio.closed_trades[-50:]],
             "events": list(sentinel.events)[-100:],  # type: ignore[attr-defined]
+            "actions": self.recent_actions(),
             "alerts": list(sentinel.alerts)[-30:],  # type: ignore[attr-defined]
             "regimes": {k: v.to_dict() for k, v in self.bots["strategist"].regimes.items()},  # type: ignore[attr-defined]
             "scores": self.bots["quant"].scores,  # type: ignore[attr-defined]

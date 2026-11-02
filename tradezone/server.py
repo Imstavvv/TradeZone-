@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import csv
+import io
 import hmac
 import json
 import logging
@@ -11,7 +13,7 @@ import math
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel
 
 from .config import LIVE_SWITCH_WORD
@@ -37,6 +39,8 @@ def light_state(desk: TradingDesk) -> dict:
     st = desk.state()
     st.pop("history", None)
     st.pop("equity_curve", None)
+    st.pop("events", None)  # streamed individually as they happen
+    st.pop("actions", None)
     st["equity_point"] = [st["uptime"], st["portfolio"]["equity"]]
     return st
 
@@ -90,17 +94,32 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         if token and not hmac.compare_digest(authorization or "", f"Bearer {token}"):
             raise HTTPException(401, "invalid or missing API token")
 
+    QUIET_TOPICS = {"market.tick", "market.snapshot", "portfolio.update"}
+    MAX_QUEUE = 400
+
+    def push(msg: dict) -> None:
+        if not clients:
+            return
+        text = json.dumps(_clean(msg), default=str)
+        for q in list(clients):
+            if q.qsize() > MAX_QUEUE:  # slow client: drop the oldest frame
+                with contextlib.suppress(asyncio.QueueEmpty):
+                    q.get_nowait()
+            q.put_nowait(text)
+
+    def on_event(ev) -> None:  # every team event, the moment it happens
+        if ev.topic not in QUIET_TOPICS:
+            push({"type": "event", "data": ev.to_dict()})
+
+    desk.listeners.append(on_event)
+    desk.ui_listeners.append(lambda a: push(a))  # every bot action ("thought")
+
     async def broadcaster() -> None:
         while True:
             await asyncio.sleep(desk.settings.cycle_seconds)
             if not clients:
                 continue
-            msg = json.dumps(_clean({"type": "state", "data": light_state(desk)}), default=str)
-            for q in list(clients):
-                if q.qsize() > 20:  # slow client: drop stale frames
-                    with contextlib.suppress(asyncio.QueueEmpty):
-                        q.get_nowait()
-                q.put_nowait(msg)
+            push({"type": "state", "data": light_state(desk)})
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -184,6 +203,44 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         else:
             raise HTTPException(400, "action must be pause|resume|flatten|kill|reset")
         return {"ok": True, "paused": desk.paused, "halted": desk.halted}
+
+    @app.get("/api/bots/{name}/log", dependencies=[Depends(check_token)])
+    async def bot_log(name: str):
+        bot = desk.bots.get(name)
+        if bot is None:
+            raise HTTPException(404, f"unknown bot '{name}'")
+        return _clean({**vars(bot.status()), "log": bot.full_log()})
+
+    @app.get("/api/trades", dependencies=[Depends(check_token)])
+    async def trades(mode: str | None = None, symbol: str | None = None,
+                     limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)):
+        return _clean(desk.journal.trades(mode or None, symbol or None, limit, offset))
+
+    @app.get("/api/trades.csv")
+    async def trades_csv(token_q: str | None = Query(default=None, alias="token"),
+                         authorization: str | None = Header(default=None),
+                         mode: str | None = None, symbol: str | None = None):
+        # a download link can't send headers, so the token may also come as ?token=
+        if token and not (hmac.compare_digest(token_q or "", token)
+                          or hmac.compare_digest(authorization or "", f"Bearer {token}")):
+            raise HTTPException(401, "invalid or missing API token")
+        cols = ["time_utc", "mode", "symbol", "side", "action", "qty", "price", "notional", "fee", "pnl",
+                "position_after", "reason", "order_id", "broker"]
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(cols)
+        from datetime import datetime, timezone
+        offset = 0
+        while True:
+            page = desk.journal.trades(mode or None, symbol or None, 1000, offset)["items"]
+            for t in page:
+                ts = datetime.fromtimestamp(t.get("ts", 0), timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+                w.writerow([ts] + [t.get(c, "") if t.get(c) is not None else "" for c in cols[1:]])
+            if len(page) < 1000:
+                break
+            offset += 1000
+        return Response(buf.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": "attachment; filename=tradezone-trades.csv"})
 
     @app.get("/api/journal", dependencies=[Depends(check_token)])
     async def journal(topic: str | None = None, limit: int = Query(100, ge=1, le=1000)):

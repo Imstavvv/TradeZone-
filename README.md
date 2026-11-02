@@ -39,6 +39,14 @@ Safety properties:
 * A failing bot handler is isolated by the bus. Its error is counted, and the Sentinel raises an alert.
 * Safety-critical bots can't be disabled from the API while positions are open.
 
+## Watching the bots work, live
+
+The dashboard streams everything the team does the moment it happens, over a WebSocket:
+
+* **Bot floor:** the 8 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → Executor → Portfolio Manager → Sentinel). Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
+* **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
+
 ## Autonomous operation
 
 Once started, the desk runs on its own around the clock:
@@ -259,6 +267,9 @@ To start directly in live mode (for example, on a server after a restart), set `
 | POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
 | GET | `/api/journal?topic=order.filled` | Audit trail from SQLite |
+| GET | `/api/trades?mode=&symbol=&limit=&offset=` | Permanent trade log (every fill) with totals |
+| GET | `/api/trades.csv` | Trade log as CSV (`?token=` accepted for download links) |
+| GET | `/api/bots/{name}/log` | A bot's status and its last 200 actions |
 | GET | `/api/mode` | Preview a paper/live switch: blockers, live account, trading capital |
 | POST | `/api/mode` | `{"mode": "live", "confirm": "LIVE"}` or `{"mode": "paper", "flatten": true}` |
 | POST | `/api/grok/ping` | Test the Grok connection |
@@ -268,7 +279,7 @@ To start directly in live mode (for example, on a server after a restart), set `
 | POST | `/api/deposits` | Record an incoming deposit `{chain, asset, amount, tx_hash, tag?, from_address?}` |
 | POST | `/api/deposits/{id}/credit` | Attribute a held deposit `{wallet_id}` |
 | POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` |
-| WS | `/ws` | Live state stream (`?token=` when an API token is set) |
+| WS | `/ws` | Live stream: `snapshot` on connect, then `action` (bot thoughts), `event` (team events) as they happen, and `state` every cycle (`?token=` when an API token is set) |
 
 When `TZ_API_TOKEN` is set, every endpoint except health requires `Authorization: Bearer <token>`.
 

@@ -103,6 +103,58 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .tagchip{background:#1e1b4b;color:#c7d2fe;border-radius:6px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
 .wallets{grid-column:1/-1}
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
+/* ---- live bot floor ---- */
+.floor{grid-column:1/-1}
+.pipeline{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;position:relative}
+.node{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .3s,box-shadow .3s,transform .3s}
+.node:not(:last-child)::after{content:"";position:absolute;right:-10px;top:30px;width:10px;height:2px;background:var(--line)}
+.node .hd{display:flex;align-items:center;gap:8px}
+.node .avatar{width:30px;height:30px;font-size:13px}
+.node .nm{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .rl{color:var(--muted);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node .now{margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:#cbd5e1;height:44px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word}
+.node .st{display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+.node .bar{height:3px;border-radius:2px;background:#1c2436;margin-top:6px;overflow:hidden}
+.node .bar i{display:block;height:100%;background:var(--c,#6366f1);width:0;transition:width .6s}
+.node.off{opacity:.45}
+.node.flash{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 0 18px -2px var(--c);transform:translateY(-2px)}
+.node.flash:not(:last-child)::after{background:var(--c)}
+.node.warn{border-color:var(--warn)}
+.node.crit{border-color:var(--down)}
+@media (max-width:1100px){.pipeline{grid-template-columns:repeat(4,minmax(0,1fr))}.node:nth-child(4)::after{display:none}}
+/* ---- activity stream ---- */
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chip{padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted)}
+.chip.on{color:var(--text);border-color:var(--accent);background:#1e1b4b}
+.stream{font-family:ui-monospace,Menlo,monospace;font-size:12px;height:420px;overflow:auto}
+#sec-activity{grid-column:span 2}
+@media (max-width:1100px){#sec-activity{grid-column:auto}}
+.stream .it{display:grid;grid-template-columns:62px 110px 1fr;gap:6px;padding:4px 2px;border-bottom:1px dashed #1c2436;align-items:baseline}
+.stream .it.new{animation:fadein .8s}
+@keyframes fadein{from{background:#1e1b4b}to{background:transparent}}
+.stream .who{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stream .tag{font-size:10px;padding:0 5px;border-radius:4px;background:#1c2436;color:var(--muted);margin-right:4px}
+.stream .tag.trade{background:#14532d;color:#86efac}.stream .tag.signal{background:#1e1b4b;color:#c7d2fe}
+.stream .tag.risk{background:#3b2a0d;color:#fcd34d}.stream .tag.alert{background:#450a0a;color:#fecaca}
+.stream .tag.thought{background:#1c2436;color:#94a3b8}
+.counter{font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500}
+.livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--up);margin-right:4px;animation:pulse 1.2s infinite}
+/* ---- trade log ---- */
+.tradelog{grid-column:1/-1}
+.tl-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+.tl-bar select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit}
+.tl-sum{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-left:auto}
+.tl-sum b{color:var(--text)}
+.act-open{color:#93c5fd}.act-close,.act-partial{color:#c4b5fd}.act-add,.act-reduce,.act-flip{color:#fcd34d}
+tr.flashrow td{animation:fadein 1.5s}
+.tcard{border-bottom:1px solid var(--line);padding:9px 2px;font-variant-numeric:tabular-nums}
+.tcard.flashrow{animation:fadein 1.5s}
+.tcard .r1,.tcard .r2{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.tcard .r2{margin-top:3px;font-size:12px;color:var(--muted)}
+.tcard .why{margin-top:4px;font-size:11px;color:var(--muted);word-break:break-word}
+#tradelog .scroll{max-height:460px}
+.botlog{font-family:ui-monospace,Menlo,monospace;font-size:12px;max-height:55vh;overflow:auto;margin-top:10px}
+.botlog div{padding:4px 0;border-bottom:1px dashed #1c2436}
 .bottomnav{display:none}
 section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 @media (max-width:700px){
@@ -128,6 +180,15 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   table{font-size:12px}
   th,td{padding:6px 6px}
   #orders th:last-child,#orders td:last-child{display:none}
+  .pipeline{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .node::after{display:none}
+  .node .now{height:auto;max-height:44px}
+  .stream{height:360px;font-size:11.5px}
+  .stream .it{grid-template-columns:54px 1fr;}
+  .stream .it .who{grid-column:2}
+  .stream .it .msg{grid-column:1/-1}
+  .tl-sum{margin-left:0}
+  #tradelog th:nth-child(8),#tradelog td:nth-child(8),#tradelog th:nth-child(10),#tradelog td:nth-child(10){display:none}
   .scroll{max-height:none}
   .feed{max-height:420px}
   .feed div{white-space:normal;overflow:visible;line-height:1.35;padding:5px 0}
@@ -170,6 +231,14 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <div class="actions"><button type="submit" class="gopaper" style="min-width:120px">Unlock</button></div>
   </form>
 </div></div>
+<div class="modal" id="botModal"><div class="box" style="border-color:var(--accent);max-width:640px">
+  <div style="display:flex;align-items:center;gap:10px"><div class="avatar" id="bmAv"></div>
+    <div><h3 id="bmTitle" style="margin:0"></h3><div class="muted" id="bmRole"></div></div>
+    <button id="bmClose" style="margin-left:auto">Close</button></div>
+  <div class="muted" id="bmDesc" style="margin-top:10px;font-size:12px"></div>
+  <div class="mets" id="bmMets" style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--muted)"></div>
+  <div class="botlog" id="bmLog"></div>
+</div></div>
 <div class="modal" id="liveModal"><div class="box">
   <h3>Switch to LIVE trading</h3>
   <div class="muted">Real orders with real money will be sent to your broker. The bots trade on their own until you switch back, pause, or hit the kill switch.</div>
@@ -183,6 +252,10 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 <main>
   <div class="banner" id="banner"></div>
   <section class="kpis" id="kpis"></section>
+  <section class="panel floor" id="sec-floor">
+    <h2><span><span class="livedot"></span>Bot floor · live</span><span class="counter" id="floorCount"></span></h2>
+    <div class="pipeline" id="pipeline"></div>
+  </section>
   <div id="sec-overview" style="display:none"></div>
 
   <div class="col">
@@ -208,11 +281,24 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
     <section class="panel" id="sec-trades"><h2>Open positions</h2><div class="scroll" id="positions"></div></section>
     <section class="panel"><h2>Market board · Strategist &amp; Quant</h2><div class="scroll" id="board"></div></section>
     <section class="panel"><h2>Orders</h2><div class="scroll" id="orders"></div></section>
-    <section class="panel"><h2>Closed trades</h2><div class="scroll" id="trades"></div></section>
-    <section class="panel" id="sec-activity"><h2>Team activity</h2><div class="feed" id="events"></div></section>
+    <section class="panel" id="sec-activity">
+      <h2><span><span class="livedot"></span>Live activity</span><span class="counter" id="streamCount"></span></h2>
+      <div class="chips" id="chips"></div>
+      <div class="stream" id="stream"></div>
+    </section>
     <section class="panel"><h2>Alerts</h2><div class="feed" id="alerts"></div></section>
   </div>
 
+  <section class="panel tradelog" id="tradelog">
+    <h2><span><span class="livedot"></span>Trade log · every fill</span><a class="counter" id="csvLink" href="#" download>Export CSV</a></h2>
+    <div class="tl-bar">
+      <select id="tlMode"><option value="">Paper + live</option><option value="paper">Paper only</option><option value="live">Live only</option></select>
+      <select id="tlSym"><option value="">All symbols</option></select>
+      <div class="tl-sum" id="tlSum"></div>
+    </div>
+    <div class="scroll" id="tlTable"></div>
+    <div style="text-align:center;margin-top:8px"><button id="tlMore" style="display:none">Load more</button></div>
+  </section>
   <section class="panel wallets" id="sec-wallet">
     <h2>Wallets &amp; funding <span class="muted" id="wdLimit"></span></h2>
     <div class="wgrid">
@@ -255,8 +341,8 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 </main>
 <nav class="bottomnav" id="bottomnav">
   <a href="#top" data-sec="top" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>Overview</a>
-  <a href="#sec-bots" data-sec="sec-bots"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/></svg>Bots</a>
-  <a href="#sec-trades" data-sec="sec-trades"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Trades</a>
+  <a href="#sec-floor" data-sec="sec-bots"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/></svg>Bots</a>
+  <a href="#tradelog" data-sec="tradelog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Trades</a>
   <a href="#sec-activity" data-sec="sec-activity"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 8L9 4l-3 8H2"/></svg>Activity</a>
   <a href="#sec-wallet" data-sec="sec-wallet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/></svg>Wallet</a>
 </nav>
@@ -386,9 +472,15 @@ function connect(){
   };
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
+    if (msg.type === 'action') return onAction(msg);
+    if (msg.type === 'event') return onEvent(msg.data);
     if (msg.type === 'snapshot'){
       S.history = msg.data.history || {};
       S.equity = (msg.data.equity_curve || []).map(p => p[1]);
+      S.state = S.state || msg.data;
+      renderChips();
+      seedStream(msg.data);
+      loadTrades(true);
     } else {
       for (const [sym, px] of Object.entries(msg.data.prices)) {
         const h = (S.history[sym] ||= []); h.push(px); if (h.length > 300) h.shift();
@@ -472,7 +564,7 @@ function render(){
   $('team').innerHTML = st.bots.map(b => {
     const mets = Object.entries(b.metrics).filter(([,v]) => typeof v !== 'object').slice(0,6)
       .map(([k,v]) => `<span>${esc(k.replace(/_/g,' '))} <b>${typeof v==='number' ? (PCT_KEYS.has(k) ? (v*100).toFixed(1)+'%' : num(v)) : esc(v)}</b></span>`).join('');
-    return `<div class="bot ${b.enabled?'':'off'}" title="${esc(b.description)}">
+    return `<div class="bot ${b.enabled?'':'off'}" data-card="${esc(b.name)}" title="${esc(b.description)} (tap for full log)" style="cursor:pointer">
       <div class="top"><div class="avatar" style="background:${COLORS[b.name]||'#64748b'}">${esc(b.title[0])}</div>
         <div><div class="name">${esc(b.title)}</div><div class="role">${esc(b.role)}</div></div>
         <span class="dot ${b.state}"></span>
@@ -480,7 +572,13 @@ function render(){
       <div class="act">› ${esc(b.last_action)}</div>
       <div class="mets">${mets}${b.errors?`<span class="down">errors <b>${b.errors}</b></span>`:''}</div></div>`;
   }).join('');
-  document.querySelectorAll('[data-bot]').forEach(btn => btn.onclick = () => api('/api/bots/'+btn.dataset.bot, {enabled: btn.dataset.en !== 'true'}));
+  document.querySelectorAll('button[data-bot]').forEach(btn => btn.onclick = (e) => {
+    e.stopPropagation();
+    const on = btn.dataset.en !== 'true', b = st.bots.find(x => x.name === btn.dataset.bot);
+    if (!on && !confirm(`Disable ${b.title}? It will stop doing its job (${b.role}) until you enable it again.`)) return;
+    api('/api/bots/' + btn.dataset.bot, {enabled: on});
+  });
+  document.querySelectorAll('[data-card]').forEach(c => c.onclick = () => openBot(c.dataset.card));
 
   $('positions').innerHTML = table(['Symbol','Qty','Entry','Last','Stop','Target','Value','Unrealized'], p.positions.map(x => [
     `<b>${esc(x.symbol)}</b>`, `<span class="${cls(x.qty)}">${num(x.qty)}</span>`, num(x.avg_price), num(x.last_price),
@@ -495,11 +593,10 @@ function render(){
   $('orders').innerHTML = table(['Time','Symbol','Side','Qty','Fill','Status','Reason'], st.orders.slice().reverse().map(o => [
     time(o.ts), esc(o.symbol), `<span class="${o.side==='buy'?'up':'down'}">${o.side.toUpperCase()}</span>${o.reduce_only?' <span class="muted">exit</span>':''}`, num(o.qty), num(o.avg_fill_price), esc(o.status), `<span class="muted">${esc(o.reason)}</span>`]), 'No orders yet');
 
-  $('trades').innerHTML = table(['Time','Symbol','Side','Qty','Entry','Exit','P&L'], st.trades.slice().reverse().map(t => [
-    time(t.ts), esc(t.symbol), esc(t.side), num(t.qty), num(t.entry_price), num(t.exit_price), `<span class="${cls(t.pnl)}">${money(t.pnl)}</span>`]), 'No closed trades yet');
+  renderFloor(st);
+  updateSymbolFilter(Object.keys(st.prices));
 
   renderWallets(st);
-  $('events').innerHTML = st.events.slice().reverse().map(e => `<div><span class="t">${time(e.ts)}</span> <span class="src" style="color:${COLORS[e.source]||''}">${esc(e.source)}</span> ${esc(e.topic)} <span class="muted">${esc(describe(e))}</span></div>`).join('') || '<div class="empty">Waiting for the team…</div>';
   $('alerts').innerHTML = st.alerts.slice().reverse().map(a => `<div class="lvl-${a.payload.level}"><span class="t">${time(a.ts)}</span> [${esc(a.payload.level)}] <span class="src">${esc(a.source)}</span> ${esc(a.payload.message)}</div>`).join('') || '<div class="empty">No alerts</div>';
 }
 
@@ -531,6 +628,178 @@ function renderWallets(st){
     `<span title="${esc(t.note)}" class="${t.status==='held'?'lvl-warning':t.status==='completed'?'':'lvl-warning'}">${esc(t.status)}</span>`]), 'No transfers yet');
 }
 
+// =================== live bot floor ===================
+const ORDER = ['scout','strategist','quant','grok','risk','execution','portfolio','sentinel'];
+const FLASH = {};
+function renderFloor(st){
+  const pipe = $('pipeline');
+  const bots = Object.fromEntries(st.bots.map(b => [b.name, b]));
+  if (pipe.children.length !== ORDER.length) {
+    pipe.innerHTML = ORDER.map(n => `<div class="node" id="node-${n}" data-node="${n}" style="--c:${COLORS[n]}">
+      <div class="hd"><div class="avatar" style="background:${COLORS[n]}">${esc((bots[n]?.title || n)[0])}</div>
+      <div style="min-width:0"><div class="nm">${esc(bots[n]?.title || n)}</div><div class="rl">${esc(bots[n]?.role || '')}</div></div></div>
+      <div class="now"></div><div class="bar"><i></i></div><div class="st"><span class="apm"></span><span class="ago"></span></div></div>`).join('');
+    pipe.querySelectorAll('.node').forEach(el => el.onclick = () => openBot(el.dataset.node));
+  }
+  const maxApm = Math.max(1, ...st.bots.map(b => b.actions_per_min || 0));
+  const nowS = Date.now() / 1000;
+  let busy = 0;
+  for (const n of ORDER) {
+    const b = bots[n], el = $('node-' + n);
+    if (!b || !el) continue;
+    el.classList.toggle('off', !b.enabled);
+    el.classList.toggle('crit', b.errors > 0);
+    el.querySelector('.now').textContent = b.enabled ? b.last_action : 'disabled by operator';
+    el.querySelector('.bar i').style.width = Math.round(100 * (b.actions_per_min || 0) / maxApm) + '%';
+    el.querySelector('.apm').textContent = `${Math.round(b.actions_per_min || 0)}/min · ${b.total_actions || 0} total`;
+    const ago = b.last_action_ts ? Math.max(0, nowS - b.last_action_ts) : null;
+    el.querySelector('.ago').textContent = ago == null ? '' : ago < 2 ? 'now' : ago < 60 ? Math.round(ago) + 's ago' : Math.round(ago / 60) + 'm ago';
+    if (ago != null && ago < 60) busy++;
+  }
+  $('floorCount').textContent = `${busy}/${ORDER.length} active in the last minute · tap a bot for its full log`;
+}
+function flash(bot, level){
+  const el = $('node-' + bot); if (!el) return;
+  el.classList.add('flash'); el.classList.toggle('warn', level === 'warning');
+  clearTimeout(FLASH[bot]); FLASH[bot] = setTimeout(() => el.classList.remove('flash', 'warn'), 1200);
+}
+
+// =================== live activity stream ===================
+const STREAM = {items: [], filter: 'all', pending: false, seen: 0};
+const CATS = [['all','All'],['trade','Trades'],['signal','Signals'],['risk','Risk'],['alert','Alerts'],['thought','Bot thoughts']];
+function catOf(it){
+  if (it.kind === 'action') return it.bot === 'risk' ? 'risk' : 'thought';
+  const t = it.topic;
+  if (t === 'alert') return 'alert';
+  if (t.startsWith('order.') || t.startsWith('trade.') || t.startsWith('funds.')) return 'trade';
+  if (t === 'signal.rejected') return 'risk';
+  if (t.startsWith('signal.') || t === 'grok.opinion' || t === 'regime.update') return 'signal';
+  return 'thought';
+}
+const hms = ts => new Date(ts * 1000).toLocaleTimeString([], {hour12: false});
+const botTitle = n => (S.state?.bots.find(b => b.name === n)?.title) || ({operator: 'Operator', system: 'Desk', desk: 'Desk', treasury: 'Treasury'}[n] || n);
+function streamItem(kind, d){
+  const it = kind === 'action'
+    ? {kind, ts: d.ts, bot: d.bot, who: d.title, level: d.level, text: d.message}
+    : {kind, ts: d.ts, bot: d.source, who: botTitle(d.source), topic: d.topic, level: d.topic === 'alert' ? d.payload.level : 'info',
+       text: `${d.topic} · ${describe(d)}`};
+  it.cat = catOf(it);
+  return it;
+}
+function pushStream(it){
+  STREAM.items.push(it); STREAM.seen++;
+  if (STREAM.items.length > 800) STREAM.items.splice(0, STREAM.items.length - 800);
+  if (!STREAM.pending) { STREAM.pending = true; requestAnimationFrame(renderStream); }
+}
+function seedStream(data){
+  const items = [...(data.actions || []).map(a => streamItem('action', a)), ...(data.events || []).map(e => streamItem('event', e))];
+  STREAM.items = items.sort((a, b) => a.ts - b.ts).slice(-800);
+  renderStream();
+}
+function onAction(a){ flash(a.bot, a.level); pushStream(streamItem('action', a)); }
+function onEvent(e){
+  if (ORDER.includes(e.source)) flash(e.source, e.topic === 'alert' ? e.payload.level : 'info');
+  pushStream(streamItem('event', e));
+  if (e.topic === 'trade.log') addTradeRow(e.payload);
+}
+function renderStream(){
+  STREAM.pending = false;
+  const f = STREAM.filter, box = $('stream');
+  const list = STREAM.items.filter(it => f === 'all' || it.cat === f || it.bot === f).slice(-250).reverse();
+  box.innerHTML = list.map((it, i) => `<div class="it${i < 3 ? ' new' : ''} lvl-${it.level === 'critical' ? 'critical' : it.level === 'warning' ? 'warning' : ''}">
+    <span class="t muted">${hms(it.ts)}</span><span class="who" style="color:${COLORS[it.bot] || 'var(--accent2)'}">${esc(it.who)}</span>
+    <span class="msg"><span class="tag ${it.cat}">${it.cat}</span>${esc(it.text)}</span></div>`).join('') || '<div class="empty">Waiting for the team…</div>';
+  $('streamCount').textContent = `${STREAM.seen} updates this session`;
+}
+function renderChips(){
+  const bots = ORDER.map(n => [n, (S.state?.bots.find(b => b.name === n)?.title) || n]);
+  $('chips').innerHTML = [...CATS, ...bots].map(([k, l]) => `<span class="chip${STREAM.filter === k ? ' on' : ''}" data-f="${k}">${esc(l)}</span>`).join('');
+  $('chips').querySelectorAll('.chip').forEach(c => c.onclick = () => { STREAM.filter = c.dataset.f; renderChips(); renderStream(); });
+}
+renderChips();
+
+// =================== bot detail ===================
+let openBotName = null;
+async function openBot(name){
+  const d = await api('/api/bots/' + name + '/log');
+  openBotName = name;
+  $('bmAv').textContent = d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
+  $('bmTitle').textContent = d.title; $('bmRole').textContent = d.role; $('bmDesc').textContent = d.description;
+  $('bmMets').innerHTML = [['actions/min', Math.round(d.actions_per_min)], ['total actions', d.total_actions], ['errors', d.errors],
+    ...Object.entries(d.metrics).filter(([, v]) => typeof v !== 'object')].map(([k, v]) => `<span>${esc(String(k).replace(/_/g, ' '))} <b style="color:var(--text)">${esc(typeof v === 'number' ? num(v) : v)}</b></span>`).join('');
+  $('bmLog').innerHTML = d.log.slice().reverse().map(e => `<div class="lvl-${e.level}"><span class="t muted">${time(e.ts)}</span> ${esc(e.message)}</div>`).join('') || '<div class="empty">No actions yet</div>';
+  $('botModal').classList.add('open');
+}
+$('bmClose').onclick = () => { $('botModal').classList.remove('open'); openBotName = null; };
+const _onAction = onAction;
+onAction = function(a){
+  _onAction(a);
+  if (openBotName === a.bot) $('bmLog').insertAdjacentHTML('afterbegin', `<div class="lvl-${a.level}" style="animation:fadein 1s"><span class="t muted">${time(a.ts)}</span> ${esc(a.message)}</div>`);
+};
+
+// =================== trade log ===================
+const TL = {items: [], offset: 0, total: 0, loading: false};
+function tlQuery(){ const m = $('tlMode').value, sy = $('tlSym').value; return `mode=${encodeURIComponent(m)}&symbol=${encodeURIComponent(sy)}`; }
+async function loadTrades(reset){
+  if (TL.loading) return; TL.loading = true;
+  try {
+    if (reset) { TL.items = []; TL.offset = 0; }
+    const d = await api(`/api/trades?${tlQuery()}&limit=100&offset=${TL.offset}`);
+    TL.items.push(...d.items); TL.offset += d.items.length; TL.total = d.total;
+    $('tlSum').innerHTML = `<span><b>${d.total}</b> fills</span><span>realized <b class="${cls(d.realized_pnl)}">${money(d.realized_pnl)}</b></span>
+      <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`;
+    renderTrades();
+  } finally { TL.loading = false; }
+  $('csvLink').href = `/api/trades.csv?${tlQuery()}${S.token ? '&token=' + encodeURIComponent(S.token) : ''}`;
+}
+function tradeRow(t, isNew){
+  const pnl = t.pnl == null ? '<span class="muted">—</span>' : `<span class="${cls(t.pnl)}">${money(t.pnl)}</span>`;
+  const d = new Date(t.ts * 1000), today = d.toDateString() === new Date().toDateString();
+  const when = today ? d.toLocaleTimeString() : d.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  return `<tr${isNew ? ' class="flashrow"' : ''}><td>${when}</td><td><span class="pill ${t.mode === 'live' ? 'volatile' : 'unknown'}">${esc(t.mode)}</span></td>
+    <td><b>${esc(t.symbol)}</b></td><td class="act-${t.action}">${esc(t.action)}</td><td class="${t.side === 'buy' ? 'up' : 'down'}">${esc(t.side.toUpperCase())}</td>
+    <td class="r">${num(t.qty)}</td><td class="r">${num(t.price)}</td><td class="r">${money(t.fee)}</td><td class="r">${pnl}</td>
+    <td class="muted" style="max-width:340px;overflow:hidden;text-overflow:ellipsis" title="${esc(t.reason)}">${esc(t.reason)}</td></tr>`;
+}
+function tradeCard(t, isNew){
+  const d = new Date(t.ts * 1000), today = d.toDateString() === new Date().toDateString();
+  const when = today ? d.toLocaleTimeString() : d.toLocaleDateString([], {month: 'short', day: 'numeric'}) + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+  const pnl = t.pnl == null ? '' : `<b class="${cls(t.pnl)}">${money(t.pnl)}</b>`;
+  return `<div class="tcard${isNew ? ' flashrow' : ''}">
+    <div class="r1"><span><b>${esc(t.symbol)}</b> <span class="act-${t.action}">${esc(t.action)}</span> <span class="${t.side === 'buy' ? 'up' : 'down'}">${esc(t.side.toUpperCase())}</span></span>${pnl}</div>
+    <div class="r2"><span>${num(t.qty)} @ ${num(t.price)} · fee ${money(t.fee)}</span><span>${when} · <span class="pill ${t.mode === 'live' ? 'volatile' : 'unknown'}">${esc(t.mode)}</span></span></div>
+    ${t.reason ? `<div class="why">${esc(t.reason)}</div>` : ''}</div>`;
+}
+function renderTrades(newCount = 0){
+  if (window.innerWidth <= 700) {
+    $('tlTable').innerHTML = TL.items.length ? TL.items.map((t, i) => tradeCard(t, i < newCount)).join('')
+      : '<div class="empty">No trades yet - the log fills in as the bots trade</div>';
+    $('tlMore').style.display = TL.offset < TL.total ? '' : 'none';
+    return;
+  }
+  const head = ['Time','Mode','Symbol','Action','Side','Qty','Price','Fee','P&L','Why'];
+  $('tlTable').innerHTML = TL.items.length ? `<table><thead><tr>${head.map((h, i) => `<th${i >= 5 && i <= 8 ? ' class="r"' : ''}>${h}</th>`).join('')}</tr></thead>
+    <tbody>${TL.items.map((t, i) => tradeRow(t, i < newCount)).join('')}</tbody></table>` : '<div class="empty">No trades yet - the log fills in as the bots trade</div>';
+  $('tlMore').style.display = TL.offset < TL.total ? '' : 'none';
+}
+function addTradeRow(t){
+  const m = $('tlMode').value, sy = $('tlSym').value;
+  if ((m && t.mode !== m) || (sy && t.symbol !== sy)) return;
+  TL.items.unshift(t); TL.offset++; TL.total++;
+  renderTrades(1);
+  clearTimeout(TL.sumTimer); TL.sumTimer = setTimeout(() => api(`/api/trades?${tlQuery()}&limit=1`).then(d => {
+    $('tlSum').innerHTML = `<span><b>${d.total}</b> fills</span><span>realized <b class="${cls(d.realized_pnl)}">${money(d.realized_pnl)}</b></span>
+      <span>fees <b>${money(d.fees)}</b></span><span>win rate <b>${d.closing_fills ? Math.round(100 * d.winning_fills / d.closing_fills) + '%' : '—'}</b></span>`; }), 800);
+}
+let knownSyms = '';
+function updateSymbolFilter(syms){
+  const key = syms.join(','); if (key === knownSyms) return; knownSyms = key;
+  const cur = $('tlSym').value;
+  $('tlSym').innerHTML = '<option value="">All symbols</option>' + syms.map(x => `<option${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
+}
+$('tlMode').onchange = $('tlSym').onchange = () => loadTrades(true);
+$('tlMore').onclick = () => loadTrades(false);
+
 function describe(e){
   const p = e.payload || {};
   switch (e.topic){
@@ -542,6 +811,7 @@ function describe(e){
     case 'order.update': return `${p.id} ${p.side} ${p.symbol} ${p.status}`;
     case 'order.filled': return `${p.side} ${num(p.qty)} ${p.symbol} @ ${num(p.price)}`;
     case 'trade.closed': return `${p.symbol} ${money(p.pnl)}`;
+    case 'trade.log': return `${p.action.toUpperCase()} ${p.side} ${num(p.qty)} ${p.symbol} @ ${num(p.price)}${p.pnl != null ? ' · P&L ' + money(p.pnl) : ''} · fee ${money(p.fee)}`;
     case 'regime.update': return `${p.symbol} → ${p.regime}`;
     case 'alert': return p.message;
     case 'desk.control': return `${p.action} (${p.reason})`;
@@ -595,7 +865,7 @@ document.querySelectorAll('#bottomnav a').forEach(a => a.onclick = e => {
   window.scrollTo({top: a.dataset.sec === 'top' ? 0 : el.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth'});
 });
 (function(){
-  const ids = ['sec-bots','sec-trades','sec-activity','sec-wallet'];
+  const ids = ['sec-bots','sec-activity','tradelog','sec-wallet'];
   const onScroll = () => {
     let cur = 'top';
     const hdr = $('top').offsetHeight;

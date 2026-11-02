@@ -12,7 +12,7 @@ from .base import Bot
 JOURNALED = (
     "signal.proposed", "signal.rejected", "order.approved", "order.update", "order.filled",
     "trade.closed", "regime.update", "alert", "desk.control", "signal.reviewed", "grok.opinion",
-    "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed",
+    "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed", "trade.log",
 )
 
 
@@ -77,7 +77,9 @@ class SentinelBot(Bot):
         d = ev.to_dict()
         self.events.append(d)
         if ev.topic in JOURNALED:
-            self.desk.journal.record(ev.ts, ev.topic, ev.source, d["payload"])
+            self.desk.journal.record(ev.ts, ev.topic, ev.source, d["payload"], self.desk.mode)
+            if ev.topic == "trade.log":
+                self.desk.journal.commit()  # trades are durable immediately
             self.bump("journaled")
         if ev.topic == "alert":
             self.alerts.append(d)

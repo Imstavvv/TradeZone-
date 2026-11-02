@@ -26,6 +26,8 @@ class BotStatus:
     errors: int
     metrics: dict[str, Any]
     log: list[dict[str, Any]] = field(default_factory=list)
+    actions_per_min: float = 0.0
+    total_actions: int = 0
 
 
 class Bot:
@@ -46,7 +48,9 @@ class Bot:
         self.last_action = "standing by"
         self.last_action_ts: float | None = None
         self.metrics: dict[str, Any] = {}
-        self._log: deque[dict[str, Any]] = deque(maxlen=50)
+        self._log: deque[dict[str, Any]] = deque(maxlen=200)
+        self._action_times: deque[float] = deque(maxlen=600)
+        self.total_actions = 0
 
     # -- wiring ---------------------------------------------------------
     def subscriptions(self) -> dict[str, Callable[[Event], Any]]:
@@ -82,9 +86,21 @@ class Bot:
         self.desk.bus.publish(topic, payload, source=self.name)
 
     def act(self, message: str, level: str = "info") -> None:
+        t = now()
         self.last_action = message
-        self.last_action_ts = now()
-        self._log.append({"ts": self.last_action_ts, "level": level, "message": message})
+        self.last_action_ts = t
+        entry = {"ts": t, "level": level, "message": message}
+        self._log.append(entry)
+        self._action_times.append(t)
+        self.total_actions += 1
+        self.desk.ui_emit({"type": "action", "bot": self.name, "title": self.title, **entry})
+
+    def actions_per_min(self) -> float:
+        cutoff = now() - 60
+        return float(sum(1 for x in self._action_times if x >= cutoff))
+
+    def full_log(self) -> list[dict[str, Any]]:
+        return list(self._log)
 
     def bump(self, metric: str, by: float = 1) -> None:
         self.metrics[metric] = self.metrics.get(metric, 0) + by
@@ -109,4 +125,6 @@ class Bot:
             self.errors,
             dict(self.metrics),
             list(self._log)[-15:],
+            self.actions_per_min(),
+            self.total_actions,
         )
