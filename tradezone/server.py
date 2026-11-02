@@ -140,7 +140,13 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
 
     @app.get("/api/health")
     async def health():
-        return {"ok": True, "cycles": desk.cycles, "halted": desk.halted, "mode": desk.state()["mode"]}
+        return {"ok": True, "cycles": desk.cycles, "halted": desk.halted,
+                "mode": "live" if desk.is_live else "paper", "feed": desk.feed.name,
+                "feed_ok": not desk.feed_down, "auth_required": bool(token)}
+
+    @app.get("/api/auth", dependencies=[Depends(check_token)])
+    async def auth_check():
+        return {"ok": True}
 
     @app.get("/api/state", dependencies=[Depends(check_token)])
     async def state():
@@ -245,10 +251,10 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
 
     @app.websocket("/ws")
     async def ws(socket: WebSocket, token_q: str | None = Query(default=None, alias="token")):
+        await socket.accept()  # accept first: a pre-accept close reaches browsers as a bare 403/1006
         if token and not hmac.compare_digest(token_q or "", token):
-            await socket.close(code=4401)
+            await socket.close(code=4401, reason="invalid or missing API token")
             return
-        await socket.accept()
         q: asyncio.Queue = asyncio.Queue()
         clients.add(q)
         try:

@@ -9,6 +9,7 @@ class MarketFeed(abc.ABC):
     """Source of live prices. ``poll`` is called once per desk cycle."""
 
     name = "feed"
+    last_error = ""  # most recent problem talking to the data source, for the dashboard
 
     @abc.abstractmethod
     async def poll(self) -> list[Tick]: ...

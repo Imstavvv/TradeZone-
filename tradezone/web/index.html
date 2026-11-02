@@ -92,6 +92,7 @@ button.gopaper{background:#0d2a3b;border-color:#0e7490;color:#a5f3fc}
 .modal .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 button:disabled{opacity:.45;cursor:not-allowed}
 .banner{grid-column:1/-1;background:#3b2a0d;border:1px solid #78350f;color:#fcd34d;border-radius:10px;padding:10px 14px;font-weight:600;display:none}
+.banner.info{background:#0d2a3b;border-color:#164e63;color:#a5f3fc}
 .banner.crit{background:#450a0a;border-color:#7f1d1d;color:#fecaca}
 .badge.grok-on{background:#1f1f1f;color:#f5f5f5;border-color:#525252}.badge.grok-err{background:#450a0a;color:#fecaca;border-color:#7f1d1d}
 form.row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
@@ -160,6 +161,15 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   </div>
 </header>
 
+<div class="modal" id="authModal"><div class="box" style="border-color:var(--accent)">
+  <h3>Unlock TradeZone</h3>
+  <div class="muted">This desk is protected. Enter the access token (on Render: your service → Environment → <b>TZ_API_TOKEN</b>). It's remembered on this device.</div>
+  <form id="authForm" style="margin-top:12px">
+    <input id="authToken" type="password" autocomplete="current-password" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="Access token" required style="letter-spacing:0">
+    <div id="authErr" class="down" style="min-height:18px;margin:-6px 0 8px;font-size:12px"></div>
+    <div class="actions"><button type="submit" class="gopaper" style="min-width:120px">Unlock</button></div>
+  </form>
+</div></div>
 <div class="modal" id="liveModal"><div class="box">
   <h3>Switch to LIVE trading</h3>
   <div class="muted">Real orders with real money will be sent to your broker. The bots trade on their own until you switch back, pause, or hit the kill switch.</div>
@@ -265,12 +275,37 @@ const time = ts => new Date(ts*1000).toLocaleTimeString();
 
 async function api(path, body){
   const r = await fetch(path, {method: body===undefined?'GET':'POST', headers:{'Content-Type':'application/json', ...(S.token?{Authorization:'Bearer '+S.token}:{})}, body: body===undefined?undefined:JSON.stringify(body)});
-  if (r.status === 401){ askToken(); throw new Error('unauthorized'); }
+  if (r.status === 401){ askToken('Token rejected - please re-enter it'); throw new Error('unauthorized'); }
   const j = await r.json().catch(()=>({}));
   if (!r.ok) { alert(j.detail || ('Request failed: '+r.status)); throw new Error(j.detail); }
   return j;
 }
-function askToken(){ const t = prompt('API token required'); if (t){ S.token=t; localStorage.setItem('tz_token',t); location.reload(); } }
+function saveToken(t){ S.token = t; try { t ? localStorage.setItem('tz_token', t) : localStorage.removeItem('tz_token'); } catch {} }
+function askToken(msg){
+  $('authErr').textContent = msg || '';
+  $('authModal').classList.add('open');
+  setTimeout(() => $('authToken').focus(), 50);
+}
+$('authForm').onsubmit = async e => {
+  e.preventDefault();
+  const t = $('authToken').value.trim();
+  $('authErr').textContent = 'Checking…';
+  try {
+    const r = await fetch('/api/auth', {headers: {Authorization: 'Bearer ' + t}});
+    if (r.status === 401) { $('authErr').textContent = 'That token is not correct.'; return; }
+    if (!r.ok) { $('authErr').textContent = 'Server error ' + r.status + ' - try again shortly.'; return; }
+  } catch { $('authErr').textContent = 'Cannot reach the server - check your connection.'; return; }
+  saveToken(t); $('authModal').classList.remove('open'); $('authToken').value = '';
+  connect();
+};
+// decide on start-up: does this server need a token, and is ours valid?
+async function boot(){
+  try {
+    const r = await fetch('/api/auth', {headers: S.token ? {Authorization: 'Bearer ' + S.token} : {}});
+    if (r.status === 401) { const had = !!S.token; saveToken(''); return askToken(had ? 'Saved token is no longer valid - please re-enter it.' : ''); }
+  } catch { /* offline: connect() will keep retrying */ }
+  connect();
+}
 
 $('btnPause').onclick = () => api('/api/control/' + (S.state?.paused ? 'resume' : 'pause'), {reason:'dashboard'});
 $('btnFlatten').onclick = () => confirm('Close ALL open positions at market?') && api('/api/control/flatten', {reason:'dashboard flatten'});
@@ -338,9 +373,17 @@ $('depWallet').onchange = () => $('depAsset').innerHTML = assetOpts($('depWallet
 $('btnReset').onclick = () => confirm('Re-arm trading after kill switch?') && api('/api/control/reset', {});
 
 function connect(){
-  const ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws' + (S.token?'?token='+encodeURIComponent(S.token):''));
+  if (S.ws && S.ws.readyState <= 1) return;  // already connecting / connected
+  const ws = S.ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws' + (S.token?'?token='+encodeURIComponent(S.token):''));
   ws.onopen = () => $('conn').textContent = '● live';
-  ws.onclose = (e) => { $('conn').textContent = '○ reconnecting…'; if (e.code===4401) return askToken(); setTimeout(connect, 2000); };
+  ws.onclose = async (e) => {
+    $('conn').textContent = '○ reconnecting…';
+    if (e.code === 4401) return askToken('Token rejected - please re-enter it');
+    // a generic failure could still be auth (older server / proxy): probe before retrying
+    try { const r = await fetch('/api/auth', {headers: S.token ? {Authorization: 'Bearer ' + S.token} : {}});
+          if (r.status === 401) return askToken('Please enter the access token'); } catch {}
+    setTimeout(connect, 2000);
+  };
   ws.onmessage = (m) => {
     const msg = JSON.parse(m.data);
     if (msg.type === 'snapshot'){
@@ -379,6 +422,14 @@ function render(){
   if (st.halted || (st.paused && ac.pause_reason && ac.pause_reason !== 'dashboard' && ac.pause_reason !== 'operator')) {
     bn.style.display = 'block'; bn.className = 'banner' + (st.halted || /integrity|audit|mismatch/.test(ac.pause_reason) ? ' crit' : '');
     bn.textContent = st.halted ? `Kill switch active: ${st.halt_reason}` : `Trading paused automatically: ${ac.pause_reason}. Investigate before resuming.`;
+  } else if (st.feed_status && !st.feed_status.ok) {
+    bn.style.display = 'block'; bn.className = 'banner crit';
+    bn.textContent = `No market data from ${st.feed}: ${st.feed_status.error || 'no response'}. The bots can't trade until prices arrive - retrying automatically.`;
+  } else if (st.feed_status && st.feed_status.warming_up) {
+    const w = st.feed_status.warming_up, left = (w.needed - w.done) * (w.bar_seconds || 1);
+    bn.style.display = 'block'; bn.className = 'banner info';
+    bn.textContent = `Warming up: ${w.done}/${w.needed} ${w.unit} of live prices collected` +
+      (w.bar_seconds ? ` (about ${Math.max(1, Math.ceil(left / 60))} min left)` : '') + `. Bots start trading once indicators are ready.`;
   } else bn.style.display = 'none';
   $('btnPause').dataset.long = $('btnPause').dataset.short = st.paused ? 'Resume' : 'Pause';
   $('btnReset').style.display = st.halted ? '' : 'none';
@@ -553,7 +604,7 @@ document.querySelectorAll('#bottomnav a').forEach(a => a.onclick = e => {
 })();
 window.addEventListener('unhandledrejection', e => e.preventDefault());  // api() already alerted
 window.addEventListener('resize', () => S.state && render());
-connect();
+boot();
 </script>
 </body>
 </html>

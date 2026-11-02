@@ -128,6 +128,17 @@ class ScoutBot(Bot):
         self.bump("snapshots")
         self.act(f"{t.symbol} {t.price:,.2f} rsi={ind['rsi']:.0f} vol={ind['volatility']:.2%}")
 
+    def warmup_status(self) -> dict | None:
+        """Progress toward the first indicator snapshot, or None once every symbol is warm."""
+        if not self.books:
+            return {"done": 0, "needed": WARMUP, "unit": "bars" if self.bar_seconds else "ticks",
+                    "bar_seconds": self.bar_seconds}
+        done = min(b.count for b in self.books.values())
+        if done >= WARMUP:
+            return None
+        return {"done": done, "needed": WARMUP, "unit": "bars" if self.bar_seconds else "ticks",
+                "bar_seconds": self.bar_seconds}
+
     def history(self, symbol: str) -> list[float]:
         b = self.books.get(symbol)
         return list(b.prices) if b else []

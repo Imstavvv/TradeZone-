@@ -87,6 +87,9 @@ class TradingDesk:
         self.halted = False
         self.halt_reason = ""
         self.cycles = 0
+        self.empty_polls = 0  # consecutive cycles without any market data
+        self.last_tick_at: float | None = None
+        self.feed_down = False
         self.started_at = time.time()
         self.running = False
         self._task: asyncio.Task | None = None
@@ -306,7 +309,12 @@ class TradingDesk:
         if today != self._day:
             self._day = today
             self.portfolio.day_start_equity = self.portfolio.equity
-        ticks = await self.feed.poll()
+        try:
+            ticks = await self.feed.poll()
+        except Exception as exc:  # a broken feed must never stop the desk loop
+            self.feed.last_error = f"{type(exc).__name__}: {exc}"[:200]
+            ticks = []
+        self._track_feed(ticks)
         self.paper_broker.on_prices(ticks)
         if self.live_broker is not None:
             self.live_broker.on_prices(ticks)
@@ -324,6 +332,23 @@ class TradingDesk:
                 log.exception("bot %s cycle failed", bot.name)
             await self.bus.drain()
         self.cycles += 1
+
+    FEED_DOWN_AFTER = 10  # cycles without data before alerting
+
+    def _track_feed(self, ticks: list) -> None:
+        if ticks:
+            self.last_tick_at = time.time()
+            self.empty_polls = 0
+            if self.feed_down:
+                self.feed_down = False
+                self.bus.publish("alert", Alert("info", f"Market data from {self.feed.name} restored", "desk"))
+            return
+        self.empty_polls += 1
+        if self.empty_polls >= self.FEED_DOWN_AFTER and not self.feed_down:
+            self.feed_down = True
+            why = self.feed.last_error or "no response"
+            self.bus.publish("alert", Alert(
+                "critical", f"No market data from {self.feed.name} for {self.empty_polls} cycles: {why}", "desk"))
 
     async def run_forever(self) -> None:
         self.running = True
@@ -358,6 +383,12 @@ class TradingDesk:
         return {
             "mode": "live" if self.is_live else "paper",
             "feed": self.feed.name,
+            "feed_status": {
+                "ok": not self.feed_down,
+                "error": self.feed.last_error,
+                "last_tick_at": self.last_tick_at,
+                "warming_up": self.bots["scout"].warmup_status(),  # type: ignore[attr-defined]
+            },
             "broker": self.broker.name,
             "live": {
                 "available": not self.settings.live_blockers(),

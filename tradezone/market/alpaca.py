@@ -45,7 +45,10 @@ class AlpacaFeed(MarketFeed):
                         Tick(self.crypto.get(sym, sym), float(t["p"]), float(t.get("s", 0)), now())
                     )
         except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"[:200]
             log.warning("alpaca data poll failed: %s", exc)
+        else:
+            self.last_error = ""
         return ticks
 
     async def close(self) -> None:
