@@ -10,7 +10,8 @@ from ..core.models import Alert, now
 from .base import Bot
 
 JOURNALED = (
-    "signal.proposed", "signal.rejected", "order.approved", "order.update", "order.filled",
+    "signal.proposed", "signal.rejected", "order.approved", "order.authorized", "order.held",
+    "order.update", "order.filled",
     "trade.closed", "regime.update", "alert", "desk.control", "signal.reviewed", "grok.opinion",
     "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed", "trade.log",
 )

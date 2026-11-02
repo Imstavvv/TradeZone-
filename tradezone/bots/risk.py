@@ -27,6 +27,7 @@ class RiskBot(Bot):
         self.order_times: deque[float] = deque()
         self.last_trade: dict[str, float] = {}
         self.seen_signals: set[str] = set()
+        self.strength_by_signal: dict[str, float] = {}  # for the Executive's defensive stance
 
     def subscriptions(self):
         return {
@@ -190,7 +191,10 @@ class RiskBot(Bot):
 
         risk_amt = qty * (stop_dist + cost)
         sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
-        self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp))
+        self.strength_by_signal[sig.id] = sig.strength
+        if len(self.strength_by_signal) > 5000:
+            self.strength_by_signal.clear()
+        self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp, price))
 
     def open_risk(self) -> float:
         """Money that would be lost if every open position hit its stop (locked profits count 0)."""

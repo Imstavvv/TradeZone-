@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Eight specialised bots, including an AI analyst powered by xAI's Grok,, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Nine specialised bots, including an AI analyst powered by xAI's Grok,, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -13,6 +13,7 @@ It runs in **paper mode by default**, trading **live market prices** with simula
 | **Quant** | Strategy and signal generation | Runs momentum, mean-reversion and breakout models, weights them by the Strategist's regime call, and only proposes a buy when the team reaches consensus (see below) |
 | **Grok** | AI analyst (xAI Grok) | Sends every proposed new position, with indicators, regime, recent prices and portfolio context, to Grok for an independent second opinion. In `veto` mode, trades Grok doesn't approve are never placed |
 | **Risk Manager** | Risk control and position sizing | Gates every signal: kill switch, pause, exposure, concentration, max positions, cooldowns, order-rate limit. Sizes positions by volatility (risk to stop) and halves size in volatile regimes. Trips the kill switch on daily-loss or drawdown limits |
+| **Executive** ★ | Head trader: final decisions | Takes the final real-time decision on every trade. Nothing reaches the broker without its authorisation. Checks team health (live prices, safety bots on duty, books balanced), re-checks the live price so it never chases a move that already happened, caps correlated crypto bets, and switches to a defensive stance (half size, higher conviction) after a losing streak or deep drawdown. Exits are always authorised instantly. Decision time is measured and shown, typically well under 1 ms. |
 | **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
 | **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit, trailing stops and profit protection, and reconciles against the broker |
 | **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
@@ -25,6 +26,8 @@ market.tick ─► Scout ─► market.snapshot ─► Strategist ─► (regime
                                                                          │ approve / reject
                                                      order.approved ◄────┘
                                                         │
+                                              Executive (final real-time call: authorise / hold)
+                                                        │ order.authorized
                                                     Executor ─► broker ─► order.filled
                                                                               │
                          Portfolio Manager ◄──────────────────────────────────┘
@@ -43,7 +46,7 @@ Safety properties:
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 8 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → Executor → Portfolio Manager → Sentinel). Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 9 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Sentinel). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -329,7 +332,7 @@ When `TZ_API_TOKEN` is set, every endpoint except health requires `Authorization
 ```
 tradezone/
   core/        event bus, models, indicators, portfolio ledger
-  bots/        the 8-bot team (incl. Grok AI analyst)
+  bots/        the 9-bot team (incl. Grok AI analyst and the Executive head trader)
   wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
   brokers/     paper broker, Alpaca broker

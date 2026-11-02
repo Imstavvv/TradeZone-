@@ -104,6 +104,14 @@ class Settings:
     deposit_addresses: list[str] = field(default_factory=list)  # "CHAIN:address", e.g. XRP:rXXXX
     withdrawal_cooldown_h: float = 24.0  # newly linked wallets can't receive withdrawals until then
     max_daily_withdrawal: float = 10_000.0
+    # ---- Executive (head trader) ----
+    exec_max_chase_r: float = 0.5  # hold an entry if price already moved this many R past the plan
+    exec_stale_after_s: float = 20.0  # hold entries when a symbol's price is older than this
+    exec_max_correlated: int = 3  # max same-direction crypto positions at once
+    exec_lookback_trades: int = 20
+    exec_defensive_after_losses: int = 3  # losses in a row that switch to the defensive stance
+    exec_defensive_min_strength: float = 0.45  # conviction needed while defensive (normal minimum is 0.35)
+    exec_defensive_cooloff_min: float = 30.0  # a losing streak stops counting this long after its last loss
     # ---- autonomy ----
     auto_rearm_daily: bool = True  # a daily-loss kill switch re-arms itself at the next UTC day
     resume_on_restart: bool = True  # restore books, stops and mode (incl. live) after a restart

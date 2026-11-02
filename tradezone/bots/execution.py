@@ -34,7 +34,8 @@ class ExecutionBot(Bot):
         self.metrics.update({"fills_verified": 0, "integrity_violations": 0, "pretrade_blocks": 0})
 
     def subscriptions(self):
-        return {"order.approved": self.on_approved, "order.filled": self.on_booked}
+        # only orders the Executive has authorised are executed
+        return {"order.authorized": self.on_approved, "order.filled": self.on_booked}
 
     def on_booked(self, ev: Event) -> None:
         f: Fill = ev.payload

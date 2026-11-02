@@ -126,6 +126,7 @@ class OrderRequest(Model):
     reduce_only: bool = False
     stop_price: float | None = None
     take_profit: float | None = None
+    ref_price: float | None = None  # market price when Risk approved (for the no-chase check)
     id: str = field(default_factory=lambda: new_id("req"))
     ts: float = field(default_factory=now)
 

@@ -105,7 +105,9 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
 /* ---- live bot floor ---- */
 .floor{grid-column:1/-1}
-.pipeline{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;position:relative}
+.pipeline{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;position:relative}
+.node.exec{background:linear-gradient(180deg,#2a2208,var(--panel2));border-color:#713f12}
+.node .crown{position:absolute;top:-9px;right:8px;font-size:10px;font-weight:800;letter-spacing:.6px;background:#eab308;color:#0b0f17;border-radius:6px;padding:1px 6px}
 .node{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .3s,box-shadow .3s,transform .3s}
 .node:not(:last-child)::after{content:"";position:absolute;right:-10px;top:30px;width:10px;height:2px;background:var(--line)}
 .node .hd{display:flex;align-items:center;gap:8px}
@@ -121,7 +123,8 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .node.flash:not(:last-child)::after{background:var(--c)}
 .node.warn{border-color:var(--warn)}
 .node.crit{border-color:var(--down)}
-@media (max-width:1100px){.pipeline{grid-template-columns:repeat(4,minmax(0,1fr))}.node:nth-child(4)::after{display:none}}
+@media (max-width:1300px){.pipeline{grid-template-columns:repeat(5,minmax(0,1fr))}.node:nth-child(5)::after{display:none}}
+@media (max-width:1100px){.pipeline{grid-template-columns:repeat(3,minmax(0,1fr))}.node:nth-child(3n)::after{display:none}}
 /* ---- activity stream ---- */
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .chip{padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted)}
@@ -454,7 +457,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const COLORS = {grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
+const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -743,7 +746,7 @@ function render(){
     const mets = Object.entries(b.metrics).filter(([,v]) => typeof v !== 'object').slice(0,6)
       .map(([k,v]) => `<span>${esc(k.replace(/_/g,' '))} <b>${typeof v==='number' ? (PCT_KEYS.has(k) ? (v*100).toFixed(1)+'%' : num(v)) : esc(v)}</b></span>`).join('');
     return `<div class="bot ${b.enabled?'':'off'}" data-card="${esc(b.name)}" title="${esc(b.description)} (tap for full log)" style="cursor:pointer">
-      <div class="top"><div class="avatar" style="background:${COLORS[b.name]||'#64748b'}">${esc(b.title[0])}</div>
+      <div class="top"><div class="avatar" style="background:${COLORS[b.name]||'#64748b'}">${b.name === 'executive' ? '★' : esc(b.title[0])}</div>
         <div><div class="name">${esc(b.title)}</div><div class="role">${esc(b.role)}</div></div>
         <span class="dot ${b.state}"></span>
         <button class="switch" data-bot="${esc(b.name)}" data-en="${b.enabled}">${b.enabled?'Disable':'Enable'}</button></div>
@@ -807,14 +810,14 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','strategist','quant','grok','risk','execution','portfolio','sentinel'];
+const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','sentinel'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
   const bots = Object.fromEntries(st.bots.map(b => [b.name, b]));
   if (pipe.children.length !== ORDER.length) {
-    pipe.innerHTML = ORDER.map(n => `<div class="node" id="node-${n}" data-node="${n}" style="--c:${COLORS[n]}">
-      <div class="hd"><div class="avatar" style="background:${COLORS[n]}">${esc((bots[n]?.title || n)[0])}</div>
+    pipe.innerHTML = ORDER.map(n => `<div class="node${n === 'executive' ? ' exec' : ''}" id="node-${n}" data-node="${n}" style="--c:${COLORS[n]}">${n === 'executive' ? '<span class="crown">HEAD TRADER</span>' : ''}
+      <div class="hd"><div class="avatar" style="background:${COLORS[n]}">${n === 'executive' ? '★' : esc((bots[n]?.title || n)[0])}</div>
       <div style="min-width:0"><div class="nm">${esc(bots[n]?.title || n)}</div><div class="rl">${esc(bots[n]?.role || '')}</div></div></div>
       <div class="now"></div><div class="bar"><i></i></div><div class="st"><span class="apm"></span><span class="ago"></span></div></div>`).join('');
     pipe.querySelectorAll('.node').forEach(el => el.onclick = () => openBot(el.dataset.node));
@@ -834,7 +837,10 @@ function renderFloor(st){
     el.querySelector('.ago').textContent = ago == null ? '' : ago < 2 ? 'now' : ago < 60 ? Math.round(ago) + 's ago' : Math.round(ago / 60) + 'm ago';
     if (ago != null && ago < 60) busy++;
   }
-  $('floorCount').textContent = `${busy}/${ORDER.length} active in the last minute · tap a bot for its full log`;
+  const ex = st.executive || {};
+  $('floorCount').textContent = `Executive: ${String(ex.stance || 'normal').toUpperCase()} stance` +
+    (ex.median_ms != null ? ` · decides in ${ex.median_ms < 1 ? '<1' : Math.round(ex.median_ms)} ms` : '') +
+    ` · ${busy}/${ORDER.length} bots active · tap a bot for its log`;
 }
 function flash(bot, level){
   const el = $('node-' + bot); if (!el) return;
@@ -849,8 +855,8 @@ function catOf(it){
   if (it.kind === 'action') return it.bot === 'risk' ? 'risk' : 'thought';
   const t = it.topic;
   if (t === 'alert') return 'alert';
+  if (t === 'signal.rejected' || t === 'order.held') return 'risk';
   if (t.startsWith('order.') || t.startsWith('trade.') || t.startsWith('funds.')) return 'trade';
-  if (t === 'signal.rejected') return 'risk';
   if (t.startsWith('signal.') || t === 'grok.opinion' || t === 'regime.update') return 'signal';
   return 'thought';
 }
@@ -901,7 +907,7 @@ let openBotName = null;
 async function openBot(name){
   const d = await api('/api/bots/' + name + '/log');
   openBotName = name;
-  $('bmAv').textContent = d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
+  $('bmAv').textContent = name === 'executive' ? '★' : d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
   $('bmTitle').textContent = d.title; $('bmRole').textContent = d.role; $('bmDesc').textContent = d.description;
   $('bmMets').innerHTML = [['actions/min', Math.round(d.actions_per_min)], ['total actions', d.total_actions], ['errors', d.errors],
     ...Object.entries(d.metrics).filter(([, v]) => typeof v !== 'object')].map(([k, v]) => `<span>${esc(String(k).replace(/_/g, ' '))} <b style="color:var(--text)">${esc(typeof v === 'number' ? num(v) : v)}</b></span>`).join('');
@@ -1192,7 +1198,9 @@ function describe(e){
       const v = Object.entries(p.votes || {}).map(([k, x]) => `${k.replace('_reversion','-rev')}:${x === 'yes' ? '✓' : x === 'no' ? '✗' : '–'}`).join(' ');
       return `${p.side} ${p.symbol} (${p.kind}${p.fraction < 1 ? ' ' + Math.round(p.fraction*100) + '%' : ''}, ${p.strength}) ${p.reason}${v ? ' [' + v + ']' : ''}`; }
     case 'signal.rejected': return `${p.signal.side} ${p.signal.symbol}: ${p.reason}`;
-    case 'order.approved': return `${p.side} ${num(p.qty)} ${p.symbol}`;
+    case 'order.approved': return `${p.side} ${num(p.qty)} ${p.symbol} → to Executive`;
+    case 'order.authorized': return `AUTHORISED ${p.side} ${num(p.qty)} ${p.symbol}${p.reduce_only ? ' (exit)' : ''}`;
+    case 'order.held': return `HELD ${p.request.side} ${p.request.symbol}: ${p.reason}`;
     case 'order.update': return `${p.id} ${p.side} ${p.symbol} ${p.status}`;
     case 'order.filled': return `${p.side} ${num(p.qty)} ${p.symbol} @ ${num(p.price)}`;
     case 'trade.closed': return `${p.symbol} ${money(p.pnl)}`;

@@ -563,6 +563,7 @@ class TradingDesk:
                 **self.bots["grok"].info(),  # type: ignore[attr-defined]  (never includes the key itself)
                 "opinions": self.bots["grok"].opinions,  # type: ignore[attr-defined]
             },
+            "executive": self.bots["executive"].summary(),  # type: ignore[attr-defined]
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),
