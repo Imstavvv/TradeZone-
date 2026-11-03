@@ -63,6 +63,7 @@ def test_holds_on_stale_prices_and_offline_team(desk):
 
 
 def test_limits_correlated_crypto_bets(desk):
+    desk.settings.exec_max_correlated = 3
     for sym in ["BTC-USD", "ETH-USD", "SOL-USD"]:
         desk.portfolio.position(sym).qty = 1.0
         desk.portfolio.position(sym).avg_price = 100.0

@@ -53,6 +53,7 @@ def prime_structure(desk, swing_low=99.2):
 
 
 def test_risk_manager_uses_structural_stop(desk):
+    desk.settings.stop_method = "structure"
     prime_structure(desk)
     desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))
     run(desk.bus.drain())
@@ -64,6 +65,7 @@ def test_risk_manager_uses_structural_stop(desk):
 
 
 def test_wide_structure_skips_trade(desk):
+    desk.settings.stop_method = "structure"
     prime_structure(desk, swing_low=97.0)  # 3 points below = 7.5 ATR + buffer
     rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))

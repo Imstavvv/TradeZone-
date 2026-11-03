@@ -97,7 +97,7 @@ def test_paper_defaults_to_real_market_data():
     assert s.feed == "coinbase" and all(x.endswith("-USD") for x in s.symbols)
     s = Settings(alpaca_key="k", alpaca_secret="s")
     s.validate()
-    assert s.feed == "alpaca" and "AAPL" in s.symbols
+    assert s.feed == "alpaca" and "PEPE-USD" in s.symbols and all("-" in x for x in s.symbols)
     with pytest.raises(ValueError, match="crypto"):
         Settings(feed="coinbase", symbols=["AAPL"]).validate()
 

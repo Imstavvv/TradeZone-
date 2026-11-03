@@ -1,13 +1,13 @@
-"""App lock: a 6-digit PIN and/or Face ID (WebAuthn passkeys) on top of a trusted device.
+"""App lock: the owner's password (an old 6-digit PIN still works) and/or Face ID passkeys.
 
-Model (like a banking app):
+Model:
 
-1. A device is trusted once by signing in with the long access token (a 30-day session).
-2. Each time the app is opened, or after ``lock_after_min`` of inactivity, it is **locked** and
-   needs the PIN or Face ID to continue.
-3. Five wrong PINs sign the device out completely, so it needs the access token again. The PIN
-   therefore can't be brute-forced: 5 guesses per token sign-in, and token sign-ins are
-   rate-limited and IP-banned separately.
+1. A device logs in once with the password or Face ID and then stays logged in (30-day sliding
+   session). The phone's password manager (iCloud Keychain, Google) can save the password and
+   fill it in with Face ID or a fingerprint, so logging in is usually one tap.
+2. Optionally (``lock_after_min`` > 0) the app re-locks after that many idle minutes. By default
+   it doesn't: "Lock now" in Settings locks it on demand.
+3. Too many wrong passwords sign the device out, and logins on new devices are rate-limited.
 
 Face ID uses the WebAuthn passkey standard with *user verification required*. The phone's secure
 hardware checks the face and signs a fresh challenge. No biometric data ever leaves the device;
@@ -26,8 +26,13 @@ import time
 from typing import Any
 
 PIN_LEN = 6
-MAX_PIN_FAILURES = 5
+MIN_PASSWORD_LEN = 6
+MAX_PASSWORD_LEN = 128
+MAX_PIN_FAILURES = 8
+NEVER = 10 * 365 * 24 * 3600.0  # "unlocked until" when auto-lock is off
 SCRYPT = {"n": 2**14, "r": 8, "p": 1, "dklen": 32}
+WEAK_PASSWORDS = {"password", "password1", "qwerty", "qwerty123", "abc123", "abcdef", "letmein", "iloveyou",
+                  "tradezone", "trading", "bitcoin", "monkey", "dragon", "welcome", "admin1", "111111"}
 WEAK_PINS = {
     "123456", "654321", "123123", "121212", "112233", "111222", "123321", "696969", "101010", "159753",
     "147258", "258369", "000001", "100000", "202020", "102030", "246810", "135790", "999999", "888888",
@@ -56,15 +61,22 @@ def unb64u(s: str) -> bytes:
 
 
 def weak_pin_reason(pin: str) -> str | None:
-    if len(pin) != PIN_LEN or not pin.isdigit():
-        return f"the PIN must be exactly {PIN_LEN} digits"
+    """Why a password (or all-digit PIN) is too weak, or None if it's fine."""
+    if len(pin) < MIN_PASSWORD_LEN:
+        return f"use at least {MIN_PASSWORD_LEN} characters"
+    if len(pin) > MAX_PASSWORD_LEN:
+        return f"use at most {MAX_PASSWORD_LEN} characters"
+    if pin.lower() in WEAK_PASSWORDS:
+        return "that password is too common"
+    if not pin.isdigit():
+        return None if len(set(pin)) >= 3 else "use at least 3 different characters"
     if len(set(pin)) == 1:
         return "all digits are the same"
     steps = {int(b) - int(a) for a, b in zip(pin, pin[1:])}
     if steps in ({1}, {-1}):
         return "the digits are in sequence"
     if pin in WEAK_PINS or pin[:3] == pin[3:] or pin[:2] * 3 == pin:
-        return "that PIN is too common or repetitive"
+        return "that is too common or repetitive"
     if len(set(pin)) <= 2:
         return "use at least 3 different digits"
     return None
@@ -73,7 +85,8 @@ def weak_pin_reason(pin: str) -> str | None:
 class AppLock:
     def __init__(self, journal, lock_after_min: float = 5.0) -> None:
         self.journal = journal
-        self.lock_after_s = max(30.0, lock_after_min * 60)
+        # 0 = never lock by itself (stay logged in); otherwise re-lock after this much idle time
+        self.lock_after_s = NEVER if lock_after_min <= 0 else max(30.0, lock_after_min * 60)
         self._challenges: dict[str, tuple[bytes, float, str]] = {}  # session hash -> (challenge, expiry, kind)
         with journal._lock:
             journal.conn.executescript(SCHEMA)
@@ -98,6 +111,11 @@ class AppLock:
                                           (key, json.dumps(data)))
             self.journal.conn.commit()
 
+    @property
+    def lock_after_min(self) -> float:
+        """Idle minutes before re-locking (0 = never)."""
+        return 0.0 if self.lock_after_s >= NEVER else self.lock_after_s / 60
+
     # ---------------------------------------------------------------- PIN
     @property
     def pin_set(self) -> bool:
@@ -106,7 +124,7 @@ class AppLock:
     def set_pin(self, pin: str) -> None:
         pin = (pin or "").strip()
         if (why := weak_pin_reason(pin)) is not None:
-            raise LockError(f"Choose a stronger PIN: {why}.")
+            raise LockError(f"Choose a stronger password: {why}.")
         salt = secrets.token_bytes(16)
         digest = hashlib.scrypt(pin.encode(), salt=salt, **SCRYPT)
         self._put("pin", {"salt": b64u(salt), "hash": b64u(digest), "set_at": time.time()})
@@ -116,7 +134,7 @@ class AppLock:
 
     def check_pin(self, pin: str) -> bool:
         rec = self._get("pin")
-        if not rec or not (pin or "").isdigit():
+        if not rec or not pin or len(pin) > MAX_PASSWORD_LEN:
             return False
         digest = hashlib.scrypt(pin.encode(), salt=unb64u(rec["salt"]), **SCRYPT)
         return hmac.compare_digest(digest, unb64u(rec["hash"]))
@@ -136,7 +154,7 @@ class AppLock:
 
     def status(self) -> dict[str, Any]:
         return {"enabled": self.enabled, "pin": self.pin_set, "passkeys": self.passkeys(),
-                "lock_after_min": self.lock_after_s / 60, "max_pin_failures": MAX_PIN_FAILURES}
+                "lock_after_min": self.lock_after_min, "max_pin_failures": MAX_PIN_FAILURES}
 
     # ---------------------------------------------------- session lock state
     def is_unlocked(self, sid_hash: str) -> bool:
@@ -153,6 +171,8 @@ class AppLock:
 
     def touch(self, sid_hash: str) -> None:
         """Activity keeps an unlocked session unlocked (sliding window, written at most every 20s)."""
+        if self.lock_after_s >= NEVER:
+            return
         now = time.time()
         with self.journal._lock:
             row = self.journal.conn.execute(

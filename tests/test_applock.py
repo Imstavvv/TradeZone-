@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from tests.helpers import ORIGIN, SoftAuthenticator
-from tradezone.applock import weak_pin_reason
+from tradezone.applock import MAX_PIN_FAILURES, weak_pin_reason
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
@@ -58,7 +58,7 @@ def test_locked_app_hides_everything_until_pin(c):
         assert c.get(path).status_code == 423
     assert c.post("/api/control/kill").status_code == 423
     r = c.post("/api/unlock/pin", json={"pin": "000001"})
-    assert r.status_code == 403 and "4 tries left" in r.json()["detail"]
+    assert r.status_code == 403 and f"{MAX_PIN_FAILURES - 1} tries left" in r.json()["detail"]
     assert c.post("/api/unlock/pin", json={"pin": "482915"}).status_code == 200
     assert c.get("/api/state").status_code == 200
 
@@ -66,15 +66,15 @@ def test_locked_app_hides_everything_until_pin(c):
 def test_five_wrong_pins_sign_the_device_out(c):
     c.post("/api/applock/pin", json={"pin": "482915"}, headers=CONFIRM)
     lock(c)
-    for i in range(4):
+    for i in range(MAX_PIN_FAILURES - 1):
         assert c.post("/api/unlock/pin", json={"pin": f"00000{i}"}).status_code == 403
     r = c.post("/api/unlock/pin", json={"pin": "000009"})
-    assert r.status_code == 401 and "signed out" in r.json()["detail"]
+    assert r.status_code == 401 and "logged out" in r.json()["detail"]
     assert c.post("/api/unlock/pin", json={"pin": "482915"}).status_code == 401  # even the right PIN: token needed
     assert c.post("/api/login", json={"token": TOKEN}).status_code == 200  # access token restores the device
     assert c.get("/api/state").status_code == 200  # ...and counts as unlocked ("Forgot PIN?")
     kinds = [e["kind"] for e in c.desk.security.events]
-    assert kinds.count("pin_failed") == 4 and "pin_lockout" in kinds
+    assert kinds.count("pin_failed") == MAX_PIN_FAILURES - 1 and "pin_lockout" in kinds
 
 
 def test_lock_engages_after_inactivity(c):

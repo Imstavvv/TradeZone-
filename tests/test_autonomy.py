@@ -118,6 +118,7 @@ def test_realistic_crypto_fees_and_fee_filter(desk):
     f = fills[0]
     assert f.commission == pytest.approx(f.qty * f.price * 0.0025)
     # a target too small to pay for fees is skipped
+    s.stop_method = "atr"  # volatility-based target (a fixed +15% target always clears fees)
     prime(desk, "NVDA", 100.0, atr=0.01)  # tiny volatility -> tiny target
     s.stock_fee_bps = 25
     rejected = capture(desk, "signal.rejected")

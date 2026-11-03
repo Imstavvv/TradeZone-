@@ -73,7 +73,7 @@ class TradingDesk:
         self.bus = EventBus()
         self.bus.on_error = self._on_bot_error
         self.feed = feed or build_feed(settings)
-        self.journal = journal or Journal(settings.journal_path)
+        self.journal = journal or Journal(settings.journal_path or "tradezone.db")
         # Two separate books: paper is always available, live only once switched on.
         self.mode = "paper"
         self.paper_broker: Broker = broker or build_broker(settings)
@@ -187,7 +187,7 @@ class TradingDesk:
             if self.halted:
                 out.append("the emergency stop (kill switch) is on - tap Restart trading first")
             if not self.owner_protected():
-                out.append("set up your PIN first, so only you can control real money")
+                out.append("set up your password first, so only you can control real money")
         if self.portfolio.open_positions:
             out.append(f"close your {len(self.portfolio.open_positions)} open {self.mode} position(s) first (tap Close all trades)")
         if self.bots["execution"].working:  # type: ignore[attr-defined]
@@ -429,6 +429,8 @@ class TradingDesk:
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
+        if dropped := getattr(self.feed, "dropped", None):
+            self.bus.publish("alert", Alert("warning", f"Not listed on {self.feed.name}, skipped: {', '.join(dropped)}", "desk"))
         await self.backfill()
         if restored:
             self.bus.publish("alert", Alert("info", f"Resumed after restart: {restored}", "desk"))

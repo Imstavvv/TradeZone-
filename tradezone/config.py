@@ -9,8 +9,18 @@ LIVE_CONFIRM_PHRASE = "I UNDERSTAND THE RISKS"
 #: what the operator types in the dashboard to switch to live trading
 LIVE_SWITCH_WORD = "LIVE"
 
-CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD",
-                  "ADA-USD", "AVAX-USD", "LINK-USD", "LTC-USD", "DOT-USD"]
+#: "trusted" meme coins: the large, long-listed ones on major US exchanges (quick flips happen here)
+MEME_COINS = ["DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI"]
+#: default list on the free Coinbase feed: majors plus the trusted meme coins
+CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
+                  "DOGE-USD", "SHIB-USD", "PEPE-USD", "BONK-USD", "WIF-USD", "FLOKI-USD"]
+#: coins Alpaca (the real-money broker) can trade; others are practice-only
+ALPACA_CRYPTO = {"AAVE", "AVAX", "BAT", "BCH", "BTC", "CRV", "DOGE", "DOT", "ETH", "GRT", "LINK", "LTC",
+                 "MKR", "PEPE", "SHIB", "SOL", "SUSHI", "UNI", "XRP", "XTZ", "YFI"}
+#: default list on the Alpaca feed: crypto only (stocks can still be added with TZ_SYMBOLS)
+ALPACA_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
+                  "DOGE-USD", "SHIB-USD", "PEPE-USD"]
+#: synthetic demo feed (offline demos and tests)
 MIXED_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
 
 
@@ -71,7 +81,7 @@ class Settings:
     # Skip trades whose profit target is less than this multiple of the round-trip cost.
     min_edge_cost_multiple: float = 3.0
     seed: int = 7
-    journal_path: str = "tradezone.db"
+    journal_path: str = ""  # empty: /data/tradezone.db if a /data disk is mounted (Render), else ./tradezone.db
     host: str = "127.0.0.1"
     port: int = 8000
     api_token: str = ""  # optional master key for scripts/recovery (16+ chars if public); sign-in uses the PIN
@@ -82,7 +92,7 @@ class Settings:
     ban_minutes: float = 30.0  # first ban; repeat offenders are banned twice as long each time (max 7 days)
     trusted_proxies: str = ""
     # ---- app lock (PIN / Face ID) ----
-    lock_after_min: float = 5.0  # re-lock the app after this many minutes without activity
+    lock_after_min: float = 0.0  # re-lock after this many idle minutes (0 = stay logged in until "Lock now")
     public_url: str = ""  # e.g. https://tradezone-blqn.onrender.com (Face ID binds to this; default: request host)
     live_confirm: str = ""
     alpaca_key: str = ""  # Alpaca PAPER account keys (paper broker / market data)
@@ -111,7 +121,7 @@ class Settings:
     # ---- Executive (head trader) ----
     exec_max_chase_r: float = 0.5  # hold an entry if price already moved this many R past the plan
     exec_stale_after_s: float = 20.0  # hold entries when a symbol's price is older than this
-    exec_max_correlated: int = 3  # max same-direction crypto positions at once
+    exec_max_correlated: int = 4  # max same-direction crypto positions at once
     exec_lookback_trades: int = 20
     exec_market_hours_only: bool = True  # stocks: only open positions during regular US market hours
     exec_defensive_after_losses: int = 3  # losses in a row that switch to the defensive stance
@@ -121,7 +131,24 @@ class Settings:
     auto_rearm_daily: bool = True  # a daily-loss kill switch re-arms itself at the next UTC day
     resume_on_restart: bool = True  # restore books, stops and mode (incl. live) after a restart
     # ---- stop-loss placement (see core/stops.py) ----
-    stop_method: str = "structure"  # structure (beyond recent swing low/high) | atr (fixed ATR multiple)
+    # percent (default): fixed -stop_loss_pct stop and +take_profit_pct target from the entry price.
+    # structure: beyond the recent swing low/high. atr: a fixed ATR multiple.
+    stop_method: str = "percent"
+    stop_loss_pct: float = 0.08  # -8% stop-loss
+    take_profit_pct: float = 0.15  # +15% take-profit
+    # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
+    # into profit (at least +runner_lock_pct) and then trails the peak; it exits only on that stop.
+    runners: bool = True
+    runner_sell_fraction: float = 0.5
+    runner_lock_pct: float = 0.075
+    # ---- crypto focus / meme coins ----
+    meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
+    meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)
+    max_meme_positions: int = 3
+    # Sniping: on a trusted meme coin, a live price breaking this far above its recent high is
+    # acted on at once (not at the bar close), if momentum agrees.
+    snipe: bool = True
+    snipe_breakout_pct: float = 0.01
     stop_buffer_atr: float = 1.0  # buffer beyond the swing level
     min_stop_atr: float = 1.5  # never tighter than this (noise)
     max_stop_atr: float = 4.0  # skip the trade if the structural stop is wider than this
@@ -139,6 +166,16 @@ class Settings:
     scale_out_fraction: float = 0.5  # ...on this share of the position (0 disables)
     exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
+
+    def is_meme(self, symbol: str) -> bool:
+        return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.meme_coins
+
+    @staticmethod
+    def live_tradeable(symbol: str) -> bool:
+        """Whether the real-money broker (Alpaca) can trade this symbol."""
+        if not ("-" in symbol or "/" in symbol):
+            return True  # US stocks
+        return symbol.upper().replace("/", "-").split("-")[0] in ALPACA_CRYPTO
 
     @staticmethod
     def is_crypto(symbol: str) -> bool:
@@ -180,6 +217,9 @@ class Settings:
         return s
 
     def validate(self) -> None:
+        if not self.journal_path:  # keep the PIN, trades and learning on the persistent disk if there is one
+            self.journal_path = "/data/tradezone.db" if os.path.isdir("/data") and os.access("/data", os.W_OK) \
+                else "tradezone.db"
         if self.mode not in ("paper", "live"):
             raise ValueError("TZ_MODE must be 'paper' or 'live'")
         if self.feed not in ("auto", "sim", "coinbase", "alpaca"):
@@ -187,7 +227,7 @@ class Settings:
         if self.feed == "auto":
             self.feed = "alpaca" if self.data_keys() else "coinbase"
         if not self.symbols:
-            self.symbols = list(CRYPTO_SYMBOLS if self.feed == "coinbase" else MIXED_SYMBOLS)
+            self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "alpaca": ALPACA_SYMBOLS}.get(self.feed, MIXED_SYMBOLS))
         if self.feed == "coinbase":
             bad = [s for s in self.symbols if not s.endswith("-USD")]
             if bad:
@@ -206,8 +246,13 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
-        if self.stop_method not in ("structure", "atr"):
-            raise ValueError("TZ_STOP_METHOD must be structure or atr")
+        if self.stop_method not in ("structure", "atr", "percent"):
+            raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
+        if not (0 < self.stop_loss_pct < 0.5 and 0 < self.take_profit_pct < 5):
+            raise ValueError("TZ_STOP_LOSS_PCT must be between 0 and 0.5, TZ_TAKE_PROFIT_PCT between 0 and 5")
+        if not 0 < self.runner_sell_fraction <= 1:
+            raise ValueError("TZ_RUNNER_SELL_FRACTION must be above 0 and at most 1")
+        self.meme_coins = [c.upper().split("-")[0] for c in self.meme_coins]
         if self.live_max_capital < 0:
             raise ValueError("TZ_LIVE_MAX_CAPITAL must be >= 0")
         if not self.grok_api_key:

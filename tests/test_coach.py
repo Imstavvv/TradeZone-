@@ -20,7 +20,7 @@ def trade(desk, sym="AAPL", entry=100.0, exit_=101.0, regime="trending_up", part
     if exit_ > entry:  # strategy exit (only allowed in profit)
         desk.bus.publish("signal.proposed", Signal(sym, Side.SELL, 0.9, "exit", "quant"))
     else:  # losers close at the safety stop
-        desk.bus.publish("market.tick", Tick(sym, exit_))
+        desk.bus.publish("market.tick", Tick(sym, min(exit_, desk.portfolio.position(sym).stop_price * 0.999)))
     run(desk.bus.drain())
     assert desk.portfolio.position(sym).is_flat
 

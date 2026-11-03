@@ -165,23 +165,21 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .lockscreen.open{display:flex}
 .lockscreen{overflow-y:auto;justify-content:safe center}
 .lockscreen > *{flex:none}
-@media (max-height:700px){.keypad{grid-template-columns:repeat(3,60px);gap:10px}.keypad button{height:60px;font-size:22px}
-  .lockscreen{gap:8px}.lockscreen .logo{display:none}.lockscreen h3{font-size:18px}.dots{margin:4px 0 0}}
+@media (max-height:700px){.lockscreen{gap:8px}.lockscreen .logo{display:none}.lockscreen h3{font-size:18px}}
 .lockscreen .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .lockscreen h3{margin:4px 0 0;font-size:20px}
-.dots{display:flex;gap:14px;margin:10px 0 2px}
-.dots i{width:14px;height:14px;border-radius:50%;border:2px solid #475569;transition:background .15s,border-color .15s}
-.dots i.on{background:var(--text);border-color:var(--text)}
-.dots.shake{animation:shake .35s}
 @keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
-.keypad{display:grid;grid-template-columns:repeat(3,72px);gap:14px;margin-top:6px}
-.keypad button{height:72px;border-radius:50%;font-size:26px;font-weight:500;background:#182033;border:1px solid var(--line)}
-.keypad button:active{background:#232c40}
-.keypad button.ghost{background:transparent;border-color:transparent;font-size:15px}
 .lockerr{min-height:20px;color:#fca5a5;font-size:13px}
 .faceid{display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;font-size:15px}
 .linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:12px;min-height:auto}
-#pinSetupModal input{font-size:24px;letter-spacing:10px;text-align:center}
+#pinSetupModal input{font-size:17px;margin-top:8px;width:100%}
+.vh{position:absolute!important;width:1px!important;height:1px!important;opacity:0;pointer-events:none;overflow:hidden}
+.pwform{display:flex;flex-direction:column;gap:10px;width:100%;max-width:340px;margin:8px auto 0}
+.pwrow{position:relative;display:flex}
+.pwrow input{flex:1;font-size:18px;padding:14px 52px 14px 14px;border-radius:14px;min-width:0}
+.pwrow .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:none;font-size:13px;color:var(--muted);padding:8px}
+.pwform.shake{animation:shake .35s}
+.pwform .big{width:100%;max-width:none;margin:0}
 .lockbtn{padding:2px 8px;font-size:12px;min-height:auto}
 /* ---- settings & friendly sheets ---- */
 .shead{margin:6px 4px 0;font-size:20px;font-weight:900}
@@ -430,8 +428,6 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 .toast.party{background:linear-gradient(135deg,#059669,#10b981);border:none;color:#fff}
 .sheet .panel2{background:rgba(26,20,56,.96);backdrop-filter:blur(16px)}
 .lockscreen{background:radial-gradient(circle at 50% 0%,#5b21b6,var(--bg) 62%)}
-.keypad button{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);box-shadow:0 3px 0 rgba(0,0,0,.35);font-weight:700}
-.dots i.on{background:linear-gradient(135deg,#22d3ee,#ec4899);border-color:transparent;box-shadow:0 0 10px rgba(236,72,153,.6)}
 .bottomnav a.on{background:linear-gradient(135deg,rgba(139,92,246,.35),rgba(236,72,153,.25))}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 @media (max-width:700px){.hero .bal{font-size:40px}.ticker{margin:0 -20px 12px}}
@@ -461,7 +457,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       <div class="logo"></div>
       <div class="ftitle">TradeZone</div>
       <div class="ftag">Your friendly team of trading bots 🤝</div>
-      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🦉</span></div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🦉</span><span>🎓</span></div>
     </div>
     <!-- first-time setup -->
     <div class="pane" id="wSetup1">
@@ -477,16 +473,16 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     </div>
     <div class="pane" id="wSetup2">
       <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
-      <h3 id="wPinTitle">Choose a 6-digit PIN</h3>
-      <p class="muted" id="wPinHint">This is how you'll log in. Pick something easy for you, hard for others.</p>
-      <div class="dots" id="wDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <h3 id="wPinTitle">Choose a password</h3>
+      <p class="muted" id="wPinHint">This is how you'll log in. At least 6 letters or numbers.
+        <b>Tip:</b> let your phone save it - then you just look at your phone (Face ID) or touch the fingerprint sensor to log in.</p>
+      <div id="wSetupPw"></div>
       <div class="lockerr" id="wPinErr"></div>
-      <div class="keypad" id="wPad"></div>
     </div>
     <div class="pane" id="wSetup3">
       <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
       <h3>You're all set 🎉</h3>
-      <p class="muted">Want to log in with your face instead of typing your PIN? Your face never leaves your phone.</p>
+      <p class="muted">Want to log in with your face instead of typing your password? Your face never leaves your phone.</p>
       <button class="big gopaper" id="wFaceYes">😊 Yes, use Face ID</button>
       <button class="big" id="wFaceNo">Not now</button>
     </div>
@@ -494,12 +490,11 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     <!-- log in (this device or a new one) -->
     <div class="pane" id="wLogin">
       <h3 id="wLoginTitle">Welcome back 👋</h3>
-      <p class="muted" id="wLoginHint">Type your 6-digit PIN to log in.</p>
-      <div class="dots" id="wLoginDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <p class="muted" id="wLoginHint">Type your password to log in.</p>
+      <div id="wLoginPw"></div>
       <div class="lockerr" id="wLoginErr"></div>
-      <div class="keypad" id="wLoginPad"></div>
       <button class="faceid gopaper big" id="wLoginFace" style="display:none;justify-content:center">😊 Log in with Face ID</button>
-      <button class="linkbtn" id="wForgot">Forgot your PIN?</button>
+      <button class="linkbtn" id="wForgot">Forgot your password?</button>
       <button class="linkbtn" id="wUsePair" style="font-size:11px">Have a code from your other phone? Use it here</button>
     </div>
     <div class="pane" id="wPair">
@@ -512,11 +507,11 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     </div>
     <!-- recovery -->
     <div class="pane" id="wRecover">
-      <h3>Forgot your PIN? No problem</h3>
+      <h3>Forgot your password? No problem</h3>
       <p class="muted">Your website prints a fresh <b>recovery code</b> in its log. To find it:<br>
         1. Open <b>render.com</b> and your <b>tradezone</b> service<br>
         2. Tap <b>Logs</b> and look for <span class="mono">TradeZone recovery code</span><br>
-        3. Type the 8 numbers here. You'll then choose a new PIN.</p>
+        3. Type the 8 numbers here. You'll then choose a new password.</p>
       <input class="code" id="wRecoverCode" inputmode="numeric" autocomplete="one-time-code" placeholder="1234-5678" maxlength="40">
       <div class="lockerr" id="wRecoverErr"></div>
       <button class="big gopaper" id="wRecoverGo">Recover</button>
@@ -527,9 +522,8 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 <div class="sheet" id="confirmSheet"><div class="panel2">
   <h3>Confirm it's you</h3>
   <div class="muted" id="cWhat"></div>
-  <div class="dots" id="cDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="cPw"></div>
   <div class="lockerr" id="cErr"></div>
-  <div class="keypad" id="cPad"></div>
   <button class="faceid gopaper" id="cFace" style="display:none">Use Face ID</button>
   <button class="linkbtn" id="cCancel" style="font-size:14px">Cancel</button>
 </div></div>
@@ -540,7 +534,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 </div></div>
 <div class="sheet" id="pairSheet"><div class="panel2">
   <h3>Log in on another device</h3>
-  <div class="muted" style="font-size:14px">Easiest: open your website on the other device and type your PIN.<br>Or tap "Have a code from your other phone?" there and type:</div>
+  <div class="muted" style="font-size:14px">Easiest: open your website on the other device and log in with your password.<br>Or tap "Have a code from your other phone?" there and type:</div>
   <div id="pairCode" style="font-size:44px;font-weight:800;letter-spacing:8px;font-variant-numeric:tabular-nums">——————</div>
   <div class="muted" id="pairLeft" style="font-size:12px"></div>
   <div class="row"><button id="pairClose">Done</button></div>
@@ -611,14 +605,15 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 <div class="toasts" id="toasts"></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <div class="modal" id="pinSetupModal"><div class="box" style="border-color:var(--accent)">
-  <h3 id="pinSetupTitle">Change your PIN</h3>
-  <div class="muted" style="font-size:13px">Each time you open the app, come back to it after a minute away, or leave it idle for <span id="pinLockMin">5</span> minutes, it asks for this PIN or Face ID.
-    5 wrong PINs sign the device out. Avoid birthdays and patterns like 123456.</div>
+  <h3 id="pinSetupTitle">Change your password</h3>
+  <div class="muted" style="font-size:13px">You'll use it to log in on a new phone or computer and to confirm big actions.
+    At least 6 letters or numbers. Let your phone save it so you never have to type it.</div>
   <form id="pinSetupForm" style="margin-top:12px">
-    <input id="pin1" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="New PIN" required>
-    <input id="pin2" type="password" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="new-password" placeholder="Repeat PIN" required>
+    <input class="vh" type="text" name="username" autocomplete="username" value="TradeZone" tabindex="-1" aria-hidden="true">
+    <input id="pin1" class="txt" type="password" maxlength="128" autocomplete="new-password" placeholder="New password" required>
+    <input id="pin2" class="txt" type="password" maxlength="128" autocomplete="new-password" placeholder="Type it again" required>
     <div class="lockerr" id="pinSetupErr"></div>
-    <div class="actions"><button type="button" id="pinSetupSkip">Cancel</button><button type="submit" class="gopaper">Save PIN</button></div>
+    <div class="actions"><button type="button" id="pinSetupSkip">Cancel</button><button type="submit" class="gopaper">Save password</button></div>
   </form>
 </div></div>
 <div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
@@ -699,11 +694,11 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       <h3 class="shead">⚙️ Settings</h3>
       <div class="sgrid">
         <div class="scard"><h4>🔐 Logging in</h4>
-          <div class="srow"><div class="ic">🔢</div><div class="tx"><b>Your PIN</b><span id="setPinTxt">6 numbers you type to log in</span></div><button id="setPinBtn">Change</button></div>
+          <div class="srow"><div class="ic">🔢</div><div class="tx"><b>Your password</b><span id="setPinTxt">What you type to log in (your phone can save it)</span></div><button id="setPinBtn">Change</button></div>
           <div class="srow"><div class="ic">😊</div><div class="tx"><b>Face ID</b><span id="setFaceTxt">Log in by looking at your phone</span></div><button id="setFaceBtn">Turn on</button></div>
-          <div class="srow"><div class="ic">📱</div><div class="tx"><b>Use another phone or computer</b><span>Open your website there and type your PIN. That's it.</span></div><button id="setPairBtn">Show a code</button></div>
-          <div class="srow"><div class="ic">🔒</div><div class="tx"><b>Lock now</b><span>Hides everything until your PIN or Face ID</span></div><button id="setLockBtn">Lock</button></div>
-          <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>You'll need your PIN to come back</span></div><button id="setLogoutBtn">Log out</button></div>
+          <div class="srow"><div class="ic">📱</div><div class="tx"><b>Use another phone or computer</b><span>Open your website there and log in with your password. That's it.</span></div><button id="setPairBtn">Show a code</button></div>
+          <div class="srow"><div class="ic">🔒</div><div class="tx"><b>Lock now</b><span>Hides everything until your password or Face ID</span></div><button id="setLockBtn">Lock</button></div>
+          <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>You'll need your password to come back</span></div><button id="setLogoutBtn">Log out</button></div>
         </div>
         <div class="scard"><h4>🔗 Linked accounts</h4>
           <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
@@ -815,8 +810,8 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
         <div class="sub">App lock</div>
         <div id="lockStatus" class="muted" style="font-size:12px;margin-bottom:8px"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="btnSetPin">Set PIN</button>
-          <button id="btnRemovePin" style="display:none">Remove PIN</button>
+          <button id="btnSetPin">Set password</button>
+          <button id="btnRemovePin" style="display:none">Remove password</button>
           <button id="btnAddFace" class="gopaper" style="display:none">Enable Face ID on this device</button>
           <button id="btnLockNow2">Lock now</button>
         </div>
@@ -865,6 +860,7 @@ async function api(path, body, extraHeaders = {}, method){
   if (r.status === 429){ const j = await r.json().catch(()=>({})); const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
     toast(`${j.detail || 'Too many requests'} (try again in about ${m} min)`, 'error'); throw new Error('limited'); }
   const j = await r.json().catch(()=>({}));
+  if (r.status === 403 && /confirm with|Wrong password/.test(j.detail || '')) C.until = 0;
   if (!r.ok) { toast(j.detail || ('Something went wrong (' + r.status + ')'), 'error'); throw new Error(j.detail); }
   return j;
 }
@@ -885,32 +881,32 @@ function ask(title, body = '', {ok = 'OK', cancel = 'Cancel', danger = false} = 
   });
 }
 
-// =================== PIN pad (one component: lock screen, setup, confirmations) ===================
-let ACTIVE_PAD = null;
-function PinPad(padEl, dotsEl, onDone){
-  const pad = {pin: '', onDone,
-    draw(){ [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i < pad.pin.length)); },
-    reset(){ pad.pin = ''; pad.draw(); },
-    shake(){ dotsEl.classList.remove('shake'); void dotsEl.offsetWidth; dotsEl.classList.add('shake'); },
-    activate(){ ACTIVE_PAD = pad; pad.reset(); },
-    visible(){ return padEl.offsetParent !== null; },
-    key(k){
-      if (k === '⌫') pad.pin = pad.pin.slice(0, -1); else if (pad.pin.length < 6) pad.pin += k;
-      pad.draw();
-      if (pad.pin.length === 6) { const p = pad.pin; pad.pin = ''; setTimeout(() => { pad.draw(); pad.onDone(p); }, 120); }
-    }};
-  const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
-  padEl.innerHTML = keys.map(k => k ? `<button type="button" class="${k === '⌫' ? 'ghost' : ''}" data-k="${k}">${k}</button>` : '<span></span>').join('');
-  padEl.querySelectorAll('button').forEach(b => b.onclick = () => pad.key(b.dataset.k));
-  return pad;
+// =================== password box (one component: login, setup, confirmations) ===================
+// A real <form> with a username + password field, so the phone's password manager (iCloud Keychain,
+// Google) offers to save the password and fills it in with Face ID / fingerprint next time.
+function PassBox(el, {isNew = false, button = 'Log in', placeholder = 'Your password'} = {}, onSubmit){
+  el.innerHTML = `<form class="pwform" autocomplete="on">
+    <input class="vh" type="text" name="username" autocomplete="username" value="TradeZone" tabindex="-1" aria-hidden="true">
+    <div class="pwrow"><input class="txt" type="password" name="password" maxlength="128" required placeholder="${esc(placeholder)}"
+      autocomplete="${isNew ? 'new-password' : 'current-password'}" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button type="button" class="eye" aria-label="Show password">Show</button></div>
+    <button type="submit" class="big gopaper">${esc(button)}</button></form>`;
+  const form = el.querySelector('form'), input = el.querySelector('input[type=password], input[name=password]'), eye = el.querySelector('.eye');
+  const box = {
+    focus(){ setTimeout(() => input.focus(), 60); },
+    clear(){ input.value = ''; },
+    shake(){ form.classList.remove('shake'); void form.offsetWidth; form.classList.add('shake'); input.select(); },
+    get value(){ return input.value; },
+    busy(on){ form.querySelector('[type=submit]').disabled = on; }};
+  eye.onclick = () => { const show = input.type === 'password'; input.type = show ? 'text' : 'password'; eye.textContent = show ? 'Hide' : 'Show'; input.focus(); };
+  form.onsubmit = async e => { e.preventDefault(); const v = input.value.trim(); if (!v) return box.shake();
+    box.busy(true); try { await onSubmit(v); } finally { box.busy(false); } };
+  return box;
 }
-document.addEventListener('keydown', e => {
-  if (!ACTIVE_PAD || !ACTIVE_PAD.visible() || e.target.tagName === 'INPUT') return;
-  if (/^[0-9]$/.test(e.key)) ACTIVE_PAD.key(e.key); else if (e.key === 'Backspace') ACTIVE_PAD.key('⌫');
-});
+const pinHeader = pw => ({'X-TZ-PIN': encodeURIComponent(pw)});  // URI-encoded: passwords may hold any character
 
 // =================== welcome: first-time setup + sign-in on a new device (no access token) ===================
-const W = {code: '', pin1: '', setupPin: ''};
+const W = {code: '', setupPin: ''};
 function wPane(id){ document.querySelectorAll('#welcome .pane').forEach(p => p.classList.toggle('on', p.id === id)); }
 async function post(path, body){  // public sign-in endpoints: never redirect to sign-in on 401
   try {
@@ -935,22 +931,23 @@ async function showWelcome(mode = 'auto', msg = '', locked = false){
   const face = (locked ? !!(S.lock && S.lock.faceid) : !!FRONT.status.faceid) && faceSupported();
   wPane('wLogin');
   $('wLoginTitle').textContent = locked ? 'Welcome back 👋' : 'Log in to TradeZone';
-  $('wLoginHint').textContent = hasPin ? (face ? 'Type your 6-digit PIN, or use Face ID.' : 'Type your 6-digit PIN to log in.') : 'Use Face ID to continue.';
-  $('wLoginDots').style.display = $('wLoginPad').style.display = hasPin ? '' : 'none';
+  $('wLoginHint').textContent = hasPin ? (face ? 'Use Face ID, or type your password.' : 'Type your password to log in (your phone can fill it in).') : 'Use Face ID to continue.';
+  $('wLoginPw').style.display = hasPin ? '' : 'none';
   $('wLoginFace').style.display = face ? '' : 'none';
   $('wUsePair').style.display = locked ? 'none' : '';
   $('wLoginErr').textContent = msg;
-  loginPad.activate();
+  loginBox.clear(); if (hasPin && !face) loginBox.focus();
 }
 const showLock = () => showWelcome('login', '', true);
 function hideWelcome(){ S.locked = false; $('welcome').classList.remove('open'); document.body.classList.remove('locked'); }
 const hideLock = hideWelcome;
 async function welcomeDone(){ hideWelcome(); await refreshAuth(); connect(); loadTrades(true); loadSecurity(); }
-const loginPad = PinPad($('wLoginPad'), $('wLoginDots'), async pin => {
-  // a device that's already trusted just unlocks; a new device logs in with the PIN
+const loginBox = PassBox($('wLoginPw'), {button: 'Log in'}, async pin => {
+  // a device that's already trusted just unlocks; a new device logs in with the password
+  $('wLoginErr').textContent = '';
   const r = await post(FRONT.locked ? '/api/unlock/pin' : '/api/signin/pin', {pin});
   if (r.ok) { if (!FRONT.locked) toast('Logged in 👋', 'ok'); return welcomeDone(); }
-  loginPad.shake();
+  loginBox.shake();
   if (FRONT.locked && r.status === 401) return showWelcome('auto', r.j.detail || 'Please log in again');
   $('wLoginErr').textContent = r.j.detail || "That didn't work - try again";
 });
@@ -970,7 +967,7 @@ $('wLoginFace').onclick = async () => {
       toast('Logged in with Face ID 😊', 'ok');
     }
     welcomeDone();
-  } catch (e) { $('wLoginErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or type your PIN' : 'Face ID failed: ' + e.message; }
+  } catch (e) { $('wLoginErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or type your password' : 'Face ID failed: ' + e.message; }
 };
 $('wForgot').onclick = async () => {
   if (FRONT.locked) await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
@@ -978,27 +975,24 @@ $('wForgot').onclick = async () => {
 };
 $('wUsePair').onclick = () => { $('wPairErr').textContent = ''; wPane('wPair'); setTimeout(() => $('wPairCode').focus(), 50); };
 $('wPairBack').onclick = () => showWelcome();
-const wPad = PinPad($('wPad'), $('wDots'), async pin => {
-  if (!W.pin1) { W.pin1 = pin; $('wPinTitle').textContent = 'Enter it once more'; $('wPinHint').textContent = 'Just to make sure.'; $('wPinErr').textContent = ''; return; }
-  const restart = msg => { W.pin1 = ''; wPad.shake(); $('wPinTitle').textContent = 'Choose a 6-digit PIN'; $('wPinErr').textContent = msg; };
-  if (pin !== W.pin1) return restart("Those didn't match - choose your PIN again.");
+const setupBox = PassBox($('wSetupPw'), {isNew: true, button: 'Save my password', placeholder: 'Choose a password'}, async pin => {
+  $('wPinErr').textContent = '';
+  if (pin.length < 6) { setupBox.shake(); $('wPinErr').textContent = 'Use at least 6 letters or numbers.'; return; }
   const r = await post('/api/setup', {code: W.code, pin});
   if (!r.ok) {
-    if (r.status === 401 || r.status === 429) { W.pin1 = ''; wPane('wSetup1'); $('wSetupErr').textContent = r.j.detail; return; }
-    return restart(r.j.detail || 'Could not save your PIN');
+    if (r.status === 401 || r.status === 429) { wPane('wSetup1'); $('wSetupErr').textContent = r.j.detail; return; }
+    setupBox.shake(); $('wPinErr').textContent = r.j.detail || 'Could not save your password'; return;
   }
   W.setupPin = pin;
-  if (faceSupported()) wPane('wSetup3'); else { toast('Your PIN is set. Welcome to TradeZone!', 'ok'); welcomeDone(); }
+  if (faceSupported()) wPane('wSetup3'); else { toast('Your password is set. Welcome to TradeZone!', 'ok'); welcomeDone(); }
 });
 $('wSetupNext').onclick = () => {
   const c = $('wSetupCode').value.replace(/\D/g, '');
   if (c.length !== 8) { $('wSetupErr').textContent = 'The setup code has 8 digits, like 1234-5678.'; return; }
-  W.code = c; W.pin1 = ''; $('wPinTitle').textContent = 'Choose a 6-digit PIN';
-  $('wPinHint').textContent = "You'll use it to open TradeZone and to confirm important actions. Avoid 123456 and birthdays.";
-  $('wPinErr').textContent = ''; wPane('wSetup2'); wPad.activate();
+  W.code = c; $('wPinErr').textContent = ''; setupBox.clear(); wPane('wSetup2'); setupBox.focus();
 };
-$('wFaceYes').onclick = async () => { await welcomeDone(); await enrollFace({'X-TZ-PIN': W.setupPin}); W.setupPin = ''; };
-$('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your PIN is set. Welcome to TradeZone!', 'ok'); confetti(); welcomeDone(); };
+$('wFaceYes').onclick = async () => { await welcomeDone(); await enrollFace(pinHeader(W.setupPin)); W.setupPin = ''; };
+$('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your password is set. Welcome to TradeZone!', 'ok'); confetti(); welcomeDone(); };
 $('wPairGo').onclick = async () => {
   const c = $('wPairCode').value.replace(/\D/g, '');
   if (c.length !== 6) { $('wPairErr').textContent = 'The code has 6 numbers.'; return; }
@@ -1011,7 +1005,7 @@ $('wRecoverGo').onclick = async () => {
   const r = await post('/api/signin/recover', {code: $('wRecoverCode').value.trim()});
   if (!r.ok) { $('wRecoverErr').textContent = r.j.detail; return; }
   $('wRecoverCode').value = ''; hideWelcome(); await refreshAuth(); connect(); loadSecurity();
-  toast("Access recovered. Choose a new PIN now.", 'warn', 6000); openPinSetup(true);
+  toast("Access recovered. Choose a new password now.", 'warn', 6000); openPinSetup(true);
 };
 [['wSetupCode', 'wSetupNext'], ['wPairCode', 'wPairGo'], ['wRecoverCode', 'wRecoverGo']].forEach(([i, b]) =>
   $(i).addEventListener('keydown', e => { if (e.key === 'Enter') $(b).click(); }));
@@ -1028,11 +1022,7 @@ async function boot(){
   if (a && a.status === 401) return showWelcome();
   if (a && a.status === 429) return showWelcome('auto', 'Too many wrong tries - this connection is temporarily blocked.');
   if (a && a.ok) {
-    if (a.locked) return showLock();
-    if (S.lock.pin || S.lock.faceid) {  // opening the app always asks for the PIN / Face ID
-      await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
-      return showLock();
-    }
+    if (a.locked) return showLock();  // otherwise this device stays logged in: no password every time
   }
   connect(); loadSecurity();
 }
@@ -1527,7 +1517,7 @@ function updateSymbolFilter(syms){
 $('tlMode').onchange = $('tlSym').onchange = () => loadTrades(true);
 $('tlMore').onclick = () => loadTrades(false);
 
-// =================== app lock: PIN + Face ID ===================
+// =================== app lock: password + Face ID ===================
 const b64uToBuf = s => { s = s.replace(/-/g, '+').replace(/_/g, '/'); const bin = atob(s + '='.repeat((4 - s.length % 4) % 4));
   const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b.buffer; };
 const bufToB64u = buf => { let bin = ''; new Uint8Array(buf).forEach(c => bin += String.fromCharCode(c));
@@ -1558,8 +1548,9 @@ let hiddenAt = 0;
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
   if (S.locked) return;
-  // back from the app switcher / another app after more than a minute: lock, like a banking app
-  if (hiddenAt && Date.now() - hiddenAt > 60000 && S.lock && (S.lock.pin || S.lock.faceid)) {
+  // auto-lock is off unless the owner turned it on (TZ_LOCK_AFTER_MIN): then lock after that long away
+  const after = (S.lock && S.lock.lock_after_min) || 0;
+  if (after > 0 && hiddenAt && Date.now() - hiddenAt > after * 60000 && (S.lock.pin || S.lock.faceid)) {
     await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
   }
   refreshLock();
@@ -1568,12 +1559,11 @@ setInterval(() => { if (!S.locked && document.visibilityState === 'visible') ref
 async function lockNow(){ await fetch('/api/lock', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); await refreshLock(); }
 $('btnLockNow').onclick = $('btnLockNow2').onclick = lockNow;
 
-// ---- change PIN / Face ID enrolment ----
+// ---- change password / Face ID enrolment ----
 const PS = {afterRecovery: false};
 function openPinSetup(afterRecovery = false){
   PS.afterRecovery = afterRecovery;
-  $('pinSetupTitle').textContent = afterRecovery ? 'Choose a new PIN' : 'Change your PIN';
-  $('pinLockMin').textContent = Math.round((S.lock && S.lock.lock_after_min) || 5);
+  $('pinSetupTitle').textContent = afterRecovery ? 'Choose a new password' : (S.lock && S.lock.pin ? 'Change your password' : 'Set a password');
   $('pin1').value = $('pin2').value = ''; $('pinSetupErr').textContent = '';
   $('pinSetupSkip').style.display = afterRecovery ? 'none' : '';
   $('pinSetupModal').classList.add('open'); setTimeout(() => $('pin1').focus(), 50);
@@ -1582,16 +1572,16 @@ $('pinSetupSkip').onclick = () => $('pinSetupModal').classList.remove('open');
 $('pinSetupForm').onsubmit = async e => {
   e.preventDefault();
   const p1 = $('pin1').value.trim(), p2 = $('pin2').value.trim();
-  if (!/^\d{6}$/.test(p1)) { $('pinSetupErr').textContent = 'The PIN must be exactly 6 digits.'; return; }
-  if (p1 !== p2) { $('pinSetupErr').textContent = "The two PINs don't match."; return; }
-  const h = PS.afterRecovery ? {} : await confirmAction('change your PIN');  // after recovery the old PIN is unknown
+  if (p1.length < 6) { $('pinSetupErr').textContent = 'Use at least 6 letters or numbers.'; return; }
+  if (p1 !== p2) { $('pinSetupErr').textContent = "The two passwords don't match."; return; }
+  const h = PS.afterRecovery ? {} : await confirmAction('change your password');  // after recovery the old one is unknown
   if (h === null) return;
   const r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', ...h},
     body: JSON.stringify({pin: p1})});
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) { $('pinSetupErr').textContent = j.detail || 'Could not save the PIN'; return; }
+  if (!r.ok) { $('pinSetupErr').textContent = j.detail || 'Could not save the password'; return; }
   $('pinSetupModal').classList.remove('open');
-  toast('Your new PIN is saved', 'ok');
+  toast('Your new password is saved', 'ok');
   await refreshLock(); loadSecurity();
 };
 async function enrollFace(preConfirmed){
@@ -1616,18 +1606,18 @@ async function enrollFace(preConfirmed){
 $('btnSetPin').onclick = () => openPinSetup(false);
 $('btnAddFace').onclick = () => enrollFace();
 $('btnRemovePin').onclick = async () => {
-  if (!await ask('Remove your PIN?', 'You will unlock with Face ID only.', {ok: 'Remove PIN', danger: true})) return;
-  const h = await confirmAction('remove your PIN'); if (h === null) return;
-  await api('/api/applock/pin', undefined, h, 'DELETE'); toast('PIN removed'); await refreshLock(); loadSecurity();
+  if (!await ask('Remove your password?', 'You will log in with Face ID only.', {ok: 'Remove password', danger: true})) return;
+  const h = await confirmAction('remove your password'); if (h === null) return;
+  await api('/api/applock/pin', undefined, h, 'DELETE'); toast('Password removed'); await refreshLock(); loadSecurity();
 };
 async function loadAppLock(){
   let d; try { d = await api('/api/applock'); } catch { return; }
   S.applockInfo = d; renderSettings();
   const here = d.passkeys.filter(p => p.rp_id === d.rp_id);
   $('lockStatus').innerHTML = d.enabled
-    ? `<b style="color:var(--up)">On</b> · ${d.pin ? 'PIN set' : 'no PIN'} · ${here.length ? here.length + ' Face ID key' + (here.length > 1 ? 's' : '') : 'no Face ID'} · asks every time you open the app, after 1 min in the background, and after ${Math.round(d.lock_after_min)} min idle`
-    : '<b style="color:var(--warn)">Off</b> · set a PIN so nobody else can open TradeZone on this device.';
-  $('btnSetPin').textContent = d.pin ? 'Change PIN' : 'Set PIN';
+    ? `<b style="color:var(--up)">On</b> · ${d.pin ? 'password set' : 'no password'} · ${here.length ? here.length + ' Face ID key' + (here.length > 1 ? 's' : '') : 'no Face ID'} · asks every time you open the app, after 1 min in the background, and after ${Math.round(d.lock_after_min)} min idle`
+    : '<b style="color:var(--warn)">Off</b> · set a password so nobody else can open TradeZone.';
+  $('btnSetPin').textContent = d.pin ? 'Change password' : 'Set password';
   $('btnRemovePin').style.display = d.pin && here.length ? '' : 'none';
   $('btnAddFace').style.display = faceSupported() ? '' : 'none';
   $('btnLockNow').style.display = d.enabled ? '' : 'none';
@@ -1635,25 +1625,28 @@ async function loadAppLock(){
   $('faceKeys').innerHTML = here.length ? table(['Face ID key','Added','Last used',''], here.map(p => [esc(p.label), esc(new Date(p.created * 1000).toLocaleDateString()),
     esc(p.last_used ? new Date(p.last_used * 1000).toLocaleString() : '—'), `<button class="switch" data-rmkey="${esc(p.id)}">Remove</button>`])) : '';
   document.querySelectorAll('[data-rmkey]').forEach(b => b.onclick = async () => {
-    if (!await ask('Remove this Face ID key?', 'That device will need your PIN or a pairing code to get back in.', {ok: 'Remove', danger: true})) return;
+    if (!await ask('Remove this Face ID key?', 'That device will need your password or a login code to get back in.', {ok: 'Remove', danger: true})) return;
     const h = await confirmAction('remove a Face ID key'); if (h === null) return;
     await api('/api/webauthn/passkeys/' + encodeURIComponent(b.dataset.rmkey), undefined, h, 'DELETE'); toast('Face ID key removed'); refreshLock(); loadSecurity(); });
 }
 
-// =================== confirm it's you: PIN or Face ID (instead of the access token) ===================
-const C = {done: null};
-const cPad = PinPad($('cPad'), $('cDots'), pin => C.done && C.done({'X-TZ-PIN': pin}));
+// =================== confirm it's you: password or Face ID (counts for 10 minutes) ===================
+const C = {done: null, until: 0};
+const cBox = PassBox($('cPw'), {button: 'Confirm'}, pin => C.done && C.done(pinHeader(pin)));
 function confirmAction(what){
   const L = S.lock || {};
   if (!S.authRequired || (!L.pin && !L.faceid)) return Promise.resolve({});
+  if (Date.now() < C.until) return Promise.resolve({});  // confirmed a moment ago: don't ask again
   return new Promise(resolve => {
     const face = L.faceid && faceSupported();
-    $('cWhat').textContent = `To ${what}, ${L.pin ? 'enter your PIN' : ''}${L.pin && face ? ' or ' : ''}${face ? 'use Face ID' : ''}.`;
-    $('cDots').style.display = $('cPad').style.display = L.pin ? '' : 'none';
+    $('cWhat').textContent = `To ${what}, ${face ? 'use Face ID' : ''}${L.pin && face ? ' or ' : ''}${L.pin ? 'type your password' : ''}.`;
+    $('cPw').style.display = L.pin ? '' : 'none';
     $('cFace').style.display = face ? '' : 'none';
-    $('cErr').textContent = '';
-    $('confirmSheet').classList.add('open'); cPad.activate();
-    C.done = v => { $('confirmSheet').classList.remove('open'); C.done = null; ACTIVE_PAD = null; resolve(v); };
+    $('cErr').textContent = ''; cBox.clear();
+    $('confirmSheet').classList.add('open'); if (L.pin && !face) cBox.focus();
+    C.done = v => { $('confirmSheet').classList.remove('open'); C.done = null;
+      if (v) C.until = Date.now() + 9 * 60000;  // the server accepts a confirmation for 10 minutes
+      resolve(v); };
   });
 }
 $('cCancel').onclick = () => C.done && C.done(null);
@@ -1761,6 +1754,8 @@ function crewSay(b){  // a bot's latest action, as something it might actually s
   if (b.name === 'scout' && (m = a.match(/^(\S+) ([\d,.]+) rsi=/))) return `Keeping an eye on ${m[1]} at ${px(+m[2].replace(/,/g, ''))} 👀`;
   if ((m = a.match(/regime -> (\w+)/))) return `${a.split(' ')[0]} looks ${({trending: 'like it\'s trending 📈', ranging: 'calm and range-bound 🌊', volatile: 'wild right now 🌪️'})[m[1]] || m[1]}`;
   if ((m = a.match(/^no consensus to (\w+) (\S+): (.*)/))) return `Wanted to ${m[1]} ${m[2]}, but the team wasn't sure 🤔`;
+  if ((m = a.match(/^SNIPE (\S+)/))) return `Sniping ${m[1]} - it just broke out! 🎯`;
+  if ((m = a.match(/^(\S+) hit \+\d+%: banking/))) return `${m[1]} hit the target - banked some, letting it run 🏃`;
   if ((m = a.match(/^proposed (\w+) (\S+)/))) return `Ooh - ${m[1].toLowerCase()} ${m[2]}? Asking the team 💡`;
   if ((m = a.match(/^REJECTED \w+ (\S+): (.*)/))) return `Passed on ${m[1]}: ${m[2].replace(/\(.*?\)/g, '').slice(0, 60)} 🛡️`;
   if ((m = a.match(/^APPROVED (\w+) \S+ (\S+)( \(reduce-only\))?/))) return m[3] ? `OK to close ${m[2]} ✅` : `Green light to ${m[1]} ${m[2]} ✅`;
@@ -1835,6 +1830,7 @@ function ago(ts){
 }
 function friendlyReason(r){
   r = String(r || '');
+  if (/letting the rest run/.test(r)) return 'Hit the +15% target - banked part, the rest is a runner 🏃';
   if (/partial take-profit/.test(r)) return 'Banked half the profit at the first target';
   if (/stop hit/.test(r)) return 'Safety stop reached';
   if (/take-profit hit/.test(r)) return 'Profit target reached';
@@ -1854,7 +1850,9 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/conviction/, "the signal wasn't strong enough"], [/already positioned/, "it's already being held"],
     [/short selling disabled/, "TradeZone doesn't bet on prices falling"], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
-    [/is offline/, 'a team member is switched off'], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
+    [/is offline/, 'a team member is switched off'], [/meme coins/, 'enough meme coins are already held'],
+    [/practice only/, "your real-money account can't trade that coin"], [/holding the runner/, "it's a runner - the trailing stop will sell it"],
+    [/benched/, 'it kept losing, so it is sitting out for a while'], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
   for (const [re, t] of rules) if (re.test(r)) return t;
   return r.length > 60 ? r.slice(0, 60) + '…' : r;
 }
@@ -1877,6 +1875,7 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
       return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
         `${p.action === 'partial' ? 'Sold half of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
     case 'signal.proposed':
+      if (p.kind === 'entry' && p.source === 'quant' && /^snipe/.test(p.reason)) return ['🎯', COLORS.quant, `Quant sniped a breakout on ${p.symbol} and asked the team`];
       return p.kind === 'entry' && p.source === 'quant' ? ['💡', COLORS.quant, `Quant spotted a chance to ${p.side} ${p.symbol} and asked the team`] : null;
     case 'signal.reviewed':
       return p.approved ? ['🤖', '#e5e5e5', `Grok agreed with buying ${p.signal.symbol} (${Math.round(p.confidence * 100)}% sure)`]
@@ -1987,8 +1986,8 @@ function renderSettings(){
   const L = S.applockInfo, A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo;
   if (L) {
     const here = L.passkeys.filter(p => p.rp_id === L.rp_id);
-    $('setPinTxt').textContent = L.pin ? 'Set ✓ · the 6 numbers you type to log in' : 'Not set - set one so only you can log in';
-    $('setPinBtn').textContent = L.pin ? 'Change' : 'Set PIN';
+    $('setPinTxt').textContent = L.pin ? 'Set ✓ · your phone can save it and fill it in' : 'Not set - set one so only you can log in';
+    $('setPinBtn').textContent = L.pin ? 'Change' : 'Set password';
     $('setFaceTxt').textContent = here.length ? `On ✓ · ${here.length} device${here.length > 1 ? 's' : ''}` : faceSupported() ? 'Log in by looking at your phone' : "Not available in this browser";
     $('setFaceBtn').textContent = here.length ? 'Add this phone' : 'Turn on';
     $('setFaceBtn').disabled = !faceSupported();
@@ -2026,7 +2025,7 @@ $('setPinBtn').onclick = () => openPinSetup(false);
 $('setFaceBtn').onclick = () => enrollFace();
 $('setPairBtn').onclick = () => addDevice();
 $('setLockBtn').onclick = () => lockNow();
-$('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', "You'll type your PIN to come back.", {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };
+$('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', "You'll need your password or Face ID to come back.", {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };
 $('devOutAll').onclick = () => $('btnSignoutAll').onclick();
 $('setProBtn').onclick = () => { setView('pro'); setTimeout(() => scrollToSection('sec-security'), 80); };
 $('accGrokBtn').onclick = () => openGrok(true);

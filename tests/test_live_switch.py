@@ -104,7 +104,7 @@ def test_unconfigured_live_is_unavailable(desk):
 
 def test_exposed_dashboard_needs_token():
     desk = make_desk(host="0.0.0.0")
-    with pytest.raises(ModeSwitchError, match="PIN"):
+    with pytest.raises(ModeSwitchError, match="password"):
         run(desk.switch_mode("live"))
 
 
@@ -137,7 +137,7 @@ def test_live_withdrawal_needs_a_pin_not_the_old_token():
     assert desk.wallets.withdraw(w.id, "USDC", 10).status == "manual_required"
     desk.settings.host = "0.0.0.0"  # public, and nobody has chosen a PIN
     from tradezone.wallets import WalletError
-    with pytest.raises(WalletError, match="PIN"):
+    with pytest.raises(WalletError, match="password"):
         desk.wallets.withdraw(w.id, "USDC", 10)
 
 

@@ -69,7 +69,7 @@ class SecurityConfig:
     max_body_bytes: int = 64 * 1024
     max_ws_per_ip: int = 6
     max_ws_total: int = 60
-    lock_after_min: float = 5.0
+    lock_after_min: float = 0.0
     public: bool = False  # served beyond localhost: sign-in is always required
 
 
@@ -94,7 +94,7 @@ class SecurityManager:
 
         self.lock = AppLock(journal, cfg.lock_after_min)
         self._pairing: dict[str, list[float]] = {}  # code -> [expires, attempts]
-        self._pin_signin_fails: deque[float] = deque()  # wrong PINs on the login page, any IP
+        self._pin_signin_fails: deque[float] = deque()  # wrong passwords on the login page, any IP
         self.recovery_code = ""
         self._recovery_attempts = 0
         self.rotate_recovery_code()
@@ -136,7 +136,7 @@ class SecurityManager:
         log.warning("=" * 60)
         log.warning("  TradeZone %s code: %s", "recovery" if self.owner_exists else "SETUP", self.recovery_code)
         log.warning("  Enter it on the website to %s.",
-                    "recover access" if self.owner_exists else "create your PIN")
+                    "recover access" if self.owner_exists else "create your password")
         log.warning("=" * 60)
 
     def check_recovery(self, code: str | None) -> bool:
@@ -158,7 +158,7 @@ class SecurityManager:
 
     # PIN sign-in from a *new* device: a 6-digit PIN is only safe with a hard global limit, so wrong
     # PINs from anywhere on the internet are capped per hour (each IP is also banned separately).
-    PIN_SIGNIN_MAX_PER_HOUR = 5
+    PIN_SIGNIN_MAX_PER_HOUR = 10
 
     def pin_signin_blocked_for(self) -> float:
         dq = self._pin_signin_fails

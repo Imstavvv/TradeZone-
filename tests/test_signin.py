@@ -122,8 +122,10 @@ def test_pin_and_face_id_confirm_money_moves(site):
     opts = site.post("/api/confirm/faceid/options").json()
     assert site.post("/api/confirm/faceid/verify", json={"credential": auth.get(opts)}).status_code == 200
     body2 = {"chain": "XRP", "address": XRP, "tag": "8"}
-    assert site.post("/api/wallets", json=body2).status_code == 200  # Face ID confirmation, used once
-    assert site.post("/api/wallets", json={**body2, "tag": "9"}).status_code == 403
+    assert site.post("/api/wallets", json=body2).status_code == 200  # Face ID confirmation...
+    assert site.post("/api/wallets", json={**body2, "tag": "9"}).status_code == 200  # ...counts for a few minutes
+    site.app.state.expire_confirmations()
+    assert site.post("/api/wallets", json={**body2, "tag": "10"}).status_code == 403  # then asks again
 
 
 def test_local_dev_stays_open_until_a_pin_exists():

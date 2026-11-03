@@ -57,9 +57,33 @@ class CoinbaseFeed(MarketFeed):
         self.ws_connected = False
         self._rr = 0  # round-robin index for REST fallback
         self.mode = "rest"
+        self.dropped: list[str] = []
 
     # ---------------------------------------------------------------- stream
+    async def check_products(self) -> list[str]:
+        """Drop symbols Coinbase doesn't list (one unknown coin would break the whole stream).
+
+        Returns the dropped symbols. If the product list can't be loaded, nothing is dropped.
+        """
+        try:
+            r = await self.client.get("/products")
+            r.raise_for_status()
+            listed = {p["id"] for p in r.json() if isinstance(p, dict) and not p.get("trading_disabled")
+                      and p.get("status", "online") == "online"}
+        except Exception as exc:
+            log.info("coinbase product list unavailable (%s); keeping all symbols", exc)
+            return []
+        if not listed:
+            return []
+        dropped = [sym for sym in self.symbols if sym not in listed]
+        if dropped and len(dropped) < len(self.symbols):
+            self.symbols[:] = [sym for sym in self.symbols if sym in listed]  # same list as settings.symbols
+            log.warning("not listed on Coinbase, skipped: %s", ", ".join(dropped))
+            return dropped
+        return []
+
     async def start(self) -> None:
+        self.dropped = await self.check_products()
         if self.use_ws and self._ws_task is None:
             self._ws_task = asyncio.get_running_loop().create_task(self._ws_loop())
 

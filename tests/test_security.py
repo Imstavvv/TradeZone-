@@ -55,7 +55,7 @@ def test_login_sets_secure_session_cookie_and_logout_revokes():
         assert c.get("/api/state").status_code == 401
         r = login(c)
         cookie = r.headers["set-cookie"].lower()
-        assert "httponly" in cookie and "samesite=strict" in cookie and "secure" in cookie
+        assert "httponly" in cookie and "samesite=lax" in cookie and "secure" in cookie
         assert c.get("/api/state").status_code == 200
         assert len(c.get("/api/security").json()["sessions"]) == 1
         c.post("/api/logout")

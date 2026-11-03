@@ -141,7 +141,28 @@ class PortfolioBot(Bot):
         if pos.stop_price is not None and ((long and t.price <= pos.stop_price) or (not long and t.price >= pos.stop_price)):
             self._exit(t.symbol, f"stop hit at {t.price:,.2f} (stop {pos.stop_price:,.2f})")
         elif pos.take_profit is not None and ((long and t.price >= pos.take_profit) or (not long and t.price <= pos.take_profit)):
-            self._exit(t.symbol, f"take-profit hit at {t.price:,.2f}")
+            if self._runner_mode() and t.symbol not in self.scaled_out:
+                self._start_runner(t.symbol, pos, t.price, d, tighten)
+            else:
+                self._exit(t.symbol, f"take-profit hit at {t.price:,.6g}")
+
+    def _runner_mode(self) -> bool:
+        s = self.settings
+        return s.runners and s.stop_method == "percent" and s.runner_sell_fraction < 1
+
+    def _start_runner(self, sym, pos, price, d, tighten) -> None:
+        """Target reached: bank part of it, move the stop into profit and let the rest run."""
+        s = self.settings
+        self.scaled_out.add(sym)
+        self.protected.add(sym)
+        pos.take_profit = None  # the rest has no ceiling: the trailing stop decides
+        pos.stop_price = tighten(pos.stop_price, pos.avg_price * (1 + d * s.runner_lock_pct))
+        self.bump("runners")
+        self.bump("partial_profits")
+        self.act(f"{sym} hit +{s.take_profit_pct:.0%}: banking {s.runner_sell_fraction:.0%}, runner stop "
+                 f"now {pos.stop_price:,.6g} (locks +{s.runner_lock_pct:.1%})")
+        self._exit(sym, f"take-profit +{s.take_profit_pct:.0%} at {price:,.6g} - letting the rest run",
+                   s.runner_sell_fraction)
 
     def round_trip_cost(self, price: float, symbol: str = "") -> float:
         """Per-unit cost of getting in and out (fees + slippage both ways), with a small margin."""
@@ -165,8 +186,8 @@ class PortfolioBot(Bot):
                 self.act(f"{sym} in profit: stop raised to {pos.stop_price:,.4g} (locks gain)")
             elif pos.stop_price != before:
                 self.metrics["last_lock"] = sym
-        # 2) bank part of the winner at +scale_out_r
-        if (s.scale_out_fraction > 0 and sym not in self.scaled_out
+        # 2) bank part of the winner at +scale_out_r (in runner mode this happens at the target)
+        if (s.scale_out_fraction > 0 and not self._runner_mode() and sym not in self.scaled_out
                 and (price - entry) * d >= s.scale_out_r * r + cost):
             self.scaled_out.add(sym)
             self.bump("partial_profits")

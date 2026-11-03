@@ -106,6 +106,10 @@ class RiskBot(Bot):
                 return self.reject(sig, "nothing to close")
             if not closing:
                 return self.reject(sig, "exit signal on wrong side")
+            pm = self.desk.bots.get("portfolio")
+            if sig.kind is SignalKind.ENTRY and pm is not None and sig.symbol in pm.scaled_out \
+                    and self.settings.runners and self.settings.stop_method == "percent":
+                return self.reject(sig, "holding the runner - its trailing stop decides the exit")
             if sig.kind is SignalKind.ENTRY and self.settings.exit_only_in_profit:
                 # discretionary (strategy) exit: only to bank a net profit; losers are left to the stop
                 cost = self.settings.round_trip_cost(sig.symbol, pos.avg_price) * abs(pos.qty)
@@ -139,6 +143,12 @@ class RiskBot(Bot):
             return self.reject(sig, f"{sig.symbol} is benched by the Coach after repeated losses ({left / 60:.0f} min left)")
         if len(self.portfolio.open_positions) >= limits.max_open_positions:
             return self.reject(sig, "max open positions reached")
+        meme = self.settings.is_meme(sig.symbol)
+        if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
+                >= self.settings.max_meme_positions:
+            return self.reject(sig, f"already holding {self.settings.max_meme_positions} meme coins")
+        if self.desk.is_live and self.desk.broker.name == "alpaca" and not self.settings.live_tradeable(sig.symbol):
+            return self.reject(sig, f"{sig.symbol} can't be traded on your real-money account (practice only)")
         since = now() - self.last_trade.get(sig.symbol, 0)
         if since < limits.symbol_cooldown_s:
             return self.reject(sig, f"symbol cooldown ({limits.symbol_cooldown_s - since:.0f}s left)")
@@ -152,7 +162,12 @@ class RiskBot(Bot):
         atr = max(ind["atr"], price * 0.001)
         s = self.settings
         direction = sig.side.sign
-        if s.stop_method == "structure" and "swing_low" in ind:
+        if s.stop_method == "percent":
+            stop_dist = price * s.stop_loss_pct
+            stop = price - stop_dist * direction
+            tp = price * (1 + s.take_profit_pct * direction)
+            how = f"-{s.stop_loss_pct:.0%} / +{s.take_profit_pct:.0%}"
+        elif s.stop_method == "structure" and "swing_low" in ind:
             try:
                 plan = plan_stop(
                     direction, price, atr, ind.get("swing_low"), ind.get("swing_high"),
@@ -185,6 +200,8 @@ class RiskBot(Bot):
             risk_budget *= 0.5
         if coach is not None:  # 🌱 grow: size up slowly after good results, down after bad ones
             risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
+        if meme:  # meme coins swing hard: smaller bets
+            risk_budget *= s.meme_risk_mult
         qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure

@@ -63,14 +63,53 @@ class QuantBot(Bot):
         self.scores: dict[str, dict[str, float]] = {}
         self.emitted: dict[str, int] = {}  # stance already turned into a signal
         self.blocked: dict[str, str] = {}  # last consensus failure per symbol
+        self.last_snap: dict[str, Snapshot] = {}
+        self.sniped: dict[str, float] = {}  # meme coin -> breakout level already acted on
 
     def subscriptions(self):
-        return {"market.snapshot": self.on_snapshot}
+        return {"market.snapshot": self.on_snapshot, "market.tick": self.on_tick}
+
+    # ---- sniping: act on a meme-coin breakout the moment it happens, not at the bar close ----
+    def on_tick(self, ev: Event) -> None:
+        t = ev.payload
+        s = self.settings
+        if not s.snipe or not s.is_meme(t.symbol) or (snap := self.last_snap.get(t.symbol)) is None:
+            return
+        level = snap.indicators["donchian_high"]
+        if t.price < level * (1 + s.snipe_breakout_pct) or self.sniped.get(t.symbol) == level:
+            return
+        if not self.portfolio.position(t.symbol).is_flat or self.emitted.get(t.symbol) == 1:
+            return
+        self.sniped[t.symbol] = level  # one shot per breakout level
+        mom = momentum_score(snap)
+        strategist = self.desk.bots.get("strategist")
+        regime = strategist.regime(t.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
+        # a breakout isn't a mean-reversion setup, and meme coins are always "volatile": those two
+        # abstain; the breakout and momentum must agree and nobody may object
+        votes = {"breakout": "yes", "momentum": "yes" if mom > 0.1 else "no" if mom < -0.1 else "abstain",
+                 "mean_reversion": "abstain",
+                 "strategist": "yes" if regime is Regime.TRENDING and mom > 0 else
+                               "no" if regime is Regime.TRENDING else "abstain"}
+        yes = sum(v == "yes" for v in votes.values())
+        if any(v == "no" for v in votes.values()) or yes < s.risk.consensus_min_yes:
+            self.bump("snipes_passed")
+            self.act(f"no snipe on {t.symbol}: breakout without momentum")
+            return
+        jump = t.price / level - 1
+        self.stance[t.symbol] = self.emitted[t.symbol] = 1
+        self.blocked.pop(t.symbol, None)
+        sig = Signal(t.symbol, Side.BUY, round(min(1.0, 0.5 + 0.5 * mom), 3),
+                     f"snipe: {t.symbol} broke {jump:+.1%} above its recent high; consensus {yes} yes",
+                     self.name, votes=votes)
+        self.publish("signal.proposed", sig)
+        self.bump("snipes")
+        self.act(f"SNIPE {t.symbol} @ {t.price:,.6g} (+{jump:.1%} through the high)")
 
     def on_snapshot(self, ev: Event) -> None:
         s: Snapshot = ev.payload
         if s.historical:
             return  # warm-up data: never trade on the past
+        self.last_snap[s.symbol] = s
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
         coach = self.desk.bots.get("coach")

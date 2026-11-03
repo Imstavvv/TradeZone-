@@ -12,6 +12,7 @@ import math
 import secrets
 import time
 from pathlib import Path
+from urllib.parse import unquote
 
 from fastapi import (
     Depends,
@@ -200,7 +201,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         if state == "unauth":
             raise HTTPException(401, "sign in required")
         if state == "locked":
-            raise HTTPException(423, "locked - unlock with your PIN or Face ID")
+            raise HTTPException(423, "locked - unlock with your password or Face ID")
 
     def session_any(request: Request) -> str | None:
         """A trusted device, locked or not (for the unlock endpoints). Returns the session hash."""
@@ -218,7 +219,8 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         host = request.headers.get("host", "")
         return request.url.hostname or host.split(":")[0], f"{request.url.scheme}://{host}"
 
-    confirmed: dict[str, float] = {}  # session hash -> time until which a Face ID confirmation counts
+    confirmed: dict[str, float] = {}  # session hash -> time until which a confirmation still counts
+    CONFIRM_FOR_S = 600
 
     def reauth(request: Request) -> None:
         """Step-up check for actions that can move money or change security: PIN or Face ID again.
@@ -232,22 +234,25 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         if sec.check_token(request.headers.get("x-tz-confirm")):
             return
         _, h = auth_state(request)
-        if h and confirmed.pop(h, 0) > time.time():
-            return
+        if h and confirmed.get(h, 0) > time.time():
+            return  # confirmed in the last few minutes: don't ask again for every action
         pin = request.headers.get("x-tz-pin")
         if pin and applock.pin_set:
-            if applock.check_pin(pin.strip()):
+            pin = unquote(pin).strip()  # the page URI-encodes it (passwords may hold any character)
+            if applock.check_pin(pin):
+                if h:
+                    confirmed[h] = time.time() + CONFIRM_FOR_S
                 return
             left = applock.pin_failed(h) if h else 0
-            sec.audit("pin_failed", ip, f"wrong PIN on a confirmation ({left} tries left)", agent(request), "warning")
+            sec.audit("pin_failed", ip, f"wrong password on a confirmation ({left} tries left)", agent(request), "warning")
             if h and left == 0:
-                raise HTTPException(401, "Too many wrong PINs - this device was signed out.")
-            raise HTTPException(403, f"Wrong PIN - {left} {'try' if left == 1 else 'tries'} left")
+                raise HTTPException(401, "Too many wrong tries - this device was logged out.")
+            raise HTTPException(403, f"Wrong password - {left} {'try' if left == 1 else 'tries'} left")
         if request.headers.get("x-tz-confirm"):
             sec.login_failed(ip, agent(request))
         if not applock.enabled and not sec.cfg.token:
             return  # nothing to confirm with yet (first setup in progress)
-        raise HTTPException(403, "confirm with your PIN or Face ID")
+        raise HTTPException(403, "confirm with your password or Face ID")
 
     def start_session(request: Request, response: Response, how: str) -> str:
         """Trust this device: new session cookie, unlocked straight away. Returns the session hash."""
@@ -256,7 +261,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         h = sec.sid_hash(sid)
         applock.unlock(h)
         response.set_cookie(SESSION_COOKIE, sid, max_age=30 * 24 * 3600, httponly=True,
-                            secure=request.url.scheme == "https", samesite="strict", path="/")
+                            secure=request.url.scheme == "https", samesite="lax", path="/")
         sec.audit("login", ip, how, agent(request))
         return h
 
@@ -309,6 +314,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     app = FastAPI(title="TradeZone", version="1.0.0", lifespan=lifespan,
                   docs_url=None, redoc_url=None, openapi_url=None)
     app.state.desk = desk
+    app.state.expire_confirmations = confirmed.clear  # tests / "Lock now"
     app.add_middleware(SecurityMiddleware, sec=sec)
     page = (WEB / "index.html").read_text()
 
@@ -370,7 +376,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         except LockError as exc:
             raise HTTPException(400, str(exc)) from None
         sec.rotate_recovery_code()  # now an owner exists: the log shows a fresh *recovery* code
-        start_session(request, response, "first-time setup - PIN created")
+        start_session(request, response, "first-time setup - password created")
         return {"ok": True}
 
     @app.post("/api/signin/faceid/options")
@@ -399,16 +405,15 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         """Log in on a new device with just the PIN (globally rate-limited)."""
         ip = client_ip(request.scope)
         if not applock.pin_set:
-            raise HTTPException(400, "No PIN is set up yet")
+            raise HTTPException(400, "No password is set up yet")
         if (left := sec.pin_signin_blocked_for()) > 0:
-            raise HTTPException(429, f"Too many wrong PINs recently, so PIN login on new devices is paused for about "
-                                     f"{int(left // 60) + 1} min. Use Face ID or a code from your other device, or wait.")
+            raise HTTPException(429, f"Too many wrong passwords recently, so password login is paused for about "
+                                     f"{int(left // 60) + 1} min. Use Face ID or a code from your other phone, or wait.")
         if not applock.check_pin(body.pin.strip()):
             sec.pin_signin_failed()
-            sec.login_failed(ip, agent(request))
-            sec.audit("pin_failed", ip, "wrong PIN on the login page (new device)", agent(request), "warning")
-            raise HTTPException(401, "That PIN isn't right. Try again.")
-        start_session(request, response, "logged in with PIN on a new device")
+            sec.audit("pin_failed", ip, "wrong password on the login page", agent(request), "warning")
+            raise HTTPException(401, "That password isn't right. Try again.")
+        start_session(request, response, "logged in with password")
         return {"ok": True}
 
     @app.post("/api/signin/pair")
@@ -443,7 +448,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         except LockError as exc:
             raise HTTPException(403, str(exc)) from None
         if h:
-            confirmed[h] = time.time() + 120
+            confirmed[h] = time.time() + CONFIRM_FOR_S
         return {"ok": True}
 
     @app.post("/api/logout")
@@ -460,7 +465,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(401, "sign in required")
         rp_id, _ = rp(request)
         return {"ok": True, "auth_required": sec.auth_required, "locked": state == "locked",
-                "lock": {"pin": applock.pin_set, "lock_after_min": applock.lock_after_s / 60,
+                "lock": {"pin": applock.pin_set, "lock_after_min": applock.lock_after_min,
                          "faceid": any(p["rp_id"] == rp_id for p in applock.passkeys())}}
 
     # -- app lock: PIN / Face ID ------------------------------------------------
@@ -470,25 +475,26 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         if h is None:
             return {"ok": True}
         if not applock.pin_set:
-            raise HTTPException(400, "no PIN is set")
+            raise HTTPException(400, "no password is set")
         ip = client_ip(request.scope)
         if applock.check_pin(body.pin.strip()):
             applock.unlock(h)
-            sec.audit("unlock", ip, "unlocked with PIN", agent(request))
+            sec.audit("unlock", ip, "unlocked with password", agent(request))
             return {"ok": True}
         left = applock.pin_failed(h)
         if left == 0:
             response.delete_cookie(SESSION_COOKIE, path="/")
-            sec.audit("pin_lockout", ip, "5 wrong PINs - device signed out", agent(request), "critical")
-            raise HTTPException(401, "Too many wrong PINs - this device was signed out. Sign in with your access token.")
-        sec.audit("pin_failed", ip, f"wrong PIN ({left} tries left)", agent(request), "warning")
-        raise HTTPException(403, f"Wrong PIN - {left} {'try' if left == 1 else 'tries'} left")
+            sec.audit("pin_lockout", ip, "too many wrong passwords - device logged out", agent(request), "critical")
+            raise HTTPException(401, "Too many wrong tries - this device was logged out. Log in again with your password.")
+        sec.audit("pin_failed", ip, f"wrong password ({left} tries left)", agent(request), "warning")
+        raise HTTPException(403, f"Wrong password - {left} {'try' if left == 1 else 'tries'} left")
 
     @app.post("/api/lock")
     async def lock_now(request: Request):
         h = session_any(request)
         if h:
             applock.lock(h)
+            confirmed.pop(h, None)
         return {"ok": True}
 
     @app.post("/api/webauthn/auth/options")
@@ -527,15 +533,15 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         _, h = auth_state(request)
         if h:
             applock.unlock(h)
-        audit(request, "PIN set / changed", "warning")
+        audit(request, "password set / changed", "warning")
         return {"ok": True}
 
     @app.delete("/api/applock/pin", dependencies=[Depends(check_token), Depends(reauth)])
     async def remove_pin(request: Request):
         if not applock.passkeys():
-            raise HTTPException(409, "Turn on Face ID first - the PIN is your only way in.")
+            raise HTTPException(409, "Turn on Face ID first - the password is your only way in.")
         applock.remove_pin()
-        audit(request, "PIN removed", "warning")
+        audit(request, "password removed", "warning")
         return {"ok": True}
 
     @app.post("/api/webauthn/register/options", dependencies=[Depends(check_token), Depends(reauth)])
@@ -559,7 +565,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     @app.delete("/api/webauthn/passkeys/{cred_id}", dependencies=[Depends(check_token), Depends(reauth)])
     async def faceid_remove(cred_id: str, request: Request):
         if not applock.pin_set and len(applock.passkeys()) <= 1:
-            raise HTTPException(409, "Set a PIN first - this Face ID key is your only way in.")
+            raise HTTPException(409, "Set a password first - this Face ID key is your only way in.")
         if not applock.remove_passkey(cred_id):
             raise HTTPException(404, "no such Face ID key")
         audit(request, "Face ID key removed", "warning")

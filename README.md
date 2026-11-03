@@ -2,7 +2,7 @@
 
 A multi-bot trading platform. Ten specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
-It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
+It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
 ## The bot team
 
@@ -124,9 +124,24 @@ A buy only happens when the team agrees. Each voter says yes, no or abstain:
 
 **Rule:** no voter may say no, and at least `TZ_CONSENSUS_MIN_YES` (default 2) must say yes. After that, **Grok** must approve (if connected) and the **Risk Manager** must approve. The Quant re-checks on every bar while its view holds, so a buy goes ahead as soon as the last objection clears. Each signal's votes appear in Team activity, for example `[momentum:✓ mean-rev:– breakout:✓ strategist:✓]`. Selling to close a position needs no vote.
 
+## What the bots trade: crypto, quick meme-coin flips, and runners
+
+By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LINK) plus **trusted meme coins** (DOGE, SHIB, PEPE, BONK, WIF, FLOKI). These are the large, long-listed ones on major US exchanges; brand-new tokens are never traded. Change the list with `TZ_SYMBOLS` and `TZ_MEME_COINS`. Coins your exchange doesn't list are skipped at start-up with a note.
+
+* **Every trade: −8% stop-loss, +15% take-profit** (`TZ_STOP_LOSS_PCT`, `TZ_TAKE_PROFIT_PCT`).
+* **Sniping meme coins:** when a trusted meme coin breaks more than 1% above its recent high, the Quant acts on that tick instead of waiting for the minute to close. Its momentum must agree, and the rest of the team (Risk Manager, Executive, and Grok if connected) still has to say yes. A breakout against a falling trend is skipped. One shot per breakout.
+* **Runners:** at +15% the bots bank half the position. The stop on the other half moves **into profit** (at least +7.5%), the +15% ceiling is removed, and the stop then trails 8% under the highest price. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
+* **Profit protection** still applies before the target: once a trade is about +4% up, its stop moves above break-even, so a trade that went green doesn't end red.
+* **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 3 are held at once (`TZ_MAX_MEME_POSITIONS`).
+* **Real money:** Alpaca can trade DOGE, SHIB and PEPE (plus the majors) but not BONK, WIF or FLOKI. Those stay practice-only, and the Risk Manager says so instead of sending an order that would fail.
+
+Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
+
 ## Stop-loss placement and risk management
 
-Stops go where most traders put them, **just beyond the most recent swing point**:
+The default is the fixed **−8% / +15%** plan above (`TZ_STOP_METHOD=percent`). Two other placements are available.
+
+With `TZ_STOP_METHOD=structure`, stops go where most traders put them, **just beyond the most recent swing point**:
 
 * **Long:** below the lowest low of the last 10 bars (the last dip buyers defended), minus a 1×ATR buffer so ordinary noise doesn't tag it. Shorts mirror this above the swing high.
 * **Off round numbers:** if the stop lands on or near a round number (100, 105, 65,000…), where stops cluster and get hunted, it moves just beyond it.
@@ -139,7 +154,7 @@ Risk management layered on top:
 
 | Rule | Default |
 | --- | --- |
-| Risk per trade: position sized so hitting the stop loses at most this | 1% of equity (half that in volatile regimes) |
+| Risk per trade: position sized so hitting the stop loses at most this | 1% of equity (half that in volatile regimes and for meme coins) |
 | Portfolio heat: total loss if *every* open stop is hit | 5% of equity |
 | Max position size / total exposure / open positions | 20% / 100% / 5 |
 | Daily loss / drawdown kill switch (flattens everything) | −5% / −15% |
@@ -152,14 +167,14 @@ Every approved trade's reason in Team activity and Orders shows its stop, how it
 **No system can guarantee every trade ends in profit.** A price can fall right after a buy, before the trade is ever green. Removing stop-losses wouldn't change that; it would only turn small losses into large ones. What TradeZone enforces is the next best thing: **once a trade has been in profit, it's not allowed to turn into a loss.**
 
 1. **Break-even lock:** when open profit reaches 0.5R (half the distance from entry to the initial stop), the stop moves above break-even plus round-trip fees, slippage and a cushion sized to the symbol's typical tick move. From then on it locks in 50% of the best open profit seen. These positions show a 🔒 in the dashboard.
-2. **Partial take-profit:** at +1R, half the position is sold to bank the gain. The rest rides with the locked stop toward the target.
+2. **Partial take-profit:** with the default −8% / +15% plan, half is sold at +15% and the rest becomes a **runner** (see above). With `structure` or `atr` stops, half is sold at +1R and the rest rides with the locked stop toward the target.
 3. **Strategy exits only in profit:** a bearish model signal closes a position only if that nets a profit. Losing positions are left to the stop-loss, which still cuts them. Your Flatten button and the kill switch always work regardless.
 
 The **Winners lost** tile counts any winner that still closed at a loss. That can only happen if the price jumps straight through the stop between two ticks, and each case raises an alert. In offline simulation (4 seeds × 3,000 steps, realistic fees) the count was 0 in every run, with win rates of 50–72%. That's synthetic data, not a promise about real markets.
 
 ## Grok (xAI) connection
 
-**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your PIN or Face ID). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
+**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your password or Face ID). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
 
 Or set it on Render as an environment variable:
 
@@ -221,7 +236,7 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 
 | Threat | Protection |
 | --- | --- |
-| Someone finds your site | Nothing works without signing in with your PIN (or Face ID). Until a PIN is chosen, setting up needs the one-time SETUP code that is only printed in the server logs. An optional `TZ_API_TOKEN` must be at least 16 characters on a public address, or the server refuses to start. `/api/health` reveals nothing, and the API docs (`/docs`, `/openapi.json`) are switched off. |
+| Someone finds your site | Nothing works without signing in with your password (or Face ID). Until a password is chosen, setting up needs the one-time SETUP code that is only printed in the server logs. An optional `TZ_API_TOKEN` must be at least 16 characters on a public address, or the server refuses to start. `/api/health` reveals nothing, and the API docs (`/docs`, `/openapi.json`) are switched off. |
 | Guessing the token | After 5 wrong tokens in 15 minutes (`TZ_LOGIN_FAILURES_BEFORE_BAN`) the IP is blocked for 30 minutes (`TZ_BAN_MINUTES`), doubling for each repeat offence up to 7 days. Bans survive restarts. Devices already signed in keep working, so someone guessing on your Wi-Fi can't lock you out. |
 | Stolen token from the page or logs | The token is exchanged once for an **HttpOnly, Secure, SameSite=Strict session cookie**. Page scripts can't read it, and it never appears in a URL or the server's request logs. Sessions expire after 30 days unused. **Sign out all devices** cuts off any stolen session instantly. |
 | Stolen session moving money | Going live, adding a withdrawal wallet and withdrawing need the **token typed again** (step-up). New wallets also wait 24 hours before they can receive withdrawals. |
@@ -233,32 +248,33 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 | Spoofed IP addresses | Forwarded-for headers are only trusted from the hosting proxy (`TZ_TRUSTED_PROXIES`, set automatically on Render). |
 | Not knowing what happened | The **Security** panel shows signed-in devices, blocked IPs (with Unban), and a log of every sign-in, failure, ban and sensitive action, with IP and device. It's also stored in the journal. |
 
-Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. If you think someone else got in, use **Settings → Log out everywhere** and change your PIN. If you use an access token for scripts and suspect it leaked, change `TZ_API_TOKEN` on Render and redeploy.
+Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. If you think someone else got in, use **Settings → Log out everywhere** and change your password. If you use an access token for scripts and suspect it leaked, change `TZ_API_TOKEN` on Render and redeploy.
 
-### Logging in: PIN and Face ID (no access token)
+### Logging in: a password your phone remembers (or Face ID)
 
-Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and a big PIN pad.
+Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and one password box.
 
-* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you choose your **6-digit PIN** and can turn on **Face ID**. Nobody can set up your site without that code.
-* **Every visit after that, on any phone or computer:** type your PIN, or tap **Log in with Face ID**.
-  * Your phone asks again whenever you open the app, after 1 minute in the background, and after `TZ_LOCK_AFTER_MIN` (default 5) minutes idle. While it's waiting for you, nothing is visible and the live updates stop.
-  * **On a device you've used before:** 5 wrong PINs log that device out.
-  * **On a new device:** wrong PINs are limited across *the whole internet* to 5 per hour, and each guessing address is also blocked. Even with thousands of computers, guessing a 6-digit PIN would take years. While that limit is active, Face ID, the code from another phone, and devices already logged in keep working.
-* **Other options on the front page:** "Have a code from your other phone?" (Settings → Show a login code) and **Forgot your PIN?**. That one uses the recovery code from the same Render logs (`TradeZone recovery code`, single use, a fresh one appears after each use and each restart), then you choose a new PIN.
-* **PIN rules:** exactly 6 digits. Weak ones (123456, 111111, 121212, sequences) are refused. It's stored only as a salted scrypt hash.
-* **Face ID:** uses passkeys. Your phone's secure chip checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello. iPhone passkeys sync through iCloud Keychain, so your other Apple devices can use Face ID too.
-* **Important actions** (real money, wallets, sending money, changing your PIN or Face ID, adding a device) ask for your PIN or Face ID again.
+* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you choose a **password** (at least 6 letters or numbers; spaces and emoji are fine) and can turn on **Face ID**. Nobody can set up your site without that code.
+* **Let your phone save it.** The login box is a normal password form, so iPhone (iCloud Keychain), Android (Google Password Manager) and desktop browsers offer to save it and fill it in with Face ID or your fingerprint. Logging in becomes one tap.
+* **You stay logged in.** A device you've logged in on stays logged in for 30 days from your last visit, including the home-screen app. It doesn't ask for the password every time you open it. **Settings → Lock now** locks it on demand. To re-lock automatically after some idle minutes, set `TZ_LOCK_AFTER_MIN`.
+* **Had a 6-digit PIN before?** It still works: type it in the password box. You can change it in **Settings → Your password**.
+* **Typos are forgiven:** a wrong password never blocks your phone's internet address. Wrong passwords across the whole internet are limited to 10 per hour, so nobody can guess it. While that limit is active, Face ID, the code from another phone, and devices already logged in keep working. 8 wrong tries on a locked device log that device out.
+* **Other options on the front page:** "Have a code from your other phone?" (Settings → Show a login code) and **Forgot your password?**. That one uses the recovery code from the same Render logs (`TradeZone recovery code`, single use, a fresh one appears after each use and each restart), then you choose a new password.
+* **Stored safely:** only a salted scrypt hash is kept. Very common passwords (password, 123456, qwerty…) are refused.
+* **Face ID:** uses passkeys. Your phone's secure chip checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello.
+* **Important actions** (real money, wallets, sending money, changing your password or Face ID, adding a device) ask for your password or Face ID. One confirmation counts for 10 minutes, so you aren't asked over and over.
+* **Your data stays put:** if a disk is mounted at `/data` (the Render blueprint does this), the password, trades and everything the bots learned are kept there automatically, so a redeploy doesn't wipe them.
 * `TZ_API_TOKEN` is optional: it's only for scripts (`Authorization: Bearer …`), and it also works as a recovery code.
 
 ## Settings and linked accounts
 
 Everything is under **Settings** on the home screen, in plain language:
 
-* **Logging in:** change your PIN, turn on Face ID, show a code for another phone, lock now, log out.
+* **Logging in:** change your password, turn on Face ID, show a code for another phone, lock now, log out.
 * **Linked accounts:**
   * 🏦 **Real-money account (Alpaca):** tap **Connect** and follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
   * 🤖 **Grok AI helper:** paste your xAI key (see below).
-  * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone recognises the coin (Bitcoin, Ethereum, Solana, XRP, Stellar, Cosmos, Hedera, EOS), even from `bitcoin:…?amount=` links. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), confirm with your PIN.
+  * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone recognises the coin (Bitcoin, Ethereum, Solana, XRP, Stellar, Cosmos, Hedera, EOS), even from `bitcoin:…?amount=` links. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), confirm with your password or Face ID.
 * **Devices logged in:** see your phones and computers and **Log out everywhere**.
 * **Advanced:** the security log, blocked addresses and every technical detail are in the **Pro** view.
 
@@ -272,10 +288,10 @@ The dashboard is served by TradeZone itself. **It's ready the moment the server 
 
 1. Push this repo to GitHub.
 2. In Render: **New → Blueprint**, then pick the repo. `render.yaml` sets up an always-on service with a disk for the trade journal.
-3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. The front page asks for the SETUP code (shown in Render's **Logs** tab), then you pick a 6-digit PIN.
+3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. The front page asks for the SETUP code (shown in Render's **Logs** tab), then you pick a password.
 4. Optionally add your Alpaca / Grok keys under Environment. Never commit keys.
 
-Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Choose your PIN as soon as the site is up, because it controls real-money trading.
+Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Choose your password as soon as the site is up, because it controls real-money trading.
 
 ## Quick start
 
@@ -332,7 +348,7 @@ TZ_ALPACA_LIVE_SECRET=...
 TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
 ```
 
-Prices must be live (the default `TZ_FEED=auto` is). Your PIN protects the switch, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
+Prices must be live (the default `TZ_FEED=auto` is). Your password protects the switch, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
 
 ### Switching
 
@@ -348,7 +364,7 @@ Prices must be live (the default `TZ_FEED=auto` is). Your PIN protects the switc
 | Live account reachable and **flat** | The desk doesn't import existing positions, so it refuses accounts that already hold any |
 | Paper book flat (the dialog offers **Flatten paper positions**) | Positions never carry across modes |
 | Kill switch not tripped | Investigate first, then reset |
-| A PIN is set before going live on a public address | Nobody else on the network can flip you to live |
+| A password is set before going live on a public address | Nobody else on the network can flip you to live |
 
 Paper and live keep **separate books**, so P&L, trades and the audit ledger never mix, and paper resumes where it left off. In live mode, Portfolio Manager checks positions against the broker every 30 cycles, and any mismatch pauses trading. Wallet deposits are recorded but not added to trading capital (your broker balance is the source of truth), and withdrawals are `manual_required`.
 
@@ -362,11 +378,11 @@ The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scri
 | --- | --- | --- |
 | GET | `/api/health` | Liveness, returns `{"ok": true}` only (no auth) |
 | POST | `/api/login` · `/api/logout` | `{"token": …}` → session cookie / end the session |
-| GET | `/api/auth` | Signed in? Locked? Which unlock methods (PIN / Face ID) are set |
+| GET | `/api/auth` | Signed in? Locked? Which unlock methods (password / Face ID) are set |
 | POST | `/api/unlock/pin` · `/api/lock` | Unlock with `{"pin": "482915"}` / lock now |
 | POST | `/api/webauthn/auth/options` · `/api/webauthn/auth/verify` | Face ID unlock (WebAuthn) |
-| GET | `/api/applock` | App-lock status: PIN set, Face ID keys, lock timeout |
-| POST / DELETE | `/api/applock/pin` | Set or change / remove the PIN (**step-up**) |
+| GET | `/api/applock` | App-lock status: password set, Face ID keys, lock timeout |
+| POST / DELETE | `/api/applock/pin` | Set or change / remove the password (an old 6-digit PIN counts as one) (**step-up**) |
 | POST | `/api/webauthn/register/options` (**step-up**) · `/api/webauthn/register/verify` | Turn on Face ID for this device |
 | DELETE | `/api/webauthn/passkeys/{id}` | Remove a Face ID key (**step-up**) |
 | GET | `/api/security` | Sessions, bans, security log, limits |
