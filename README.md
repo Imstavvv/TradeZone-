@@ -213,15 +213,32 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 
 Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. Keep your access token in a password manager. If you suspect it leaked, change `TZ_API_TOKEN` on Render (which signs everyone out) and redeploy.
 
-### App lock: PIN and Face ID
+### Logging in: PIN and Face ID (no access token)
 
-On top of the access token you can choose a **6-digit PIN** and/or **Face ID**. After your first sign-in on a device, the app offers to set them up. You can also do it later under **Security → App lock**.
+Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and a big PIN pad.
 
-* **How it works (like a banking app):** a device is trusted once with the access token. From then on, the app asks for your PIN or Face ID **every time you open it**, after 1 minute in the background, and after `TZ_LOCK_AFTER_MIN` (default 5) minutes idle. You can also tap 🔒 to lock it straight away. While locked, the dashboard is hidden, the API refuses everything except unlocking, and the live stream disconnects.
-* **PIN:** must be exactly 6 digits. Weak choices (123456, 111111, 121212, sequences, common PINs) are refused. It's stored only as a salted scrypt hash. **5 wrong PINs sign the device out**, so it needs the access token again. A PIN therefore can't be guessed: 5 tries per token sign-in, and token sign-ins are locked out separately. Forgot the PIN? "Sign in with your access token" on the lock screen.
-* **Face ID:** uses passkeys (WebAuthn) with the phone's built-in authenticator and *user verification required*. Your phone's secure hardware checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Replayed responses, look-alike phishing sites and unverified attempts are rejected. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello. Needs HTTPS (Render provides it) and iOS 16+ / a recent Chrome. If you move the site to a new address, set up Face ID again (or pin it with `TZ_PUBLIC_URL`).
-* **Changing settings:** setting or removing the PIN and adding or removing Face ID need the access token again, so someone holding your unlocked phone can't quietly change them. Every unlock, failed PIN and change is in the Security log.
-* Scripts using `Authorization: Bearer <token>` aren't affected by the app lock (they hold the master token).
+* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you choose your **6-digit PIN** and can turn on **Face ID**. Nobody can set up your site without that code.
+* **Every visit after that, on any phone or computer:** type your PIN, or tap **Log in with Face ID**.
+  * Your phone asks again whenever you open the app, after 1 minute in the background, and after `TZ_LOCK_AFTER_MIN` (default 5) minutes idle. While it's waiting for you, nothing is visible and the live updates stop.
+  * **On a device you've used before:** 5 wrong PINs log that device out.
+  * **On a new device:** wrong PINs are limited across *the whole internet* to 5 per hour, and each guessing address is also blocked. Even with thousands of computers, guessing a 6-digit PIN would take years. While that limit is active, Face ID, the code from another phone, and devices already logged in keep working.
+* **Other options on the front page:** "Have a code from your other phone?" (Settings → Show a login code) and **Forgot your PIN?**. That one uses the recovery code from the same Render logs (`TradeZone recovery code`, single use, a fresh one appears after each use and each restart), then you choose a new PIN.
+* **PIN rules:** exactly 6 digits. Weak ones (123456, 111111, 121212, sequences) are refused. It's stored only as a salted scrypt hash.
+* **Face ID:** uses passkeys. Your phone's secure chip checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello. iPhone passkeys sync through iCloud Keychain, so your other Apple devices can use Face ID too.
+* **Important actions** (real money, wallets, sending money, changing your PIN or Face ID, adding a device) ask for your PIN or Face ID again.
+* `TZ_API_TOKEN` is optional: it's only for scripts (`Authorization: Bearer …`), and it also works as a recovery code.
+
+## Settings and linked accounts
+
+Everything is under **Settings** on the home screen, in plain language:
+
+* **Logging in:** change your PIN, turn on Face ID, show a code for another phone, lock now, log out.
+* **Linked accounts:**
+  * 🏦 **Real-money account (Alpaca):** tap **Connect** and follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
+  * 🤖 **Grok AI helper:** paste your xAI key (see below).
+  * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone recognises the coin (Bitcoin, Ethereum, Solana, XRP, Stellar, Cosmos, Hedera, EOS), even from `bitcoin:…?amount=` links. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), confirm with your PIN.
+* **Devices logged in:** see your phones and computers and **Log out everywhere**.
+* **Advanced:** the security log, blocked addresses and every technical detail are in the **Pro** view.
 
 ## Getting a web address for the dashboard
 
@@ -283,15 +300,17 @@ All settings are environment variables with the `TZ_` prefix. A `.env` file in t
 
 ### One-time setup
 
+**Easiest:** in the app, go to **Settings → Linked accounts → Real-money account → Connect** and paste your Alpaca *Live* API keys. That's all: the **Use real money** button becomes active.
+
+Or, as server settings on Render:
+
 ```bash
-TZ_FEED=alpaca                # or coinbase (crypto). Live can't trade on simulated prices.
-TZ_ALPACA_LIVE_KEY=...        # your Alpaca *live* account keys
+TZ_ALPACA_LIVE_KEY=...        # your Alpaca *live* account keys (start with AK)
 TZ_ALPACA_LIVE_SECRET=...
 TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
-TZ_API_TOKEN=<long random>    # required if the dashboard is reachable beyond localhost
 ```
 
-With live keys set, the **Go LIVE** button in the dashboard header becomes active. Without them, it's greyed out, and hovering over it says what's missing.
+Prices must be live (the default `TZ_FEED=auto` is). Your PIN protects the switch, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
 
 ### Switching
 

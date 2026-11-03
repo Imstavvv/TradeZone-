@@ -183,6 +183,39 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:12px;min-height:auto}
 #pinSetupModal input{font-size:24px;letter-spacing:10px;text-align:center}
 .lockbtn{padding:2px 8px;font-size:12px;min-height:auto}
+/* ---- settings & friendly sheets ---- */
+.shead{margin:6px 4px 0;font-size:20px;font-weight:900}
+#sec-settings{display:grid;gap:12px}
+.srow{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.srow:last-of-type{border-bottom:none}
+.srow .ic{width:36px;height:36px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;font-size:18px}
+.srow .tx{display:flex;flex-direction:column;min-width:0}.srow .tx span{color:var(--muted);font-size:13px}
+.srow button{min-height:40px;padding:6px 14px;white-space:nowrap}
+.wcard{display:grid;grid-template-columns:36px 1fr;gap:4px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px}
+.wcard .ic{font-size:22px;grid-row:span 2;display:grid;place-items:center}
+.wcard .sub2{color:var(--muted);font-size:12px;word-break:break-all}
+.wcard .btns{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}.wcard .btns button{flex:1;min-height:38px}
+.howto{margin:8px 0 4px;padding-left:20px;font-size:14px;line-height:1.55}
+.fl{font-size:13px;font-weight:700;margin-top:10px;display:block}
+.pastebox{display:flex;gap:8px;margin-top:4px}
+.pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
+.pastebox button{white-space:nowrap;min-height:44px}
+.okbox{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:8px}
+.coinchips{display:flex;flex-wrap:wrap;gap:8px}
+.coinchips button{min-height:38px;padding:6px 12px;font-size:13px}
+.coinchips button.on{background:linear-gradient(135deg,#22d3ee,#8b5cf6);color:#fff;border:none}
+.wstep{display:flex;flex-direction:column;gap:10px}
+.sheet .panel2{max-height:92vh;overflow-y:auto}
+body.simple #mode,body.simple #grokBadge,body.simple #conn{display:none}
+/* ---- front page ---- */
+.fronthead{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:6px}
+.fronthead .logo{width:64px;height:64px;border-radius:20px}
+.ftitle{font-size:30px;font-weight:900;letter-spacing:-.5px;background:linear-gradient(90deg,#22d3ee,#a78bfa,#f472b6,#fb923c);
+  -webkit-background-clip:text;background-clip:text;color:transparent}
+.ftag{color:var(--muted);font-size:14px}
+.parade{display:flex;gap:6px;margin-top:6px;font-size:22px}
+.parade span{animation:bob 1.6s ease-in-out infinite}.parade span:nth-child(2n){animation-delay:.3s}.parade span:nth-child(3n){animation-delay:.6s}
+@media (max-height:720px){.fronthead .logo{display:none}.ftitle{font-size:24px}.parade{font-size:18px}}
 /* ---- welcome / sign-in ---- */
 .welcome .card{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px}
 .welcome .pane{display:none;width:100%;flex-direction:column;align-items:center;gap:12px}
@@ -195,6 +228,7 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 /* ---- confirm sheet / ask sheet / toasts ---- */
 .sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
+#askSheet{z-index:44}#confirmSheet{z-index:45}  /* confirmations always sit on top of the sheet that asked */
 .sheet .panel2{background:var(--panel);border:1px solid var(--line);border-bottom:none;border-radius:18px 18px 0 0;width:100%;max-width:440px;
   padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
   animation:rise .2s ease-out}
@@ -413,21 +447,28 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 
 <div class="lockscreen welcome" id="welcome" aria-modal="true" role="dialog">
   <div class="card">
-    <div class="logo"></div>
+    <div class="fronthead">
+      <div class="logo"></div>
+      <div class="ftitle">TradeZone</div>
+      <div class="ftag">Your friendly team of trading bots 🤝</div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🦉</span></div>
+    </div>
     <!-- first-time setup -->
     <div class="pane" id="wSetup1">
       <div class="steps"><i class="on"></i><i></i><i></i></div>
       <h3>Welcome to TradeZone</h3>
-      <p class="muted">Let's make this desk yours. First, enter the <b>setup code</b> from your server log
-        (Render → your service → <b>Logs</b>, the line <span class="mono">TradeZone SETUP code</span>).</p>
+      <p class="muted">Let's make it yours - it takes a minute. First we need the one-time <b>setup code</b>:<br>
+        1. Open <b>render.com</b> and your <b>tradezone</b> service<br>
+        2. Tap <b>Logs</b> and look for <span class="mono">TradeZone SETUP code</span><br>
+        3. Type the 8 numbers here</p>
       <input class="code" id="wSetupCode" inputmode="numeric" autocomplete="one-time-code" placeholder="1234-5678" maxlength="9">
       <div class="lockerr" id="wSetupErr"></div>
-      <button class="big gopaper" id="wSetupNext">Continue</button>
+      <button class="big gopaper" id="wSetupNext">Next</button>
     </div>
     <div class="pane" id="wSetup2">
       <div class="steps"><i class="on"></i><i class="on"></i><i></i></div>
       <h3 id="wPinTitle">Choose a 6-digit PIN</h3>
-      <p class="muted" id="wPinHint">You'll use it to open TradeZone and to confirm important actions.</p>
+      <p class="muted" id="wPinHint">This is how you'll log in. Pick something easy for you, hard for others.</p>
       <div class="dots" id="wDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="lockerr" id="wPinErr"></div>
       <div class="keypad" id="wPad"></div>
@@ -435,26 +476,37 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     <div class="pane" id="wSetup3">
       <div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
       <h3>You're all set 🎉</h3>
-      <p class="muted">Want to open TradeZone with Face ID instead of typing your PIN?</p>
-      <button class="big gopaper" id="wFaceYes">Use Face ID</button>
+      <p class="muted">Want to log in with your face instead of typing your PIN? Your face never leaves your phone.</p>
+      <button class="big gopaper" id="wFaceYes">😊 Yes, use Face ID</button>
       <button class="big" id="wFaceNo">Not now</button>
     </div>
     <!-- sign in on a new device -->
-    <div class="pane" id="wSignin">
-      <h3>Sign in to TradeZone</h3>
-      <p class="muted" id="wSigninHint">Use Face ID, or a code from a device where you're already signed in.</p>
-      <button class="big gopaper faceid" id="wFaceSignin" style="justify-content:center">Sign in with Face ID</button>
-      <div class="muted" style="font-size:12px;margin-top:6px">or enter a code from your other device<br><span style="font-size:11px">(there: Settings → Add a device)</span></div>
+    <!-- log in (this device or a new one) -->
+    <div class="pane" id="wLogin">
+      <h3 id="wLoginTitle">Welcome back 👋</h3>
+      <p class="muted" id="wLoginHint">Type your 6-digit PIN to log in.</p>
+      <div class="dots" id="wLoginDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="lockerr" id="wLoginErr"></div>
+      <div class="keypad" id="wLoginPad"></div>
+      <button class="faceid gopaper big" id="wLoginFace" style="display:none;justify-content:center">😊 Log in with Face ID</button>
+      <button class="linkbtn" id="wForgot">Forgot your PIN?</button>
+      <button class="linkbtn" id="wUsePair" style="font-size:11px">Have a code from your other phone? Use it here</button>
+    </div>
+    <div class="pane" id="wPair">
+      <h3>Use a code from your other phone</h3>
+      <p class="muted">On a phone where you're already logged in, open <b>Settings → Show a login code</b>, then type the 6 numbers here.</p>
       <input class="code" id="wPairCode" inputmode="numeric" autocomplete="one-time-code" placeholder="000000" maxlength="6">
-      <div class="lockerr" id="wSigninErr"></div>
-      <button class="big" id="wPairGo">Sign in with code</button>
-      <button class="linkbtn" id="wTrouble">Trouble signing in?</button>
+      <div class="lockerr" id="wPairErr"></div>
+      <button class="big gopaper" id="wPairGo">Log in</button>
+      <button class="linkbtn" id="wPairBack">Back</button>
     </div>
     <!-- recovery -->
     <div class="pane" id="wRecover">
-      <h3>Recover access</h3>
-      <p class="muted">Enter the newest <b>recovery code</b> from your server log (Render → your service → <b>Logs</b>,
-        the line <span class="mono">TradeZone recovery code</span>). Restarting the service prints a fresh one.</p>
+      <h3>Forgot your PIN? No problem</h3>
+      <p class="muted">Your website prints a fresh <b>recovery code</b> in its log. To find it:<br>
+        1. Open <b>render.com</b> and your <b>tradezone</b> service<br>
+        2. Tap <b>Logs</b> and look for <span class="mono">TradeZone recovery code</span><br>
+        3. Type the 8 numbers here. You'll then choose a new PIN.</p>
       <input class="code" id="wRecoverCode" inputmode="numeric" autocomplete="one-time-code" placeholder="1234-5678" maxlength="40">
       <div class="lockerr" id="wRecoverErr"></div>
       <button class="big gopaper" id="wRecoverGo">Recover</button>
@@ -477,26 +529,77 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
   <div class="row"><button id="askNo">Cancel</button><button id="askYes" class="gopaper">OK</button></div>
 </div></div>
 <div class="sheet" id="pairSheet"><div class="panel2">
-  <h3>Add a device</h3>
-  <div class="muted" style="font-size:14px">On the new phone or computer, open TradeZone and enter this code:</div>
+  <h3>Log in on another device</h3>
+  <div class="muted" style="font-size:14px">Easiest: open your website on the other device and type your PIN.<br>Or tap "Have a code from your other phone?" there and type:</div>
   <div id="pairCode" style="font-size:44px;font-weight:800;letter-spacing:8px;font-variant-numeric:tabular-nums">——————</div>
   <div class="muted" id="pairLeft" style="font-size:12px"></div>
   <div class="row"><button id="pairClose">Done</button></div>
 </div></div>
+<div class="sheet" id="brokerSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">🏦 Connect your real-money account</h3>
+  <div id="brokerLinked" style="display:none">
+    <div class="okbox" id="brokerStatus"></div>
+    <div class="row" style="margin-top:12px"><button id="brokerClose2">Done</button><button id="brokerUnlink" class="danger">Disconnect</button></div>
+  </div>
+  <div id="brokerForm">
+    <div class="muted" style="font-size:14px">TradeZone trades real money through <b>Alpaca</b>, a regulated broker. Connecting takes about 2 minutes:</div>
+    <ol class="howto">
+      <li>Open <b>alpaca.markets</b> and log in (or sign up - it's free).</li>
+      <li>Make sure you're in your <b>Live</b> account, not "Paper".</li>
+      <li>On the home page find <b>API Keys</b> and tap <b>Generate New Keys</b>.</li>
+      <li>Copy the two codes and paste them below.</li>
+    </ol>
+    <label class="fl">Key ID <span class="muted">(starts with AK)</span></label>
+    <div class="pastebox"><input id="brokerKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="AK…"><button type="button" data-paste="brokerKey">📋 Paste</button></div>
+    <label class="fl">Secret Key</label>
+    <div class="pastebox"><input id="brokerSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="brokerSecret">📋 Paste</button></div>
+    <div class="lockerr" id="brokerErr"></div>
+    <div class="muted" style="font-size:12px">Your keys stay on your own server and are never shown again. TradeZone keeps using practice money until you choose "Use real money".</div>
+    <div class="row" style="margin-top:12px"><button id="brokerCancel">Cancel</button><button id="brokerGo" class="gopaper">Connect</button></div>
+  </div>
+</div></div>
+<div class="sheet" id="walletSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">👛 Add a wallet</h3>
+  <div class="wstep" id="ws1">
+    <div class="muted" style="font-size:14px">Paste the address of the wallet you want to be able to send money to. We'll work out which coin it is.</div>
+    <div class="pastebox"><input id="wwAddr" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Wallet address"><button type="button" id="wwPaste">📋 Paste</button></div>
+    <div id="wwDetect" class="muted" style="min-height:20px;font-size:14px"></div>
+    <div id="wwChains" class="coinchips" style="display:none"></div>
+    <div class="lockerr" id="wwErr1"></div>
+    <div class="row"><button id="wwCancel">Cancel</button><button id="wwNext1" class="gopaper">Next</button></div>
+  </div>
+  <div class="wstep" id="ws2" style="display:none">
+    <div style="font-size:15px;font-weight:700" id="wwTagQ">Is this wallet at an exchange?</div>
+    <div class="muted" style="font-size:13px" id="wwTagHelp">Like Coinbase, Binance or Kraken. Exchanges give you an extra number called a <b>tag</b> (or memo) - without it the money can get lost.</div>
+    <div class="row"><button id="wwOwn">No, it's my own wallet</button><button id="wwExch" class="gopaper">Yes, an exchange</button></div>
+    <div id="wwTagBox" style="display:none">
+      <label class="fl" id="wwTagLabel">Destination tag</label>
+      <div class="pastebox"><input id="wwTag" autocomplete="off" spellcheck="false" placeholder="e.g. 123456789"><button type="button" data-paste="wwTag">📋 Paste</button></div>
+      <div class="lockerr" id="wwErr2"></div>
+      <div class="row"><button id="wwBack2">Back</button><button id="wwNext2" class="gopaper">Next</button></div>
+    </div>
+  </div>
+  <div class="wstep" id="ws3" style="display:none">
+    <div style="font-size:15px;font-weight:700">Give it a nickname</div>
+    <input id="wwName" class="txt" maxlength="40" placeholder="My wallet">
+    <div class="okbox" id="wwSummary"></div>
+    <div class="muted" style="font-size:12px">For your safety, a new wallet can receive money after a 24-hour wait.</div>
+    <div class="lockerr" id="wwErr3"></div>
+    <div class="row"><button id="wwBack3">Back</button><button id="wwSave" class="gopaper">Save wallet</button></div>
+  </div>
+</div></div>
+<div class="sheet" id="sendSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">💸 Send money to a wallet</h3>
+  <label class="fl">To</label><select id="sdWallet" class="txt"></select>
+  <label class="fl">Coin</label><select id="sdAsset" class="txt"></select>
+  <label class="fl">How much</label>
+  <input id="sdAmount" class="txt" inputmode="decimal" placeholder="0.00">
+  <div class="muted" id="sdHint" style="font-size:13px"></div>
+  <div class="lockerr" id="sdErr"></div>
+  <div class="row"><button id="sdCancel">Cancel</button><button id="sdGo" class="golive">Send</button></div>
+</div></div>
 <div class="toasts" id="toasts"></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
-<div class="lockscreen" id="lockScreen" aria-modal="true" role="dialog">
-  <div class="logo"></div>
-  <h3>TradeZone is locked</h3>
-  <div class="muted" id="lockHint">Enter your 6-digit PIN</div>
-  <div class="dots" id="pinDots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="lockerr" id="lockErr"></div>
-  <div class="keypad" id="keypad"></div>
-  <button class="faceid gopaper" id="btnFaceUnlock" style="display:none">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1M15 9v1M12 9v4h-1M9 16c1.7 1.2 4.3 1.2 6 0"/></svg>
-    Unlock with Face ID</button>
-  <button class="linkbtn" id="lockUseToken">Forgot your PIN? Use your recovery code</button>
-</div>
 <div class="modal" id="pinSetupModal"><div class="box" style="border-color:var(--accent)">
   <h3 id="pinSetupTitle">Change your PIN</h3>
   <div class="muted" style="font-size:13px">Each time you open the app, come back to it after a minute away, or leave it idle for <span id="pinLockMin">5</span> minutes, it asks for this PIN or Face ID.
@@ -542,13 +645,14 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
   <div class="botlog" id="bmLog"></div>
 </div></div>
 <div class="modal" id="liveModal"><div class="box">
-  <h3>Switch to LIVE trading</h3>
-  <div class="muted">Real orders with real money will be sent to your broker. The bots trade on their own until you switch back, pause, or hit the kill switch.</div>
+  <h3>💵 Use real money?</h3>
+  <div class="muted">From now on the bots buy and sell with <b>real money</b> in your Alpaca account, on their own, until you switch back, pause or use the emergency stop.</div>
   <div id="liveBody" style="margin-top:12px">Checking live account…</div>
   <div class="actions">
-    <button id="liveCancel">Stay on paper</button>
-    <button id="liveFlatten" style="display:none">Flatten paper positions</button>
-    <button id="liveGo" class="golive" disabled>Go LIVE</button>
+    <button id="liveCancel">Keep practising</button>
+    <button id="liveFlatten" style="display:none">Close practice trades</button>
+    <button id="liveConnect" style="display:none" class="gopaper">Connect account</button>
+    <button id="liveGo" class="golive" disabled>Use real money</button>
   </div>
 </div></div>
 <main>
@@ -575,6 +679,31 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
       <div class="scard" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
+    </div>
+    <div id="sec-settings">
+      <h3 class="shead">⚙️ Settings</h3>
+      <div class="sgrid">
+        <div class="scard"><h4>🔐 Logging in</h4>
+          <div class="srow"><div class="ic">🔢</div><div class="tx"><b>Your PIN</b><span id="setPinTxt">6 numbers you type to log in</span></div><button id="setPinBtn">Change</button></div>
+          <div class="srow"><div class="ic">😊</div><div class="tx"><b>Face ID</b><span id="setFaceTxt">Log in by looking at your phone</span></div><button id="setFaceBtn">Turn on</button></div>
+          <div class="srow"><div class="ic">📱</div><div class="tx"><b>Use another phone or computer</b><span>Open your website there and type your PIN. That's it.</span></div><button id="setPairBtn">Show a code</button></div>
+          <div class="srow"><div class="ic">🔒</div><div class="tx"><b>Lock now</b><span>Hides everything until your PIN or Face ID</span></div><button id="setLockBtn">Lock</button></div>
+          <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>You'll need your PIN to come back</span></div><button id="setLogoutBtn">Log out</button></div>
+        </div>
+        <div class="scard"><h4>🔗 Linked accounts</h4>
+          <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
+          <div class="srow"><div class="ic">🤖</div><div class="tx"><b>Grok AI helper</b><span id="accGrokTxt">Optional - double-checks every trade</span></div><button id="accGrokBtn">Connect</button></div>
+          <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
+          <div id="walletCards"></div>
+        </div>
+        <div class="scard"><h4>📱 Devices logged in</h4>
+          <div id="devList" class="emptyhint">Loading…</div>
+          <button id="devOutAll" class="danger" style="margin-top:12px;width:100%">Log out everywhere</button>
+          <details style="margin-top:14px"><summary class="muted" style="cursor:pointer">Advanced (for experts)</summary>
+            <div class="muted" style="font-size:13px;margin:8px 0">The security log, blocked addresses, charts and every bot's details live in the Pro view.</div>
+            <button id="setProBtn">Open Pro view</button></details>
+        </div>
+      </div>
     </div>
   </section>
   <section class="pro kpis" id="kpis"></section>
@@ -625,7 +754,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     <div class="scroll" id="tlTable"></div>
     <div style="text-align:center;margin-top:8px"><button id="tlMore" style="display:none">Load more</button></div>
   </section>
-  <section class="panel wallets" id="sec-wallet">
+  <section class="panel wallets pro" id="sec-wallet">
     <h2>Wallets &amp; funding <span class="muted" id="wdLimit"></span></h2>
     <div class="wgrid">
       <div>
@@ -664,7 +793,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       </div>
     </div>
   </section>
-  <section class="panel secpanel" id="sec-security" style="grid-column:1/-1">
+  <section class="panel secpanel pro" id="sec-security" style="grid-column:1/-1">
     <h2><span>🔒 Security</span><span class="counter" id="secStatus"></span></h2>
     <div class="wgrid">
       <div>
@@ -778,22 +907,62 @@ async function post(path, body){  // public sign-in endpoints: never redirect to
     return {ok: r.ok, status: r.status, j};
   } catch { return {ok: false, status: 0, j: {detail: 'Cannot reach the server - check your connection.'}}; }
 }
-async function showWelcome(mode = 'auto', msg = ''){
-  hideLock();
+// The front page: first-time setup, logging in (this device or a new one), codes and recovery.
+const FRONT = {locked: false, status: {owner: true, faceid: false}};
+async function showWelcome(mode = 'auto', msg = '', locked = false){
+  S.locked = true; FRONT.locked = locked;
   try { S.ws && S.ws.close(); } catch {}
-  let st = {owner: true, faceid: false};
-  try { st = await (await fetch('/api/setup/status', {credentials: 'same-origin'})).json(); } catch {}
+  try { FRONT.status = await (await fetch('/api/setup/status', {credentials: 'same-origin'})).json(); } catch {}
   document.body.classList.add('locked'); $('welcome').classList.add('open');
   if (mode === 'recover') { wPane('wRecover'); $('wRecoverErr').textContent = msg; return; }
-  if (!st.owner) { wPane('wSetup1'); $('wSetupErr').textContent = msg; setTimeout(() => $('wSetupCode').focus(), 50); return; }
-  const face = st.faceid && faceSupported();
-  wPane('wSignin'); $('wSigninErr').textContent = msg;
-  $('wFaceSignin').style.display = face ? '' : 'none';
-  $('wSigninHint').textContent = face ? "Use Face ID, or a code from a device where you're already signed in."
-                                      : "Enter the 6-digit code shown on a device where you're already signed in.";
+  if (!FRONT.status.owner) { wPane('wSetup1'); $('wSetupErr').textContent = msg; setTimeout(() => $('wSetupCode').focus(), 50); return; }
+  const hasPin = locked ? !!(S.lock && S.lock.pin) : true;
+  const face = (locked ? !!(S.lock && S.lock.faceid) : !!FRONT.status.faceid) && faceSupported();
+  wPane('wLogin');
+  $('wLoginTitle').textContent = locked ? 'Welcome back 👋' : 'Log in to TradeZone';
+  $('wLoginHint').textContent = hasPin ? (face ? 'Type your 6-digit PIN, or use Face ID.' : 'Type your 6-digit PIN to log in.') : 'Use Face ID to continue.';
+  $('wLoginDots').style.display = $('wLoginPad').style.display = hasPin ? '' : 'none';
+  $('wLoginFace').style.display = face ? '' : 'none';
+  $('wUsePair').style.display = locked ? 'none' : '';
+  $('wLoginErr').textContent = msg;
+  loginPad.activate();
 }
-function hideWelcome(){ $('welcome').classList.remove('open'); document.body.classList.remove('locked'); }
+const showLock = () => showWelcome('login', '', true);
+function hideWelcome(){ S.locked = false; $('welcome').classList.remove('open'); document.body.classList.remove('locked'); }
+const hideLock = hideWelcome;
 async function welcomeDone(){ hideWelcome(); await refreshAuth(); connect(); loadTrades(true); loadSecurity(); }
+const loginPad = PinPad($('wLoginPad'), $('wLoginDots'), async pin => {
+  // a device that's already trusted just unlocks; a new device logs in with the PIN
+  const r = await post(FRONT.locked ? '/api/unlock/pin' : '/api/signin/pin', {pin});
+  if (r.ok) { if (!FRONT.locked) toast('Logged in 👋', 'ok'); return welcomeDone(); }
+  loginPad.shake();
+  if (FRONT.locked && r.status === 401) return showWelcome('auto', r.j.detail || 'Please log in again');
+  $('wLoginErr').textContent = r.j.detail || "That didn't work - try again";
+});
+$('wLoginFace').onclick = async () => {
+  $('wLoginErr').textContent = '';
+  try {
+    if (FRONT.locked) {
+      const o = await post('/api/webauthn/auth/options');
+      if (!o.ok) { $('wLoginErr').textContent = o.j.detail || 'Face ID is not available'; return; }
+      const v = await post('/api/webauthn/auth/verify', {credential: await webauthnGet(o.j)});
+      if (!v.ok) { $('wLoginErr').textContent = v.j.detail || 'Face ID check failed'; return; }
+    } else {
+      const o = await post('/api/signin/faceid/options');
+      if (!o.ok) { $('wLoginErr').textContent = o.j.detail || 'Face ID is not available'; return; }
+      const v = await post('/api/signin/faceid/verify', {ceremony: o.j.ceremony, credential: await webauthnGet(o.j.options)});
+      if (!v.ok) { $('wLoginErr').textContent = v.j.detail || 'Face ID login failed'; return; }
+      toast('Logged in with Face ID 😊', 'ok');
+    }
+    welcomeDone();
+  } catch (e) { $('wLoginErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or type your PIN' : 'Face ID failed: ' + e.message; }
+};
+$('wForgot').onclick = async () => {
+  if (FRONT.locked) await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {});
+  FRONT.locked = false; $('wRecoverErr').textContent = ''; wPane('wRecover'); setTimeout(() => $('wRecoverCode').focus(), 50);
+};
+$('wUsePair').onclick = () => { $('wPairErr').textContent = ''; wPane('wPair'); setTimeout(() => $('wPairCode').focus(), 50); };
+$('wPairBack').onclick = () => showWelcome();
 const wPad = PinPad($('wPad'), $('wDots'), async pin => {
   if (!W.pin1) { W.pin1 = pin; $('wPinTitle').textContent = 'Enter it once more'; $('wPinHint').textContent = 'Just to make sure.'; $('wPinErr').textContent = ''; return; }
   const restart = msg => { W.pin1 = ''; wPad.shake(); $('wPinTitle').textContent = 'Choose a 6-digit PIN'; $('wPinErr').textContent = msg; };
@@ -815,25 +984,13 @@ $('wSetupNext').onclick = () => {
 };
 $('wFaceYes').onclick = async () => { await welcomeDone(); await enrollFace({'X-TZ-PIN': W.setupPin}); W.setupPin = ''; };
 $('wFaceNo').onclick = () => { W.setupPin = ''; toast('Your PIN is set. Welcome to TradeZone!', 'ok'); confetti(); welcomeDone(); };
-$('wFaceSignin').onclick = async () => {
-  $('wSigninErr').textContent = '';
-  const o = await post('/api/signin/faceid/options');
-  if (!o.ok) { $('wSigninErr').textContent = o.j.detail || 'Face ID is not available'; return; }
-  let cred;
-  try { cred = await webauthnGet(o.j.options); }
-  catch (e) { $('wSigninErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled.' : 'Face ID failed: ' + e.message; return; }
-  const v = await post('/api/signin/faceid/verify', {ceremony: o.j.ceremony, credential: cred});
-  if (!v.ok) { $('wSigninErr').textContent = v.j.detail || 'Face ID sign-in failed'; return; }
-  toast('Signed in with Face ID', 'ok'); welcomeDone();
-};
 $('wPairGo').onclick = async () => {
   const c = $('wPairCode').value.replace(/\D/g, '');
-  if (c.length !== 6) { $('wSigninErr').textContent = 'The code has 6 digits.'; return; }
+  if (c.length !== 6) { $('wPairErr').textContent = 'The code has 6 numbers.'; return; }
   const r = await post('/api/signin/pair', {code: c});
-  if (!r.ok) { $('wSigninErr').textContent = r.j.detail; return; }
-  $('wPairCode').value = ''; toast('This device is now signed in', 'ok'); welcomeDone();
+  if (!r.ok) { $('wPairErr').textContent = r.j.detail; return; }
+  $('wPairCode').value = ''; toast('This device is now logged in 👋', 'ok'); welcomeDone();
 };
-$('wTrouble').onclick = () => { $('wRecoverErr').textContent = ''; wPane('wRecover'); setTimeout(() => $('wRecoverCode').focus(), 50); };
 $('wBack').onclick = () => showWelcome();
 $('wRecoverGo').onclick = async () => {
   const r = await post('/api/signin/recover', {code: $('wRecoverCode').value.trim()});
@@ -888,19 +1045,21 @@ $('btnKill').onclick = emergencyStop;
 // ---- paper / live switch ----
 const modal = $('liveModal');
 $('liveCancel').onclick = () => modal.classList.remove('open');
+$('liveConnect').onclick = () => { modal.classList.remove('open'); openBroker(); };
 async function openLive(){
   modal.classList.add('open'); $('liveGo').disabled = true; $('liveFlatten').style.display = 'none';
   $('liveBody').textContent = 'Checking live account…';
   const c = await api('/api/mode');
-  const blockers = c.blockers.length ? `<div class="sub" style="color:var(--down)">Can't switch yet</div><ul>${c.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : '';
+  const blockers = c.blockers.length ? `<div class="sub" style="color:var(--down)">Almost there - first:</div><ul>${c.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : '';
   const a = c.account;
   const acct = a ? `<div class="acct"><div><div class="muted">Account cash</div><b>${money(a.cash)}</b></div><div><div class="muted">Account equity</div><b>${money(a.equity)}</b></div>
-    <div><div class="muted">Bots may trade</div><b>${money(a.trading_capital)}</b>${c.live_max_capital ? '<div class="muted" style="font-size:11px">capped by TZ_LIVE_MAX_CAPITAL</div>' : ''}</div>
-    <div><div class="muted">Kill switch at</div><b>-${pct(c.risk.max_daily_loss_pct,0)} day / -${pct(c.risk.max_drawdown_pct,0)} DD</b></div></div>
+    <div><div class="muted">Bots can use</div><b>${money(a.trading_capital)}</b>${c.live_max_capital ? '<div class="muted" style="font-size:11px">capped by TZ_LIVE_MAX_CAPITAL</div>' : ''}</div>
+    <div><div class="muted">Auto-stop if down</div><b>-${pct(c.risk.max_daily_loss_pct,0)} day / -${pct(c.risk.max_drawdown_pct,0)} DD</b></div></div>
     <div class="muted" style="font-size:12px">Risk per trade ${pct(c.risk.risk_per_trade,1)} · max ${pct(c.risk.max_position_pct,0)} per position</div>` : '';
-  const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">Type <b>LIVE</b> to confirm</div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
+  const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">To make sure, type <b>LIVE</b></div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
   $('liveBody').innerHTML = blockers + acct + confirmBox;
   $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
+  $('liveConnect').style.display = c.blockers.some(b => /Linked accounts/.test(b)) ? '' : 'none';
   const w = $('liveWord');
   if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
 }
@@ -1042,9 +1201,10 @@ function render(){
   else { bm.dataset.long = bm.dataset.short = 'Go LIVE'; bm.className = 'golive'; bm.disabled = !st.live.available;
          bm.title = st.live.available ? 'Switch to real-money trading' : 'Live not configured: ' + st.live.config_blockers.join('; '); }
   const status = $('status');
-  if (st.halted){ status.textContent = 'HALTED'; status.className='badge halt'; status.title = st.halt_reason; }
-  else if (st.paused){ status.textContent = 'PAUSED'; status.className='badge pause'; status.title=''; }
-  else { status.textContent = 'TRADING'; status.className='badge run'; status.title=''; }
+  const plain = S.view === 'simple';
+  if (st.halted){ status.textContent = plain ? '⛔ Stopped' : 'HALTED'; status.className='badge halt'; status.title = st.halt_reason; }
+  else if (st.paused){ status.textContent = plain ? '⏸ Paused' : 'PAUSED'; status.className='badge pause'; status.title=''; }
+  else { status.textContent = plain ? (st.mode === 'live' ? '💵 Running · real money' : '🧪 Running · practice') : 'TRADING'; status.className='badge run'; status.title=''; }
   const gk = st.grok, gb = $('grokBadge');
   gb.textContent = !gk.configured ? 'GROK · SET UP' : gk.mode === 'off' ? 'GROK OFF' : `GROK ${gk.mode.toUpperCase()}${gk.connected === false ? ' · ERROR' : gk.connected ? ' ✓' : ' …'}`;
   gb.style.cursor = 'pointer'; gb.onclick = () => openGrok(false);
@@ -1373,50 +1533,12 @@ async function webauthnGet(opts){
   (opts.allowCredentials || []).forEach(c => c.id = b64uToBuf(c.id));
   return credToJSON(await navigator.credentials.get({publicKey: opts}));
 }
-const lockPad = PinPad($('keypad'), $('pinDots'), async pin => {
-  try {
-    const r = await fetch('/api/unlock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({pin})});
-    const j = await r.json().catch(() => ({}));
-    if (r.ok) return unlocked();
-    lockPad.shake();
-    if (r.status === 401) return showWelcome('auto', j.detail || 'Please sign in again');
-    $('lockErr').textContent = j.detail || 'Could not unlock';
-  } catch { $('lockErr').textContent = 'Cannot reach the server'; }
-});
-async function faceUnlock(){
-  $('lockErr').textContent = '';
-  try {
-    const r = await fetch('/api/webauthn/auth/options', {method: 'POST', credentials: 'same-origin'});
-    const opts = await r.json();
-    if (!r.ok) { $('lockErr').textContent = opts.detail || 'Face ID unavailable'; return; }
-    const v = await fetch('/api/webauthn/auth/verify', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({credential: await webauthnGet(opts)})});
-    if (v.ok) return unlocked();
-    $('lockErr').textContent = (await v.json().catch(() => ({}))).detail || 'Face ID check failed';
-  } catch (e) { $('lockErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled - try again or use your PIN' : 'Face ID failed: ' + e.message; }
-}
-function showLock(){
-  if (S.locked) return;
-  S.locked = true;
-  try { S.ws && S.ws.close(); } catch {}
-  document.body.classList.add('locked');
-  $('lockErr').textContent = '';
-  const hasPin = !!(S.lock && S.lock.pin), hasFace = !!(S.lock && S.lock.faceid) && faceSupported();
-  $('pinDots').style.display = $('keypad').style.display = hasPin ? '' : 'none';
-  $('lockHint').textContent = hasPin ? 'Enter your 6-digit PIN' : 'Use Face ID to continue';
-  $('btnFaceUnlock').style.display = hasFace ? '' : 'none';
-  $('lockScreen').classList.add('open');
-  lockPad.activate();
-}
-function hideLock(){ S.locked = false; document.body.classList.remove('locked'); $('lockScreen').classList.remove('open'); }
-function unlocked(){ hideLock(); connect(); loadTrades(true); loadSecurity(); }
+function unlocked(){ welcomeDone(); }
 async function refreshLock(){
   const a = await refreshAuth();
-  if (a && a.status === 401) return showWelcome('auto', 'Your session ended - please sign in again');
-  if (a && a.locked) showLock();
+  if (a && a.status === 401) return showWelcome('auto', 'You were logged out - please log in again');
+  if (a && a.locked && !S.locked) showLock();
 }
-$('btnFaceUnlock').onclick = faceUnlock;
-$('lockUseToken').onclick = async () => { await fetch('/api/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => {}); showWelcome('recover'); };
 let hiddenAt = 0;
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
@@ -1485,6 +1607,7 @@ $('btnRemovePin').onclick = async () => {
 };
 async function loadAppLock(){
   let d; try { d = await api('/api/applock'); } catch { return; }
+  S.applockInfo = d; renderSettings();
   const here = d.passkeys.filter(p => p.rp_id === d.rp_id);
   $('lockStatus').innerHTML = d.enabled
     ? `<b style="color:var(--up)">On</b> · ${d.pin ? 'PIN set' : 'no PIN'} · ${here.length ? here.length + ' Face ID key' + (here.length > 1 ? 's' : '') : 'no Face ID'} · asks every time you open the app, after 1 min in the background, and after ${Math.round(d.lock_after_min)} min idle`
@@ -1551,7 +1674,9 @@ function deviceName(ua){
 async function loadSecurity(){
   if (S.locked) return;
   loadAppLock();
+  loadAccounts();
   let d; try { d = await api('/api/security'); } catch { return; }
+  S.secInfo = d; renderSettings();
   const L = d.limits;
   $('secStatus').textContent = (d.auth_required ? 'sign-in required' : 'NO TOKEN SET (local only)') +
     ` · ${d.allowlist.length ? 'IP allowlist on' : 'open to all IPs'} · lockout after ${L.login_failures_before_ban} wrong tries · ${L.requests_per_min} req/min per IP`;
@@ -1684,6 +1809,31 @@ function friendlyReason(r){
   const lead = r.split(' | ')[0].replace(/\(score [^)]*\)/, '').replace(/; consensus.*/, '');
   return lead.length > 70 ? lead.slice(0, 70) + '…' : lead;
 }
+function friendlyWhy(r){  // technical risk reasons -> everyday words
+  r = String(r || '');
+  const rules = [[/doesn't clear fees/, 'the possible profit was too small after fees'], [/room to (resistance|support)/, 'the price is near a ceiling'],
+    [/swing stop|risk too wide/, 'it was too risky right now'], [/cooldown/, 'it was traded a moment ago'], [/max open positions/, 'enough trades are already open'],
+    [/portfolio heat/, 'enough money is already at risk'], [/kill switch/, 'the emergency stop is on'], [/trading paused/, 'trading is paused'],
+    [/not chasing/, 'the price moved too fast'], [/through the stop/, 'the price had already fallen too far'], [/market is closed/, 'the stock market is closed'],
+    [/correlated/, 'similar coins are already being held'], [/stale|no market data|no live price/, 'prices were out of date'],
+    [/conviction/, "the signal wasn't strong enough"], [/already positioned/, "it's already being held"],
+    [/short selling disabled/, "TradeZone doesn't bet on prices falling"], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
+    [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
+    [/is offline/, 'a team member is switched off'], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
+  for (const [re, t] of rules) if (re.test(r)) return t;
+  return r.length > 60 ? r.slice(0, 60) + '…' : r;
+}
+function friendlyAlert(m){
+  m = String(m || ''); let x;
+  if ((x = m.match(/^(\S+) shock move ([+-])([\d.]+)%/))) return `${x[1]} suddenly ${x[2] === '+' ? 'jumped up' : 'dropped'} ${(+x[3]).toFixed(1)}%`;
+  if ((x = m.match(/^feed stale for (\S+)/))) return `Prices for ${x[1]} stopped updating for a moment`;
+  if (/defensive stance/.test(m)) return 'The team is playing it safe after a few losses (smaller trades for a while)';
+  if (/normal stance/.test(m)) return 'The team is back to normal';
+  if (/No market data/.test(m)) return "Market prices aren't coming through right now - the bots are waiting";
+  if (/Grok can't connect/.test(m)) return "Grok AI can't connect - new trades wait until it's fixed (Settings → Grok)";
+  if (/Kill switch tripped/.test(m)) return 'The emergency stop switched on to protect your money';
+  return m;
+}
 function plainEvent(it){  // one plain-English sentence for the "What's happening" card, or null
   const p = it.raw || {}, who = botTitle(it.bot);
   switch (it.topic) {
@@ -1696,10 +1846,10 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
     case 'signal.reviewed':
       return p.approved ? ['🤖', '#e5e5e5', `Grok agreed with buying ${p.signal.symbol} (${Math.round(p.confidence * 100)}% sure)`]
                         : ['🤖', '#e5e5e5', `Grok said no to ${p.signal.symbol}: ${p.rationale}`];
-    case 'signal.rejected': return ['🛡️', COLORS.risk, `Risk Manager passed on ${p.signal.symbol}: ${p.reason}`];
-    case 'order.held': return ['👑', COLORS.executive, `Executive held off on ${p.request.symbol}: ${p.reason}`];
+    case 'signal.rejected': return ['🛡️', COLORS.risk, `Risk Manager skipped ${p.signal.symbol} because ${friendlyWhy(p.reason)}`];
+    case 'order.held': return ['👑', COLORS.executive, `Executive waited on ${p.request.symbol} because ${friendlyWhy(p.reason)}`];
     case 'order.authorized': return null;
-    case 'alert': return p.level === 'info' ? null : ['⚠️', 'var(--warn)', p.message];
+    case 'alert': return p.level === 'info' ? null : ['⚠️', 'var(--warn)', friendlyAlert(p.message)];
     default: return null;
   }
 }
@@ -1731,8 +1881,8 @@ function renderSimple(st){
   $('sClose').disabled = !n;
   $('sLive').textContent = live ? 'Back to practice money' : 'Use real money';
   $('sLive').className = live ? 'gopaper' : 'golive';
-  $('sLive').disabled = !live && !st.live.available;
-  $('sLive').title = !live && !st.live.available ? 'Real-money trading isn\'t set up on the server yet' : '';
+  $('sLive').disabled = false;  // always tappable: the dialog explains anything missing, with a Connect shortcut
+  $('sLive').title = '';
   // open trades
   $('sOpenN').textContent = n ? `${n} open` : '';
   $('sOpen').innerHTML = n ? p.positions.map(x => {
@@ -1771,6 +1921,7 @@ function renderSimple(st){
       <div class="say" title="${esc(b.last_action)}">${esc(crewSay(b))}</div></div>`;
   }).join('');
   document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
+  renderSettings();
 }
 $('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();
 $('sClose').onclick = closeAll;
@@ -1783,13 +1934,195 @@ document.querySelectorAll('[data-jump]').forEach(a => a.onclick = () => {
   setTimeout(() => scrollToSection(a.dataset.jump), 50);
 });
 
+// =================== Settings page: logging in, linked accounts, devices ===================
+const COIN_NAME = {BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', XRP: 'XRP', XLM: 'Stellar', ATOM: 'Cosmos', HBAR: 'Hedera', EOS: 'EOS'};
+const coinName = k => COIN_NAME[k] || (S.state && S.state.wallets.chains[k] ? S.state.wallets.chains[k].name : k);
+const COIN_ICON = {BTC: '🟠', ETH: '🔷', SOL: '🟣', XRP: '⚫', XLM: '🚀', ATOM: '⚛️', HBAR: '🌐', EOS: '⚪'};
+function fmtWait(sec){ const h = Math.floor(sec / 3600), m = Math.ceil((sec % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
+async function loadAccounts(){ try { S.accounts = await api('/api/accounts'); renderSettings(); } catch {} return S.accounts; }
+function renderSettings(){
+  const L = S.applockInfo, A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo;
+  if (L) {
+    const here = L.passkeys.filter(p => p.rp_id === L.rp_id);
+    $('setPinTxt').textContent = L.pin ? 'Set ✓ · the 6 numbers you type to log in' : 'Not set - set one so only you can log in';
+    $('setPinBtn').textContent = L.pin ? 'Change' : 'Set PIN';
+    $('setFaceTxt').textContent = here.length ? `On ✓ · ${here.length} device${here.length > 1 ? 's' : ''}` : faceSupported() ? 'Log in by looking at your phone' : "Not available in this browser";
+    $('setFaceBtn').textContent = here.length ? 'Add this phone' : 'Turn on';
+    $('setFaceBtn').disabled = !faceSupported();
+  }
+  if (A) {
+    const b = A.broker, g = A.grok;
+    $('accBrokerTxt').textContent = b.linked ? `Connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''}` : "Not connected - you're using practice money";
+    $('accBrokerBtn').textContent = b.linked ? 'Manage' : 'Connect'; $('accBrokerBtn').className = b.linked ? '' : 'gopaper';
+    $('accGrokTxt').textContent = !g.configured ? 'Optional - double-checks every trade'
+      : g.connected ? `Connected ✓ · ${g.mode === 'veto' ? 'approves every new trade' : g.mode === 'advisory' ? 'gives advice only' : 'switched off'}`
+      : g.connected === false ? "Can't connect - tap Manage to fix" : 'Checking…';
+    $('accGrokBtn').textContent = g.configured ? 'Manage' : 'Connect';
+  }
+  if (W) {
+    const now = Date.now() / 1000;
+    $('accWalletTxt').textContent = W.wallets.length ? `${W.wallets.length} saved` : 'Where you can send money out to';
+    $('walletCards').innerHTML = W.wallets.map(w => { const wait = w.withdrawals_enabled_at - now;
+      return `<div class="wcard"><div class="ic">${COIN_ICON[w.chain] || '👛'}</div><div><b>${esc(w.label)}</b> <span class="muted">· ${esc(coinName(w.chain))}</span></div>
+        <div class="sub2">${esc(w.address.slice(0, 10))}…${esc(w.address.slice(-6))}${w.tag ? ' · tag ' + esc(w.tag) : ''} · ${wait > 0 ? '⏳ ready in ' + fmtWait(wait) : '✅ ready'}</div>
+        <div class="btns"><button data-send="${w.id}" ${wait > 0 ? 'disabled' : ''}>💸 Send money</button><button data-rmw="${w.id}">Remove</button></div></div>`; }).join('');
+    document.querySelectorAll('[data-send]').forEach(b => b.onclick = () => openSend(b.dataset.send));
+    document.querySelectorAll('[data-rmw]').forEach(b => b.onclick = async () => {
+      if (!await ask('Remove this wallet?', 'You can add it again later (with a new 24-hour wait).', {ok: 'Remove', danger: true})) return;
+      await api('/api/wallets/' + b.dataset.rmw, undefined, {}, 'DELETE'); toast('Wallet removed'); });
+  }
+  if (SI) {
+    $('devList').innerHTML = SI.sessions.length ? SI.sessions.map(x => `<div class="srow"><div class="ic">${/iPhone|Android|iPad/.test(x.agent) ? '📱' : '💻'}</div>
+        <div class="tx"><b>${esc(deviceName(x.agent))}</b><span>active ${ago(x.last_seen)}</span></div><span></span></div>`).join('')
+      : '<div class="emptyhint">Just this one.</div>';
+  }
+}
+$('setPinBtn').onclick = () => openPinSetup(false);
+$('setFaceBtn').onclick = () => enrollFace();
+$('setPairBtn').onclick = () => addDevice();
+$('setLockBtn').onclick = () => lockNow();
+$('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', "You'll type your PIN to come back.", {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };
+$('devOutAll').onclick = () => $('btnSignoutAll').onclick();
+$('setProBtn').onclick = () => { setView('pro'); setTimeout(() => scrollToSection('sec-security'), 80); };
+$('accGrokBtn').onclick = () => openGrok(true);
+$('accBrokerBtn').onclick = () => openBroker();
+$('accWalletBtn').onclick = () => openWalletWizard();
+document.querySelectorAll('[data-paste]').forEach(b => b.onclick = () => pasteInto($(b.dataset.paste)));
+async function pasteInto(input){
+  try { input.value = (await navigator.clipboard.readText()).trim(); input.dispatchEvent(new Event('input')); }
+  catch { input.focus(); toast('Tap the box, then choose Paste', 'info'); }
+}
+document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e => { if (e.target === sh && !['confirmSheet', 'askSheet'].includes(sh.id)) sh.classList.remove('open'); }));
+
+// ---- connect a real-money broker ----
+async function openBroker(){
+  $('brokerErr').textContent = ''; $('brokerKey').value = $('brokerSecret').value = '';
+  const A = await loadAccounts(); const b = A && A.broker;
+  $('brokerLinked').style.display = b && b.linked ? '' : 'none'; $('brokerForm').style.display = b && b.linked ? 'none' : '';
+  if (b && b.linked) $('brokerStatus').innerHTML = `✅ Connected (key ${esc(b.key)})` +
+    (b.account ? `<br>Available cash: <b>${money(b.account.cash)}</b> · Account value: <b>${money(b.account.equity)}</b>` : '') +
+    '<br><span class="muted">To trade with it, tap <b>Use real money</b> on the home screen.</span>';
+  $('brokerSheet').classList.add('open');
+}
+$('brokerCancel').onclick = $('brokerClose2').onclick = () => $('brokerSheet').classList.remove('open');
+$('brokerGo').onclick = async () => {
+  const key = $('brokerKey').value.trim(), secret = $('brokerSecret').value.trim();
+  if (!key || !secret) { $('brokerErr').textContent = 'Paste both the Key ID and the Secret Key.'; return; }
+  const h = await confirmAction('connect your real-money account'); if (h === null) return;
+  $('brokerGo').disabled = true; $('brokerErr').textContent = 'Checking with Alpaca…';
+  try { const r = await api('/api/accounts/broker', {key, secret}, h);
+        toast(`Connected ✓ ${r.account ? money(r.account.cash) + ' available' : ''}`, 'ok', 5000); confetti(); openBroker(); }
+  catch (e) { $('brokerErr').textContent = e.message || 'Could not connect'; }
+  finally { $('brokerGo').disabled = false; }
+};
+$('brokerUnlink').onclick = async () => {
+  if (!await ask('Disconnect your real-money account?', 'TradeZone will only use practice money until you connect again.', {ok: 'Disconnect', danger: true})) return;
+  const h = await confirmAction('disconnect your real-money account'); if (h === null) return;
+  await api('/api/accounts/broker', undefined, h, 'DELETE'); toast('Disconnected'); $('brokerSheet').classList.remove('open'); loadAccounts();
+};
+
+// ---- add a wallet: paste -> we recognise the coin -> tag question -> nickname ----
+const DETECT = [['BTC', /^(bc1[ac-hj-np-z02-9]{11,71}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/], ['ETH', /^0x[0-9a-fA-F]{40}$/],
+  ['XRP', /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/], ['XLM', /^G[A-Z2-7]{55}$/], ['ATOM', /^cosmos1[02-9ac-hj-np-z]{38}$/],
+  ['HBAR', /^0\.0\.\d{1,10}$/], ['SOL', /^[1-9A-HJ-NP-Za-km-z]{32,44}$/], ['EOS', /^[a-z1-5.]{1,12}$/]];
+const cleanAddr = a => String(a || '').trim().replace(/^[a-z]+:(?!\/\/)/i, '').split('?')[0].trim();  // "bitcoin:bc1…?amount=1" -> address
+const detectChain = a => (DETECT.find(([, re]) => re.test(a)) || [null])[0];
+const WW = {chain: null, tag: null, noTag: false};
+function wwStep(n){ ['ws1', 'ws2', 'ws3'].forEach((id, i) => $(id).style.display = i + 1 === n ? '' : 'none'); }
+function openWalletWizard(){
+  Object.assign(WW, {chain: null, tag: null, noTag: false});
+  $('wwAddr').value = $('wwTag').value = $('wwName').value = ''; $('wwDetect').textContent = ''; $('wwChains').style.display = 'none';
+  ['wwErr1', 'wwErr2', 'wwErr3'].forEach(i => $(i).textContent = ''); $('wwTagBox').style.display = 'none';
+  wwStep(1); $('walletSheet').classList.add('open'); setTimeout(() => $('wwAddr').focus(), 60);
+}
+function wwChips(){
+  const C = S.state.wallets.chains;
+  $('wwChains').innerHTML = Object.keys(C).map(k => `<button type="button" data-coin="${k}" class="${WW.chain === k ? 'on' : ''}">${COIN_ICON[k] || ''} ${esc(coinName(k))}</button>`).join('');
+  $('wwChains').querySelectorAll('[data-coin]').forEach(b => b.onclick = () => { WW.chain = b.dataset.coin; wwChips(); wwDetectText(); });
+}
+function wwDetectText(){
+  const a = cleanAddr($('wwAddr').value), C = S.state.wallets.chains;
+  if (!a) { $('wwDetect').textContent = ''; return; }
+  $('wwDetect').innerHTML = WW.chain ? `${COIN_ICON[WW.chain] || '✓'} Recognised: <b>${esc(coinName(WW.chain))}</b> wallet ✓ <a href="#" id="wwChange" style="color:var(--accent2)">not right?</a>`
+                                     : "We couldn't tell which coin this is - please pick it:";
+  const ch = $('wwChange'); if (ch) ch.onclick = e => { e.preventDefault(); $('wwChains').style.display = ''; wwChips(); };
+}
+$('wwAddr').addEventListener('input', () => {
+  const a = cleanAddr($('wwAddr').value); WW.chain = a ? detectChain(a) : null;
+  $('wwChains').style.display = a && !WW.chain ? '' : 'none'; if (a && !WW.chain) wwChips(); wwDetectText(); $('wwErr1').textContent = '';
+});
+$('wwPaste').onclick = () => pasteInto($('wwAddr'));
+$('wwCancel').onclick = () => $('walletSheet').classList.remove('open');
+$('wwNext1').onclick = () => {
+  const a = cleanAddr($('wwAddr').value), C = S.state.wallets.chains;
+  if (!a) { $('wwErr1').textContent = 'Paste the wallet address first.'; return; }
+  if (!WW.chain) { $('wwErr1').textContent = 'Pick which coin this wallet is for.'; $('wwChains').style.display = ''; wwChips(); return; }
+  const re = (DETECT.find(([k]) => k === WW.chain) || [])[1];
+  if (re && !re.test(a)) { $('wwErr1').textContent = `That doesn't look like a ${coinName(WW.chain)} address. Check you copied all of it.`; return; }
+  WW.addr = a;
+  if (C[WW.chain].tag) {
+    const t = C[WW.chain].tag; $('wwTagLabel').textContent = t.charAt(0).toUpperCase() + t.slice(1);
+    $('wwTagQ').textContent = `Is this ${coinName(WW.chain)} wallet at an exchange?`; $('wwTagBox').style.display = 'none'; wwStep(2);
+  } else wwToName();
+};
+$('wwOwn').onclick = () => { WW.tag = null; WW.noTag = true; wwToName(); };
+$('wwExch').onclick = () => { $('wwTagBox').style.display = ''; setTimeout(() => $('wwTag').focus(), 50); };
+$('wwBack2').onclick = () => { $('wwTagBox').style.display = 'none'; wwStep(1); };
+$('wwNext2').onclick = () => {
+  const t = $('wwTag').value.trim();
+  if (!t) { $('wwErr2').textContent = 'Type the tag the exchange gave you.'; return; }
+  if (WW.chain === 'XRP' && !/^\d{1,10}$/.test(t)) { $('wwErr2').textContent = 'An XRP destination tag is only numbers.'; return; }
+  WW.tag = t; WW.noTag = false; wwToName();
+};
+function wwToName(){
+  const C = S.state.wallets.chains, c = C[WW.chain];
+  $('wwName').value = $('wwName').value || `My ${coinName(WW.chain)} wallet`;
+  $('wwSummary').innerHTML = `${COIN_ICON[WW.chain] || '👛'} <b>${esc(coinName(WW.chain))}</b><br><span class="mono" style="word-break:break-all">${esc(WW.addr)}</span>` +
+    (c.tag ? `<br>${WW.tag ? esc(c.tag) + ': <b>' + esc(WW.tag) + '</b>' : 'No ' + esc(c.tag) + ' (your own wallet)'}` : '');
+  wwStep(3);
+}
+$('wwBack3').onclick = () => wwStep(S.state.wallets.chains[WW.chain].tag ? 2 : 1);
+$('wwSave').onclick = async () => {
+  const h = await confirmAction('save a wallet you can send money to'); if (h === null) return;
+  try {
+    await api('/api/wallets', {chain: WW.chain, address: WW.addr, tag: WW.tag, label: $('wwName').value.trim(), no_tag_confirmed: WW.noTag}, h);
+    $('walletSheet').classList.remove('open'); toast('Wallet saved ✓ You can send money to it after the 24-hour safety wait.', 'ok', 6000);
+  } catch (e) { $('wwErr3').textContent = e.message || 'Could not save the wallet'; }
+};
+
+// ---- send money out ----
+function openSend(walletId){
+  const W = S.state.wallets, now = Date.now() / 1000, ready = W.wallets.filter(w => w.withdrawals_enabled_at <= now);
+  if (!ready.length) return toast('Add a wallet first - it can receive money after a 24-hour safety wait.', 'warn', 5000);
+  $('sdWallet').innerHTML = ready.map(w => `<option value="${w.id}"${w.id === walletId ? ' selected' : ''}>${esc(w.label)} (${esc(coinName(w.chain))})</option>`).join('');
+  const fill = () => { const w = ready.find(x => x.id === $('sdWallet').value) || ready[0];
+    $('sdAsset').innerHTML = w.assets.map(a => `<option>${esc(a)}</option>`).join(''); hint(); };
+  const hint = () => { const a = $('sdAsset').value, amt = +$('sdAmount').value || 0;
+    const usd = ['USD', 'USDC', 'USDT'].includes(a) ? 1 : (S.state.prices[a + '-USD'] || 0);
+    $('sdHint').textContent = (usd ? `≈ ${money(amt * usd)}` : `There's no live ${a} price right now, so this coin can't be sent yet`) +
+      (usd ? ` · you have ${money(S.state.portfolio.cash)} free to send` : '');
+    $('sdGo').disabled = !usd; };
+  $('sdWallet').onchange = fill; $('sdAsset').onchange = hint; $('sdAmount').oninput = hint;
+  $('sdAmount').value = ''; $('sdErr').textContent = ''; fill(); $('sendSheet').classList.add('open');
+}
+$('sdCancel').onclick = () => $('sendSheet').classList.remove('open');
+$('sdGo').onclick = async () => {
+  const id = $('sdWallet').value, asset = $('sdAsset').value, amount = +$('sdAmount').value;
+  const w = S.state.wallets.wallets.find(x => x.id === id);
+  if (!(amount > 0)) { $('sdErr').textContent = 'Type how much to send.'; return; }
+  if (!await ask(`Send ${amount} ${asset}?`, `To ${w.label}\n${w.address}${w.tag ? `\n${w.tag_name}: ${w.tag}` : ''}\n\nSent money can't be taken back.`, {ok: 'Send', danger: true})) return;
+  const h = await confirmAction(`send ${amount} ${asset}`); if (h === null) return;
+  try { const t = await api('/api/withdrawals', {wallet_id: id, asset, amount}, h);
+        $('sendSheet').classList.remove('open'); toast(t.status === 'completed' ? `Sent ✓ ${amount} ${asset} to ${w.label}` : `Recorded: ${t.note}`, t.status === 'completed' ? 'ok' : 'warn', 6000); }
+  catch (e) { $('sdErr').textContent = e.message || 'Could not send'; }
+};
+
 // =================== Simple / Pro view + bottom navigation ===================
 const NAV = {
   simple: [['top', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'],
            ['sec-happening', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
            ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
-           ['sec-wallet', 'Wallet', '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>'],
-           ['sec-security', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']],
+           ['sec-settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']],
   pro:    [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
            ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],
            ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],

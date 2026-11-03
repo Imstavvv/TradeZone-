@@ -185,12 +185,14 @@ class TradingDesk:
             if self.live_broker is None and not out:
                 out.append("live broker unavailable")
             if self.halted:
-                out.append("kill switch is active - reset it first")
+                out.append("the emergency stop (kill switch) is on - tap Restart trading first")
             host = self.settings.host
-            if host not in ("127.0.0.1", "localhost", "::1") and not self.settings.api_token:
-                out.append(f"dashboard is exposed on {host} without TZ_API_TOKEN - set a token first")
+            sec = getattr(self, "security", None)
+            protected = bool(self.settings.api_token) or bool(sec and sec.owner_exists)
+            if host not in ("127.0.0.1", "localhost", "::1") and not protected:
+                out.append("set up your PIN first, so only you can control real money")
         if self.portfolio.open_positions:
-            out.append(f"close the {len(self.portfolio.open_positions)} open {self.mode} position(s) first (Flatten all)")
+            out.append(f"close your {len(self.portfolio.open_positions)} open {self.mode} position(s) first (tap Close all trades)")
         if self.bots["execution"].working:  # type: ignore[attr-defined]
             out.append("wait for working orders to finish")
         return out
@@ -204,12 +206,13 @@ class TradingDesk:
             acct = await self.live_broker.account()
             positions = await self.live_broker.positions()
             if acct is None:
-                blockers.append("can't reach the Alpaca live account - check keys and network")
+                blockers.append("couldn't reach your Alpaca account - check it in Settings → Linked accounts")
             else:
                 account = {**acct, "positions": positions or {}}
                 if positions:
                     blockers.append(
-                        f"live account already holds {len(positions)} position(s); use a flat/dedicated account"
+                        f"your Alpaca account already holds {len(positions)} position(s) - close them in Alpaca first "
+                        "(TradeZone needs an account with nothing open)"
                     )
                 cap = self.settings.live_max_capital
                 account["trading_capital"] = min(acct["cash"], cap) if cap > 0 else acct["cash"]
@@ -347,7 +350,76 @@ class TradingDesk:
                 "info", f"Loaded {total} bars of recent history - bots ready to trade", "desk"))
         return total
 
+    # -- linked real-money broker (connected from the app, stored server-side) ----------
+    def _accounts_table(self):
+        with self.journal._lock:
+            self.journal.conn.execute("CREATE TABLE IF NOT EXISTS linked_accounts (kind TEXT PRIMARY KEY, data TEXT)")
+            self.journal.conn.commit()
+
+    def load_linked_broker(self) -> bool:
+        self._accounts_table()
+        with self.journal._lock:
+            row = self.journal.conn.execute("SELECT data FROM linked_accounts WHERE kind = 'alpaca_live'").fetchone()
+        if not row:
+            return False
+        import json as _json
+        d = _json.loads(row[0])
+        self.settings.alpaca_live_key, self.settings.alpaca_live_secret = d["key"], d["secret"]
+        self.broker_source = "app"
+        if not self.settings.live_blockers():
+            self.live_broker = build_live_broker(self.settings)
+        return True
+
+    async def link_broker(self, key: str, secret: str) -> dict:
+        """Check Alpaca live keys work, then use them for real-money trading."""
+        from .brokers.alpaca import AlpacaBroker
+        key, secret = (key or "").strip(), (secret or "").strip()
+        if self.is_live:
+            raise ValueError("Switch back to practice money before changing the account.")
+        if not key or not secret:
+            raise ValueError("Paste both the Key ID and the Secret Key.")
+        if key.upper().startswith("PK"):
+            raise ValueError("These are practice (paper) keys. For real money, open your Alpaca *live* account "
+                             "(not Paper Trading) and make the keys there - they start with AK.")
+        broker = AlpacaBroker(key, secret, paper=False)
+        acct = await broker.account()
+        if acct is None:
+            await broker.close()
+            raise ValueError("Alpaca didn't accept these keys. Check you copied both parts completely.")
+        import json as _json
+        self._accounts_table()
+        with self.journal._lock:
+            self.journal.conn.execute("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES ('alpaca_live', ?)",
+                                      (_json.dumps({"key": key, "secret": secret}),))
+            self.journal.conn.commit()
+        old, self.live_broker = self.live_broker, broker
+        self.settings.alpaca_live_key, self.settings.alpaca_live_secret = key, secret
+        self.broker_source = "app"
+        if old is not None and old is not broker:
+            await old.close()
+        return acct
+
+    async def unlink_broker(self) -> None:
+        if self.is_live:
+            raise ValueError("Switch back to practice money first.")
+        self._accounts_table()
+        with self.journal._lock:
+            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind = 'alpaca_live'")
+            self.journal.conn.commit()
+        if self.live_broker is not None:
+            await self.live_broker.close()
+        self.live_broker = None
+        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
+        self.broker_source = ""
+
+    def broker_info(self) -> dict:
+        key = self.settings.alpaca_live_key
+        return {"linked": bool(key), "source": getattr(self, "broker_source", "") or ("server" if key else ""),
+                "key": f"…{key[-4:]}" if len(key) >= 8 else "", "ready": not self.settings.live_blockers(),
+                "blockers": self.settings.live_blockers()}
+
     async def start(self) -> None:
+        self.load_linked_broker()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
         await self.feed.start()

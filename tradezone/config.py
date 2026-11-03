@@ -158,9 +158,10 @@ class Settings:
         """Configuration problems preventing live trading (empty = live can be enabled)."""
         out = []
         if not (self.alpaca_live_key and self.alpaca_live_secret):
-            out.append("set TZ_ALPACA_LIVE_KEY and TZ_ALPACA_LIVE_SECRET (your Alpaca live-account keys)")
+            out.append("connect your real-money account first: Settings → Linked accounts → Real-money account "
+                       "(server setting TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET)")
         if self.feed == "sim":
-            out.append("live orders can't be priced off simulated data - set TZ_FEED=alpaca or coinbase")
+            out.append("real money needs live prices, but this server uses simulated practice prices (TZ_FEED=sim)")
         return out
 
     @classmethod

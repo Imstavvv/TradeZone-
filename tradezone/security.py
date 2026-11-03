@@ -94,6 +94,7 @@ class SecurityManager:
 
         self.lock = AppLock(journal, cfg.lock_after_min)
         self._pairing: dict[str, list[float]] = {}  # code -> [expires, attempts]
+        self._pin_signin_fails: deque[float] = deque()  # wrong PINs on the login page, any IP
         self.recovery_code = ""
         self._recovery_attempts = 0
         self.rotate_recovery_code()
@@ -154,6 +155,20 @@ class SecurityManager:
                        level="critical")
             self.rotate_recovery_code()
         return False
+
+    # PIN sign-in from a *new* device: a 6-digit PIN is only safe with a hard global limit, so wrong
+    # PINs from anywhere on the internet are capped per hour (each IP is also banned separately).
+    PIN_SIGNIN_MAX_PER_HOUR = 5
+
+    def pin_signin_blocked_for(self) -> float:
+        dq = self._pin_signin_fails
+        now = time.time()
+        while dq and now - dq[0] > 3600:
+            dq.popleft()
+        return (dq[0] + 3600 - now) if len(dq) >= self.PIN_SIGNIN_MAX_PER_HOUR else 0.0
+
+    def pin_signin_failed(self) -> None:
+        self._pin_signin_fails.append(time.time())
 
     def create_pairing_code(self) -> str:
         now = time.time()

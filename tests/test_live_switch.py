@@ -104,7 +104,7 @@ def test_unconfigured_live_is_unavailable(desk):
 
 def test_exposed_dashboard_needs_token():
     desk = make_desk(host="0.0.0.0")
-    with pytest.raises(ModeSwitchError, match="TZ_API_TOKEN"):
+    with pytest.raises(ModeSwitchError, match="PIN"):
         run(desk.switch_mode("live"))
 
 

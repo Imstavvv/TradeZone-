@@ -215,7 +215,8 @@ class WalletService:
             return 1.0
         px = self.desk.prices.get(f"{asset}-USD")
         if not px:
-            raise WalletError(f"no USD price for {asset}; add {asset}-USD to TZ_SYMBOLS")
+            raise WalletError(f"TradeZone doesn't have a live price for {asset} right now, so it can't work out the "
+                              f"dollar value. Try again in a moment (server setting: add {asset}-USD to TZ_SYMBOLS).")
         return px
 
     # -- deposits ---------------------------------------------------------

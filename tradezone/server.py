@@ -63,6 +63,11 @@ class SetupBody(BaseModel):
     pin: str
 
 
+class BrokerBody(BaseModel):
+    key: str
+    secret: str
+
+
 class CodeBody(BaseModel):
     code: str
 
@@ -374,6 +379,23 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             sec.login_failed(client_ip(request.scope), agent(request))
             raise HTTPException(401, str(exc)) from None
         start_session(request, response, f"signed in with {label}")
+        return {"ok": True}
+
+    @app.post("/api/signin/pin")
+    async def signin_pin(body: PinBody, request: Request, response: Response):
+        """Log in on a new device with just the PIN (globally rate-limited)."""
+        ip = client_ip(request.scope)
+        if not applock.pin_set:
+            raise HTTPException(400, "No PIN is set up yet")
+        if (left := sec.pin_signin_blocked_for()) > 0:
+            raise HTTPException(429, f"Too many wrong PINs recently, so PIN login on new devices is paused for about "
+                                     f"{int(left // 60) + 1} min. Use Face ID or a code from your other device, or wait.")
+        if not applock.check_pin(body.pin.strip()):
+            sec.pin_signin_failed()
+            sec.login_failed(ip, agent(request))
+            sec.audit("pin_failed", ip, "wrong PIN on the login page (new device)", agent(request), "warning")
+            raise HTTPException(401, "That PIN isn't right. Try again.")
+        start_session(request, response, "logged in with PIN on a new device")
         return {"ok": True}
 
     @app.post("/api/signin/pair")
@@ -691,6 +713,32 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         return wallet_call(desk.wallets.withdraw, body.wallet_id, body.asset, body.amount)
 
     # -- grok ----------------------------------------------------------------
+    # -- linked accounts (real-money broker) --------------------------------------
+    @app.get("/api/accounts", dependencies=[Depends(check_token)])
+    async def accounts():
+        acct = None
+        if desk.live_broker is not None:
+            acct = await desk.live_broker.account()
+        return _clean({"broker": {**desk.broker_info(), "account": acct}, "grok": desk.bots["grok"].info()})
+
+    @app.post("/api/accounts/broker", dependencies=[Depends(check_token), Depends(reauth)])
+    async def link_broker(body: BrokerBody, request: Request):
+        try:
+            acct = await desk.link_broker(body.key, body.secret)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, "linked a real-money Alpaca account", "warning")
+        return _clean({"ok": True, "account": acct, **desk.broker_info()})
+
+    @app.delete("/api/accounts/broker", dependencies=[Depends(check_token), Depends(reauth)])
+    async def unlink_broker(request: Request):
+        try:
+            await desk.unlink_broker()
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from None
+        audit(request, "unlinked the real-money Alpaca account", "warning")
+        return {"ok": True}
+
     @app.post("/api/grok/ping", dependencies=[Depends(check_token)])
     async def grok_ping():
         res = await desk.bots["grok"].ping()  # type: ignore[attr-defined]
