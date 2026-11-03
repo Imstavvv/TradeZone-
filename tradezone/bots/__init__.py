@@ -7,10 +7,11 @@ from .quant import QuantBot
 from .risk import RiskBot
 from .scout import ScoutBot
 from .sentinel import SentinelBot
+from .skimmer import SkimmerBot
 from .strategist import StrategistBot
 
 # Order matters only for on_cycle hooks: data -> analysis -> risk -> execution -> book -> audit
-TEAM = [ScoutBot, StrategistBot, QuantBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SentinelBot,
+TEAM = [ScoutBot, StrategistBot, QuantBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, SentinelBot,
         CoachBot]
 
 __all__ = [c.__name__ for c in TEAM] + ["TEAM", "TEAM_RULES"]

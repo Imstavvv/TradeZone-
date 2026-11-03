@@ -149,6 +149,19 @@ class Settings:
     # to free the slot for a better chance (losers are still left to their stop).
     max_hold_hours: float = 24.0
     meme_max_hold_hours: float = 6.0
+    # ---- Skimmer: quick day-trade skims + profit-taking on every open trade ----
+    skimmer: bool = True
+    skim_target_pct: float = 0.025  # skims aim for +2.5% (after ~0.6% fees a win still beats a loss)...
+    skim_stop_pct: float = 0.012  # ...with a -1.2% stop
+    skim_max_minutes: float = 120.0  # day trade: sold when time is up, if in profit after fees
+    max_skims: int = 2  # skims open at once
+    skim_cooldown_min: float = 15.0  # wait this long before skimming the same coin again
+    bank_at_share: float = 0.5  # bank a slice once a trade is this share of the way to its target
+    bank_fraction: float = 0.25  # ...this much of it
+    spike_bars: int = 5  # a jump within this many bars (5 min on 1-min bars) counts as a spike
+    spike_pct: float = 0.025  # majors: +2.5% within the window
+    meme_spike_pct: float = 0.06  # meme coins: +6%
+    spike_fraction: float = 0.5  # sell this much into a spike
     # ---- crypto focus / meme coins ----
     meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
     meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)

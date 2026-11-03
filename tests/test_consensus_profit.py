@@ -86,6 +86,7 @@ def test_green_trade_cannot_close_red(desk):
 
 def test_partial_take_profit_at_1r(desk):
     desk.settings.stop_method = "structure"  # with percent stops the partial happens at the target
+    desk.settings.skimmer = False  # this checks the Portfolio Manager's own partial
     pos = open_long(desk)
     q0, r = pos.qty, desk.bots["portfolio"].trail_dist["AAPL"]
     trades = capture(desk, "trade.closed")

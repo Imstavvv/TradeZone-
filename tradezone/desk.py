@@ -496,7 +496,7 @@ class TradingDesk:
 
     # -- "today's hunt": what the bots looked at and why they did or didn't trade --------
     def _new_hunt(self) -> dict:
-        return {"day": self._today(), "checks": 0, "agreed": 0, "snipes": 0, "opened": 0, "closed": 0,
+        return {"day": self._today(), "checks": 0, "agreed": 0, "snipes": 0, "skims": 0, "opened": 0, "closed": 0,
                 "wins": 0, "skipped": {}}
 
     def _count_hunt(self, ev: Event) -> None:
@@ -508,9 +508,10 @@ class TradingDesk:
             if not p.historical:
                 h["checks"] += 1
         elif ev.topic == "signal.proposed":
-            if p.source == "quant" and p.kind.value == "entry" and self.portfolio.position(p.symbol).is_flat:
+            if p.source in ("quant", "skimmer") and p.kind.value == "entry" and self.portfolio.position(p.symbol).is_flat:
                 h["agreed"] += 1
                 h["snipes"] += p.reason.startswith("snipe")
+                h["skims"] += p.source == "skimmer"
         elif ev.topic in ("signal.rejected", "order.held"):
             src = p.get("signal") if ev.topic == "signal.rejected" else p.get("request")
             sym = src.get("symbol") if isinstance(src, dict) else getattr(src, "symbol", None)

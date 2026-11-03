@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Ten specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Eleven specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -17,6 +17,7 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
 | **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit, trailing stops and profit protection, and reconciles against the broker |
 | **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
+| **Skimmer** 🏄 | Profit taking and day-trade skims | Takes profits of every size (see [The Skimmer](#the-skimmer-profits-big-and-small)) |
 | **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
 
 ### How a trade flows
@@ -53,7 +54,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 * **Hero card:** your balance, which counts up or down as it changes, and today's result with a mood (😎 great day, 🙂 up, 😌 steady, 🥶 rough day). A live price ticker scrolls across the top. Practice money is violet-pink; real money switches to a fiery red-orange so the two can't be confused.
 * **Badges:** 🔥 win streaks, 🔒 profits locked in, and ⚡ how fast the Executive decides.
-* **Your bot crew:** every bot has a mascot (🔭 Scout, 🧭 Strategist, 🧮 Quant, 🤖 Grok, 🛡️ Risk Manager, 👑 Executive, ⚡ Executor, 💼 Portfolio Manager, 🦉 Sentinel, 🎓 Coach). Each one bounces while it works and says what it's doing in a speech bubble.
+* **Your bot crew:** every bot has a mascot (🔭 Scout, 🧭 Strategist, 🧮 Quant, 🤖 Grok, 🛡️ Risk Manager, 👑 Executive, ⚡ Executor, 💼 Portfolio Manager, 🏄 Skimmer, 🦉 Sentinel, 🎓 Coach). Each one bounces while it works and says what it's doing in a speech bubble.
 * **Celebrations:** a confetti burst and a 🎉 message when a trade closes in profit. Losses get a calm note, because small losses are part of the plan.
 * **Big, friendly buttons** (Pause, Close all, Emergency stop, Use real money), in-app confirmation sheets instead of browser pop-ups, and a small vibration on Android.
 * **Texture:** drifting colour glows, film grain and frosted-glass cards, in the rounded system font on Apple devices.
@@ -63,7 +64,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 10 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 11 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -142,6 +143,20 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 * **Real money:** Alpaca can trade DOGE, SHIB and PEPE (plus the majors) but not BONK, WIF or FLOKI. Those stay practice-only, and the Risk Manager says so instead of sending an order that would fail.
 
 Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
+
+## The Skimmer: profits big and small
+
+The 🏄 **Skimmer** does two jobs:
+
+1. **Quick day-trade skims.** On the bigger, calmer coins (not meme coins, which get snipes), it buys a short **dip inside an uptrend**: the fast trend is up, the price has dipped below its fast average, and RSI has cooled to 30–45. The target is small (**+2.5%**), the stop tight (**−1.2%**), and each skim has a **2-hour** time limit. When time is up, a skim in profit after fees is sold. A skim in a loss is never dumped by the clock; it keeps its stop. Skims only happen when the market is calm enough for that tight stop, and when a +2.5% move is realistic within 2 hours. They still need the team's vote (trend and dip both agree, nobody objects) and go through the Risk Manager and the Executive like every trade. At most 2 skims are open at once, with a 15-minute pause before skimming the same coin again.
+2. **Taking profit on every open trade:**
+   * **Small:** once a trade is **halfway to its target**, 25% is banked.
+   * **Large:** if the price **spikes** within the last 5 bars (+2.5% on bigger coins, +6% on meme coins), **half** is sold into the jump. Spikes often fall back.
+   * Each happens once per trade (a spike sell at most every 10 minutes), only ever at a **profit after fees**, and always as a reduce-only sell, so it can never add risk.
+
+Stops, the break-even lock, targets and runners still belong to the Portfolio Manager; the Skimmer adds earlier profit-taking on top. Settings: `TZ_SKIMMER`, `TZ_SKIM_TARGET_PCT`, `TZ_SKIM_STOP_PCT`, `TZ_SKIM_MAX_MINUTES`, `TZ_MAX_SKIMS`, `TZ_BANK_AT_SHARE`, `TZ_BANK_FRACTION`, `TZ_SPIKE_PCT`, `TZ_MEME_SPIKE_PCT`, `TZ_SPIKE_FRACTION`.
+
+Taking profits early is a trade-off: it raises the share of winning trades and smooths the ride, but it can give up part of a big run. Fees (about 0.6% round trip on crypto) are why skims aim for +2.5% rather than tiny moves.
 
 ## Stop-loss placement and risk management
 
@@ -415,7 +430,7 @@ The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scri
 ```
 tradezone/
   core/        event bus, models, indicators, portfolio ledger
-  bots/        the 10-bot team (incl. Grok AI analyst, the Executive head trader and the learning Coach)
+  bots/        the 11-bot team (incl. Grok AI analyst, the Executive head trader, the Skimmer and the learning Coach)
   wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
   brokers/     paper broker, Alpaca broker

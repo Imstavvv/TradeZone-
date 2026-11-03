@@ -162,7 +162,12 @@ class RiskBot(Bot):
         atr = max(ind["atr"], price * 0.001)
         s = self.settings
         direction = sig.side.sign
-        if s.stop_method == "percent":
+        if sig.source == "skimmer":  # a quick day-trade skim: small target, tight stop
+            stop_dist = price * s.skim_stop_pct
+            stop = price - stop_dist * direction
+            tp = price * (1 + s.skim_target_pct * direction)
+            how = f"skim -{s.skim_stop_pct:.1%} / +{s.skim_target_pct:.1%}"
+        elif s.stop_method == "percent":
             sl_pct, tp_pct = s.plan_pcts(sig.symbol)
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction

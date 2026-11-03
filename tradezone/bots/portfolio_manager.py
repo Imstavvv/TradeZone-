@@ -141,13 +141,19 @@ class PortfolioBot(Bot):
         if pos.stop_price is not None and ((long and t.price <= pos.stop_price) or (not long and t.price >= pos.stop_price)):
             self._exit(t.symbol, f"stop hit at {t.price:,.2f} (stop {pos.stop_price:,.2f})")
         elif pos.take_profit is not None and ((long and t.price >= pos.take_profit) or (not long and t.price <= pos.take_profit)):
-            if self._runner_mode() and t.symbol not in self.scaled_out:
+            if self._runner_mode(t.symbol) and t.symbol not in self.scaled_out:
                 self._start_runner(t.symbol, pos, t.price, d, tighten)
             else:
                 self._exit(t.symbol, f"take-profit hit at {t.price:,.6g}")
 
-    def _runner_mode(self) -> bool:
+    def _is_skim(self, symbol: str) -> bool:
+        sk = self.desk.bots.get("skimmer")
+        return bool(sk and sk.owns(symbol))
+
+    def _runner_mode(self, symbol: str | None = None) -> bool:
         s = self.settings
+        if symbol is not None and self._is_skim(symbol):
+            return False  # a skim is a quick in-and-out: the whole thing goes at its small target
         return s.runners and s.stop_method == "percent" and s.runner_sell_fraction < 1
 
     def _start_runner(self, sym, pos, price, d, tighten) -> None:
@@ -189,7 +195,7 @@ class PortfolioBot(Bot):
             elif pos.stop_price != before:
                 self.metrics["last_lock"] = sym
         # 2) bank part of the winner at +scale_out_r (in runner mode this happens at the target)
-        if (s.scale_out_fraction > 0 and not self._runner_mode() and sym not in self.scaled_out
+        if (s.scale_out_fraction > 0 and not self._runner_mode() and not self._is_skim(sym) and sym not in self.scaled_out
                 and (price - entry) * d >= s.scale_out_r * r + cost):
             self.scaled_out.add(sym)
             self.bump("partial_profits")
@@ -240,7 +246,7 @@ class PortfolioBot(Bot):
         t = now()
         for pos in list(self.portfolio.open_positions):
             sym = pos.symbol
-            if sym in self.exiting or sym in self.scaled_out or not pos.opened_ts:
+            if sym in self.exiting or sym in self.scaled_out or not pos.opened_ts or self._is_skim(sym):
                 continue
             hours = s.meme_max_hold_hours if s.is_meme(sym) else s.max_hold_hours
             if hours <= 0 or t - pos.opened_ts < hours * 3600 or pos.last_price is None:

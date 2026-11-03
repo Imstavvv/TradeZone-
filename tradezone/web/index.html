@@ -105,7 +105,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
 /* ---- live bot floor ---- */
 .floor{grid-column:1/-1}
-.pipeline{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;position:relative}
+.pipeline{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:8px;position:relative}
 .node.exec{background:linear-gradient(180deg,#2a2208,var(--panel2));border-color:#713f12}
 .node .crown{position:absolute;top:-9px;right:8px;font-size:10px;font-weight:800;letter-spacing:.6px;background:#eab308;color:#0b0f17;border-radius:6px;padding:1px 6px}
 .node{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .3s,box-shadow .3s,transform .3s}
@@ -560,7 +560,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
       <div class="logo"></div>
       <div class="ftitle">TradeZone</div>
       <div class="ftag">Your friendly team of trading bots 🤝</div>
-      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🦉</span><span>🎓</span></div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>🦉</span><span>🎓</span></div>
     </div>
     <!-- first-time setup -->
     <div class="pane" id="wSetup1">
@@ -952,9 +952,9 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓'};
+const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399'};
+const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1477,7 +1477,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','sentinel','coach'];
+const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1928,7 +1928,7 @@ function renderHunt(st){
   else if (st.paused) note = '⏸️ Trading is paused - tap "Resume" to let the bots trade.';
   else if (warming || !h.checks) note = '☕ Loading recent prices - the bots start trading in a moment.';
   else if (!h.opened) note = "👀 The bots are hunting. They buy only when the team agrees and the reward beats the risk, so a quiet stretch is normal.";
-  else note = `💪 ${h.opened} trade${h.opened > 1 ? 's' : ''} opened today${h.snipes ? `, ${h.snipes} of them sniped breakouts` : ''}.`;
+  else note = `💪 ${h.opened} trade${h.opened > 1 ? 's' : ''} opened today${h.snipes ? ` · ${h.snipes} sniped breakout${h.snipes > 1 ? 's' : ''}` : ''}${h.skims ? ` · ${h.skims} quick skim idea${h.skims > 1 ? 's' : ''}` : ''}.`;
   setHTML($('sHunt'), `<div class="hstats">${stat(n(h.checks), 'chances checked')}${stat(n(h.agreed), 'the team liked')}
       ${stat(n(h.opened), 'trades opened')}${stat(`${n(h.wins)}/${n(h.closed)}`, 'wins / closed')}</div>
     <div class="muted" style="margin:8px 0 4px;font-size:13px">${esc(note)}</div>
@@ -1961,6 +1961,11 @@ function crewSay(b){  // a bot's latest action, as something it might actually s
   if (b.name === 'scout' && (m = a.match(/^(\S+) ([\d,.]+) rsi=/))) return `Keeping an eye on ${m[1]} at ${px(+m[2].replace(/,/g, ''))} 👀`;
   if ((m = a.match(/regime -> (\w+)/))) return `${a.split(' ')[0]} looks ${({trending: 'like it\'s trending 📈', ranging: 'calm and range-bound 🌊', volatile: 'wild right now 🌪️'})[m[1]] || m[1]}`;
   if ((m = a.match(/^no consensus to (\w+) (\S+): (.*)/))) return `Wanted to ${m[1]} ${m[2]}, but the team wasn't sure 🤔`;
+  if ((m = a.match(/^SKIM BUY (\S+)/))) return `Skimming ${m[1]} - quick in, quick out 🏄`;
+  if ((m = a.match(/^SKIM idea (\S+)/))) return `${m[1]} dipped - a quick skim? Asking the team 🏄`;
+  if ((m = a.match(/^BANKED (\d+%) of (\S+) at ([+\d.%]+)/))) return `Banked ${m[1]} of ${m[2]} at ${m[3]} 💰`;
+  if ((m = a.match(/^SPIKE (\S+) ([+\d.%]+)/))) return `${m[1]} spiked ${m[2]} - cashing in! 💰`;
+  if ((m = a.match(/^SKIM time's up on (\S+)/))) return `Time's up on ${m[1]} - banking it ⏱️`;
   if ((m = a.match(/^SNIPE (\S+)/))) return `Sniping ${m[1]} - it just broke out! 🎯`;
   if ((m = a.match(/^(\S+) hit \+\d+%: banking/))) return `${m[1]} hit the target - banked some, letting it run 🏃`;
   if ((m = a.match(/^proposed (\w+) (\S+)/))) return `Ooh - ${m[1].toLowerCase()} ${m[2]}? Asking the team 💡`;
@@ -2056,6 +2061,10 @@ function ago(ts){
 }
 function friendlyReason(r){
   r = String(r || '');
+  if (/skimmer: banked .* spike/.test(r)) return 'Skimmer sold part into a price spike 🏄';
+  if (/skimmer: banked .* halfway/.test(r)) return 'Skimmer banked a slice halfway to the target 🏄';
+  if (/skimmer: day-trade time limit/.test(r)) return "Skim's time was up - banked the profit 🏄";
+  if (/^skim:/.test(r)) return 'Quick skim hit its target 🏄';
   if (/letting the rest run/.test(r)) return 'Hit the +15% target - banked part, the rest is a runner 🏃';
   if (/partial take-profit/.test(r)) return 'Banked half the profit at the first target';
   if (/stop hit/.test(r)) return 'Safety stop reached';
@@ -2101,6 +2110,7 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
       return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
         `${p.action === 'partial' ? 'Sold half of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
     case 'signal.proposed':
+      if (p.kind === 'entry' && p.source === 'skimmer') return ['🏄', COLORS.skimmer, `Skimmer spotted a quick dip to skim on ${p.symbol} and asked the team`];
       if (p.kind === 'entry' && p.source === 'quant' && /^snipe/.test(p.reason)) return ['🎯', COLORS.quant, `Quant sniped a breakout on ${p.symbol} and asked the team`];
       return p.kind === 'entry' && p.source === 'quant' ? ['💡', COLORS.quant, `Quant spotted a chance to ${p.side} ${p.symbol} and asked the team`] : null;
     case 'signal.reviewed':

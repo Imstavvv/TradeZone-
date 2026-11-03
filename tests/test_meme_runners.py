@@ -44,6 +44,7 @@ def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
 
 
 def test_runner_banks_half_at_target_then_trails_in_profit(desk):
+    desk.settings.skimmer = False  # the Portfolio Manager's runner on its own (Skimmer has its own tests)
     pos = buy(desk, "ETH-USD", 1000.0)
     q0, entry = pos.qty, pos.avg_price
     tick(desk, "ETH-USD", 1155.0)  # +15%: target
