@@ -23,6 +23,7 @@ import hmac
 import json
 import secrets
 import time
+import unicodedata
 from typing import Any
 
 PIN_LEN = 6
@@ -58,6 +59,21 @@ def b64u(b: bytes) -> str:
 
 def unb64u(s: str) -> bytes:
     return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
+
+
+_SMART = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201a": "'", "\u201b": "'", "\u2032": "'",
+                        "\u201c": '"', "\u201d": '"', "\u201e": '"', "\u2033": '"',
+                        "\u2013": "-", "\u2014": "-", "\u2212": "-", "\u00a0": " "})
+
+
+def normalize_password(pw: str) -> str:
+    """The same password however the keyboard typed it.
+
+    Phones turn ' into ’ and -- into — in some fields (for example after tapping "Show"), and
+    letters can arrive in different Unicode forms. Without this, a password saved one way
+    wouldn't match the same keys typed another way.
+    """
+    return unicodedata.normalize("NFKC", pw or "").translate(_SMART).strip()
 
 
 def weak_pin_reason(pin: str) -> str | None:
@@ -122,7 +138,7 @@ class AppLock:
         return self._get("pin") is not None
 
     def set_pin(self, pin: str) -> None:
-        pin = (pin or "").strip()
+        pin = normalize_password(pin)
         if (why := weak_pin_reason(pin)) is not None:
             raise LockError(f"Choose a stronger password: {why}.")
         salt = secrets.token_bytes(16)
@@ -136,8 +152,12 @@ class AppLock:
         rec = self._get("pin")
         if not rec or not pin or len(pin) > MAX_PASSWORD_LEN:
             return False
-        digest = hashlib.scrypt(pin.encode(), salt=unb64u(rec["salt"]), **SCRYPT)
-        return hmac.compare_digest(digest, unb64u(rec["hash"]))
+        salt, want = unb64u(rec["salt"]), unb64u(rec["hash"])
+        # normalised form first; the raw form too, for passwords saved before normalising existed
+        for cand in dict.fromkeys((normalize_password(pin), pin.strip())):
+            if cand and hmac.compare_digest(hashlib.scrypt(cand.encode(), salt=salt, **SCRYPT), want):
+                return True
+        return False
 
     # ----------------------------------------------------------- passkeys
     def passkeys(self) -> list[dict[str, Any]]:

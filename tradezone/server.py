@@ -235,9 +235,9 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         if sec.check_token(request.headers.get("x-tz-confirm")):
             return
         _, h = auth_state(request)
-        if h and confirmed.get(h, 0) > time.time():
-            return  # confirmed in the last few minutes: don't ask again for every action
         pin = request.headers.get("x-tz-pin")
+        if h and not pin and confirmed.get(h, 0) > time.time():
+            return  # confirmed in the last few minutes: don't ask again (a password that IS sent is still checked)
         if pin and applock.pin_set:
             pin = unquote(pin).strip()  # the page URI-encodes it (passwords may hold any character)
             if applock.check_pin(pin):

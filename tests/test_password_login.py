@@ -120,3 +120,26 @@ def test_a_weak_password_at_setup_doesnt_burn_the_code(site):  # noqa: F811
     assert site.post("/api/setup", json={"code": code, "pin": "password"}).status_code == 400
     assert site.post("/api/setup", json={"code": code, "pin": PW}).status_code == 200  # same code still works
     assert site.sec.recovery_code != code
+
+
+def test_phone_smart_quotes_dont_break_the_password(site):  # noqa: F811
+    # saved after tapping "Show" (the phone typed a curly ’), typed later in a normal password box (')
+    assert site.post("/api/setup", json={"code": site.sec.recovery_code, "pin": "Bob’s rocket — 7"}).status_code == 200
+    assert new_device(site).post("/api/signin/pin", json={"pin": "Bob's rocket - 7"}).status_code == 200
+    assert new_device(site).post("/api/signin/pin", json={"pin": "Bob’s rocket — 7"}).status_code == 200
+
+
+def test_change_password_with_the_current_one(site):  # noqa: F811
+    from urllib.parse import quote
+    site.post("/api/setup", json={"code": site.sec.recovery_code, "pin": PW})
+    site.app.state.expire_confirmations()
+    assert site.post("/api/applock/pin", json={"pin": "next-one-99"}, headers={"X-TZ-PIN": quote("wrong-one")}).status_code == 403
+    assert site.post("/api/applock/pin", json={"pin": "next-one-99"}, headers={"X-TZ-PIN": quote(PW)}).status_code == 200
+    assert new_device(site).post("/api/signin/pin", json={"pin": "next-one-99"}).status_code == 200
+
+
+def test_a_wrong_password_is_refused_even_right_after_login(site):  # noqa: F811
+    from urllib.parse import quote
+    site.post("/api/setup", json={"code": site.sec.recovery_code, "pin": PW})  # just logged in
+    assert site.post("/api/applock/pin", json={"pin": "next-one-99"}, headers={"X-TZ-PIN": quote("wrong-one")}).status_code == 403
+    assert site.post("/api/applock/pin", json={"pin": "next-one-99"}).status_code == 200  # no password sent: window counts

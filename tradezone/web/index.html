@@ -434,6 +434,99 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 .bottomnav a.on{background:linear-gradient(135deg,rgba(139,92,246,.35),rgba(236,72,153,.25))}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
 @media (max-width:700px){.hero .bal{font-size:40px}.ticker{margin:0 -20px 12px}}
+
+/* =================== ANIME POWER-UP THEME (original design, inspired by classic 90s battle anime) ===================
+   Sunset-orange and sky-blue palette, comic-panel cards with ink outlines, speed lines, golden "aura"
+   when the account is up, a power-level readout and a POWER UP! burst on wins. No outside fonts or
+   images: everything is CSS, so the strict security policy stays as it is. */
+:root{
+  --bg:#081030; --panel:rgba(14,24,62,.82); --panel2:rgba(22,36,86,.82); --line:rgba(255,170,60,.22);
+  --text:#fff8ec; --muted:#b9c3e6; --accent:#ff7a00; --accent2:#2f7bff; --pink:#ff3d3d; --lime:#7cf25a; --orange:#ff9a1f;
+  --gold:#ffd23f; --ink:#0a0a1a; --up:#5cf08a; --down:#ff5a6a; --warn:#ffd23f;
+  --anime:"Impact","Haettenschweiler","Arial Narrow Bold","Franklin Gothic Bold","Arial Black",system-ui,sans-serif;
+}
+/* sky at dusk + slowly turning speed lines */
+body::before{
+  background:radial-gradient(60% 45% at 50% 108%,rgba(255,140,0,.55),transparent 70%),
+             radial-gradient(40% 35% at 85% 12%,rgba(47,123,255,.45),transparent 70%),
+             radial-gradient(35% 30% at 10% 20%,rgba(255,61,61,.25),transparent 70%),
+             repeating-conic-gradient(from 0deg at 50% 60%,rgba(255,255,255,.045) 0deg 2deg,transparent 2deg 9deg),
+             linear-gradient(180deg,#0a1440 0%,#081030 55%,#1a0f2e 100%);
+  filter:none;animation:spinrays 120s linear infinite}
+@keyframes spinrays{to{transform:rotate(360deg)}}
+body::after{opacity:.35}
+/* manga-style titles */
+h1,h2,h3,h4,.brand,.ftitle,.scard h4,.panel h2{font-family:var(--anime);font-style:italic;letter-spacing:.3px;font-weight:900}
+.ftitle{background:linear-gradient(180deg,#fff3a0,#ffb100 55%,#ff6a00);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(2px 2px 0 var(--ink)) drop-shadow(-1px -1px 0 var(--ink))}
+.ftitle{font-size:46px;transform:skewX(-8deg)}
+.brand .logo{background:radial-gradient(circle at 35% 30%,#fff6c2,#ffb300 40%,#ff6a00 75%);box-shadow:0 0 0 2px var(--ink),0 0 16px rgba(255,170,0,.8);animation:orbglow 2.4s ease-in-out infinite;filter:none}
+@keyframes orbglow{50%{box-shadow:0 0 0 2px var(--ink),0 0 26px rgba(255,200,0,1)}}
+.brand{color:var(--gold);text-shadow:2px 2px 0 var(--ink)}
+.brand .badge,.brand button,.brand #conn{font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif;font-style:normal;font-weight:700;text-shadow:none;letter-spacing:0}
+.power .rank{font-weight:900}
+/* comic panels */
+.panel,.scard,.kpi{border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink),0 0 0 1px rgba(255,170,60,.25) inset}
+.scard h4,.panel h2{color:var(--gold);text-shadow:2px 2px 0 var(--ink)}
+/* chunky inked buttons */
+button{border:2px solid var(--ink);box-shadow:0 4px 0 var(--ink)}
+button:active:not(:disabled){box-shadow:0 1px 0 var(--ink)}
+button.gopaper{background:linear-gradient(180deg,#ffc14a,#ff7a00);color:var(--ink);border:2px solid var(--ink)}
+button.golive{background:linear-gradient(180deg,#5aa0ff,#2f5bff);color:#fff;border:2px solid var(--ink)}
+button.danger{background:linear-gradient(180deg,#ff6b6b,#d3122e);border:2px solid var(--ink)}
+.viewtoggle button.on{background:linear-gradient(180deg,#ffc14a,#ff7a00);color:var(--ink)}
+.bottomnav a.on{background:linear-gradient(180deg,rgba(255,170,0,.35),rgba(255,106,0,.25));color:#fff}
+/* hero: an energy burst behind the balance */
+.hero{border:3px solid var(--ink);box-shadow:6px 6px 0 var(--ink);
+  background:repeating-conic-gradient(from 0deg at 72% 40%,rgba(255,255,255,.10) 0deg 4deg,transparent 4deg 12deg),
+             radial-gradient(circle at 72% 40%,#ffe36b 0%,#ffa31a 28%,#ff5e00 55%,#c2185b 100%)}
+.hero::after{background:radial-gradient(rgba(0,0,0,.16) 1.2px,transparent 1.6px);background-size:9px 9px;inset:0;width:auto;height:auto;border-radius:0;opacity:.6}
+body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba(255,255,255,.10) 0deg 4deg,transparent 4deg 12deg),
+             radial-gradient(circle at 72% 40%,#9fd0ff 0%,#3b82f6 35%,#1d2fbf 70%,#120a5e 100%);box-shadow:6px 6px 0 var(--ink)}
+.hero .bal{font-family:var(--anime);font-style:italic;font-weight:900;letter-spacing:1px;font-size:54px;color:#fff;
+  -webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 var(--ink),0 0 24px rgba(255,230,120,.8);transform:skewX(-6deg)}
+.hero .actions2 button.golive{background:linear-gradient(180deg,#5aa0ff,#2f5bff);color:#fff}
+/* golden aura while the account is up today */
+.hero.powered{animation:aura 1.6s ease-in-out infinite}
+@keyframes aura{0%,100%{box-shadow:6px 6px 0 var(--ink),0 0 18px 4px rgba(255,210,63,.55)}50%{box-shadow:6px 6px 0 var(--ink),0 0 42px 14px rgba(255,210,63,.9)}}
+/* power-level readout */
+.power{margin-top:10px;background:rgba(5,10,30,.55);border:2px solid var(--ink);border-radius:14px;padding:8px 10px;color:#fff}
+.power .row1{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.power .lvl{font-family:ui-monospace,Menlo,monospace;font-weight:800;color:#9dffb0;text-shadow:0 0 8px rgba(120,255,150,.7);font-size:14px}
+.power .rank{font-family:var(--anime);font-style:italic;font-size:15px;color:var(--gold);text-shadow:1px 1px 0 var(--ink)}
+.power .meter{position:relative;height:12px;margin-top:6px;border-radius:999px;background:rgba(255,255,255,.12);border:2px solid var(--ink);overflow:hidden}
+.power .meter i{position:absolute;top:0;bottom:0;left:50%;background:linear-gradient(90deg,#ffd23f,#ff7a00);transition:width .6s,left .6s}
+.power .meter i.neg{background:linear-gradient(90deg,#ff5a6a,#b3122e)}
+.power .meter::after{content:"";position:absolute;left:50%;top:-2px;bottom:-2px;width:2px;background:var(--ink)}
+.power .orbs{display:flex;gap:5px;margin-top:7px;align-items:center;font-size:11px;color:rgba(255,255,255,.8)}
+.power .orb{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);background:rgba(255,255,255,.15)}
+.power .orb.on{background:radial-gradient(circle at 35% 30%,#fff,#8ee7ff 35%,#2f7bff 80%);box-shadow:0 0 8px #6fd0ff}
+/* bot crew: fighters powering up */
+.mate2{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.mate2 .face{border:2px solid var(--ink)}
+.mate2.busy{box-shadow:3px 3px 0 var(--ink),0 0 0 2px var(--gold),0 0 22px 2px rgba(255,210,63,.7)}
+.mate2.busy .face{animation:bob .9s ease-in-out infinite,flare 1.2s ease-in-out infinite}
+@keyframes flare{50%{box-shadow:0 0 0 3px rgba(255,210,63,.7),0 0 18px 6px rgba(255,170,0,.8)}}
+.mate2 .nm{font-family:var(--anime);font-style:italic;font-weight:900;letter-spacing:.4px;font-size:15px}
+.mate2 .say{background:#fff;color:var(--ink);border:2px solid var(--ink);font-weight:600}
+.node.flash{box-shadow:0 0 0 2px var(--gold),0 0 22px rgba(255,210,63,.8)}
+/* front page: sky + burst */
+.lockscreen{background:repeating-conic-gradient(from 0deg at 50% 32%,rgba(255,255,255,.05) 0deg 3deg,transparent 3deg 10deg),
+  radial-gradient(circle at 50% 32%,#ff9a1f 0%,#c2410c 22%,#1e2a78 55%,var(--bg) 80%)}
+.welcome .parade span{filter:drop-shadow(2px 2px 0 var(--ink))}
+.pwrow input,.txt,.code{border:2px solid var(--ink)!important;box-shadow:inset 0 2px 0 rgba(0,0,0,.35)}
+.toast{border:2px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
+.toast.party{background:linear-gradient(180deg,#ffd23f,#ff7a00);color:var(--ink)}
+/* POWER UP! burst on a winning trade */
+#burst{position:fixed;inset:0;z-index:58;pointer-events:none;display:none;align-items:center;justify-content:center;
+  background:repeating-conic-gradient(from 0deg at 50% 45%,rgba(255,240,170,.55) 0deg 3deg,transparent 3deg 11deg),
+             radial-gradient(circle at 50% 45%,rgba(255,220,90,.75),rgba(255,120,0,.25) 35%,transparent 65%)}
+#burst.on{display:flex;animation:burst 1.1s ease-out forwards}
+#burst b{font-family:var(--anime);font-style:italic;font-weight:900;font-size:64px;color:#fff;letter-spacing:2px;transform:skewX(-10deg) rotate(-6deg);
+  -webkit-text-stroke:3px var(--ink);text-shadow:6px 6px 0 var(--ink);animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+@keyframes burst{0%{opacity:0}12%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes pop{0%{transform:skewX(-10deg) rotate(-6deg) scale(.2)}100%{transform:skewX(-10deg) rotate(-6deg) scale(1)}}
+@media (max-width:700px){.hero .bal{font-size:44px}.ftitle{font-size:40px}#burst b{font-size:48px}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
@@ -611,17 +704,21 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
   <div class="row"><button id="sdCancel">Cancel</button><button id="sdGo" class="golive">Send</button></div>
 </div></div>
 <div class="toasts" id="toasts"></div>
+<div id="burst" aria-hidden="true"><b>POWER UP!</b></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <div class="modal" id="pinSetupModal"><div class="box" style="border-color:var(--accent)">
   <h3 id="pinSetupTitle">Change your password</h3>
-  <div class="muted" style="font-size:13px">You'll use it to log in on a new phone or computer and to confirm big actions.
-    At least 6 letters or numbers. Let your phone save it so you never have to type it.</div>
+  <div class="muted" style="font-size:13px">At least 6 letters or numbers. When your phone offers to save it, tap <b>Save</b>.</div>
   <form id="pinSetupForm" style="margin-top:12px">
     <input class="vh" type="text" name="username" autocomplete="username" value="TradeZone" tabindex="-1" aria-hidden="true">
-    <input id="pin1" class="txt" type="password" maxlength="128" autocomplete="new-password" placeholder="New password" required>
-    <input id="pin2" class="txt" type="password" maxlength="128" autocomplete="new-password" placeholder="Type it again" required>
+    <div id="pinCurWrap"><label class="fl" for="pinCur">Your current password</label>
+      <input id="pinCur" class="txt" type="password" maxlength="128" autocomplete="current-password" autocapitalize="off" spellcheck="false">
+      <button type="button" class="linkbtn" id="pinUseFace" style="display:none">Use Face ID instead</button></div>
+    <label class="fl" for="pin1">New password</label>
+    <div class="pwrow"><input id="pin1" class="txt" type="password" maxlength="128" autocomplete="new-password" autocapitalize="off" spellcheck="false" required>
+      <button type="button" class="eye" id="pin1Eye">Show</button></div>
     <div class="lockerr" id="pinSetupErr"></div>
-    <div class="actions"><button type="button" id="pinSetupSkip">Cancel</button><button type="submit" class="gopaper">Save password</button></div>
+    <div class="actions"><button type="button" id="pinSetupSkip">Cancel</button><button type="submit" class="gopaper" id="pinSetupGo">Save password</button></div>
   </form>
 </div></div>
 <div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
@@ -679,6 +776,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
       <div class="badges" id="sBadges"></div>
+      <div class="power" id="sPower"></div>
       <div class="statusline" id="sStatus"><span class="led"></span><span id="sStatusText">Connecting…</span></div>
       <div class="actions2">
         <button id="sPause">Pause trading</button>
@@ -1597,26 +1695,61 @@ $('btnLockNow').onclick = $('btnLockNow2').onclick = lockNow;
 // ---- change password / Face ID enrolment ----
 const PS = {afterRecovery: false};
 function openPinSetup(afterRecovery = false){
+  const L = S.lock || {};
   PS.afterRecovery = afterRecovery;
-  $('pinSetupTitle').textContent = afterRecovery ? 'Choose a new password' : (S.lock && S.lock.pin ? 'Change your password' : 'Set a password');
-  $('pin1').value = $('pin2').value = ''; $('pinSetupErr').textContent = '';
+  // the current password is only needed if one exists and you haven't just logged in / confirmed
+  PS.needCurrent = !afterRecovery && !!L.pin && Date.now() >= C.until;
+  PS.face = !!(L.faceid && faceSupported());
+  $('pinSetupTitle').textContent = afterRecovery ? 'Choose a new password' : (L.pin ? 'Change your password' : 'Add a password');
+  $('pinCurWrap').style.display = PS.needCurrent ? '' : 'none';
+  $('pinUseFace').style.display = PS.needCurrent && PS.face ? '' : 'none';
+  $('pinCur').value = $('pin1').value = ''; $('pin1').type = 'password'; $('pin1Eye').textContent = 'Show';
+  $('pinSetupErr').textContent = '';
   $('pinSetupSkip').style.display = afterRecovery ? 'none' : '';
-  $('pinSetupModal').classList.add('open'); setTimeout(() => $('pin1').focus(), 50);
+  $('pinSetupModal').classList.add('open'); setTimeout(() => (PS.needCurrent ? $('pinCur') : $('pin1')).focus(), 50);
 }
 $('pinSetupSkip').onclick = () => $('pinSetupModal').classList.remove('open');
+$('pin1Eye').onclick = () => { const show = $('pin1').type === 'password'; $('pin1').type = show ? 'text' : 'password';
+  $('pin1Eye').textContent = show ? 'Hide' : 'Show'; $('pin1').focus(); };
+$('pinUseFace').onclick = async () => {  // forgot the current one but have Face ID: confirm with the face instead
+  try {
+    const o = await api('/api/confirm/faceid/options', {});
+    await api('/api/confirm/faceid/verify', {credential: await webauthnGet(o)});
+    C.until = Date.now() + 9 * 60000; PS.needCurrent = false;
+    $('pinCurWrap').style.display = 'none'; $('pinSetupErr').textContent = ''; $('pin1').focus();
+  } catch (e) { $('pinSetupErr').textContent = e.name === 'NotAllowedError' ? 'Face ID was cancelled' : (e.message || 'Face ID failed'); }
+};
 $('pinSetupForm').onsubmit = async e => {
   e.preventDefault();
-  const p1 = $('pin1').value.trim(), p2 = $('pin2').value.trim();
+  $('pinSetupErr').textContent = '';
+  const p1 = $('pin1').value.trim(), cur = $('pinCur').value.trim();
   if (p1.length < 6) { $('pinSetupErr').textContent = 'Use at least 6 letters or numbers.'; return; }
-  if (p1 !== p2) { $('pinSetupErr').textContent = "The two passwords don't match."; return; }
-  const h = PS.afterRecovery ? {} : await confirmAction('change your password');  // after recovery the old one is unknown
-  if (h === null) return;
-  const r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', ...h},
-    body: JSON.stringify({pin: p1})});
-  const j = await r.json().catch(() => ({}));
-  if (!r.ok) { $('pinSetupErr').textContent = j.detail || 'Could not save the password'; return; }
+  let h = {};
+  if (PS.needCurrent) {
+    if (!cur) { $('pinSetupErr').textContent = PS.face ? 'Type your current password, or tap "Use Face ID instead".' : 'Type your current password.'; $('pinCur').focus(); return; }
+    h = pinHeader(cur);
+  } else if (!PS.afterRecovery && Date.now() >= C.until) {
+    h = await confirmAction('add a password');  // Face ID only so far: confirm with the face
+    if (h === null) return;
+  }
+  $('pinSetupGo').disabled = true;
+  let r, j;
+  try {
+    r = await fetch('/api/applock/pin', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json', ...h},
+      body: JSON.stringify({pin: p1})});
+    j = await r.json().catch(() => ({}));
+  } catch { $('pinSetupErr').textContent = 'Cannot reach the server - check your connection.'; return; }
+  finally { $('pinSetupGo').disabled = false; }
+  if (r.status === 401) { $('pinSetupModal').classList.remove('open'); return showWelcome('auto', j.detail || 'Please log in again'); }
+  if (!r.ok) {
+    if (r.status === 403) { C.until = 0; PS.needCurrent = !!(S.lock && S.lock.pin); $('pinCurWrap').style.display = PS.needCurrent ? '' : 'none'; }
+    $('pinSetupErr').textContent = /Wrong password/.test(j.detail || '') ? "Your current password isn't right. " + (j.detail.match(/\d+ tr\w+ left/) || [''])[0]
+      : (j.detail || 'Could not save the password');
+    return;
+  }
+  C.until = Date.now() + 9 * 60000;
   $('pinSetupModal').classList.remove('open');
-  toast('Your new password is saved', 'ok');
+  toast('Your new password is saved ✓', 'ok');
   await refreshLock(); loadSecurity();
 };
 async function enrollFace(preConfirmed){  // true when Face ID was saved
@@ -1833,13 +1966,32 @@ function renderBadges(st){
   if (locked) out.push(`🔒 ${locked} profit${locked > 1 ? 's' : ''} locked in`);
   if (st.executive && st.executive.median_ms != null) out.push(`⚡ decides in ${st.executive.median_ms < 1 ? '<1' : Math.round(st.executive.median_ms)} ms`);
   $('sBadges').innerHTML = out.map(b => `<span class="badge2">${esc(b)}</span>`).join('');
+  renderPower(st, streak);
+}
+// ---- power level: balance as a readout, today's move as a meter, rank from total growth ----
+const RANKS = [[-Infinity, 'Rookie'], [0, 'Fighter'], [0.05, 'Elite'], [0.15, 'Champion'], [0.5, 'Legend']];
+function renderPower(st, streak){
+  const p = st.portfolio, d = p.daily_pnl_pct || 0, total = p.return_pct || 0;
+  const rank = RANKS.filter(([t]) => total >= t).pop()[1];
+  const cap = st.limits?.max_daily_loss_pct || 0.05, w = Math.min(50, Math.abs(d) / cap * 50);
+  const orbs = Array.from({length: 5}, (_, i) => `<span class="orb${i < Math.min(streak, 5) ? ' on' : ''}"></span>`).join('');
+  setHTML($('sPower'), `<div class="row1"><span class="lvl">⚡ POWER LEVEL ${Math.round(p.equity).toLocaleString()}</span>
+      <span class="rank">${rank}${d > 0 ? ' · powering up!' : d < 0 ? ' · taking a hit' : ''}</span></div>
+    <div class="meter" title="today: ${(d * 100).toFixed(2)}%"><i class="${d < 0 ? 'neg' : ''}" style="${d < 0 ? `left:${50 - w}%;` : ''}width:${w}%"></i></div>
+    <div class="orbs">${orbs}<span>${streak >= 2 ? `${streak} wins in a row` : 'win streak'}</span></div>`);
+  document.querySelector('.hero')?.classList.toggle('powered', d > 0.001);
+}
+function powerUp(){
+  if (REDUCED) return;
+  const b = $('burst'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
+  clearTimeout(powerUp.t); powerUp.t = setTimeout(() => b.classList.remove('on'), 1200);
 }
 // ---- confetti for profitable trades ----
 function confetti(){
   if (REDUCED) return;
   const cv = $('confetti'), g = cv.getContext('2d'), dpr = devicePixelRatio || 1;
   cv.width = innerWidth * dpr; cv.height = innerHeight * dpr; g.scale(dpr, dpr);
-  const cols = ['#8b5cf6', '#ec4899', '#fb923c', '#a3e635', '#22d3ee', '#fde047'];
+  const cols = ['#ffd23f', '#ff7a00', '#2f7bff', '#8ee7ff', '#ffffff', '#ff3d3d'];
   const parts = Array.from({length: 140}, () => ({x: innerWidth / 2 + (Math.random() - .5) * 120, y: innerHeight * .35,
     vx: (Math.random() - .5) * 11, vy: -Math.random() * 11 - 4, r: Math.random() * 6 + 4, a: Math.random() * 6.3,
     va: (Math.random() - .5) * .3, c: cols[Math.floor(Math.random() * cols.length)]}));
@@ -1855,7 +2007,7 @@ function confetti(){
 function celebrate(t){
   if (t.pnl == null) return;
   if (t.pnl > 0) {
-    confetti(); navigator.vibrate?.([12, 40, 12]);
+    confetti(); powerUp(); navigator.vibrate?.([12, 40, 12]);
     const el = document.createElement('div'); el.className = 'toast party';
     el.textContent = `🎉 ${t.symbol} closed with +${money(t.pnl)} profit!`; $('toasts').appendChild(el);
     setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4500);
