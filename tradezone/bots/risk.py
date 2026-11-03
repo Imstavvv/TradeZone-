@@ -163,10 +163,11 @@ class RiskBot(Bot):
         s = self.settings
         direction = sig.side.sign
         if s.stop_method == "percent":
-            stop_dist = price * s.stop_loss_pct
+            sl_pct, tp_pct = s.plan_pcts(sig.symbol)
+            stop_dist = price * sl_pct
             stop = price - stop_dist * direction
-            tp = price * (1 + s.take_profit_pct * direction)
-            how = f"-{s.stop_loss_pct:.0%} / +{s.take_profit_pct:.0%}"
+            tp = price * (1 + tp_pct * direction)
+            how = f"-{sl_pct:.0%} / +{tp_pct:.0%}"
         elif s.stop_method == "structure" and "swing_low" in ind:
             try:
                 plan = plan_stop(

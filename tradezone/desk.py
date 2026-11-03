@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -108,6 +109,9 @@ class TradingDesk:
         self.bus.subscribe("*", self._fanout, owner="desk")
         for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
             self.bus.subscribe(topic, self._mark_dirty, owner="desk")
+        self.hunt = self._new_hunt()
+        for topic in ("market.snapshot", "signal.proposed", "signal.rejected", "order.held", "trade.log"):
+            self.bus.subscribe(topic, self._count_hunt, owner="desk")
         from .persistence import StateStore
 
         self.store = StateStore(self.journal)
@@ -490,6 +494,48 @@ class TradingDesk:
         if self._dirty or self.cycles % 10 == 0:
             self.save_state()
 
+    # -- "today's hunt": what the bots looked at and why they did or didn't trade --------
+    def _new_hunt(self) -> dict:
+        return {"day": self._today(), "checks": 0, "agreed": 0, "snipes": 0, "opened": 0, "closed": 0,
+                "wins": 0, "skipped": {}}
+
+    def _count_hunt(self, ev: Event) -> None:
+        h = self.hunt
+        if h["day"] != self._today():
+            h = self.hunt = self._new_hunt()
+        p = ev.payload
+        if ev.topic == "market.snapshot":
+            if not p.historical:
+                h["checks"] += 1
+        elif ev.topic == "signal.proposed":
+            if p.source == "quant" and p.kind.value == "entry" and self.portfolio.position(p.symbol).is_flat:
+                h["agreed"] += 1
+                h["snipes"] += p.reason.startswith("snipe")
+        elif ev.topic in ("signal.rejected", "order.held"):
+            src = p.get("signal") if ev.topic == "signal.rejected" else p.get("request")
+            sym = src.get("symbol") if isinstance(src, dict) else getattr(src, "symbol", None)
+            if sym and not self.portfolio.position(sym).is_flat:
+                return  # an exit that waited, not a missed chance
+            key = re.sub(r"[-+]?\$?[\d][\d,.]*%?|\(.*?\)", "", str(p.get("reason", ""))).strip()[:80]
+            sk = h["skipped"]
+            sk[key] = sk.get(key, 0) + 1
+            if len(sk) > 60:  # keep the common reasons only
+                for k in sorted(sk, key=sk.get)[:20]:
+                    sk.pop(k, None)
+        elif ev.topic == "trade.log":
+            if p["action"] in ("open", "flip"):
+                h["opened"] += 1
+            elif p.get("pnl") is not None and abs(p.get("position_after") or 0) < 1e-12:
+                h["closed"] += 1
+                h["wins"] += p["pnl"] > 0
+
+    def hunt_summary(self) -> dict:
+        h = self.hunt if self.hunt["day"] == self._today() else self._new_hunt()
+        top = sorted(h["skipped"].items(), key=lambda kv: -kv[1])[:4]
+        return {**{k: v for k, v in h.items() if k != "skipped"},
+                "not_agreed": max(0, h["checks"] - h["agreed"]),
+                "skipped": [{"reason": k, "count": v} for k, v in top]}
+
     # -- persistence ---------------------------------------------------------
     def _mark_dirty(self, ev: Event) -> None:
         self._dirty = True
@@ -642,6 +688,7 @@ class TradingDesk:
             },
             "executive": self.bots["executive"].summary(),  # type: ignore[attr-defined]
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
+            "hunt": self.hunt_summary(),
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),

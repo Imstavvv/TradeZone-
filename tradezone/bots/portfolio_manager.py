@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..core.bus import Event
-from ..core.models import Alert, Fill, OrderStatus, Side, Signal, SignalKind, Tick
+from ..core.models import Alert, Fill, OrderStatus, Side, Signal, SignalKind, Tick, now
 from ..core.util import norm_symbol, position_mismatches
 from .base import Bot
 
@@ -153,15 +153,17 @@ class PortfolioBot(Bot):
     def _start_runner(self, sym, pos, price, d, tighten) -> None:
         """Target reached: bank part of it, move the stop into profit and let the rest run."""
         s = self.settings
+        tp_pct = s.plan_pcts(sym)[1]
+        lock = tp_pct * s.runner_lock_share
         self.scaled_out.add(sym)
         self.protected.add(sym)
         pos.take_profit = None  # the rest has no ceiling: the trailing stop decides
-        pos.stop_price = tighten(pos.stop_price, pos.avg_price * (1 + d * s.runner_lock_pct))
+        pos.stop_price = tighten(pos.stop_price, pos.avg_price * (1 + d * lock))
         self.bump("runners")
         self.bump("partial_profits")
-        self.act(f"{sym} hit +{s.take_profit_pct:.0%}: banking {s.runner_sell_fraction:.0%}, runner stop "
-                 f"now {pos.stop_price:,.6g} (locks +{s.runner_lock_pct:.1%})")
-        self._exit(sym, f"take-profit +{s.take_profit_pct:.0%} at {price:,.6g} - letting the rest run",
+        self.act(f"{sym} hit +{tp_pct:.0%}: banking {s.runner_sell_fraction:.0%}, runner stop "
+                 f"now {pos.stop_price:,.6g} (locks +{lock:.1%})")
+        self._exit(sym, f"take-profit +{tp_pct:.0%} at {price:,.6g} - letting the rest run",
                    s.runner_sell_fraction)
 
     def round_trip_cost(self, price: float, symbol: str = "") -> float:
@@ -231,10 +233,29 @@ class PortfolioBot(Bot):
             self.desk.pause(f"position mismatch: {msg}")
         return problems
 
+    def _free_stale_slots(self) -> None:
+        """Quick flips: a trade that went nowhere for hours but is in profit after fees is closed,
+        so its slot can go to a better chance. Losers stay with their stop; runners keep running."""
+        s = self.settings
+        t = now()
+        for pos in list(self.portfolio.open_positions):
+            sym = pos.symbol
+            if sym in self.exiting or sym in self.scaled_out or not pos.opened_ts:
+                continue
+            hours = s.meme_max_hold_hours if s.is_meme(sym) else s.max_hold_hours
+            if hours <= 0 or t - pos.opened_ts < hours * 3600 or pos.last_price is None:
+                continue
+            net = (pos.last_price - pos.avg_price) * pos.qty - self.round_trip_cost(pos.avg_price, sym) * abs(pos.qty)
+            if net > 0:
+                self.bump("stale_flips")
+                self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot")
+
     async def on_cycle(self) -> None:
         p = self.portfolio
         p.update_watermarks()
         self._cycles += 1
+        if self._cycles % 30 == 0:
+            self._free_stale_slots()
         self.metrics.update(
             {
                 "protected_now": len(self.protected),

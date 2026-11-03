@@ -44,7 +44,7 @@ class RiskLimits:
     risk_per_trade: float = 0.01  # fraction of equity risked to the stop
     max_position_pct: float = 0.20  # max notional per symbol as fraction of equity
     max_gross_exposure: float = 1.0  # max total notional as multiple of equity
-    max_open_positions: int = 5
+    max_open_positions: int = 6
     max_daily_loss_pct: float = 0.05  # kill switch trips beyond this daily loss
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30
@@ -131,16 +131,24 @@ class Settings:
     auto_rearm_daily: bool = True  # a daily-loss kill switch re-arms itself at the next UTC day
     resume_on_restart: bool = True  # restore books, stops and mode (incl. live) after a restart
     # ---- stop-loss placement (see core/stops.py) ----
-    # percent (default): fixed -stop_loss_pct stop and +take_profit_pct target from the entry price.
+    # percent (default): fixed % stop and target from the entry price - meme coins use
+    # stop_loss_pct / take_profit_pct, the bigger, calmer coins (BTC, ETH, ...) use the major_* pair,
+    # sized so a trade can actually reach its target in hours rather than days.
     # structure: beyond the recent swing low/high. atr: a fixed ATR multiple.
     stop_method: str = "percent"
-    stop_loss_pct: float = 0.08  # -8% stop-loss
-    take_profit_pct: float = 0.15  # +15% take-profit
+    stop_loss_pct: float = 0.08  # meme coins: -8% stop-loss
+    take_profit_pct: float = 0.15  # meme coins: +15% take-profit
+    major_stop_loss_pct: float = 0.03  # other coins and stocks: -3%
+    major_take_profit_pct: float = 0.06  # other coins and stocks: +6%
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
-    # into profit (at least +runner_lock_pct) and then trails the peak; it exits only on that stop.
+    # into profit (at least runner_lock_share of the target) and then trails the peak.
     runners: bool = True
     runner_sell_fraction: float = 0.5
-    runner_lock_pct: float = 0.075
+    runner_lock_share: float = 0.5
+    # Quick flips: a trade that went nowhere for this long, but is in profit after fees, is closed
+    # to free the slot for a better chance (losers are still left to their stop).
+    max_hold_hours: float = 24.0
+    meme_max_hold_hours: float = 6.0
     # ---- crypto focus / meme coins ----
     meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
     meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)
@@ -166,6 +174,12 @@ class Settings:
     scale_out_fraction: float = 0.5  # ...on this share of the position (0 disables)
     exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
+
+    def plan_pcts(self, symbol: str) -> tuple[float, float]:
+        """(stop-loss %, take-profit %) for a symbol under the percent plan."""
+        if self.is_meme(symbol):
+            return self.stop_loss_pct, self.take_profit_pct
+        return self.major_stop_loss_pct, self.major_take_profit_pct
 
     def is_meme(self, symbol: str) -> bool:
         return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.meme_coins
@@ -248,8 +262,9 @@ class Settings:
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
         if self.stop_method not in ("structure", "atr", "percent"):
             raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
-        if not (0 < self.stop_loss_pct < 0.5 and 0 < self.take_profit_pct < 5):
-            raise ValueError("TZ_STOP_LOSS_PCT must be between 0 and 0.5, TZ_TAKE_PROFIT_PCT between 0 and 5")
+        for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):
+            if not (0 < lo < 0.5 and 0 < hi < 5):
+                raise ValueError("stop-loss % must be between 0 and 0.5 and take-profit % between 0 and 5")
         if not 0 < self.runner_sell_fraction <= 1:
             raise ValueError("TZ_RUNNER_SELL_FRACTION must be above 0 and at most 1")
         self.meme_coins = [c.upper().split("-")[0] for c in self.meme_coins]

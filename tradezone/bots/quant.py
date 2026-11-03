@@ -40,6 +40,8 @@ def breakout_score(s: Snapshot) -> float:
     return 0.0
 
 
+MINOR_WEIGHT = 0.2  # a model weighted this little in a regime abstains instead of vetoing
+
 STRATEGIES = {
     "momentum": momentum_score,
     "mean_reversion": mean_reversion_score,
@@ -64,6 +66,7 @@ class QuantBot(Bot):
         self.emitted: dict[str, int] = {}  # stance already turned into a signal
         self.blocked: dict[str, str] = {}  # last consensus failure per symbol
         self.last_snap: dict[str, Snapshot] = {}
+        self._voting_meme = False
         self.sniped: dict[str, float] = {}  # meme coin -> breakout level already acted on
 
     def subscriptions(self):
@@ -110,6 +113,7 @@ class QuantBot(Bot):
         if s.historical:
             return  # warm-up data: never trade on the past
         self.last_snap[s.symbol] = s
+        self.bump("checks")  # every bar looked at: shown as "chances checked"
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
         coach = self.desk.bots.get("coach")
@@ -146,6 +150,7 @@ class QuantBot(Bot):
                 return  # long-only desk: a bearish view with no position is a no-op
             if not pos.is_flat:
                 return  # already positioned this way
+            self._voting_meme = self.settings.is_meme(s.symbol)
             votes = self.consensus(new, parts, regime)
             yes = sum(v == "yes" for v in votes.values())
             against = [k for k, v in votes.items() if v == "no"]
@@ -172,11 +177,19 @@ class QuantBot(Bot):
             return "yes" if x > dead else "no" if x < -dead else "abstain"
 
         votes = {k: vote(v) for k, v in parts.items()}
+        # A model that barely counts in this kind of market doesn't get a veto: in a trend the
+        # "buy the dip" model always objects to buying strength, and in a sideways market the trend
+        # models always object to buying a dip. They abstain there instead of blocking every trade.
+        weights = WEIGHTS[regime]
+        for k, v in list(votes.items()):
+            if v == "no" and weights.get(k, 1.0) <= MINOR_WEIGHT:
+                votes[k] = "abstain"
         strategist = self.desk.bots.get("strategist")
         if strategist is None or not strategist.enabled or regime is Regime.UNKNOWN:
             votes["strategist"] = "abstain"
         elif regime is Regime.VOLATILE:
-            votes["strategist"] = "no"  # no new risk in a volatility storm
+            # no new risk in a volatility storm - except on meme coins, where "volatile" is normal
+            votes["strategist"] = "abstain" if self._voting_meme else "no"
         elif regime is Regime.TRENDING:
             votes["strategist"] = "yes" if parts["momentum"] * direction > 0 else "no"
         else:  # ranging: only buying weakness / selling strength makes sense

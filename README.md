@@ -45,6 +45,8 @@ Safety properties:
 
 ## A fun, friendly interface
 
+**🎯 Today's hunt** (top of the Home screen) shows what the bots did today: chances checked, how many the team liked, trades opened, and wins out of trades closed. It also lists, in plain words, the most common reasons they skipped, so you can tell the bots are working even when they're not buying. If something is stopping them altogether (no live prices, paused, or emergency stop), the card says so.
+
 **Anime power-up theme:** an original look inspired by classic 90s battle anime. It has a sunset-orange and sky-blue palette, comic-panel cards with ink outlines, and speed lines behind your balance. A **⚡ power level** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Rookie → Fighter → Elite → Champion → Legend). Your win streak shows as glowing energy orbs. A golden aura pulses around the balance card on an up day, bots glow when they act, and winning trades end with a **POWER UP!** burst. It's all CSS, with no outside fonts or images, so the security policy stays strict. Animations switch off if your phone has "Reduce Motion" on.
 
 TradeZone opens in **Simple view**: a colourful home screen in plain English. The **Pro** switch in the header shows the full trading dashboard.
@@ -124,15 +126,17 @@ A buy only happens when the team agrees. Each voter says yes, no or abstain:
 | Breakout model | price breaks the 20-bar high | price breaks the 20-bar low |
 | Strategist | trending up, or ranging and oversold | volatility storm, or trending down |
 
-**Rule:** no voter may say no, and at least `TZ_CONSENSUS_MIN_YES` (default 2) must say yes. After that, **Grok** must approve (if connected) and the **Risk Manager** must approve. The Quant re-checks on every bar while its view holds, so a buy goes ahead as soon as the last objection clears. Each signal's votes appear in Team activity, for example `[momentum:✓ mean-rev:– breakout:✓ strategist:✓]`. Selling to close a position needs no vote.
+**Rule:** no voter that matters in the current kind of market may say no, and at least `TZ_CONSENSUS_MIN_YES` (default 2) must say yes. A model that barely counts in that market abstains instead of vetoing. In a trend, the dip-buying model doesn't block trend trades, and in a sideways market the trend models don't block dip-buys. On meme coins, where "volatile" is normal, the Strategist abstains instead of refusing. Before this rule, the out-of-place objections blocked about 9 in 10 otherwise good setups. After that, **Grok** must approve (if connected) and the **Risk Manager** must approve. The Quant re-checks on every bar while its view holds, so a buy goes ahead as soon as the last objection clears. Each signal's votes appear in Team activity, for example `[momentum:✓ mean-rev:– breakout:✓ strategist:✓]`. Selling to close a position needs no vote.
 
 ## What the bots trade: crypto, quick meme-coin flips, and runners
 
 By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LINK) plus **trusted meme coins** (DOGE, SHIB, PEPE, BONK, WIF, FLOKI). These are the large, long-listed ones on major US exchanges; brand-new tokens are never traded. Change the list with `TZ_SYMBOLS` and `TZ_MEME_COINS`. Coins your exchange doesn't list are skipped at start-up with a note.
 
-* **Every trade: −8% stop-loss, +15% take-profit** (`TZ_STOP_LOSS_PCT`, `TZ_TAKE_PROFIT_PCT`).
+* **Meme coins: −8% stop-loss, +15% take-profit** (`TZ_STOP_LOSS_PCT`, `TZ_TAKE_PROFIT_PCT`). Meme coins can move that far in hours.
+* **Bigger coins (BTC, ETH, SOL, …): −3% / +6%** (`TZ_MAJOR_STOP_LOSS_PCT`, `TZ_MAJOR_TAKE_PROFIT_PCT`). They move about 0.1% a minute, so ±8–15% would take days, and the bots would sit on a few positions doing nothing. Set these to 0.08 / 0.15 if you want one plan for everything.
+* **Quick flips free up stuck trades:** a trade that hasn't reached its target after 6 hours (meme coins) or 24 hours (others), but is in profit after fees, is closed so the slot goes to a fresh chance. Losing trades are never closed this way; they keep their stop.
 * **Sniping meme coins:** when a trusted meme coin breaks more than 1% above its recent high, the Quant acts on that tick instead of waiting for the minute to close. Its momentum must agree, and the rest of the team (Risk Manager, Executive, and Grok if connected) still has to say yes. A breakout against a falling trend is skipped. One shot per breakout.
-* **Runners:** at +15% the bots bank half the position. The stop on the other half moves **into profit** (at least +7.5%), the +15% ceiling is removed, and the stop then trails 8% under the highest price. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
+* **Runners:** at the target the bots bank half the position. The stop on the other half moves **into profit** (at least half the target: +7.5% for meme coins, +3% for others), the ceiling is removed, and the stop then trails under the highest price by the stop distance. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
 * **Profit protection** still applies before the target: once a trade is about +4% up, its stop moves above break-even, so a trade that went green doesn't end red.
 * **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 3 are held at once (`TZ_MAX_MEME_POSITIONS`).
 * **Real money:** Alpaca can trade DOGE, SHIB and PEPE (plus the majors) but not BONK, WIF or FLOKI. Those stay practice-only, and the Risk Manager says so instead of sending an order that would fail.
