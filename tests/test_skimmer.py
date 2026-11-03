@@ -42,7 +42,7 @@ def test_skims_a_dip_in_an_uptrend_with_a_small_target_and_tight_stop(desk):
     assert pos.take_profit == pytest.approx(100 * (1 + desk.settings.skim_target_pct))
     # at the small target the whole skim is sold (no runner for a skim)
     trades = capture(desk, "trade.closed")
-    tick(desk, "SOL-USD", 102.1)
+    tick(desk, "SOL-USD", 102.6)  # +2.5% target
     assert pos.is_flat and trades[-1].pnl > 0
     assert not desk.bots["skimmer"].owns("SOL-USD")
     assert desk.bots["skimmer"].metrics["skim_wins"] == 1
