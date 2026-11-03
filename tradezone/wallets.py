@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, ts REAL NOT NULL, dat
 
 
 class WalletService:
-    def __init__(self, desk: "TradingDesk") -> None:
+    def __init__(self, desk: TradingDesk) -> None:
         self.desk = desk
         self.db = desk.journal
         with self.db._lock:
@@ -154,17 +154,14 @@ class WalletService:
 
     # -- persistence ------------------------------------------------------
     def _save_wallet(self, w: Wallet) -> None:
-        with self.db._lock:
-            self.db.conn.execute("INSERT OR REPLACE INTO wallets(id, data) VALUES (?,?)", (w.id, json.dumps(asdict(w))))
-            self.db.conn.commit()
+        self.db.run("INSERT OR REPLACE INTO wallets(id, data) VALUES (?,?)", (w.id, json.dumps(asdict(w))))
 
     def _save_transfer(self, t: Transfer) -> None:
         self.transfers.append(t)
-        with self.db._lock:
-            self.db.conn.execute(
-                "INSERT OR REPLACE INTO transfers(id, ts, data) VALUES (?,?,?)", (t.id, t.ts, json.dumps(t.to_dict()))
-            )
-            self.db.conn.commit()
+        self.db.run(
+            "INSERT OR REPLACE INTO transfers(id, ts, data) VALUES (?,?,?)",
+            (t.id, t.ts, json.dumps(t.to_dict())),
+        )
 
     def _event(self, topic: str, payload: dict) -> None:
         self.desk.bus.publish(topic, payload, source="treasury")
@@ -203,9 +200,7 @@ class WalletService:
         if wallet_id not in self.wallets:
             raise WalletError("unknown wallet")
         del self.wallets[wallet_id]
-        with self.db._lock:
-            self.db.conn.execute("DELETE FROM wallets WHERE id = ?", (wallet_id,))
-            self.db.conn.commit()
+        self.db.run("DELETE FROM wallets WHERE id = ?", (wallet_id,))
         self._event("wallet.removed", {"id": wallet_id})
 
     # -- pricing ----------------------------------------------------------
@@ -289,9 +284,7 @@ class WalletService:
         else:
             self.desk.portfolio.apply_flow(t.usd_value)
             self._event("funds.deposit", t.to_dict())
-        with self.db._lock:
-            self.db.conn.execute("UPDATE transfers SET data = ? WHERE id = ?", (json.dumps(t.to_dict()), t.id))
-            self.db.conn.commit()
+        self.db.run("UPDATE transfers SET data = ? WHERE id = ?", (json.dumps(t.to_dict()), t.id))
         return t
 
     # -- withdrawals ------------------------------------------------------
@@ -320,8 +313,8 @@ class WalletService:
             raise WalletError(f"insufficient free cash ({self.desk.portfolio.cash:,.2f} USD available)")
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:
             raise WalletError(f"daily withdrawal limit {s.max_daily_withdrawal:,.0f} USD would be exceeded")
-        if self.desk.is_live and not s.api_token:
-            raise WalletError("live withdrawals require TZ_API_TOKEN to be set")
+        if self.desk.is_live and not self.desk.owner_protected():
+            raise WalletError("set up your PIN first, so only you can move real money")
         t = Transfer(f"wd_{secrets.token_hex(6)}", "withdrawal", w.chain, asset, amount, usd, "completed",
                      w.id, w.address, w.tag)
         if self.desk.is_live:

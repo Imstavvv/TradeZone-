@@ -159,7 +159,7 @@ The **Winners lost** tile counts any winner that still closed at a loss. That ca
 
 ## Grok (xAI) connection
 
-**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your access token). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
+**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your PIN or Face ID). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
 
 Or set it on Render as an environment variable:
 
@@ -221,7 +221,7 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 
 | Threat | Protection |
 | --- | --- |
-| Someone finds your site | Nothing works without signing in. The server **refuses to start** on a public address unless `TZ_API_TOKEN` is at least 16 characters. `/api/health` reveals nothing, and the API docs (`/docs`, `/openapi.json`) are switched off. |
+| Someone finds your site | Nothing works without signing in with your PIN (or Face ID). Until a PIN is chosen, setting up needs the one-time SETUP code that is only printed in the server logs. An optional `TZ_API_TOKEN` must be at least 16 characters on a public address, or the server refuses to start. `/api/health` reveals nothing, and the API docs (`/docs`, `/openapi.json`) are switched off. |
 | Guessing the token | After 5 wrong tokens in 15 minutes (`TZ_LOGIN_FAILURES_BEFORE_BAN`) the IP is blocked for 30 minutes (`TZ_BAN_MINUTES`), doubling for each repeat offence up to 7 days. Bans survive restarts. Devices already signed in keep working, so someone guessing on your Wi-Fi can't lock you out. |
 | Stolen token from the page or logs | The token is exchanged once for an **HttpOnly, Secure, SameSite=Strict session cookie**. Page scripts can't read it, and it never appears in a URL or the server's request logs. Sessions expire after 30 days unused. **Sign out all devices** cuts off any stolen session instantly. |
 | Stolen session moving money | Going live, adding a withdrawal wallet and withdrawing need the **token typed again** (step-up). New wallets also wait 24 hours before they can receive withdrawals. |
@@ -233,7 +233,7 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 | Spoofed IP addresses | Forwarded-for headers are only trusted from the hosting proxy (`TZ_TRUSTED_PROXIES`, set automatically on Render). |
 | Not knowing what happened | The **Security** panel shows signed-in devices, blocked IPs (with Unban), and a log of every sign-in, failure, ban and sensitive action, with IP and device. It's also stored in the journal. |
 
-Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. Keep your access token in a password manager. If you suspect it leaked, change `TZ_API_TOKEN` on Render (which signs everyone out) and redeploy.
+Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. If you think someone else got in, use **Settings → Log out everywhere** and change your PIN. If you use an access token for scripts and suspect it leaked, change `TZ_API_TOKEN` on Render and redeploy.
 
 ### Logging in: PIN and Face ID (no access token)
 
@@ -271,11 +271,11 @@ The dashboard is served by TradeZone itself. **It's ready the moment the server 
 **On the internet (Render, about 5 minutes):**
 
 1. Push this repo to GitHub.
-2. In Render: **New → Blueprint**, then pick the repo. `render.yaml` sets up an always-on service with a disk for the trade journal, and generates a random `TZ_API_TOKEN`.
-3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. Paste the API token when the page asks for it (it's under Environment in Render).
+2. In Render: **New → Blueprint**, then pick the repo. `render.yaml` sets up an always-on service with a disk for the trade journal.
+3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. The front page asks for the SETUP code (shown in Render's **Logs** tab), then you pick a 6-digit PIN.
 4. Optionally add your Alpaca / Grok keys under Environment. Never commit keys.
 
-Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Always set `TZ_API_TOKEN` when the dashboard is reachable from the internet, because it controls real-money trading.
+Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Choose your PIN as soon as the site is up, because it controls real-money trading.
 
 ## Quick start
 
@@ -348,7 +348,7 @@ Prices must be live (the default `TZ_FEED=auto` is). Your PIN protects the switc
 | Live account reachable and **flat** | The desk doesn't import existing positions, so it refuses accounts that already hold any |
 | Paper book flat (the dialog offers **Flatten paper positions**) | Positions never carry across modes |
 | Kill switch not tripped | Investigate first, then reset |
-| API token set when exposed beyond localhost | Nobody else on the network can flip you to live |
+| A PIN is set before going live on a public address | Nobody else on the network can flip you to live |
 
 Paper and live keep **separate books**, so P&L, trades and the audit ledger never mix, and paper resumes where it left off. In live mode, Portfolio Manager checks positions against the broker every 30 cycles, and any mismatch pauses trading. Wallet deposits are recorded but not added to trading capital (your broker balance is the source of truth), and withdrawals are `manual_required`.
 

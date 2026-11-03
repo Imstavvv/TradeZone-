@@ -5,11 +5,11 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import ORIGIN, SoftAuthenticator
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.helpers import ORIGIN, SoftAuthenticator
 
 PIN = "482915"
 XRP = "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe"

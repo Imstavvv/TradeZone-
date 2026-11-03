@@ -1,8 +1,8 @@
 
 import pytest
 
-from tradezone.core.models import Side, Signal, SignalKind, Tick
 from tests.helpers import capture, prime, run
+from tradezone.core.models import Side, Signal, SignalKind, Tick
 
 
 def test_team_has_at_least_six_distinct_roles(desk):

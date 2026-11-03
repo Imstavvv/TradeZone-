@@ -2,9 +2,9 @@ import asyncio
 
 import pytest
 
+from tests.helpers import prime, run
 from tradezone.brokers.paper import PaperBroker
 from tradezone.core.models import Fill, OrderRequest, Side, Signal
-from tests.helpers import prime, run
 
 
 class BadBroker(PaperBroker):

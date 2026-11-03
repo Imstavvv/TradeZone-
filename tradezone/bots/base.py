@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 from ..core.bus import Event
 from ..core.models import now
@@ -44,7 +45,7 @@ class Bot:
     #: if True the bot can't be disabled from the UI (safety-critical)
     critical = False
 
-    def __init__(self, desk: "TradingDesk") -> None:
+    def __init__(self, desk: TradingDesk) -> None:
         self.desk = desk
         self.enabled = True
         self.errors = 0

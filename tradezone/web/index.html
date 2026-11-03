@@ -593,7 +593,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
     <div style="font-size:15px;font-weight:700">Give it a nickname</div>
     <input id="wwName" class="txt" maxlength="40" placeholder="My wallet">
     <div class="okbox" id="wwSummary"></div>
-    <div class="muted" style="font-size:12px">For your safety, a new wallet can receive money after a 24-hour wait.</div>
+    <div class="muted" style="font-size:12px" id="wwWaitNote">For your safety, a new wallet can receive money after a 24-hour wait.</div>
     <div class="lockerr" id="wwErr3"></div>
     <div class="row"><button id="wwBack3">Back</button><button id="wwSave" class="gopaper">Save wallet</button></div>
   </div>
@@ -1337,7 +1337,7 @@ function renderWallets(st){
     w.tag_name ? `<span class="tagchip" title="Send deposits with this ${esc(w.tag_name)}">${esc(w.deposit_tag)}</span>` : '<span class="muted">by sender</span>',
     `<button class="switch" data-unlink="${w.id}">Unlink</button>`]), 'No wallets linked');
   document.querySelectorAll('[data-unlink]').forEach(b => b.onclick = async () => {
-    if (await ask('Unlink this wallet?', 'You can link it again later (with a new 24-hour wait).', {ok: 'Unlink', danger: true})) {
+    if (await ask('Unlink this wallet?', 'You can link it again later' + (coolWait() ? ` (with a new ${coolWait()} wait).` : '.'), {ok: 'Unlink', danger: true})) {
       await api('/api/wallets/' + b.dataset.unlink, undefined, {}, 'DELETE'); toast('Wallet unlinked'); } });
   $('transferList').innerHTML = table(['Time','Type','Amount','USD','Tag','Status'], W.transfers.map(t => [
     time(t.ts), t.kind === 'deposit' ? '<span class="up">deposit</span>' : '<span class="down">withdrawal</span>',
@@ -1747,7 +1747,7 @@ function renderCoach(c){
   chips.push(`<span class="chip ${rl > 1 ? 'good' : rl < 1 ? 'bad' : ''}">Trade size: ${rl > 1 ? 'growing 🌱' : rl < 1 ? 'smaller for now' : 'normal'}</span>`);
   if (c.bar < c.bar_base) chips.push('<span class="chip">Looking for more chances 🎯</span>');
   else if (c.bar > c.bar_base) chips.push('<span class="chip bad">Only the best chances</span>');
-  for (const s of c.symbols.filter(s => s.benched_min > 0)) chips.push(`<span class="chip bad">${esc(s.symbol)} sitting out ${s.benched_min} min</span>`);
+  for (const b of c.benched || []) chips.push(`<span class="chip bad">${esc(b.symbol)} sitting out ${b.minutes} min</span>`);
   $('sLearnStats').innerHTML = chips.join('');
   $('sLearned').innerHTML = c.lessons.length ? c.lessons.slice(0, 6).map(l => `<div class="happen"><div class="ic" style="background:${l.level === 'warning' ? 'var(--warn)' : '#34d399'}">🎓</div>
       <div>${esc(l.text)}</div><div class="tm">${ago(l.ts)}</div></div>`).join('')
@@ -1949,14 +1949,14 @@ function renderSimple(st){
   // the team
   const now = Date.now() / 1000;
   const team = ORDER.map(nm => st.bots.find(b => b.name === nm)).filter(Boolean);
-  $('sTeam').innerHTML = team.map(b => {
+  const crewChanged = setHTML($('sTeam'), team.map(b => {
     const busy = b.enabled && b.last_action_ts && now - b.last_action_ts < 6;
     return `<div class="mate2${busy ? ' busy' : ''}${b.enabled ? '' : ' off'}" data-mate="${b.name}" style="--c:${COLORS[b.name]}">
       <div class="face">${MASCOT[b.name] || esc(b.title[0])}</div><div class="nm">${esc(b.title)}</div>
       <div class="msn">${esc((b.mission || '').split(' - ')[0])}</div>
       <div class="say" title="${esc(b.last_action)}">${esc(crewSay(b))}</div></div>`;
-  }).join('');
-  document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
+  }).join(''));
+  if (crewChanged) document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
   renderCoach(st.coach);
   renderSettings();
 }
@@ -1977,6 +1977,12 @@ const coinName = k => COIN_NAME[k] || (S.state && S.state.wallets.chains[k] ? S.
 const COIN_ICON = {BTC: '🟠', ETH: '🔷', SOL: '🟣', XRP: '⚫', XLM: '🚀', ATOM: '⚛️', HBAR: '🌐', EOS: '⚪'};
 function fmtWait(sec){ const h = Math.floor(sec / 3600), m = Math.ceil((sec % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
 async function loadAccounts(){ try { S.accounts = await api('/api/accounts'); renderSettings(); } catch {} return S.accounts; }
+// the server's safety wait before a new wallet can receive money, e.g. "24-hour" ('' = no wait)
+function coolWait(){
+  const h = S.state && S.state.wallets ? S.state.wallets.cooldown_h : 24;
+  return h > 0 ? `${+h.toFixed(1)}-hour` : '';
+}
+function setHTML(el, html){ if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; return true; } return false; }
 function renderSettings(){
   const L = S.applockInfo, A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo;
   if (L) {
@@ -1999,14 +2005,16 @@ function renderSettings(){
   if (W) {
     const now = Date.now() / 1000;
     $('accWalletTxt').textContent = W.wallets.length ? `${W.wallets.length} saved` : 'Where you can send money out to';
-    $('walletCards').innerHTML = W.wallets.map(w => { const wait = w.withdrawals_enabled_at - now;
+    $('wwWaitNote').textContent = coolWait() ? `For your safety, a new wallet can receive money after a ${coolWait()} wait.` : '';
+    if (setHTML($('walletCards'), W.wallets.map(w => { const wait = w.withdrawals_enabled_at - now;
       return `<div class="wcard"><div class="ic">${COIN_ICON[w.chain] || '👛'}</div><div><b>${esc(w.label)}</b> <span class="muted">· ${esc(coinName(w.chain))}</span></div>
         <div class="sub2">${esc(w.address.slice(0, 10))}…${esc(w.address.slice(-6))}${w.tag ? ' · tag ' + esc(w.tag) : ''} · ${wait > 0 ? '⏳ ready in ' + fmtWait(wait) : '✅ ready'}</div>
-        <div class="btns"><button data-send="${w.id}" ${wait > 0 ? 'disabled' : ''}>💸 Send money</button><button data-rmw="${w.id}">Remove</button></div></div>`; }).join('');
-    document.querySelectorAll('[data-send]').forEach(b => b.onclick = () => openSend(b.dataset.send));
-    document.querySelectorAll('[data-rmw]').forEach(b => b.onclick = async () => {
-      if (!await ask('Remove this wallet?', 'You can add it again later (with a new 24-hour wait).', {ok: 'Remove', danger: true})) return;
-      await api('/api/wallets/' + b.dataset.rmw, undefined, {}, 'DELETE'); toast('Wallet removed'); });
+        <div class="btns"><button data-send="${w.id}" ${wait > 0 ? 'disabled' : ''}>💸 Send money</button><button data-rmw="${w.id}">Remove</button></div></div>`; }).join(''))) {
+      document.querySelectorAll('[data-send]').forEach(b => b.onclick = () => openSend(b.dataset.send));
+      document.querySelectorAll('[data-rmw]').forEach(b => b.onclick = async () => {
+        if (!await ask('Remove this wallet?', 'You can add it again later' + (coolWait() ? ` (with a new ${coolWait()} wait).` : '.'), {ok: 'Remove', danger: true})) return;
+        await api('/api/wallets/' + b.dataset.rmw, undefined, {}, 'DELETE'); toast('Wallet removed'); });
+    }
   }
   if (SI) {
     $('devList').innerHTML = SI.sessions.length ? SI.sessions.map(x => `<div class="srow"><div class="ic">${/iPhone|Android|iPad/.test(x.agent) ? '📱' : '💻'}</div>
@@ -2123,14 +2131,14 @@ $('wwSave').onclick = async () => {
   const h = await confirmAction('save a wallet you can send money to'); if (h === null) return;
   try {
     await api('/api/wallets', {chain: WW.chain, address: WW.addr, tag: WW.tag, label: $('wwName').value.trim(), no_tag_confirmed: WW.noTag}, h);
-    $('walletSheet').classList.remove('open'); toast('Wallet saved ✓ You can send money to it after the 24-hour safety wait.', 'ok', 6000);
+    $('walletSheet').classList.remove('open'); toast('Wallet saved ✓ ' + (coolWait() ? `You can send money to it after the ${coolWait()} safety wait.` : 'You can send money to it now.'), 'ok', 6000);
   } catch (e) { $('wwErr3').textContent = e.message || 'Could not save the wallet'; }
 };
 
 // ---- send money out ----
 function openSend(walletId){
   const W = S.state.wallets, now = Date.now() / 1000, ready = W.wallets.filter(w => w.withdrawals_enabled_at <= now);
-  if (!ready.length) return toast('Add a wallet first - it can receive money after a 24-hour safety wait.', 'warn', 5000);
+  if (!ready.length) return toast('Add a wallet first' + (coolWait() ? ` - it can receive money after a ${coolWait()} safety wait.` : '.'), 'warn', 5000);
   $('sdWallet').innerHTML = ready.map(w => `<option value="${w.id}"${w.id === walletId ? ' selected' : ''}>${esc(w.label)} (${esc(coinName(w.chain))})</option>`).join('');
   const fill = () => { const w = ready.find(x => x.id === $('sdWallet').value) || ready[0];
     $('sdAsset').innerHTML = w.assets.map(a => `<option>${esc(a)}</option>`).join(''); hint(); };

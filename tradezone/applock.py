@@ -86,8 +86,7 @@ class AppLock:
 
     # ------------------------------------------------------------ storage
     def _get(self, key: str) -> dict | None:
-        with self.journal._lock:
-            row = self.journal.conn.execute("SELECT data FROM app_lock WHERE key = ?", (key,)).fetchone()
+        row = self.journal.one("SELECT data FROM app_lock WHERE key = ?", (key,))
         return json.loads(row[0]) if row else None
 
     def _put(self, key: str, data: dict | None) -> None:
@@ -124,15 +123,11 @@ class AppLock:
 
     # ----------------------------------------------------------- passkeys
     def passkeys(self) -> list[dict[str, Any]]:
-        with self.journal._lock:
-            rows = self.journal.conn.execute(
-                "SELECT id, label, created, last_used, rp_id FROM passkeys ORDER BY created").fetchall()
+        rows = self.journal.all("SELECT id, label, created, last_used, rp_id FROM passkeys ORDER BY created")
         return [{"id": r[0], "label": r[1], "created": r[2], "last_used": r[3], "rp_id": r[4]} for r in rows]
 
     def remove_passkey(self, cred_id: str) -> bool:
-        with self.journal._lock:
-            n = self.journal.conn.execute("DELETE FROM passkeys WHERE id = ?", (cred_id,)).rowcount
-            self.journal.conn.commit()
+        n = self.journal.run("DELETE FROM passkeys WHERE id = ?", (cred_id,))
         return n > 0
 
     @property
@@ -147,17 +142,14 @@ class AppLock:
     def is_unlocked(self, sid_hash: str) -> bool:
         if not self.enabled:
             return True
-        with self.journal._lock:
-            row = self.journal.conn.execute(
-                "SELECT unlocked_until FROM sessions WHERE id_hash = ?", (sid_hash,)).fetchone()
+        row = self.journal.one("SELECT unlocked_until FROM sessions WHERE id_hash = ?", (sid_hash,))
         return bool(row) and (row[0] or 0) > time.time()
 
     def unlock(self, sid_hash: str) -> None:
-        with self.journal._lock:
-            self.journal.conn.execute(
-                "UPDATE sessions SET unlocked_until = ?, pin_failures = 0 WHERE id_hash = ?",
-                (time.time() + self.lock_after_s, sid_hash))
-            self.journal.conn.commit()
+        self.journal.run(
+            "UPDATE sessions SET unlocked_until = ?, pin_failures = 0 WHERE id_hash = ?",
+            (time.time() + self.lock_after_s, sid_hash),
+        )
 
     def touch(self, sid_hash: str) -> None:
         """Activity keeps an unlocked session unlocked (sliding window, written at most every 20s)."""
@@ -171,9 +163,7 @@ class AppLock:
                 self.journal.conn.commit()
 
     def lock(self, sid_hash: str) -> None:
-        with self.journal._lock:
-            self.journal.conn.execute("UPDATE sessions SET unlocked_until = 0 WHERE id_hash = ?", (sid_hash,))
-            self.journal.conn.commit()
+        self.journal.run("UPDATE sessions SET unlocked_until = 0 WHERE id_hash = ?", (sid_hash,))
 
     def pin_failed(self, sid_hash: str) -> int:
         """Count a wrong PIN; returns attempts left (0 means the session was revoked)."""
@@ -204,9 +194,13 @@ class AppLock:
 
     def registration_options(self, sid_hash: str, rp_id: str) -> str:
         from webauthn import generate_registration_options, options_to_json
-        from webauthn.helpers.structs import (AuthenticatorAttachment, AuthenticatorSelectionCriteria,
-                                              PublicKeyCredentialDescriptor, ResidentKeyRequirement,
-                                              UserVerificationRequirement)
+        from webauthn.helpers.structs import (
+            AuthenticatorAttachment,
+            AuthenticatorSelectionCriteria,
+            PublicKeyCredentialDescriptor,
+            ResidentKeyRequirement,
+            UserVerificationRequirement,
+        )
         opts = generate_registration_options(
             rp_id=rp_id, rp_name="TradeZone", user_id=USER_ID, user_name="TradeZone owner",
             user_display_name="TradeZone owner", challenge=self._challenge(sid_hash, "reg"),
@@ -227,17 +221,19 @@ class AppLock:
         except Exception as exc:
             raise LockError(f"Face ID setup could not be verified: {exc}") from None
         cid, now = b64u(v.credential_id), time.time()
-        with self.journal._lock:
-            self.journal.conn.execute(
-                "INSERT OR REPLACE INTO passkeys(id, public_key, sign_count, label, rp_id, created, last_used) "
-                "VALUES (?,?,?,?,?,?,?)", (cid, b64u(v.credential_public_key), v.sign_count,
-                                           (label or "Face ID")[:60], rp_id, now, now))
-            self.journal.conn.commit()
+        self.journal.run(
+            "INSERT OR REPLACE INTO passkeys(id, public_key, sign_count, label, rp_id, created, last_used) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (cid, b64u(v.credential_public_key), v.sign_count, (label or "Face ID")[:60], rp_id, now, now),
+        )
         return {"id": cid, "label": label}
 
     def authentication_options(self, sid_hash: str, rp_id: str) -> str:
         from webauthn import generate_authentication_options, options_to_json
-        from webauthn.helpers.structs import PublicKeyCredentialDescriptor, UserVerificationRequirement
+        from webauthn.helpers.structs import (
+            PublicKeyCredentialDescriptor,
+            UserVerificationRequirement,
+        )
         keys = [p for p in self.passkeys() if p["rp_id"] == rp_id]
         if not keys:
             raise LockError("Face ID isn't set up for this site")
@@ -251,9 +247,7 @@ class AppLock:
         from webauthn import verify_authentication_response
         ch = self._take_challenge(sid_hash, "auth")
         cid = credential.get("id") or credential.get("rawId") or ""
-        with self.journal._lock:
-            row = self.journal.conn.execute(
-                "SELECT public_key, sign_count, label FROM passkeys WHERE id = ?", (cid,)).fetchone()
+        row = self.journal.one("SELECT public_key, sign_count, label FROM passkeys WHERE id = ?", (cid,))
         if not row:
             raise LockError("unknown Face ID key - it may have been removed")
         try:
@@ -263,8 +257,8 @@ class AppLock:
                 require_user_verification=True)
         except Exception as exc:
             raise LockError(f"Face ID check failed: {exc}") from None
-        with self.journal._lock:
-            self.journal.conn.execute("UPDATE passkeys SET sign_count = ?, last_used = ? WHERE id = ?",
-                                      (v.new_sign_count, time.time(), cid))
-            self.journal.conn.commit()
+        self.journal.run(
+            "UPDATE passkeys SET sign_count = ?, last_used = ? WHERE id = ?",
+            (v.new_sign_count, time.time(), cid),
+        )
         return row[2] or "Face ID"

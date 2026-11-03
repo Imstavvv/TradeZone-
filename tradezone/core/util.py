@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime, time as dtime
+from datetime import datetime
+from datetime import time as dtime
 from zoneinfo import ZoneInfo
 
 from .models import Side
-
 
 _NY = ZoneInfo("America/New_York")
 

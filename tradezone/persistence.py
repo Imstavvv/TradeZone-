@@ -50,20 +50,17 @@ class StateStore:
             journal.conn.executescript(SCHEMA)
 
     def save(self, key: str, data: dict) -> None:
-        with self.journal._lock:
-            self.journal.conn.execute(
-                "INSERT OR REPLACE INTO desk_state(key, saved_at, data) VALUES (?,?,?)",
-                (key, time.time(), json.dumps(data, default=str)),
-            )
-            self.journal.conn.commit()
+        self.journal.run(
+            "INSERT OR REPLACE INTO desk_state(key, saved_at, data) VALUES (?,?,?)",
+            (key, time.time(), json.dumps(data, default=str)),
+        )
 
     def load(self, key: str) -> dict | None:
-        with self.journal._lock:
-            row = self.journal.conn.execute("SELECT data FROM desk_state WHERE key = ?", (key,)).fetchone()
+        row = self.journal.one("SELECT data FROM desk_state WHERE key = ?", (key,))
         return json.loads(row[0]) if row else None
 
 
-def snapshot(desk: "TradingDesk") -> dict[str, Any]:
+def snapshot(desk: TradingDesk) -> dict[str, Any]:
     pm = desk.bots["portfolio"]
     return {
         "version": 1,

@@ -4,9 +4,9 @@ import time
 
 import pytest
 
+from tests.helpers import capture, prime, run
 from tradezone.core.models import OrderRequest, Side, Signal
 from tradezone.core.portfolio import ClosedTrade
-from tests.helpers import capture, prime, run
 
 
 def approve(desk, req):

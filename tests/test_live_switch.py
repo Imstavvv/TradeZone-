@@ -3,13 +3,13 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import FakeLiveBroker, prime, run
 from tradezone.config import Settings
 from tradezone.core.models import Side, Signal
 from tradezone.desk import ModeSwitchError, TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
 from tradezone.server import create_app
-from tests.helpers import FakeLiveBroker, prime, run
 
 
 def make_desk(live_broker=None, **kw):
@@ -128,6 +128,17 @@ def test_live_withdrawals_are_manual_and_deposits_not_credited():
     assert desk.wallets.record_deposit("ETH", "USDC", 100, "tx", from_address=eth).note.startswith("live mode")
     assert desk.wallets.withdraw(w.id, "USDC", 50).status == "manual_required"
     assert desk.portfolio.cash == cash
+
+
+def test_live_withdrawal_needs_a_pin_not_the_old_token():
+    desk = make_desk(withdrawal_cooldown_h=0)  # no TZ_API_TOKEN, local host
+    run(desk.switch_mode("live"))
+    w = desk.wallets.link("ETH", "0x52908400098527886E0F7030069857D2E4169EE7")
+    assert desk.wallets.withdraw(w.id, "USDC", 10).status == "manual_required"
+    desk.settings.host = "0.0.0.0"  # public, and nobody has chosen a PIN
+    from tradezone.wallets import WalletError
+    with pytest.raises(WalletError, match="PIN"):
+        desk.wallets.withdraw(w.id, "USDC", 10)
 
 
 def test_books_stay_balanced_across_switches():

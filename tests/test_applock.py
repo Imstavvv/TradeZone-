@@ -3,12 +3,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import ORIGIN, SoftAuthenticator
 from tradezone.applock import weak_pin_reason
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.helpers import ORIGIN, SoftAuthenticator
 
 TOKEN = "correct-horse-battery-staple-42"
 

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from ..core.bus import Event
 import math
 
+from ..core.bus import Event
 from ..core.models import Alert, Fill, Order, OrderRequest, OrderStatus, now
 from .base import Bot
 

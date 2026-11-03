@@ -9,20 +9,33 @@ import io
 import json
 import logging
 import math
-from pathlib import Path
-
 import secrets
 import time
+from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi import (
+    Depends,
+    FastAPI,
+    HTTPException,
+    Query,
+    Request,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 
+from .applock import LockError
 from .config import LIVE_SWITCH_WORD
 from .desk import ModeSwitchError, TradingDesk
-from .applock import LockError
-from .security import (SESSION_COOKIE, SecurityConfig, SecurityManager, SecurityMiddleware, client_ip,
-                       is_local_host)
+from .security import (
+    SESSION_COOKIE,
+    SecurityConfig,
+    SecurityManager,
+    SecurityMiddleware,
+    client_ip,
+    is_local_host,
+)
 from .wallets import WalletError
 
 log = logging.getLogger(__name__)
@@ -421,14 +434,6 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         audit(request, "created a code to add a device", "warning")
         return {"code": sec.create_pairing_code(), "expires_in": sec.PAIRING_TTL_S}
 
-    @app.post("/api/confirm/faceid/options")
-    async def confirm_faceid_options(request: Request):
-        h = session_any(request)
-        try:
-            return Response(applock.authentication_options(h or "bearer", rp(request)[0]), media_type="application/json")
-        except LockError as exc:
-            raise HTTPException(400, str(exc)) from None
-
     @app.post("/api/confirm/faceid/verify")
     async def confirm_faceid(body: CredentialBody, request: Request):
         h = session_any(request)
@@ -487,6 +492,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         return {"ok": True}
 
     @app.post("/api/webauthn/auth/options")
+    @app.post("/api/confirm/faceid/options")  # same challenge, used to confirm a risky action
     async def faceid_options(request: Request):
         h = session_any(request)
         try:

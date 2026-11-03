@@ -21,10 +21,10 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import logging
 import re
 import secrets
 import threading
-import logging
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -111,7 +111,7 @@ class SecurityManager:
             self.journal.record(ev["ts"], f"security.{kind}", "security", ev)
             self.journal.commit()
         except Exception:  # never let logging break a request
-            pass
+            log.exception("could not write security event %s", kind)
 
     # --------------------------------------------------------- firewall
     @property
@@ -212,20 +212,17 @@ class SecurityManager:
             strikes = self.bans.get(ip, {}).get("strikes", 0) + 1
             length = min(self.cfg.ban_s * 2 ** (strikes - 1), self.cfg.max_ban_s)
             self.bans[ip] = {"until": time.time() + length, "strikes": strikes, "reason": reason}
-        with self.journal._lock:
-            self.journal.conn.execute(
-                "INSERT OR REPLACE INTO bans(ip, until, strikes, reason) VALUES (?,?,?,?)",
-                (ip, time.time() + length, strikes, reason))
-            self.journal.conn.commit()
+        self.journal.run(
+            "INSERT OR REPLACE INTO bans(ip, until, strikes, reason) VALUES (?,?,?,?)",
+            (ip, time.time() + length, strikes, reason),
+        )
         self.audit("ban", ip, f"{reason} - banned {length / 60:.0f} min (strike {strikes})", level="critical")
         return length
 
     def unban(self, ip: str) -> bool:
         existed = self.bans.pop(ip, None) is not None
         self._fails.pop(ip, None)
-        with self.journal._lock:
-            self.journal.conn.execute("DELETE FROM bans WHERE ip = ?", (ip,))
-            self.journal.conn.commit()
+        self.journal.run("DELETE FROM bans WHERE ip = ?", (ip,))
         if existed:
             self.audit("unban", ip, "unbanned by operator", level="warning")
         return existed
@@ -262,11 +259,10 @@ class SecurityManager:
     def create_session(self, ip: str, agent: str) -> str:
         sid = secrets.token_urlsafe(32)
         now = time.time()
-        with self.journal._lock:
-            self.journal.conn.execute(
-                "INSERT INTO sessions(id_hash, created, last_seen, expires, ip, agent) VALUES (?,?,?,?,?,?)",
-                (_hash(sid), now, now, now + SESSION_TTL_S, ip, agent[:200]))
-            self.journal.conn.commit()
+        self.journal.run(
+            "INSERT INTO sessions(id_hash, created, last_seen, expires, ip, agent) VALUES (?,?,?,?,?,?)",
+            (_hash(sid), now, now, now + SESSION_TTL_S, ip, agent[:200]),
+        )
         self._fails.pop(ip, None)
         self.audit("login", ip, "signed in - new session", agent)
         return sid
@@ -288,22 +284,18 @@ class SecurityManager:
 
     def revoke(self, sid: str | None) -> None:
         if sid:
-            with self.journal._lock:
-                self.journal.conn.execute("DELETE FROM sessions WHERE id_hash = ?", (_hash(sid),))
-                self.journal.conn.commit()
+            self.journal.run("DELETE FROM sessions WHERE id_hash = ?", (_hash(sid),))
 
     def revoke_all(self, ip: str = "") -> int:
-        with self.journal._lock:
-            n = self.journal.conn.execute("DELETE FROM sessions").rowcount
-            self.journal.conn.commit()
+        n = self.journal.run("DELETE FROM sessions")
         self.audit("sessions_revoked", ip, f"signed out all {n} device(s)", level="warning")
         return n
 
     def sessions(self) -> list[dict[str, Any]]:
-        with self.journal._lock:
-            rows = self.journal.conn.execute(
-                "SELECT id_hash, created, last_seen, ip, agent FROM sessions WHERE expires > ? ORDER BY last_seen DESC",
-                (time.time(),)).fetchall()
+        rows = self.journal.all(
+            "SELECT id_hash, created, last_seen, ip, agent FROM sessions WHERE expires > ? ORDER BY last_seen DESC",
+            (time.time(),),
+        )
         return [{"id": r[0][:10], "created": r[1], "last_seen": r[2], "ip": r[3], "agent": r[4]} for r in rows]
 
     def summary(self) -> dict[str, Any]:

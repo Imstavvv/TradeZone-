@@ -5,7 +5,16 @@ from __future__ import annotations
 from collections import deque
 
 from ..core.bus import Event
-from ..core.models import Alert, OrderRequest, Regime, Side, Signal, SignalKind, Snapshot, now
+from ..core.models import (
+    Alert,
+    OrderRequest,
+    Regime,
+    Side,
+    Signal,
+    SignalKind,
+    Snapshot,
+    now,
+)
 from ..core.stops import StopRejected, plan_stop
 from ..core.util import is_closing, round_qty
 from .base import Bot

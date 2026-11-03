@@ -81,7 +81,7 @@ class ScoutBot(Bot):
             return
         self._on_close(t.symbol, b, t.price, t.ts, t.price, t.price)
 
-    def _on_close(self, symbol: str, b: "_Book", price: float, ts: float,
+    def _on_close(self, symbol: str, b: _Book, price: float, ts: float,
                   low: float, high: float) -> None:
         """Update indicators with one bar (a single tick in sim mode)."""
         t = Tick(symbol, price, 0.0, ts)

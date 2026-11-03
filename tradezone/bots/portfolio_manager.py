@@ -132,7 +132,7 @@ class PortfolioBot(Bot):
         hw = pos.high_water if pos.high_water is not None else t.price
         hw = max(hw, t.price) if long else min(hw, t.price)
         pos.high_water = hw
-        tighten = (lambda a, b: max(a, b)) if long else (lambda a, b: min(a, b))  # noqa: E731
+        tighten = (lambda a, b: max(a, b)) if long else (lambda a, b: min(a, b))
         r = self.trail_dist.get(t.symbol)
         if self.settings.trailing_stop and pos.stop_price is not None and r:
             pos.stop_price = tighten(pos.stop_price, hw - d * r)

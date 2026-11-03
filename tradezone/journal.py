@@ -28,6 +28,22 @@ class Journal:
         if "mode" not in cols:  # migrate older journals
             self.conn.execute("ALTER TABLE events ADD COLUMN mode TEXT")
 
+    # -- small helpers so callers don't repeat lock/execute/commit ---------
+    def run(self, sql: str, args: tuple = ()) -> int:
+        """Execute one write and commit it. Returns the number of rows changed."""
+        with self._lock:
+            n = self.conn.execute(sql, args).rowcount
+            self.conn.commit()
+        return n
+
+    def one(self, sql: str, args: tuple = ()) -> tuple | None:
+        with self._lock:
+            return self.conn.execute(sql, args).fetchone()
+
+    def all(self, sql: str, args: tuple = ()) -> list[tuple]:
+        with self._lock:
+            return self.conn.execute(sql, args).fetchall()
+
     def record(self, ts: float, topic: str, source: str, payload: Any, mode: str = "") -> None:
         with self._lock:
             self.conn.execute(

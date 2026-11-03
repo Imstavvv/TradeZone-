@@ -6,12 +6,12 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import capture, run
 from tradezone.bots.grok import GrokClient, pick_model
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.helpers import capture, run
 
 KEY = "xai-" + "a" * 60
 TOKEN = "correct-horse-battery-staple-42"

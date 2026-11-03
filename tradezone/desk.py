@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime, timezone
-from typing import Callable
 
 from .bots import TEAM
 from .bots.base import Bot
@@ -186,10 +186,7 @@ class TradingDesk:
                 out.append("live broker unavailable")
             if self.halted:
                 out.append("the emergency stop (kill switch) is on - tap Restart trading first")
-            host = self.settings.host
-            sec = getattr(self, "security", None)
-            protected = bool(self.settings.api_token) or bool(sec and sec.owner_exists)
-            if host not in ("127.0.0.1", "localhost", "::1") and not protected:
+            if not self.owner_protected():
                 out.append("set up your PIN first, so only you can control real money")
         if self.portfolio.open_positions:
             out.append(f"close your {len(self.portfolio.open_positions)} open {self.mode} position(s) first (tap Close all trades)")
@@ -411,6 +408,13 @@ class TradingDesk:
         self.live_broker = None
         self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
         self.broker_source = ""
+
+    def owner_protected(self) -> bool:
+        """True once real money is safe to control: a PIN is set (or an access token), or local only."""
+        sec = getattr(self, "security", None)
+        if self.settings.api_token or (sec and sec.owner_exists):
+            return True
+        return self.settings.host in ("127.0.0.1", "localhost", "::1")
 
     def broker_info(self) -> dict:
         key = self.settings.alpaca_live_key

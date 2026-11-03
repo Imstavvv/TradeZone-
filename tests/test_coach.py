@@ -142,3 +142,43 @@ def test_learning_can_be_switched_off(desk):
     coach.bench["AAPL"] = now() + 999
     desk.settings.coach_learning = False
     assert coach.strategy_mult("momentum") == 1.0 and coach.benched("AAPL") == 0 and coach.risk_mult() == 1.0
+
+
+def test_bench_expiry_during_cycle_does_not_crash(desk):
+    coach = desk.bots["coach"]
+    for _ in range(6):
+        coach.learn("AAPL", None, -10.0)
+    coach.bench = {"AAPL": now() - 1, "TSLA": now() - 1, "NVDA": now() + 600}
+    run(coach.on_cycle())  # benched() removes expired entries while counting
+    assert set(coach.bench) == {"NVDA"} and coach.metrics["benched"] == 1
+    assert coach.stats["symbol"]["AAPL"]["n"] == 3  # half the old record forgiven
+    assert [b["symbol"] for b in coach.summary()["benched"]] == ["NVDA"]
+
+
+def test_trade_open_across_restart_is_still_learned(tmp_path, settings):
+    path = str(tmp_path / "tz.db")
+    d1 = TradingDesk(settings, journal=Journal(path))
+    prime(d1, "AAPL", 100.0)
+    d1.bots["quant"].scores["AAPL"] = {"momentum": 0.9, "mean_reversion": 0.0, "breakout": 0.0,
+                                       "ensemble": 0.6, "regime": "trending_up"}
+    d1.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))
+    run(d1.bus.drain())
+    d1.bots["coach"].save()
+    d2 = TradingDesk(settings, journal=Journal(path))
+    assert d2.bots["coach"].load() and "paper|AAPL" in d2.bots["coach"].open
+    coach = d2.bots["coach"]
+    d2.bus.publish("trade.log", {"symbol": "AAPL", "action": "close", "pnl": 25.0, "position_after": 0.0,
+                                 "mode": "paper"})
+    run(d2.bus.drain())
+    assert coach.learned_trades == 1 and coach.stats["strategy"]["momentum"]["wins"] == 1
+
+
+def test_paper_and_live_trades_are_tracked_separately(desk):
+    coach = desk.bots["coach"]
+    pub = lambda **t: (desk.bus.publish("trade.log", {"symbol": "BTC-USD", "pnl": None, "position_after": 1.0, **t}),
+                       run(desk.bus.drain()))
+    pub(action="open", mode="paper")
+    pub(action="open", mode="live")
+    pub(action="close", mode="live", pnl=-5.0, position_after=0.0)
+    assert "paper|BTC-USD" in coach.open and "live|BTC-USD" not in coach.open
+    assert coach.stats["symbol"]["BTC-USD"]["n"] == 1

@@ -56,7 +56,7 @@ class Verdict:
 
 def parse_verdict(text: str) -> Verdict:
     """Extract the JSON verdict from a model reply. Raises ValueError if malformed."""
-    m = re.search(r"\{.*\}", text, re.S)
+    m = re.search(r"\{.*\}", text, re.DOTALL)
     if not m:
         raise ValueError("no JSON object in Grok reply")
     data = json.loads(m.group(0))
@@ -348,15 +348,12 @@ class GrokBot(Bot):
     # ---- dashboard-managed settings (stored server-side, never sent back to the browser) ----
     def _table(self):
         j = self.desk.journal
-        with j._lock:
-            j.conn.execute("CREATE TABLE IF NOT EXISTS grok_config (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT)")
-            j.conn.commit()
+        j.run("CREATE TABLE IF NOT EXISTS grok_config (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT)")
         return j
 
     def load_saved(self) -> bool:
         j = self._table()
-        with j._lock:
-            row = j.conn.execute("SELECT data FROM grok_config WHERE id = 1").fetchone()
+        row = j.one("SELECT data FROM grok_config WHERE id = 1")
         if not row:
             return False
         d = json.loads(row[0])
@@ -365,8 +362,7 @@ class GrokBot(Bot):
 
     def save(self, api_key: str | None, model: str | None, mode: str | None) -> None:
         j = self._table()
-        with j._lock:
-            row = j.conn.execute("SELECT data FROM grok_config WHERE id = 1").fetchone()
+        row = j.one("SELECT data FROM grok_config WHERE id = 1")
         cur = json.loads(row[0]) if row else {"api_key": self.settings.grok_api_key,
                                               "model": self.client.model if self.client else "", "mode": self.mode}
         if api_key:
@@ -375,16 +371,12 @@ class GrokBot(Bot):
             cur["model"] = model.strip()
         if mode:
             cur["mode"] = mode
-        with j._lock:
-            j.conn.execute("INSERT OR REPLACE INTO grok_config(id, data) VALUES (1, ?)", (json.dumps(cur),))
-            j.conn.commit()
+        j.run("INSERT OR REPLACE INTO grok_config(id, data) VALUES (1, ?)", (json.dumps(cur),))
         self.configure(cur.get("api_key", ""), cur.get("model", ""), cur.get("mode") or "veto", "dashboard")
 
     def forget(self) -> None:
         j = self._table()
-        with j._lock:
-            j.conn.execute("DELETE FROM grok_config")
-            j.conn.commit()
+        j.run("DELETE FROM grok_config")
         s = self.settings
         self.configure(s.grok_api_key, s.grok_model, s.grok_mode, "env")
 

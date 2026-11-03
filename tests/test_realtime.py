@@ -8,11 +8,11 @@ import httpx
 import pytest
 from websockets.asyncio.server import serve
 
+from tests.helpers import capture
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.coinbase import CoinbaseFeed
-from tests.helpers import capture
 
 
 def rest_client(handler):

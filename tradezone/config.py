@@ -74,7 +74,7 @@ class Settings:
     journal_path: str = "tradezone.db"
     host: str = "127.0.0.1"
     port: int = 8000
-    api_token: str = ""  # access token; REQUIRED (16+ chars) whenever the site is reachable beyond localhost
+    api_token: str = ""  # optional master key for scripts/recovery (16+ chars if public); sign-in uses the PIN
     # ---- firewall / abuse protection ----
     allowed_ips: list[str] = field(default_factory=list)  # optional allowlist of IPs/CIDRs, e.g. 203.0.113.7,10.0.0.0/8
     rate_limit_per_min: int = 600  # requests per IP per minute
@@ -83,7 +83,7 @@ class Settings:
     trusted_proxies: str = ""
     # ---- app lock (PIN / Face ID) ----
     lock_after_min: float = 5.0  # re-lock the app after this many minutes without activity
-    public_url: str = ""  # e.g. https://tradezone-blqn.onrender.com (Face ID binds to this; default: request host)  # IPs whose X-Forwarded-For is trusted ("*" behind Render's proxy)
+    public_url: str = ""  # e.g. https://tradezone-blqn.onrender.com (Face ID binds to this; default: request host)
     live_confirm: str = ""
     alpaca_key: str = ""  # Alpaca PAPER account keys (paper broker / market data)
     alpaca_secret: str = ""
@@ -169,7 +169,7 @@ class Settings:
         return out
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> Settings:
         s = cls()
         for f in fields(s):
             if f.name == "risk":

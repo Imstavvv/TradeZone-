@@ -1,6 +1,6 @@
 # One-click hosting on Render (https://render.com): New > Blueprint > pick this repo.
-# The dashboard gets a public https URL. A random TZ_API_TOKEN is generated for you
-# (Render dashboard > tradezone > Environment) - the site asks for it on first visit.
+# The dashboard gets a public https URL. On first visit the site asks for the SETUP code
+# printed in the service logs (Render dashboard > tradezone > Logs), then you choose a PIN.
 services:
   - type: web
     name: tradezone
@@ -9,8 +9,6 @@ services:
     healthCheckPath: /api/health
     autoDeploy: false      # redeploys restart the bots - deploy deliberately
     envVars:
-      - key: TZ_API_TOKEN
-        generateValue: true
       - key: TZ_HOST
         value: 0.0.0.0
       - key: TZ_JOURNAL_PATH

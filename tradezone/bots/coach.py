@@ -83,7 +83,7 @@ class CoachBot(Bot):
         self.stats: dict[str, dict[str, dict]] = {"strategy": {}, "symbol": {}, "regime": {}, "combo": {}}
         self.signals: dict[str, dict] = {}  # signal id -> entry context
         self.requests: dict[str, str] = {}  # order request id -> signal id
-        self.open: dict[str, dict] = {}  # symbol -> {ctx, pnl}
+        self.open: dict[str, dict] = {}  # "mode|symbol" -> {ctx, pnl} for trades still open
         self.bench: dict[str, float] = {}  # symbol -> benched until
         self.lessons: list[dict] = []
         self.threshold_adj = 0.0
@@ -112,6 +112,9 @@ class CoachBot(Bot):
         req = ev.payload
         if not req.reduce_only and req.signal_id in self.signals:
             self.requests[req.id] = req.signal_id
+            if len(self.requests) > 2000:
+                for k in list(self.requests)[:1000]:
+                    self.requests.pop(k, None)
 
     def _context_for_fill(self, t: dict) -> dict | None:
         exe = self.desk.bots.get("execution")
@@ -122,18 +125,19 @@ class CoachBot(Bot):
     def on_trade(self, ev: Event) -> None:
         t = ev.payload
         sym = t["symbol"]
-        if t["action"] == "flip" and (old := self.open.pop(sym, None)) is not None and t.get("pnl") is not None:
+        key = f"{t.get('mode', 'paper')}|{sym}"  # paper and live keep separate books
+        if t["action"] == "flip" and (old := self.open.pop(key, None)) is not None and t.get("pnl") is not None:
             self.learn(sym, old["ctx"], old["pnl"] + t["pnl"])
         if t["action"] in ("open", "flip"):
-            self.open[sym] = {"ctx": self._context_for_fill(t), "pnl": 0.0}
+            self.open[key] = {"ctx": self._context_for_fill(t), "pnl": 0.0}
             self.last_entry_ts = now()
             return
-        rec = self.open.get(sym)
+        rec = self.open.get(key)
         if rec is None or t.get("pnl") is None:
             return
         rec["pnl"] += t["pnl"]
         if abs(t.get("position_after") or 0.0) < 1e-12:
-            self.open.pop(sym, None)
+            self.open.pop(key, None)
             self.learn(sym, rec["ctx"], rec["pnl"])
 
     # ---------------------------------------------------------------- learning
@@ -219,6 +223,9 @@ class CoachBot(Bot):
         left = until - now()
         if left <= 0 and symbol in self.bench:
             self.bench.pop(symbol, None)
+            if (st := self.stats["symbol"].get(symbol)) is not None:
+                for f in st:
+                    st[f] /= 2
             self.lesson(f"{symbol} is back off the bench - giving it another chance")
         return max(0.0, left)
 
@@ -270,13 +277,13 @@ class CoachBot(Bot):
                 self._last_adjust = now()
                 self.lesson("Results have recovered - back to the normal bar")
         self.metrics.update({"trades_learned": self.learned_trades, "risk_level": self.risk_mult(),
-                             "bar": self.bar(), "benched": len([k for k in self.bench if self.benched(k)])})
+                             "bar": self.bar(), "benched": sum(1 for k in list(self.bench) if self.benched(k))})
         if time.monotonic() - self._last_save > self.SAVE_EVERY_S:
             self.save()
 
     # ------------------------------------------------------------ persistence
     def snapshot(self) -> dict:
-        return {"stats": self.stats, "bench": self.bench, "lessons": self.lessons,
+        return {"stats": self.stats, "bench": self.bench, "lessons": self.lessons, "open": self.open,
                 "threshold_adj": self.threshold_adj, "learned_trades": self.learned_trades,
                 "last_entry_ts": self.last_entry_ts}
 
@@ -294,6 +301,7 @@ class CoachBot(Bot):
         self.stats = {**self.stats, **data.get("stats", {})}
         self.bench = {k: v for k, v in data.get("bench", {}).items() if v > now()}
         self.lessons = data.get("lessons", [])[-12:]
+        self.open = data.get("open", {})
         self.threshold_adj = data.get("threshold_adj", 0.0)
         self.learned_trades = data.get("learned_trades", 0)
         self.last_entry_ts = data.get("last_entry_ts", now())
@@ -309,6 +317,8 @@ class CoachBot(Bot):
                             "win_rate": shrunk_win_rate(self.stats["strategy"].get(k, _blank()))} for k in STRATEGIES],
             "symbols": [{"symbol": k, "trades": round(v["n"]), "wins": round(v["wins"]), "pnl": v["pnl"],
                          "size": round(self.symbol_mult(k), 2), "benched_min": round(self.benched(k) / 60)} for k, v in sym],
+            "benched": [{"symbol": k, "minutes": round(left / 60)} for k in list(self.bench)
+                        if (left := self.benched(k)) > 0],
             "risk_level": self.risk_mult(),
             "bar": self.bar(),
             "bar_base": self.settings.risk.min_signal_strength,

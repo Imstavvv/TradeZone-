@@ -1,8 +1,8 @@
 import pytest
 
+from tests.helpers import capture, prime, run
 from tradezone.core.models import Side, Signal
 from tradezone.core.stops import StopRejected, avoid_round_number, plan_stop, round_step
-from tests.helpers import capture, prime, run
 
 
 def test_round_steps():

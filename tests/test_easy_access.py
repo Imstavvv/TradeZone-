@@ -3,12 +3,12 @@
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import ORIGIN, run
 from tradezone.brokers.alpaca import AlpacaBroker
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
-from tests.helpers import ORIGIN, run
 
 PIN = "482915"
 

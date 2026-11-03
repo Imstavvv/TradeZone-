@@ -6,14 +6,20 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.helpers import FakeLiveBroker, capture, prime, run
 from tradezone.config import Settings
 from tradezone.core.models import OrderRequest, Side, Signal
-from tradezone.core.util import is_closing, norm_symbol, position_mismatches, round_qty, us_market_open
+from tradezone.core.util import (
+    is_closing,
+    norm_symbol,
+    position_mismatches,
+    round_qty,
+    us_market_open,
+)
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
 from tradezone.server import create_app
-from tests.helpers import FakeLiveBroker, capture, prime, run
 
 NY = ZoneInfo("America/New_York")
 
