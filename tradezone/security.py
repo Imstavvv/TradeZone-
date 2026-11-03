@@ -139,15 +139,20 @@ class SecurityManager:
                     "recover access" if self.owner_exists else "create your password")
         log.warning("=" * 60)
 
-    def check_recovery(self, code: str | None) -> bool:
-        """The logged setup/recovery code (any formatting), or the API token if one is configured."""
+    def check_recovery(self, code: str | None, consume: bool = True) -> bool:
+        """The logged setup/recovery code (any formatting), or the API token if one is configured.
+
+        ``consume=False`` checks it without using it up (first-time setup only uses the code once
+        the password or Face ID is actually saved, so a weak password can be retried).
+        """
         code = (code or "").strip()
         if self.check_token(code):
             return True
         digits = "".join(c for c in code if c.isdigit())
         ok = len(digits) == 8 and hmac.compare_digest(digits, self.recovery_code.replace("-", ""))
         if ok:
-            self.rotate_recovery_code()  # single use
+            if consume:
+                self.rotate_recovery_code()  # single use
             return True
         self._recovery_attempts += 1
         if self._recovery_attempts >= self.RECOVERY_MAX_ATTEMPTS:

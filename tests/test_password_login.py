@@ -76,3 +76,47 @@ def test_journal_goes_on_the_persistent_disk_when_there_is_one(tmp_path, monkeyp
     desk = TradingDesk(Settings(feed="sim"), journal=Journal(":memory:"))
     with TestClient(create_app(desk, run_desk=False), base_url=ORIGIN) as c:
         assert c.get("/api/setup/status").status_code == 200
+
+
+def test_set_up_with_face_id_only_no_password(site):  # noqa: F811
+    from tests.helpers import SoftAuthenticator
+    code = site.sec.recovery_code
+    r = site.post("/api/setup", json={"code": code, "method": "faceid"})
+    assert r.status_code == 200 and r.json()["next"] == "faceid"
+    assert site.sec.owner_exists is False and site.sec.recovery_code == code  # not finished yet: code still valid
+    auth = SoftAuthenticator()
+    opts = site.post("/api/webauthn/register/options").json()  # no password exists to confirm with yet
+    assert site.post("/api/webauthn/register/verify", json={"credential": auth.create(opts)}).status_code == 200
+    assert site.sec.owner_exists is True and site.sec.recovery_code != code  # setup done, code used up
+    assert new_device(site).post("/api/setup", json={"code": code, "method": "faceid"}).status_code == 409
+    # another device logs in with that Face ID (no password anywhere)
+    phone = new_device(site)
+    o = phone.post("/api/signin/faceid/options").json()
+    assert phone.post("/api/signin/faceid/verify",
+                      json={"ceremony": o["ceremony"], "credential": auth.get(o["options"])}).status_code == 200
+    assert phone.get("/api/state").status_code == 200
+
+
+def test_cancelled_face_id_setup_can_switch_to_a_password(site):  # noqa: F811
+    code = site.sec.recovery_code
+    assert site.post("/api/setup", json={"code": code, "method": "faceid"}).status_code == 200
+    # Face ID prompt cancelled -> choose a password instead, same code
+    assert site.post("/api/setup", json={"code": code, "pin": PW}).status_code == 200
+    assert site.sec.owner_exists and site.sec.recovery_code != code
+
+
+def test_logging_in_counts_as_confirming_for_a_while(site):  # noqa: F811
+    site.post("/api/setup", json={"code": site.sec.recovery_code, "pin": PW})
+    phone = new_device(site)
+    phone.post("/api/signin/pin", json={"pin": PW})
+    body = {"chain": "XRP", "address": "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe", "tag": "5"}
+    assert phone.post("/api/wallets", json=body).status_code == 200  # just logged in: no second password prompt
+    phone.app.state.expire_confirmations()
+    assert phone.post("/api/wallets", json={**body, "tag": "6"}).status_code == 403  # later it asks again
+
+
+def test_a_weak_password_at_setup_doesnt_burn_the_code(site):  # noqa: F811
+    code = site.sec.recovery_code
+    assert site.post("/api/setup", json={"code": code, "pin": "password"}).status_code == 400
+    assert site.post("/api/setup", json={"code": code, "pin": PW}).status_code == 200  # same code still works
+    assert site.sec.recovery_code != code

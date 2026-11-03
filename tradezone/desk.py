@@ -187,7 +187,7 @@ class TradingDesk:
             if self.halted:
                 out.append("the emergency stop (kill switch) is on - tap Restart trading first")
             if not self.owner_protected():
-                out.append("set up your password first, so only you can control real money")
+                out.append("set up your login first (Face ID or a password), so only you can control real money")
         if self.portfolio.open_positions:
             out.append(f"close your {len(self.portfolio.open_positions)} open {self.mode} position(s) first (tap Close all trades)")
         if self.bots["execution"].working:  # type: ignore[attr-defined]

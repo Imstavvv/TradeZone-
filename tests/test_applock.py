@@ -22,6 +22,7 @@ def c():
     with TestClient(create_app(desk, run_desk=False), base_url=ORIGIN) as client:
         client.desk = desk
         assert client.post("/api/login", json={"token": TOKEN}).status_code == 200
+        client.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
         yield client
 
 
@@ -158,6 +159,7 @@ def test_face_id_from_another_device_key_rejected(c):
 
 def test_remove_face_id_key(c):
     enroll(c, SoftAuthenticator())
+    c.app.state.expire_confirmations()  # adding Face ID just proved it's the owner; check the step-up itself
     keys = c.get("/api/applock").json()["passkeys"]
     assert c.delete(f"/api/webauthn/passkeys/{keys[0]['id']}").status_code == 403  # step-up
     assert c.delete(f"/api/webauthn/passkeys/{keys[0]['id']}", headers=CONFIRM).status_code == 409  # only way in

@@ -252,9 +252,9 @@ Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referre
 
 ### Logging in: a password your phone remembers (or Face ID)
 
-Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and one password box.
+Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and **one** way to log in: a big Face ID button if you use Face ID, otherwise a password box (with a small link to switch).
 
-* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you choose a **password** (at least 6 letters or numbers; spaces and emoji are fine) and can turn on **Face ID**. Nobody can set up your site without that code.
+* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you pick **one** way to log in: **Face ID / fingerprint** (nothing to remember) or a **password** (at least 6 letters or numbers; spaces and emoji are fine). You can add the other later in Settings. Nobody can set up your site without that code, and it's only used up once your login is saved, so a cancelled Face ID prompt or a too-weak password can simply be retried.
 * **Let your phone save it.** The login box is a normal password form, so iPhone (iCloud Keychain), Android (Google Password Manager) and desktop browsers offer to save it and fill it in with Face ID or your fingerprint. Logging in becomes one tap.
 * **You stay logged in.** A device you've logged in on stays logged in for 30 days from your last visit, including the home-screen app. It doesn't ask for the password every time you open it. **Settings → Lock now** locks it on demand. To re-lock automatically after some idle minutes, set `TZ_LOCK_AFTER_MIN`.
 * **Had a 6-digit PIN before?** It still works: type it in the password box. You can change it in **Settings → Your password**.
@@ -262,7 +262,8 @@ Every visit starts on the **front page**: the TradeZone logo, your bot mascots, 
 * **Other options on the front page:** "Have a code from your other phone?" (Settings → Show a login code) and **Forgot your password?**. That one uses the recovery code from the same Render logs (`TradeZone recovery code`, single use, a fresh one appears after each use and each restart), then you choose a new password.
 * **Stored safely:** only a salted scrypt hash is kept. Very common passwords (password, 123456, qwerty…) are refused.
 * **Face ID:** uses passkeys. Your phone's secure chip checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello.
-* **Important actions** (real money, wallets, sending money, changing your password or Face ID, adding a device) ask for your password or Face ID. One confirmation counts for 10 minutes, so you aren't asked over and over.
+* **Linking accounts and other important actions** (real money, broker, wallets, sending money, changing your login, adding a device) ask you to confirm it's you, with **one** method at a time: Face ID if you use it, otherwise your password, plus a small link to switch. **Logging in counts as confirming for 10 minutes**, so linking right after you log in asks nothing extra. Each confirmation also lasts 10 minutes.
+* **Linking your broker:** the sheet has an **Open Alpaca** button, and if you copy both keys together, one **Paste** fills both boxes.
 * **Your data stays put:** if a disk is mounted at `/data` (the Render blueprint does this), the password, trades and everything the bots learned are kept there automatically, so a redeploy doesn't wipe them.
 * `TZ_API_TOKEN` is optional: it's only for scripts (`Authorization: Bearer …`), and it also works as a recovery code.
 

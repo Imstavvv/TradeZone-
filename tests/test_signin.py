@@ -30,7 +30,9 @@ def new_device(c):
 
 
 def setup(c, code=None):
-    return c.post("/api/setup", json={"code": code or c.sec.recovery_code, "pin": PIN})
+    r = c.post("/api/setup", json={"code": code or c.sec.recovery_code, "pin": PIN})
+    c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
+    return r
 
 
 def test_first_setup_needs_the_logged_code_once(site):

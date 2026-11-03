@@ -314,7 +314,7 @@ class WalletService:
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:
             raise WalletError(f"daily withdrawal limit {s.max_daily_withdrawal:,.0f} USD would be exceeded")
         if self.desk.is_live and not self.desk.owner_protected():
-            raise WalletError("set up your password first, so only you can move real money")
+            raise WalletError("set up your login first (Face ID or a password), so only you can move real money")
         t = Transfer(f"wd_{secrets.token_hex(6)}", "withdrawal", w.chain, asset, amount, usd, "completed",
                      w.id, w.address, w.tag)
         if self.desk.is_live:

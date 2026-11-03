@@ -23,7 +23,9 @@ def client(journal=None, **kw):
 
 
 def login(c, token=TOKEN):
-    return c.post("/api/login", json={"token": token})
+    r = c.post("/api/login", json={"token": token})
+    c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
+    return r
 
 
 def test_security_headers_and_csp_nonce():

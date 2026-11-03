@@ -74,7 +74,8 @@ class PinBody(BaseModel):
 
 class SetupBody(BaseModel):
     code: str = ""
-    pin: str
+    pin: str = ""
+    method: str = "password"  # password | faceid (Face ID is then added straight away, no password needed)
 
 
 class BrokerBody(BaseModel):
@@ -254,12 +255,17 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             return  # nothing to confirm with yet (first setup in progress)
         raise HTTPException(403, "confirm with your password or Face ID")
 
+    def trust_now(h: str) -> None:
+        """Unlocked, and just proved it's the owner: no extra "confirm it's you" for a few minutes."""
+        applock.unlock(h)
+        confirmed[h] = time.time() + CONFIRM_FOR_S
+
     def start_session(request: Request, response: Response, how: str) -> str:
         """Trust this device: new session cookie, unlocked straight away. Returns the session hash."""
         ip = client_ip(request.scope)
         sid = sec.create_session(ip, agent(request))
         h = sec.sid_hash(sid)
-        applock.unlock(h)
+        trust_now(h)
         response.set_cookie(SESSION_COOKIE, sid, max_age=30 * 24 * 3600, httponly=True,
                             secure=request.url.scheme == "https", samesite="lax", path="/")
         sec.audit("login", ip, how, agent(request))
@@ -368,9 +374,14 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         ip = client_ip(request.scope)
         if sec.owner_exists:
             raise HTTPException(409, "TradeZone is already set up - sign in instead")
-        if sec.auth_required and not sec.check_recovery(body.code):
+        if sec.auth_required and not sec.check_recovery(body.code, consume=False):
             sec.login_failed(ip, agent(request))
             raise HTTPException(401, "That setup code isn't right. Copy it from your server logs.")
+        if body.method == "faceid":
+            # log this device in now; the code stays valid until Face ID is actually saved
+            # (register/verify finishes the setup), so a cancelled Face ID prompt can be retried
+            start_session(request, response, "first-time setup - adding Face ID")
+            return {"ok": True, "next": "faceid"}
         try:
             applock.set_pin(body.pin)
         except LockError as exc:
@@ -478,7 +489,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(400, "no password is set")
         ip = client_ip(request.scope)
         if applock.check_pin(body.pin.strip()):
-            applock.unlock(h)
+            trust_now(h)
             sec.audit("unlock", ip, "unlocked with password", agent(request))
             return {"ok": True}
         left = applock.pin_failed(h)
@@ -516,7 +527,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             sec.audit("faceid_failed", client_ip(request.scope), str(exc)[:120], agent(request), "warning")
             raise HTTPException(403, str(exc)) from None
         if h:
-            applock.unlock(h)
+            trust_now(h)
         sec.audit("unlock", client_ip(request.scope), f"unlocked with {label}", agent(request))
         return {"ok": True}
 
@@ -532,7 +543,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(400, str(exc)) from None
         _, h = auth_state(request)
         if h:
-            applock.unlock(h)
+            trust_now(h)
         audit(request, "password set / changed", "warning")
         return {"ok": True}
 
@@ -553,12 +564,16 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     async def faceid_register(body: CredentialBody, request: Request):
         _, h = auth_state(request)
         rp_id, origin = rp(request)
+        first = not applock.enabled  # first-time setup with Face ID instead of a password
         try:
             res = applock.register(h or "bearer", body.credential, rp_id, origin, body.label or "Face ID")
         except LockError as exc:
             raise HTTPException(400, str(exc)) from None
+        if first:
+            sec.rotate_recovery_code()  # an owner exists now: the setup code becomes a recovery code
+            audit(request, "first-time setup - Face ID created", "warning")
         if h:
-            applock.unlock(h)
+            trust_now(h)
         audit(request, f"Face ID added ({res['label']})", "warning")
         return res
 

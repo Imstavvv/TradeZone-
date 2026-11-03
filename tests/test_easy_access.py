@@ -19,6 +19,7 @@ def site(tmp_path):
     with TestClient(create_app(desk, run_desk=False), base_url=ORIGIN) as c:
         c.desk, c.sec = desk, desk.security
         c.post("/api/setup", json={"code": desk.security.recovery_code, "pin": PIN})
+        c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
         yield c
 
 

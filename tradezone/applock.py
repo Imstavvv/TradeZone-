@@ -161,7 +161,10 @@ class AppLock:
         if not self.enabled:
             return True
         row = self.journal.one("SELECT unlocked_until FROM sessions WHERE id_hash = ?", (sid_hash,))
-        return bool(row) and (row[0] or 0) > time.time()
+        until, now = (row[0] or 0) if row else 0, time.time()
+        if self.lock_after_s < NEVER:  # auto-lock was switched on later: old "never" unlocks don't count
+            until = min(until, now + self.lock_after_s) if until - now <= self.lock_after_s + 60 else 0
+        return until > now
 
     def unlock(self, sid_hash: str) -> None:
         self.journal.run(
