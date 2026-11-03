@@ -12,6 +12,7 @@ class PortfolioBot(Bot):
     name = "portfolio"
     title = "Portfolio Manager"
     role = "Positions, P&L & Exit Management"
+    mission = "🌱 Grow - protect profits and let winners compound"
     description = (
         "Books every fill, marks positions to market, and protects open trades with "
         "stop-loss, take-profit and trailing stops - issuing exit orders when they trigger."

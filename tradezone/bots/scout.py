@@ -37,6 +37,7 @@ class ScoutBot(Bot):
     name = "scout"
     title = "Scout"
     role = "Market Data & Signal Prep"
+    mission = "🎯 Take trades - never miss a move: watch every coin, every tick"
     description = (
         "Watches every market tick, validates data quality, and computes the indicator "
         "set (EMA, RSI, volatility, ATR, Donchian channels) the rest of the team relies on."

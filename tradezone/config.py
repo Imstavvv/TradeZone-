@@ -91,6 +91,10 @@ class Settings:
     alpaca_live_secret: str = ""
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- Grok (xAI) AI analyst ----
+    # ---- Coach: the team learns from its own closed trades (hard safety limits never change) ----
+    coach_learning: bool = True
+    coach_bench_minutes: float = 120.0  # how long a coin that keeps losing sits out
+    coach_idle_hours: float = 6.0  # idle this long with healthy results -> lower the bar a little
     grok_api_key: str = ""
     grok_model: str = "grok-4"
     grok_base_url: str = "https://api.x.ai/v1"

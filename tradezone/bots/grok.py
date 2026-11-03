@@ -174,6 +174,7 @@ class GrokBot(Bot):
     name = "grok"
     title = "Grok"
     role = "AI Analyst (xAI Grok)"
+    mission = "🧠 Learn the markets - a second opinion from the news and the crowd"
     description = (
         "Sends each proposed trade, with its indicators, regime and portfolio context, to xAI's "
         "Grok for an independent second opinion, and vetoes trades Grok doesn't back."

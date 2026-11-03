@@ -21,6 +21,7 @@ class SentinelBot(Bot):
     name = "sentinel"
     title = "Sentinel"
     role = "Audit, Compliance & Performance"
+    mission = "🌱 Grow - keep score honestly so the team improves"
     description = (
         "Journals every decision to an audit trail, computes live performance stats "
         "(Sharpe, drawdown, win rate, profit factor), and watches the team's health."

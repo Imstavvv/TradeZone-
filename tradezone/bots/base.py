@@ -28,6 +28,7 @@ class BotStatus:
     log: list[dict[str, Any]] = field(default_factory=list)
     actions_per_min: float = 0.0
     total_actions: int = 0
+    mission: str = ""
 
 
 class Bot:
@@ -38,6 +39,8 @@ class Bot:
     #: one-line role used across the UI
     role = "generic"
     description = ""
+    #: how this bot serves the team rules (make money, take trades, grow, learn the markets)
+    mission = ""
     #: if True the bot can't be disabled from the UI (safety-critical)
     critical = False
 
@@ -127,4 +130,5 @@ class Bot:
             list(self._log)[-15:],
             self.actions_per_min(),
             self.total_actions,
+            self.mission,
         )

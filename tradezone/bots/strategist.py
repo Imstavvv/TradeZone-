@@ -14,6 +14,7 @@ class StrategistBot(Bot):
     name = "strategist"
     title = "Strategist"
     role = "Market Regime Analysis"
+    mission = "🧠 Learn the markets - read the market's mood so the team plays it right"
     description = (
         "Decides whether each market is trending, ranging, or in a volatility storm, so the "
         "Quant knows which playbook to trust and the Risk Manager can scale exposure."

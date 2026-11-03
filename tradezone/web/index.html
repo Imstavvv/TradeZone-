@@ -105,7 +105,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
 /* ---- live bot floor ---- */
 .floor{grid-column:1/-1}
-.pipeline{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px;position:relative}
+.pipeline{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px;position:relative}
 .node.exec{background:linear-gradient(180deg,#2a2208,var(--panel2));border-color:#713f12}
 .node .crown{position:absolute;top:-9px;right:8px;font-size:10px;font-weight:800;letter-spacing:.6px;background:#eab308;color:#0b0f17;border-radius:6px;padding:1px 6px}
 .node{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .3s,box-shadow .3s,transform .3s}
@@ -123,7 +123,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .node.flash:not(:last-child)::after{background:var(--c)}
 .node.warn{border-color:var(--warn)}
 .node.crit{border-color:var(--down)}
-@media (max-width:1300px){.pipeline{grid-template-columns:repeat(5,minmax(0,1fr))}.node:nth-child(5)::after{display:none}}
+@media (max-width:1300px){.pipeline{grid-template-columns:repeat(5,minmax(0,1fr))}.node:nth-child(5n)::after{display:none}}
 @media (max-width:1100px){.pipeline{grid-template-columns:repeat(3,minmax(0,1fr))}.node:nth-child(3n)::after{display:none}}
 /* ---- activity stream ---- */
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
@@ -411,6 +411,16 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 .mate2 .say{margin-top:6px;font-size:11px;color:#ddd6fe;background:rgba(139,92,246,.16);border-radius:10px 10px 10px 2px;padding:5px 7px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;min-height:calc(2.7em + 10px);max-height:calc(2.7em + 10px)}
 .mate2.off{opacity:.45}
+.mate2 .msn{font-size:10px;font-weight:700;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mission{margin-top:10px;font-weight:700;font-size:13px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:10px;padding:6px 10px}
+.mission:empty{display:none}
+.rule{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.rule:last-child{border-bottom:none}
+.rule .ic{flex:none;font-size:20px;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--panel2)}
+.rule .tx b{display:block}.rule .tx span{color:var(--muted);font-size:12px}
+.learnstats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.learnstats .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+.learnstats .chip.good{border-color:var(--up)}.learnstats .chip.bad{border-color:var(--down)}
 .avatar{font-size:16px}
 /* cards & lists get a splash of colour */
 .scard h4{font-size:16px;font-weight:800}
@@ -640,6 +650,7 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
   <div style="display:flex;align-items:center;gap:10px"><div class="avatar" id="bmAv"></div>
     <div><h3 id="bmTitle" style="margin:0"></h3><div class="muted" id="bmRole"></div></div>
     <button id="bmClose" style="margin-left:auto">Close</button></div>
+  <div id="bmMission" class="mission"></div>
   <div class="muted" id="bmDesc" style="margin-top:10px;font-size:12px"></div>
   <div class="mets" id="bmMets" style="display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:8px;font-size:12px;color:var(--muted)"></div>
   <div class="botlog" id="bmLog"></div>
@@ -679,6 +690,10 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
       <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
       <div class="scard" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
+      <div class="scard" id="sec-rules"><h4>📜 Team rules</h4><div id="sRules"></div>
+        <div class="muted" style="font-size:12px;margin-top:8px">Every bot works by these. The safety limits (stops, daily loss limit) always come first.</div></div>
+      <div class="scard" id="sec-learned"><h4>🧠 What the team has learned <span class="muted" id="sLearnN" style="font-size:12px"></span></h4>
+        <div id="sLearnStats" class="learnstats"></div><div id="sLearned"></div></div>
     </div>
     <div id="sec-settings">
       <h3 class="shead">⚙️ Settings</h3>
@@ -828,9 +843,9 @@ body.is-live .hero .actions2 button.gopaper{background:#fff;color:#b91c1c}
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉'};
+const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8'};
+const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1331,7 +1346,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','sentinel'];
+const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1430,7 +1445,7 @@ async function openBot(name){
   const d = await api('/api/bots/' + name + '/log');
   openBotName = name;
   $('bmAv').textContent = MASCOT[name] || d.title[0]; $('bmAv').style.background = COLORS[name]; $('bmAv').className = 'avatar';
-  $('bmTitle').textContent = d.title; $('bmRole').textContent = d.role; $('bmDesc').textContent = d.description;
+  $('bmTitle').textContent = d.title; $('bmRole').textContent = d.role; $('bmDesc').textContent = d.description; $('bmMission').textContent = d.mission || '';
   $('bmMets').innerHTML = [['actions/min', Math.round(d.actions_per_min)], ['total actions', d.total_actions], ['errors', d.errors],
     ...Object.entries(d.metrics).filter(([, v]) => typeof v !== 'object')].map(([k, v]) => `<span>${esc(String(k).replace(/_/g, ' '))} <b style="color:var(--text)">${esc(typeof v === 'number' ? num(v) : v)}</b></span>`).join('');
   $('bmLog').innerHTML = d.log.slice().reverse().map(e => `<div class="lvl-${e.level}"><span class="t muted">${time(e.ts)}</span> ${esc(e.message)}</div>`).join('') || '<div class="empty">No actions yet</div>';
@@ -1720,6 +1735,24 @@ function renderTicker(st){
   // rebuild when the symbol list changes, otherwise refresh numbers every few seconds (not on every tick)
   if (run._key !== key || !run._t || Date.now() - run._t > 3000) { run._key = key; run._t = Date.now(); run.innerHTML = html + html; }
 }
+function renderCoach(c){
+  if (!c) return;
+  $('sRules').innerHTML = c.rules.map(r => `<div class="rule"><div class="ic">${r.icon}</div><div class="tx"><b>${esc(r.rule)}</b><span>${esc(r.detail)}</span></div></div>`).join('');
+  $('sLearnN').textContent = c.trades_learned ? `from ${c.trades_learned} finished trade${c.trades_learned === 1 ? '' : 's'}` : '';
+  const chips = c.strategies.map(x => {
+    const t = x.trust, k = t > 1.05 ? 'good' : t < 0.95 ? 'bad' : '';
+    return `<span class="chip ${k}" title="${x.trades} trades">${esc(x.name)}: ${t > 1.05 ? 'trusted more' : t < 0.95 ? 'trusted less' : 'normal'}</span>`;
+  });
+  const rl = c.risk_level;
+  chips.push(`<span class="chip ${rl > 1 ? 'good' : rl < 1 ? 'bad' : ''}">Trade size: ${rl > 1 ? 'growing 🌱' : rl < 1 ? 'smaller for now' : 'normal'}</span>`);
+  if (c.bar < c.bar_base) chips.push('<span class="chip">Looking for more chances 🎯</span>');
+  else if (c.bar > c.bar_base) chips.push('<span class="chip bad">Only the best chances</span>');
+  for (const s of c.symbols.filter(s => s.benched_min > 0)) chips.push(`<span class="chip bad">${esc(s.symbol)} sitting out ${s.benched_min} min</span>`);
+  $('sLearnStats').innerHTML = chips.join('');
+  $('sLearned').innerHTML = c.lessons.length ? c.lessons.slice(0, 6).map(l => `<div class="happen"><div class="ic" style="background:${l.level === 'warning' ? 'var(--warn)' : '#34d399'}">🎓</div>
+      <div>${esc(l.text)}</div><div class="tm">${ago(l.ts)}</div></div>`).join('')
+    : '<div class="emptyhint">Nothing yet - after a few finished trades the Coach will share what works.</div>';
+}
 function crewSay(b){  // a bot's latest action, as something it might actually say
   if (!b.enabled) return 'Switched off - tap to see why';
   const a = String(b.last_action || '');
@@ -1743,6 +1776,8 @@ function crewSay(b){  // a bot's latest action, as something it might actually s
   if (/^connected to/.test(a)) return 'Online and ready to review trades 🤖';
   if (/^not connected/.test(a) || /NOT connected/.test(a)) return 'Not connected yet - tap Grok AI to set me up';
   if (/logged \w+ alert/.test(a)) return 'Keeping the records straight 📒';
+  if ((m = a.match(/^Learned: (.*)/))) return `Lesson: ${m[1].slice(0, 70)} 🎓`;
+  if (/^remembered \d+ past trades/.test(a)) return `I remember ${a.match(/\d+/)[0]} past trades 🧠`;
   if (/^standing by$/.test(a)) return 'Ready when you are 👋';
   return a.length > 70 ? a.slice(0, 70) + '…' : (a || 'Ready! 👋');
 }
@@ -1918,9 +1953,11 @@ function renderSimple(st){
     const busy = b.enabled && b.last_action_ts && now - b.last_action_ts < 6;
     return `<div class="mate2${busy ? ' busy' : ''}${b.enabled ? '' : ' off'}" data-mate="${b.name}" style="--c:${COLORS[b.name]}">
       <div class="face">${MASCOT[b.name] || esc(b.title[0])}</div><div class="nm">${esc(b.title)}</div>
+      <div class="msn">${esc((b.mission || '').split(' - ')[0])}</div>
       <div class="say" title="${esc(b.last_action)}">${esc(crewSay(b))}</div></div>`;
   }).join('');
   document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
+  renderCoach(st.coach);
   renderSettings();
 }
 $('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();

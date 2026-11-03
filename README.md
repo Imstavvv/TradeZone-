@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Nine specialised bots, including an AI analyst powered by xAI's Grok,, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Ten specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -17,6 +17,7 @@ It runs in **paper mode by default**, trading **live market prices** with simula
 | **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
 | **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit, trailing stops and profit protection, and reconciles against the broker |
 | **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
+| **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
 
 ### How a trade flows
 
@@ -48,7 +49,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 * **Hero card:** your balance, which counts up or down as it changes, and today's result with a mood (😎 great day, 🙂 up, 😌 steady, 🥶 rough day). A live price ticker scrolls across the top. Practice money is violet-pink; real money switches to a fiery red-orange so the two can't be confused.
 * **Badges:** 🔥 win streaks, 🔒 profits locked in, and ⚡ how fast the Executive decides.
-* **Your bot crew:** every bot has a mascot (🔭 Scout, 🧭 Strategist, 🧮 Quant, 🤖 Grok, 🛡️ Risk Manager, 👑 Executive, ⚡ Executor, 💼 Portfolio Manager, 🦉 Sentinel). Each one bounces while it works and says what it's doing in a speech bubble.
+* **Your bot crew:** every bot has a mascot (🔭 Scout, 🧭 Strategist, 🧮 Quant, 🤖 Grok, 🛡️ Risk Manager, 👑 Executive, ⚡ Executor, 💼 Portfolio Manager, 🦉 Sentinel, 🎓 Coach). Each one bounces while it works and says what it's doing in a speech bubble.
 * **Celebrations:** a confetti burst and a 🎉 message when a trade closes in profit. Losses get a calm note, because small losses are part of the plan.
 * **Big, friendly buttons** (Pause, Close all, Emergency stop, Use real money), in-app confirmation sheets instead of browser pop-ups, and a small vibration on Android.
 * **Texture:** drifting colour glows, film grain and frosted-glass cards, in the rounded system font on Apple devices.
@@ -58,7 +59,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 9 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Sentinel). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 10 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -88,6 +89,27 @@ By default (`TZ_FEED=auto`), paper trading uses **real market data**. If Alpaca 
 Indicators and signals run on **1-minute bars** (`TZ_BAR_SECONDS`), pre-loaded from history on Coinbase. Stops, targets and profit locks react to every trade. On Alpaca there's no history pre-load yet, so expect a 30-bar warm-up (shown in a banner).
 
 `TZ_FEED=sim` (synthetic prices) remains available for offline demos, the tests and `python -m tradezone sim`.
+
+## Team rules and learning
+
+Every bot works by four team rules, and each bot has a **mission** saying which rule it serves (shown on its card):
+
+| Rule | What it means in practice |
+|---|---|
+| 💰 **Make money** | Only take trades whose target beats the risk and pays for the fees (Risk Manager, Executive, Executor). |
+| 🎯 **Take trades** | Don't sit idle: if hours pass with no trade while results are healthy, the Coach lowers the conviction bar a little (by at most 0.05). |
+| 🌱 **Grow** | Sizes already scale with the balance, so gains compound. After 15+ trades with a profit factor of 1.2 or more, risk per trade rises to 1.1x (1.25x at 1.5 or more). After losses it drops to 0.8x or 0.6x. |
+| 🧠 **Learn the markets** | The Coach credits each finished trade to the strategies that suggested it, the coin and the market mood. |
+
+What the Coach changes, and the guard rails:
+
+* **Strategy trust (0.5x to 1.5x):** a strategy that keeps winning gets more say in the Quant's vote. Records are shrunk toward 50/50 until there is enough evidence, so a lucky streak can't take over.
+* **Coins:** after 5+ trades with a poor record and a net loss, a coin sits out for `TZ_COACH_BENCH_MINUTES` (120 by default). Coins with a good record get slightly bigger positions (up to 1.2x), poor ones smaller (down to 0.8x).
+* **Hard limits never move:** stops, position and exposure caps, portfolio heat, daily loss and drawdown kill switches, and the fee filter all apply exactly as before.
+* What the team has learned survives restarts, and it is shown in plain words in the "What the team has learned" card.
+* `TZ_COACH_LEARNING=false` turns learning off (the rules still apply). `TZ_COACH_IDLE_HOURS` (6 by default) sets how long the team waits before looking for more chances.
+
+Learning can't promise profits. In four 3,000-step simulations on synthetic prices (seeds 1 to 4), ending equity with learning on was about $760 higher in total than with it off. Drawdown was the same or lower in every run. One seed was unchanged and another still lost money. Treat this as a check that the feature works safely, not as a forecast.
 
 ## Buys need team consensus
 
@@ -370,7 +392,7 @@ The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scri
 ```
 tradezone/
   core/        event bus, models, indicators, portfolio ledger
-  bots/        the 9-bot team (incl. Grok AI analyst and the Executive head trader)
+  bots/        the 10-bot team (incl. Grok AI analyst, the Executive head trader and the learning Coach)
   wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
   brokers/     paper broker, Alpaca broker

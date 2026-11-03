@@ -422,6 +422,8 @@ class TradingDesk:
         self.load_linked_broker()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
+        if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
+            self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
         await self.backfill()
         if restored:
@@ -585,6 +587,7 @@ class TradingDesk:
         if self.live_broker is not None:
             await self.live_broker.close()
         await self.bots["grok"].close()  # type: ignore[attr-defined]
+        self.bots["coach"].save()  # type: ignore[attr-defined]
         self.journal.commit()
 
     # -- views -----------------------------------------------------------
@@ -632,6 +635,7 @@ class TradingDesk:
                 "opinions": self.bots["grok"].opinions,  # type: ignore[attr-defined]
             },
             "executive": self.bots["executive"].summary(),  # type: ignore[attr-defined]
+            "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),

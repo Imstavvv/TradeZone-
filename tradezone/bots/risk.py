@@ -15,6 +15,7 @@ class RiskBot(Bot):
     name = "risk"
     title = "Risk Manager"
     role = "Risk Control & Position Sizing"
+    mission = "💰 Make money - only trades whose reward beats the risk and fees"
     description = (
         "Vets every signal against exposure, concentration, cooldown and rate limits, sizes "
         "positions by volatility, and trips the kill switch on excessive loss or drawdown."
@@ -121,8 +122,12 @@ class RiskBot(Bot):
             return self.reject(sig, "already positioned in this direction")
         if sig.side is Side.SELL and not limits.allow_short:
             return self.reject(sig, "short selling disabled")
-        if sig.strength < limits.min_signal_strength:
+        coach = self.desk.bots.get("coach")
+        bar = coach.bar() if coach is not None else limits.min_signal_strength
+        if sig.strength < bar:
             return self.reject(sig, f"conviction {sig.strength:.2f} below threshold")
+        if coach is not None and (left := coach.benched(sig.symbol)) > 0:
+            return self.reject(sig, f"{sig.symbol} is benched by the Coach after repeated losses ({left / 60:.0f} min left)")
         if len(self.portfolio.open_positions) >= limits.max_open_positions:
             return self.reject(sig, "max open positions reached")
         since = now() - self.last_trade.get(sig.symbol, 0)
@@ -169,6 +174,8 @@ class RiskBot(Bot):
         strategist = self.desk.bots.get("strategist")
         if strategist and strategist.regime(sig.symbol) is Regime.VOLATILE:
             risk_budget *= 0.5
+        if coach is not None:  # 🌱 grow: size up slowly after good results, down after bad ones
+            risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
         qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure

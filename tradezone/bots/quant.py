@@ -51,6 +51,7 @@ class QuantBot(Bot):
     name = "quant"
     title = "Quant"
     role = "Strategy & Signal Generation"
+    mission = "🎯 Take trades - spot real chances and bring them to the team"
     description = (
         "Runs momentum, mean-reversion and breakout models, blends them using the "
         "Strategist's regime call, and proposes buy/sell signals with a conviction score."
@@ -72,12 +73,15 @@ class QuantBot(Bot):
             return  # warm-up data: never trade on the past
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
+        coach = self.desk.bots.get("coach")
         weights = WEIGHTS[regime]
+        if coach is not None:  # 🧠 learn: trust the strategies that have been working
+            weights = {k: w * coach.strategy_mult(k) for k, w in weights.items()}
         parts = {k: fn(s) for k, fn in STRATEGIES.items()}
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
         self.scores[s.symbol] = {**parts, "ensemble": score, "regime": regime.value}  # type: ignore[dict-item]
 
-        th = self.settings.risk.min_signal_strength
+        th = coach.bar() if coach is not None else self.settings.risk.min_signal_strength
         prev = self.stance.get(s.symbol, 0)
         new = prev
         if score >= th:

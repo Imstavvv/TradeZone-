@@ -13,6 +13,7 @@ class ExecutionBot(Bot):
     name = "execution"
     title = "Executor"
     role = "Order Execution & Routing"
+    mission = "💰 Make money - fill at a fair price, no mistakes"
     description = (
         "Turns approved orders into broker orders, prevents duplicates, enforces reduce-only "
         "exits, tracks partial fills and cancels orders that go stale."

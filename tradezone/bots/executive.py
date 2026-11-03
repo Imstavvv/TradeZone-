@@ -37,6 +37,7 @@ class ExecutiveBot(Bot):
     name = "executive"
     title = "Executive"
     role = "Head Trader - Final Decisions"
+    mission = "💰 Make money - the final yes only for the best trades"
     description = (
         "The head trader. Takes the final real-time decision on every trade: checks team health, "
         "re-checks the live price so it never chases, limits correlated bets, switches to a "
