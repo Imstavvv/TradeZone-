@@ -52,6 +52,10 @@ def build_broker(s: Settings) -> Broker:
 def build_live_broker(s: Settings) -> Broker | None:
     if s.live_blockers():
         return None
+    if s.venue() == "uphold":
+        from .brokers.uphold import UpholdBroker
+
+        return UpholdBroker(s.uphold_token, symbols=s.symbols)
     from .brokers.alpaca import AlpacaBroker
 
     return AlpacaBroker(s.alpaca_live_key, s.alpaca_live_secret, paper=False)
@@ -210,12 +214,13 @@ class TradingDesk:
             acct = await self.live_broker.account()
             positions = await self.live_broker.positions()
             if acct is None:
-                blockers.append("couldn't reach your Alpaca account - check it in Settings → Linked accounts")
+                blockers.append(f"couldn't reach your {self.live_broker.label} account - check it in Settings → Linked accounts")
             else:
                 account = {**acct, "positions": positions or {}}
                 if positions:
                     blockers.append(
-                        f"your Alpaca account already holds {len(positions)} position(s) - close them in Alpaca first "
+                        f"your {self.live_broker.label} account already holds {len(positions)} position(s) of coins the "
+                        f"bots trade - sell them in {self.live_broker.label} first "
                         "(TradeZone needs an account with nothing open)"
                     )
                 cap = self.settings.live_max_capital
@@ -365,23 +370,65 @@ class TradingDesk:
     def load_linked_broker(self) -> bool:
         self._accounts_table()
         with self.journal._lock:
-            row = self.journal.conn.execute("SELECT data FROM linked_accounts WHERE kind = 'alpaca_live'").fetchone()
-        if not row:
+            rows = dict(self.journal.conn.execute(
+                "SELECT kind, data FROM linked_accounts WHERE kind IN ('alpaca_live', 'uphold_live')").fetchall())
+        if not rows:
             return False
         import json as _json
-        d = _json.loads(row[0])
-        self.settings.alpaca_live_key, self.settings.alpaca_live_secret = d["key"], d["secret"]
+        if "uphold_live" in rows:
+            self.settings.uphold_token = _json.loads(rows["uphold_live"])["token"]
+            self.settings.live_venue = "uphold"
+        else:
+            d = _json.loads(rows["alpaca_live"])
+            self.settings.alpaca_live_key, self.settings.alpaca_live_secret = d["key"], d["secret"]
+            self.settings.live_venue = "alpaca"
+        self.settings.apply_venue_costs()
         self.broker_source = "app"
         if not self.settings.live_blockers():
             self.live_broker = build_live_broker(self.settings)
         return True
 
-    async def link_broker(self, key: str, secret: str) -> dict:
-        """Check Alpaca live keys work, then use them for real-money trading."""
+    async def _link_uphold(self, token: str) -> dict:
+        from .brokers.uphold import UpholdBroker
+        token = token.strip().removeprefix("Bearer ").strip()
+        if len(token) < 20:
+            raise ValueError("Paste your whole Uphold access token (it's a long code).")
+        broker = UpholdBroker(token, symbols=self.settings.symbols)
+        acct = await broker.account()
+        if acct is None:
+            await broker.close()
+            raise ValueError("Uphold didn't accept this token. Make a new one and copy it completely.")
+        await broker.load_assets()
+        import json as _json
+        self._accounts_table()
+        with self.journal._lock:
+            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind = 'alpaca_live'")
+            self.journal.conn.execute("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES ('uphold_live', ?)",
+                                      (_json.dumps({"token": token}),))
+            self.journal.conn.commit()
+        old, self.live_broker = self.live_broker, broker
+        self.settings.uphold_token, self.settings.live_venue = token, "uphold"
+        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
+        self.settings.apply_venue_costs()
+        self.broker_source = "app"
+        if old is not None and old is not broker:
+            await old.close()
+        unsupported = [s for s in self.settings.symbols if broker.supports(s) is False]
+        if unsupported:
+            self.bus.publish("alert", Alert("warning", "Uphold can't trade " + ", ".join(unsupported)
+                                            + " - those stay practice-only", "desk"))
+        return acct
+
+    async def link_broker(self, key: str, secret: str = "", venue: str = "alpaca") -> dict:
+        """Check the real-money credentials work, then use them for live trading."""
         from .brokers.alpaca import AlpacaBroker
-        key, secret = (key or "").strip(), (secret or "").strip()
         if self.is_live:
             raise ValueError("Switch back to practice money before changing the account.")
+        if venue == "uphold":
+            return await self._link_uphold(key or "")
+        if venue != "alpaca":
+            raise ValueError("Choose Uphold or Alpaca.")
+        key, secret = (key or "").strip(), (secret or "").strip()
         if not key or not secret:
             raise ValueError("Paste both the Key ID and the Secret Key.")
         if key.upper().startswith("PK"):
@@ -395,11 +442,13 @@ class TradingDesk:
         import json as _json
         self._accounts_table()
         with self.journal._lock:
+            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind = 'uphold_live'")
             self.journal.conn.execute("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES ('alpaca_live', ?)",
                                       (_json.dumps({"key": key, "secret": secret}),))
             self.journal.conn.commit()
         old, self.live_broker = self.live_broker, broker
         self.settings.alpaca_live_key, self.settings.alpaca_live_secret = key, secret
+        self.settings.uphold_token, self.settings.live_venue = "", "alpaca"
         self.broker_source = "app"
         if old is not None and old is not broker:
             await old.close()
@@ -410,12 +459,12 @@ class TradingDesk:
             raise ValueError("Switch back to practice money first.")
         self._accounts_table()
         with self.journal._lock:
-            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind = 'alpaca_live'")
+            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind IN ('alpaca_live', 'uphold_live')")
             self.journal.conn.commit()
         if self.live_broker is not None:
             await self.live_broker.close()
         self.live_broker = None
-        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
+        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = self.settings.uphold_token = ""
         self.broker_source = ""
 
     def owner_protected(self) -> bool:
@@ -426,10 +475,14 @@ class TradingDesk:
         return self.settings.host in ("127.0.0.1", "localhost", "::1")
 
     def broker_info(self) -> dict:
-        key = self.settings.alpaca_live_key
+        venue = self.settings.venue()
+        key = self.settings.uphold_token if venue == "uphold" else self.settings.alpaca_live_key
         return {"linked": bool(key), "source": getattr(self, "broker_source", "") or ("server" if key else ""),
+                "venue": venue, "label": "Uphold" if venue == "uphold" else "Alpaca",
                 "key": f"…{key[-4:]}" if len(key) >= 8 else "", "ready": not self.settings.live_blockers(),
-                "blockers": self.settings.live_blockers()}
+                "blockers": self.settings.live_blockers(),
+                "practice_only": [s for s in self.settings.symbols
+                                  if self.live_broker is not None and self.live_broker.supports(s) is False]}
 
     async def start(self) -> None:
         self.load_linked_broker()
@@ -438,6 +491,8 @@ class TradingDesk:
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
+        if self.live_broker is not None and hasattr(self.live_broker, "load_assets"):
+            await self.live_broker.load_assets()  # which coins Uphold can trade (others stay practice-only)
         if dropped := getattr(self.feed, "dropped", None):
             self.bus.publish("alert", Alert("warning", f"Not listed on {self.feed.name}, skipped: {', '.join(dropped)}", "desk"))
         await self.backfill()

@@ -96,6 +96,13 @@ class Settings:
     alpaca_secret: str = ""
     alpaca_live_key: str = ""  # Alpaca LIVE (real money) account keys - enables the Go LIVE button
     alpaca_live_secret: str = ""
+    # ---- Uphold (real money): one bearer token (Personal Access Token or OAuth token) ----
+    uphold_token: str = ""
+    # Uphold's cost is its spread (built into the rate). Practice trades charge this much per side
+    # when Uphold is the real-money venue, so practice results match what real money would do.
+    uphold_fee_bps: float = 100.0
+    # which venue trades real money: auto (Uphold if its token is set, else Alpaca) | uphold | alpaca
+    live_venue: str = "auto"
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- "don't lose my money": stricter limits whenever real money is trading ----
     live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
@@ -223,6 +230,17 @@ class Settings:
         """Per-unit cost to enter and exit: fees + slippage both ways, plus a small margin."""
         return price * (2 * (self.fee_bps(symbol) + self.slippage_bps) + 2) / 10_000
 
+    def venue(self) -> str:
+        """The real-money venue in use: uphold or alpaca."""
+        if self.live_venue in ("uphold", "alpaca"):
+            return self.live_venue
+        return "uphold" if self.uphold_token else "alpaca"
+
+    def apply_venue_costs(self) -> None:
+        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee)."""
+        if self.venue() == "uphold" and "TZ_CRYPTO_FEE_BPS" not in os.environ:
+            self.crypto_fee_bps = max(self.crypto_fee_bps, self.uphold_fee_bps)
+
     def data_keys(self) -> tuple[str, str] | None:
         if self.alpaca_key and self.alpaca_secret:
             return self.alpaca_key, self.alpaca_secret
@@ -233,7 +251,11 @@ class Settings:
     def live_blockers(self) -> list[str]:
         """Configuration problems preventing live trading (empty = live can be enabled)."""
         out = []
-        if not (self.alpaca_live_key and self.alpaca_live_secret):
+        if self.venue() == "uphold":
+            if not self.uphold_token:
+                out.append("connect your Uphold account first: Settings → Linked accounts → Real-money account "
+                           "(server setting TZ_UPHOLD_TOKEN)")
+        elif not (self.alpaca_live_key and self.alpaca_live_secret):
             out.append("connect your real-money account first: Settings → Linked accounts → Real-money account "
                        "(server setting TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET)")
         if self.feed == "sim":
@@ -267,6 +289,10 @@ class Settings:
             bad = [s for s in self.symbols if not s.endswith("-USD")]
             if bad:
                 raise ValueError(f"Coinbase only quotes crypto pairs like BTC-USD; not: {', '.join(bad)}")
+        if self.live_venue not in ("auto", "uphold", "alpaca"):
+            raise ValueError("TZ_LIVE_VENUE must be auto, uphold or alpaca")
+        self.uphold_token = self.uphold_token.strip()
+        self.apply_venue_costs()
         if self.broker not in ("paper", "alpaca"):
             raise ValueError("TZ_BROKER must be paper or alpaca")
         if self.mode == "live":

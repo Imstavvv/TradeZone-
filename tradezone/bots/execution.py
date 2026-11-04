@@ -121,8 +121,8 @@ class ExecutionBot(Bot):
         if req.reduce_only:
             held = self.effective_qty(req.symbol)
             qty = min(qty, abs(held))
-            if self.desk.broker.name == "alpaca":
-                # Alpaca takes crypto fees out of the coins received, so the broker can hold slightly
+            if self.desk.broker.name in ("alpaca", "uphold"):
+                # real venues can take fees out of the coins received, so the broker can hold slightly
                 # less than our book: never try to sell more than the broker actually has
                 actual = await self.desk.broker.position_qty(req.symbol)
                 if actual is not None and 0 < abs(actual) < qty:

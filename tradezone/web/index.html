@@ -666,6 +666,21 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     <div class="row" style="margin-top:12px"><button id="brokerClose2">Done</button><button id="brokerUnlink" class="danger">Disconnect</button></div>
   </div>
   <div id="brokerForm">
+    <div class="muted" style="font-size:14px">Where do you keep your money?</div>
+    <div class="coinchips" id="venuePick" style="margin:6px 0 4px"><button type="button" data-venue="uphold" class="on">🟢 Uphold</button><button type="button" data-venue="alpaca">🦙 Alpaca</button></div>
+    <div id="upholdForm">
+    <div class="muted" style="font-size:14px">TradeZone trades real money in your <b>Uphold</b> account - crypto and meme coins, straight from your USD balance. Connecting takes a few minutes:</div>
+    <ol class="howto">
+      <li>Put the money the bots may use (e.g. <b>$50</b>) in your Uphold <b>USD</b> balance.</li>
+      <li>On the computer running TradeZone, run <span class="mono">python -m tradezone uphold-token</span> and log in to Uphold when asked (your password goes only to Uphold and isn't saved).</li>
+      <li>Copy the long token it prints and paste it below.</li>
+    </ol>
+    <a class="openlink" href="https://wallet.uphold.com/" target="_blank" rel="noopener noreferrer">Open Uphold ↗</a>
+    <label class="fl">Uphold access token</label>
+    <div class="pastebox"><input id="upholdToken" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="upholdToken">📋 Paste</button></div>
+    <div class="muted" style="font-size:12px">Heads-up: Uphold's price includes a spread of about 1% each way, so the bots skip tiny trades that couldn't beat it. Practice trades charge the same cost, so practice results match real ones.</div>
+    </div>
+    <div id="alpacaForm" style="display:none">
     <div class="muted" style="font-size:14px">TradeZone trades real money through <b>Alpaca</b>, a regulated broker. Connecting takes about 2 minutes:</div>
     <ol class="howto">
       <li>Open <b>alpaca.markets</b> and log in (or sign up - it's free).</li>
@@ -678,6 +693,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     <div class="pastebox"><input id="brokerKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="AK…"><button type="button" data-paste="brokerKey">📋 Paste</button></div>
     <label class="fl">Secret Key</label>
     <div class="pastebox"><input id="brokerSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="brokerSecret">📋 Paste</button></div>
+    </div>
     <div class="lockerr" id="brokerErr"></div>
     <div class="muted" style="font-size:12px">Your keys stay on your own server and are never shown again. TradeZone keeps using practice money until you choose "Use real money".</div>
     <div class="row" style="margin-top:12px"><button id="brokerCancel">Cancel</button><button id="brokerGo" class="gopaper">Connect</button></div>
@@ -762,7 +778,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 </div></div>
 <div class="modal" id="liveModal"><div class="box">
   <h3>💵 Use real money?</h3>
-  <div class="muted">From now on the bots buy and sell with <b>real money</b> in your Alpaca account, on their own, until you switch back, pause or use the emergency stop.</div>
+  <div class="muted">From now on the bots buy and sell with <b>real money</b> in your <span class="venueName">Alpaca</span> account, on their own, until you switch back, pause or use the emergency stop.</div>
   <div id="liveBody" style="margin-top:12px">Checking live account…</div>
   <div class="actions">
     <button id="liveCancel">Keep practising</button>
@@ -2028,7 +2044,8 @@ function renderSettings(){
   if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
-    $('accBrokerTxt').textContent = b.linked ? `Connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''}` : "Not connected - you're using practice money";
+    document.querySelectorAll('.venueName').forEach(e => e.textContent = b.label || 'Alpaca');
+    $('accBrokerTxt').textContent = b.linked ? `${b.label} connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''}` : "Not connected - you're using practice money";
     $('accBrokerBtn').textContent = b.linked ? 'Manage' : 'Connect'; $('accBrokerBtn').className = b.linked ? '' : 'gopaper';
     $('accGrokTxt').textContent = !g.configured ? 'Optional - double-checks every trade'
       : g.connected ? `Connected ✓ · ${g.mode === 'veto' ? 'approves every new trade' : g.mode === 'advisory' ? 'gives advice only' : 'switched off'}`
@@ -2092,22 +2109,33 @@ async function pasteInto(input){
 document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e => { if (e.target === sh && sh.id !== 'askSheet') sh.classList.remove('open'); }));
 
 // ---- connect a real-money broker ----
+let VENUE = 'uphold';
+function pickVenue(v){
+  VENUE = v; document.querySelectorAll('#venuePick [data-venue]').forEach(b => b.classList.toggle('on', b.dataset.venue === v));
+  $('upholdForm').style.display = v === 'uphold' ? '' : 'none'; $('alpacaForm').style.display = v === 'alpaca' ? '' : 'none';
+  $('brokerErr').textContent = '';
+}
+document.querySelectorAll('#venuePick [data-venue]').forEach(b => b.onclick = () => pickVenue(b.dataset.venue));
 async function openBroker(){
-  $('brokerErr').textContent = ''; $('brokerKey').value = $('brokerSecret').value = '';
+  $('brokerErr').textContent = ''; $('brokerKey').value = $('brokerSecret').value = $('upholdToken').value = '';
   const A = await loadAccounts(); const b = A && A.broker;
+  pickVenue(b && b.venue || 'uphold');
   $('brokerLinked').style.display = b && b.linked ? '' : 'none'; $('brokerForm').style.display = b && b.linked ? 'none' : '';
-  if (b && b.linked) $('brokerStatus').innerHTML = `✅ Connected (key ${esc(b.key)})` +
+  if (b && b.linked) $('brokerStatus').innerHTML = `✅ ${esc(b.label || '')} connected (key ${esc(b.key)})` +
     (b.account ? `<br>Available cash: <b>${money(b.account.cash)}</b> · Account value: <b>${money(b.account.equity)}</b>` : '') +
+    (b.practice_only && b.practice_only.length ? `<br><span class="muted">Practice only (${esc(b.label)} can't trade them): ${b.practice_only.map(esc).join(', ')}</span>` : '') +
     '<br><span class="muted">To trade with it, tap <b>Use real money</b> on the home screen.</span>';
   $('brokerSheet').classList.add('open');
 }
 $('brokerCancel').onclick = $('brokerClose2').onclick = () => $('brokerSheet').classList.remove('open');
 $('brokerGo').onclick = async () => {
-  const key = $('brokerKey').value.trim(), secret = $('brokerSecret').value.trim();
-  if (!key || !secret) { $('brokerErr').textContent = 'Paste both the Key ID and the Secret Key.'; return; }
+  const up = VENUE === 'uphold';
+  const key = (up ? $('upholdToken') : $('brokerKey')).value.trim(), secret = up ? '' : $('brokerSecret').value.trim();
+  if (up && !key) { $('brokerErr').textContent = 'Paste your Uphold access token.'; return; }
+  if (!up && (!key || !secret)) { $('brokerErr').textContent = 'Paste both the Key ID and the Secret Key.'; return; }
   const h = await confirmAction('connect your real-money account'); if (h === null) return;
-  $('brokerGo').disabled = true; $('brokerErr').textContent = 'Checking with Alpaca…';
-  try { const r = await api('/api/accounts/broker', {key, secret}, h);
+  $('brokerGo').disabled = true; $('brokerErr').textContent = `Checking with ${up ? 'Uphold' : 'Alpaca'}…`;
+  try { const r = await api('/api/accounts/broker', {key, secret, venue: VENUE}, h);
         toast(`Connected ✓ ${r.account ? money(r.account.cash) + ' available' : ''}`, 'ok', 5000); confetti(); openBroker(); }
   catch (e) { $('brokerErr').textContent = e.message || 'Could not connect'; }
   finally { $('brokerGo').disabled = false; }
