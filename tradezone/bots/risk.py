@@ -151,6 +151,10 @@ class RiskBot(Bot):
                 if net < self.desk.min_take():
                     return self.reject(sig, f"strategy exit skipped: +{net:,.2f} isn't worth its share of the "
                                             f"~${self.desk.transfer_fee():,.2f} transfer fee yet")
+                fees = self.settings.round_trip_cost(sig.symbol, pos.avg_price) * abs(pos.qty)
+                if net < self.settings.strategy_exit_min_cost * fees:  # don't sell a winner for crumbs: let it run
+                    return self.reject(sig, f"strategy exit skipped: +{net:,.2f} is under 2x the fees - letting the "
+                                            "winner run to its target (its stop protects it)")
             qty = abs(pos.qty)
             if sig.fraction < 1.0:  # a partial take is profit-taking: never let it turn into selling everything
                 least = max(self.desk.broker.min_qty(sig.symbol, price), 1.0 / price)  # the venue's smallest sale
@@ -258,6 +262,8 @@ class RiskBot(Bot):
 
         # accuracy: only take trades whose target clearly pays for the fees
         edge = s.flip_min_edge if quick else s.min_edge_cost_multiple
+        if quick and sig.source == "skimmer":
+            edge = min(edge, 2.0)  # skims: a small target with their own tight stop (their reward still pays 2x the fees)
         reward = abs(tp - price)
         if reward < edge * cost:
             self.bump("rejected_fees")

@@ -65,7 +65,7 @@ def test_live_takes_trades_with_a_little_less_conviction():
 
 
 def test_quick_flip_banks_half_once_the_profit_after_fees_is_real():
-    desk = make()
+    desk = make(flip_bank_fraction=0.25)  # (off by default now; the feature still works when switched on)
     pos = buy(desk)
     q0 = pos.qty
     tick(desk, "BTC-USD", 50_500.0)  # +1% move, but fees eat most of it: hold
@@ -115,7 +115,7 @@ def test_fees_are_always_counted_and_hard_limits_unchanged():
 def test_skims_are_possible_on_real_money_with_krakens_fee():
     from tests.test_skimmer import ind
     from tradezone.core.models import Snapshot
-    desk = make()  # 0.40% per side, like Kraken
+    desk = make(flip_max_skims=4)  # 0.40% per side, like Kraken (real-money skims are off by default)
     desk.set_bot_enabled("quant", False)
     desk.settings.symbols.append("SOL-USD")
     prime(desk, "SOL-USD", 100.0, atr=0.4)

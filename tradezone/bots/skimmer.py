@@ -190,7 +190,7 @@ class SkimmerBot(Bot):
             target = abs(pos.take_profit / entry - 1)
         else:
             target = s.plan_pcts(sym)[1]
-        if self.quick and net_pct >= s.flip_net_pct and net * s.flip_bank_fraction >= least:  # quick flip: bank a slice
+        if self.quick and s.flip_bank_fraction > 0 and net_pct >= s.flip_net_pct and net * s.flip_bank_fraction >= least:  # quick flip: bank a slice
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")
             self.bump("quick_flips")

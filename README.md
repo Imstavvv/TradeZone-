@@ -552,7 +552,29 @@ Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at 
 
 This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. Shorts work the same way, mirrored. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
 
-### Patient exits (real money)
+### Why trades were losing, and what changed
+
+Every position was replayed in simulated real-money trading on Kraken (0.40% fee per side) and its result added up from buy to final sale:
+
+* **Winners were small, losers were big.** Average winning position about **+$1.60**, average losing position about **-$2.00** to **-$2.80**, so even winning ~45% of positions lost money.
+* **Holding losers made it worse.** The biggest losses all came from *patient exits*: holding a losing trade for a comeback, then cutting it at -4% to -5% instead of -2%. That's a weaker stop-loss, not a fix.
+* **Fees were bigger than the losses.** Winners were sold in small pieces (a quarter at +1.2%, "change of mind" exits at tiny profits, small skims), and each sale paid ~0.4%. In one run, $42 of fees against a $14 total loss.
+* **Winners were shaken out early.** The stop jumped to break-even after only +0.7%, so ordinary wiggles closed winners near break-even.
+
+So the fix is the opposite of removing the stop-loss: **cut losers quickly, let winners run, sell less often.**
+
+| | Before | Now (real money) |
+| --- | --- | --- |
+| Stop-loss | held losers to -5% / -12% (patient exits) | **-2%** bigger coins, **-5%** meme coins (patient exits off: `TZ_PATIENT_EXITS`) |
+| Stop moves to break-even + fees | at +0.35R (about +0.7%) | at **+1R** (`TZ_FLIP_BREAKEVEN_R`) |
+| Sell a quarter early at +1.2% | yes | **off** (`TZ_FLIP_BANK_FRACTION`) |
+| "Change of mind" exit of a winner | any profit | only once it's made **2x the fees** (`TZ_STRATEGY_EXIT_MIN_COST`) |
+| A trade's target must pay | 2x the fees | **3x** (`TZ_FLIP_MIN_EDGE`) |
+| Skims (small +1.5% targets) | 4 at once | **off** (`TZ_FLIP_MAX_SKIMS`) |
+
+On the same simulated markets this cut the losses roughly in half. The simulated prices are random, so no setting makes money there and what's left is mostly fees; on real markets the result depends on whether the entries have an edge. Tested and rejected: a wider -3% stop and a tighter -1.5% stop (both worse than -2%). The stop-loss stays: without it, a single bad trade has no floor.
+
+### Patient exits (real money, off by default)
 
 With real money, a losing trade isn't cut at the first dip. Each trade gets a wider **safety stop** (**-5%** for bigger coins and stocks, **-12%** for meme coins; `TZ_PATIENT_STOP_PCT`, `TZ_PATIENT_MEME_STOP_PCT`), and once it's down past where the usual tight stop would be (-2% / -5%), the Portfolio Manager checks it at every bar close:
 
@@ -622,9 +644,9 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 | Skims: a dip counts up to RSI | 45 | 55 (`TZ_FLIP_SKIM_RSI_MAX`) |
 | Majors / stocks stop · target | -3% · +6% | -5% safety stop (cut early from -2% only if momentum and volume say so) · +4% |
 | Meme coins stop · target | -8% · +15% | -12% safety stop (watch from -5%) · +10% |
-| Bank half of a trade | halfway to target (25%) | as soon as it's +1.2% after fees |
+| Bank part of a trade early | a quarter halfway to target | off (`TZ_FLIP_BANK_FRACTION=0`): early slices paid fees and shrank winners |
 | Close a winner that's going nowhere | after 24 h (meme 6 h) | after 3 h (meme 1.5 h) |
-| Skims at once · target · time limit · cooldown | 2 · +2.5% · 120 min · 15 min | 4 · +1.5% · 120 min · 5 min |
+| Skims at once · target · time limit · cooldown | 2 · +2.5% · 120 min · 15 min | off (`TZ_FLIP_MAX_SKIMS=0`): at ~0.9% round-trip fees a small skim target lost money; set 4 to turn back on |
 | Target must pay the fees at least | 3× | 2× |
 
 **Fees are counted in every trade.** Every target is profit *after* the buy and the sell fee (and slippage), each trade's result includes both fees, and the clock or a profit-taker only ever sells when the sale makes money after fees. Practice charges your real-money venue's fee: Alpaca 0.25%, Kraken 0.40% (`TZ_KRAKEN_FEE_BPS`), Uphold about 1% (`TZ_UPHOLD_FEE_BPS`). With Uphold's spread a round trip costs about 2%, so quick flips are rare there; Kraken or Alpaca suit them best.
