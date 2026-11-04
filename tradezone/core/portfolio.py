@@ -20,6 +20,7 @@ class Position(Model):
     take_profit: float | None = None
     high_water: float | None = None  # best price since entry, for trailing stops
     opened_ts: float | None = None
+    entry_fees: float = 0.0  # buy fees paid on what's still held (charged to the trade when it's sold)
 
     @property
     def market_value(self) -> float:
@@ -91,6 +92,7 @@ class Portfolio:
             # opening or adding: blend average cost
             new_qty = pos.qty + signed
             pos.avg_price = (pos.avg_price * pos.qty + fill.price * signed) / new_qty
+            pos.entry_fees += fill.commission
             if pos.is_flat:
                 pos.opened_ts = fill.ts
                 pos.high_water = fill.price
@@ -99,7 +101,10 @@ class Portfolio:
             # reducing, closing or flipping
             close_qty = min(abs(signed), abs(pos.qty))
             direction = 1 if pos.qty > 0 else -1
-            pnl = (fill.price - pos.avg_price) * close_qty * direction - fill.commission
+            share = close_qty / abs(pos.qty) if abs(pos.qty) > EPS else 1.0
+            entry_fee = pos.entry_fees * min(share, 1.0)
+            pos.entry_fees -= entry_fee
+            pnl = (fill.price - pos.avg_price) * close_qty * direction - fill.commission * close_qty / abs(signed) - entry_fee
             pos.realized_pnl += pnl
             closed = ClosedTrade(
                 fill.symbol,
@@ -114,6 +119,7 @@ class Portfolio:
             if remainder > EPS:  # flipped through zero
                 pos.qty = remainder * (1 if signed > 0 else -1)
                 pos.avg_price = fill.price
+                pos.entry_fees = fill.commission * remainder / abs(signed)
                 pos.opened_ts = fill.ts
                 pos.high_water = fill.price
                 pos.stop_price = pos.take_profit = None
@@ -121,7 +127,7 @@ class Portfolio:
                 pos.qty += signed
                 if pos.is_flat:
                     pos.qty = 0.0
-                    pos.avg_price = 0.0
+                    pos.avg_price = pos.entry_fees = 0.0
                     pos.stop_price = pos.take_profit = pos.high_water = None
                     pos.opened_ts = None
         return closed

@@ -102,6 +102,7 @@ class Settings:
     # Kraken (real money, crypto): a key WITHOUT withdraw permission - TradeZone refuses keys that can withdraw
     kraken_key: str = ""
     kraken_secret: str = ""
+    kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
     # ---- Uphold (real money): one bearer token (Personal Access Token or OAuth token) ----
     uphold_token: str = ""
     # Uphold's cost is its spread (built into the rate). Practice trades charge this much per side
@@ -115,6 +116,22 @@ class Settings:
     live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
     live_max_drawdown_pct: float = 0.10  # real money: stop after -10% from the peak (practice: -15%)
     live_capital_floor_pct: float = 0.10  # real money: stop if the account falls 10% below what you put in
+    # ---- quick flips: on real money the bots trade more often and bank smaller wins sooner ----
+    # Every target is counted AFTER fees (both buy and sell), and the hard limits above never change.
+    live_quick_flips: bool = True
+    flip_min_strength: float = 0.30  # conviction a real-money trade needs (practice: risk.min_signal_strength)
+    flip_major_stop_pct: float = 0.02  # majors and stocks: -2% stop...
+    flip_major_target_pct: float = 0.04  # ...and +4% profit after fees
+    flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...
+    flip_meme_target_pct: float = 0.10  # ...and +10% profit after fees
+    flip_net_pct: float = 0.012  # bank half of a trade as soon as it is up this much after fees
+    flip_min_edge: float = 2.0  # the target must pay at least this many times the fees (you keep >= the fees)
+    flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
+    flip_meme_max_hold_hours: float = 1.5
+    flip_breakeven_r: float = 0.35  # lock in break-even + fees sooner
+    flip_max_skims: int = 4
+    flip_skim_max_minutes: float = 60.0
+    flip_skim_cooldown_min: float = 5.0
     # ---- the goal the bots work toward (by compounding - it never raises risk) ----
     goal_start: float = 50.0
     goal_target: float = 10_000.0
@@ -210,10 +227,16 @@ class Settings:
     exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
 
-    def plan_pcts(self, symbol: str) -> tuple[float, float]:
-        """(stop-loss %, take-profit %) for a symbol under the percent plan."""
+    def quick(self, live: bool) -> bool:
+        """Quick-flip mode: real money with live_quick_flips on."""
+        return live and self.live_quick_flips
+
+    def plan_pcts(self, symbol: str, quick: bool = False) -> tuple[float, float]:
+        """(stop-loss %, take-profit %) for a symbol under the percent plan (the target is after fees)."""
         if self.is_meme(symbol):
-            return self.stop_loss_pct, self.take_profit_pct
+            return (self.flip_meme_stop_pct, self.flip_meme_target_pct) if quick else (self.stop_loss_pct, self.take_profit_pct)
+        if quick:
+            return self.flip_major_stop_pct, self.flip_major_target_pct
         return self.major_stop_loss_pct, self.major_take_profit_pct
 
     def is_meme(self, symbol: str) -> bool:
@@ -237,6 +260,14 @@ class Settings:
         """Per-unit cost to enter and exit: fees + slippage both ways, plus a small margin."""
         return price * (2 * (self.fee_bps(symbol) + self.slippage_bps) + 2) / 10_000
 
+    def net_if_sold(self, pos, price: float) -> float:
+        """What selling the whole position at ``price`` would really make: price move minus the buy fee
+        already paid and the sell fee + slippage still to come (with a small margin)."""
+        qty = abs(pos.qty)
+        paid = pos.entry_fees if getattr(pos, "entry_fees", 0.0) > 0 else qty * pos.avg_price * self.fee_bps(pos.symbol) / 10_000
+        exit_cost = qty * price * (self.fee_bps(pos.symbol) + self.slippage_bps + 1) / 10_000
+        return (price - pos.avg_price) * pos.qty - paid - exit_cost
+
     def venue(self) -> str:
         """The real-money venue in use: uphold, kraken or alpaca."""
         if self.live_venue in VENUES:
@@ -246,9 +277,12 @@ class Settings:
         return "kraken" if self.kraken_key else "alpaca"
 
     def apply_venue_costs(self) -> None:
-        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee)."""
-        if self.venue() == "uphold" and "TZ_CRYPTO_FEE_BPS" not in os.environ:
-            self.crypto_fee_bps = max(self.crypto_fee_bps, self.uphold_fee_bps)
+        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee; Kraken's is 0.40%)."""
+        if "TZ_CRYPTO_FEE_BPS" in os.environ:
+            return
+        venue_fee = {"uphold": self.uphold_fee_bps, "kraken": self.kraken_fee_bps}.get(self.venue())
+        if venue_fee is not None:
+            self.crypto_fee_bps = max(self.crypto_fee_bps, venue_fee)
 
     def data_keys(self) -> tuple[str, str] | None:
         if self.alpaca_key and self.alpaca_secret:

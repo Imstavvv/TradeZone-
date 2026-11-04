@@ -37,9 +37,11 @@ def test_defaults_are_crypto_with_trusted_meme_coins():
 def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
     meme = buy(desk, "PEPE-USD", 0.00001)
     assert meme.qty > 0
-    assert meme.stop_price == pytest.approx(0.00001 * 0.92) and meme.take_profit == pytest.approx(0.00001 * 1.15)
+    fees = desk.settings.round_trip_cost  # targets are profit AFTER the buy and sell fees
+    assert meme.stop_price == pytest.approx(0.00001 * 0.92)
+    assert meme.take_profit == pytest.approx(0.00001 * 1.15 + fees("PEPE-USD", 0.00001))
     big = buy(desk, "BTC-USD", 60_000.0)
-    assert big.stop_price == pytest.approx(60_000 * 0.97) and big.take_profit == pytest.approx(60_000 * 1.06)
+    assert big.stop_price == pytest.approx(60_000 * 0.97) and big.take_profit == pytest.approx(60_000 * 1.06 + fees("BTC-USD", 60_000))
     assert big.avg_price == pytest.approx(60_000, rel=0.001)
 
 

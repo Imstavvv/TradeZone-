@@ -54,7 +54,7 @@ def test_portfolio_average_cost_and_round_trip():
     p.mark("X", 120)
     assert p.equity == pytest.approx(10_000 - 2100 - 2 + 2400)
     closed = p.apply_fill(Fill("o3", "X", Side.SELL, 20, 120, 1.0))
-    assert closed.pnl == pytest.approx(15 * 20 - 1)
+    assert closed.pnl == pytest.approx(15 * 20 - 1 - 2)  # sell fee + both buy fees
     assert pos.is_flat and pos.avg_price == 0
     assert p.cash == pytest.approx(10_000 + 300 - 3)
 

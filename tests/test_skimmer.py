@@ -39,13 +39,15 @@ def test_skims_a_dip_in_an_uptrend_with_a_small_target_and_tight_stop(desk):
     pos = skim(desk)
     assert pos.qty > 0 and desk.bots["skimmer"].owns("SOL-USD")
     assert pos.stop_price == pytest.approx(100 * (1 - desk.settings.skim_stop_pct))
-    assert pos.take_profit == pytest.approx(100 * (1 + desk.settings.skim_target_pct))
+    fees = desk.settings.round_trip_cost("SOL-USD", 100)
+    assert pos.take_profit == pytest.approx(100 * (1 + desk.settings.skim_target_pct) + fees)  # +2.5% after fees
     # at the small target the whole skim is sold (no runner for a skim)
     trades = capture(desk, "trade.closed")
-    tick(desk, "SOL-USD", 102.6)  # +2.5% target
+    tick(desk, "SOL-USD", 103.2)  # +2.5% after fees
     assert pos.is_flat and trades[-1].pnl > 0
     assert not desk.bots["skimmer"].owns("SOL-USD")
     assert desk.bots["skimmer"].metrics["skim_wins"] == 1
+    assert trades[-1].pnl == pytest.approx(pos.realized_pnl)  # the trade's result already has both fees in it
 
 
 def test_no_skim_without_trend_and_dip_or_on_meme_coins(desk):
@@ -86,9 +88,9 @@ def test_banks_a_slice_halfway_to_the_target(desk):
     q0 = pos.qty
     tick(desk, "BTC-USD", 51_000.0)  # +2%: not halfway yet
     assert pos.qty == q0
-    tick(desk, "BTC-USD", 51_600.0)  # +3.2%: halfway
+    tick(desk, "BTC-USD", 51_700.0)  # +3.4%: halfway to +6% after fees
     assert pos.qty == pytest.approx(q0 * 0.75, rel=0.01)
-    tick(desk, "BTC-USD", 51_700.0)  # once per trade
+    tick(desk, "BTC-USD", 51_800.0)  # once per trade
     assert pos.qty == pytest.approx(q0 * 0.75, rel=0.01)
     assert desk.bots["skimmer"].metrics["banked_small"] == 1
 

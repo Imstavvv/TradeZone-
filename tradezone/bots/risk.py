@@ -112,8 +112,7 @@ class RiskBot(Bot):
                 return self.reject(sig, "holding the runner - its trailing stop decides the exit")
             if sig.kind is SignalKind.ENTRY and self.settings.exit_only_in_profit:
                 # discretionary (strategy) exit: only to bank a net profit; losers are left to the stop
-                cost = self.settings.round_trip_cost(sig.symbol, pos.avg_price) * abs(pos.qty)
-                net = (price - pos.avg_price) * pos.qty - cost
+                net = self.settings.net_if_sold(pos, price)  # both fees counted
                 if net <= 0:
                     return self.reject(sig, f"strategy exit skipped: not in profit ({net:+,.2f}); stop-loss still protects")
             qty = abs(pos.qty)
@@ -135,13 +134,15 @@ class RiskBot(Bot):
             return self.reject(sig, "already positioned in this direction")
         if sig.side is Side.SELL:
             return self.reject(sig, "TradeZone only buys - it never bets on prices falling")
+        s0 = self.settings
         news = self.desk.bots.get("news")
         if news is not None:  # 📰 breaking news: don't buy into a hack
             if (why := news.veto(sig.symbol, sig.side.sign)) is not None:
                 return self.reject(sig, why)
             sig.strength = round(max(0.0, min(1.0, sig.strength + news.conviction_nudge(sig.symbol, sig.side.sign))), 3)
         coach = self.desk.bots.get("coach")
-        bar = coach.bar() if coach is not None else limits.min_signal_strength
+        quick = self.quick
+        bar = coach.bar() if coach is not None else (s0.flip_min_strength if quick else limits.min_signal_strength)
         if sig.strength < bar:
             return self.reject(sig, f"conviction {sig.strength:.2f} below threshold")
         if coach is not None and (left := coach.benched(sig.symbol)) > 0:
@@ -168,17 +169,18 @@ class RiskBot(Bot):
         atr = max(ind["atr"], price * 0.001)
         s = self.settings
         direction = sig.side.sign
+        cost = s.round_trip_cost(sig.symbol, price)  # buy + sell fees and slippage, per unit
         if sig.source == "skimmer":  # a quick day-trade skim: small target, tight stop
             stop_dist = price * s.skim_stop_pct
             stop = price - stop_dist * direction
-            tp = price * (1 + s.skim_target_pct * direction)
-            how = f"skim -{s.skim_stop_pct:.1%} / +{s.skim_target_pct:.1%}"
+            tp = price * (1 + s.skim_target_pct * direction) + cost * direction  # the target is after fees
+            how = f"skim -{s.skim_stop_pct:.1%} / +{s.skim_target_pct:.1%} after fees"
         elif s.stop_method == "percent":
-            sl_pct, tp_pct = s.plan_pcts(sig.symbol)
+            sl_pct, tp_pct = s.plan_pcts(sig.symbol, quick)
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
-            tp = price * (1 + tp_pct * direction)
-            how = f"-{sl_pct:.0%} / +{tp_pct:.0%}"
+            tp = price * (1 + tp_pct * direction) + cost * direction  # the target is after fees
+            how = f"-{sl_pct:.0%} / +{tp_pct:.0%} after fees" + (" (quick flip)" if quick else "")
         elif s.stop_method == "structure" and "swing_low" in ind:
             try:
                 plan = plan_stop(
@@ -198,12 +200,12 @@ class RiskBot(Bot):
             how = f"{s.stop_atr_mult:g}x ATR"
 
         # accuracy: only take trades whose target clearly pays for the fees
-        cost = s.round_trip_cost(sig.symbol, price)
+        edge = s.flip_min_edge if quick else s.min_edge_cost_multiple
         reward = abs(tp - price)
-        if reward < s.min_edge_cost_multiple * cost:
+        if reward < edge * cost:
             self.bump("rejected_fees")
             return self.reject(sig, f"target +{reward / price:.2%} doesn't clear fees "
-                                    f"({cost / price:.2%} round trip x{s.min_edge_cost_multiple:g})")
+                                    f"({cost / price:.2%} round trip x{edge:g})")
 
         equity = self.portfolio.equity
         risk_budget = equity * limits.risk_per_trade * (0.5 + 0.5 * sig.strength)

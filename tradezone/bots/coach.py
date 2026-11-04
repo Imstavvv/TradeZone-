@@ -255,10 +255,10 @@ class CoachBot(Bot):
 
     def bar(self) -> float:
         """The conviction a new trade needs: the configured minimum, nudged by what was learned."""
-        base = self.settings.risk.min_signal_strength
+        base = self.settings.flip_min_strength if self.quick else self.settings.risk.min_signal_strength
         if not self.enabled or not self.settings.coach_learning:
             return base
-        return round(max(min(base, 0.30), base + self.threshold_adj), 3)
+        return round(max(min(base, 0.25 if self.quick else 0.30), base + self.threshold_adj), 3)
 
     # ----------------------------------------------------------------- cycle
     async def on_cycle(self) -> None:

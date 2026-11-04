@@ -76,19 +76,21 @@ class SkimmerBot(Bot):
             return
         if not self.portfolio.position(sym).is_flat or sym in self.owned or now() < self.cooldown.get(sym, 0):
             return
-        if len(self.owned) >= s.max_skims:
+        quick = self.quick
+        if len(self.owned) >= (s.flip_max_skims if quick else s.max_skims):
             return
         ind = snap.indicators
         price = snap.price
         uptrend = ind["ema_fast"] > ind["ema_slow"] and price > ind["sma50"] * 0.995
-        dip = price < ind["ema_fast"] and 30 <= ind["rsi"] <= 45
+        dip = price < ind["ema_fast"] and 30 <= ind["rsi"] <= (50 if quick else 45)
         if not (uptrend and dip):
             return
         # the target must be reachable within the time limit at this coin's current volatility
         scout = self.desk.bots.get("scout")
         bar_s = getattr(scout, "bar_seconds", 0) or 60
-        bars = s.skim_max_minutes * 60 / bar_s
-        if ind["volatility"] * math.sqrt(max(bars, 1)) < s.skim_target_pct * 0.6:
+        bars = self.max_minutes() * 60 / bar_s
+        gross = s.skim_target_pct + s.round_trip_cost(sym, price) / price  # the target is after fees
+        if ind["volatility"] * math.sqrt(max(bars, 1)) < gross * 0.5:
             return
         # ...but calm enough that ordinary wiggles over ~10 bars stay well inside the tight stop
         if ind["volatility"] * math.sqrt(10) > s.skim_stop_pct * 0.5:
@@ -100,11 +102,14 @@ class SkimmerBot(Bot):
         if "no" in votes.values():
             return
         sig = Signal(sym, Side.BUY, 0.6, f"skim: {sym} dipped in an uptrend (RSI {ind['rsi']:.0f}) - "
-                     f"quick +{s.skim_target_pct:.1%} target", self.name, votes=votes)
+                     f"quick +{s.skim_target_pct:.1%} target after fees", self.name, votes=votes)
         self.signals[sig.id] = sym
         self.wait_bars[sym] = 3  # don't re-offer it every bar if the team passes
         self.publish("signal.proposed", sig)
         self.act(f"SKIM idea {sym} @ {price:,.6g}: dip in an uptrend, aiming +{s.skim_target_pct:.1%}")
+
+    def max_minutes(self) -> float:
+        return self.settings.flip_skim_max_minutes if self.quick else self.settings.skim_max_minutes
 
     def on_approved(self, ev: Event) -> None:
         req = ev.payload
@@ -120,13 +125,14 @@ class SkimmerBot(Bot):
             if order is not None and order.request_id in self.requests:
                 self.owned[sym] = now()
                 self.bump("skims")
-                self.act(f"SKIM BUY {sym} @ {t['price']:,.6g} - in and out within {self.settings.skim_max_minutes:g} min")
+                self.act(f"SKIM BUY {sym} @ {t['price']:,.6g} - in and out within {self.max_minutes():g} min")
             return
         if t.get("pnl") is not None and t["pnl"] > 0:
             self.metrics["profit_banked"] = round(self.metrics["profit_banked"] + t["pnl"], 2)
         if abs(t.get("position_after") or 0.0) < 1e-12:
             if self.owned.pop(sym, None) is not None:
-                self.cooldown[sym] = now() + self.settings.skim_cooldown_min * 60
+                wait = self.settings.flip_skim_cooldown_min if self.quick else self.settings.skim_cooldown_min
+                self.cooldown[sym] = now() + wait * 60
                 if (t.get("pnl") or 0) > 0:
                     self.bump("skim_wins")
             self.banked.pop(sym, None)
@@ -152,9 +158,10 @@ class SkimmerBot(Bot):
             return
         price, entry = t.price, pos.avg_price
         gain = price / entry - 1
-        cost_pct = s.round_trip_cost(t.symbol, price) / price
-        if gain <= 2 * cost_pct:
-            return  # only ever bank real profit (after fees, with a margin)
+        net = s.net_if_sold(pos, price)  # what selling now really makes, after both fees
+        net_pct = net / (entry * abs(pos.qty)) if entry > 0 else 0.0
+        if net_pct <= s.round_trip_cost(t.symbol, price) / price:
+            return  # only ever bank real profit: after fees, and at least as much again as the fees
         sym = t.symbol
         # large: a sharp spike over the last few bars (5 minutes on 1-minute bars) -> sell half into it
         recent = self.bars.get(sym)
@@ -176,6 +183,12 @@ class SkimmerBot(Bot):
             target = abs(pos.take_profit / entry - 1)
         else:
             target = s.plan_pcts(sym)[1]
+        if self.quick and net_pct >= s.flip_net_pct:  # quick flip: bank half as soon as it's a real win
+            self.banked[sym] = pos.opened_ts
+            self.bump("banked_small")
+            self.bump("quick_flips")
+            self.act(f"QUICK FLIP {sym}: banking half at +{net_pct:.1%} after fees")
+            return self._sell(sym, 0.5, f"skimmer: quick flip, banked half at +{net_pct:.1%} after fees (+{net:,.2f})")
         if gain >= s.bank_at_share * target:
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")
@@ -191,9 +204,9 @@ class SkimmerBot(Bot):
             if pos.is_flat:
                 self.owned.pop(sym, None)
                 continue
-            if now() - opened < s.skim_max_minutes * 60 or (pm and sym in pm.exiting) or pos.last_price is None:
+            if now() - opened < self.max_minutes() * 60 or (pm and sym in pm.exiting) or pos.last_price is None:
                 continue
-            net = (pos.last_price - pos.avg_price) * pos.qty - s.round_trip_cost(sym, pos.avg_price) * abs(pos.qty)
+            net = s.net_if_sold(pos, pos.last_price)  # after both fees
             if net > 0:
                 self.bump("time_exits")
                 self.act(f"SKIM time's up on {sym}: banking +{net:,.2f}")

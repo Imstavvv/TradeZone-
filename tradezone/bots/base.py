@@ -56,6 +56,11 @@ class Bot:
         self._action_times: deque[float] = deque(maxlen=600)
         self.total_actions = 0
 
+    @property
+    def quick(self) -> bool:
+        """Real money with quick flips on: trade more, bank smaller fee-paid wins sooner."""
+        return self.settings.quick(self.desk.is_live)
+
     # -- wiring ---------------------------------------------------------
     def subscriptions(self) -> dict[str, Callable[[Event], Any]]:
         return {}

@@ -159,7 +159,7 @@ class PortfolioBot(Bot):
     def _start_runner(self, sym, pos, price, d, tighten) -> None:
         """Target reached: bank part of it, move the stop into profit and let the rest run."""
         s = self.settings
-        tp_pct = s.plan_pcts(sym)[1]
+        tp_pct = (pos.take_profit / pos.avg_price - 1) * d if pos.take_profit and pos.avg_price else s.plan_pcts(sym, self.quick)[1]
         lock = tp_pct * s.runner_lock_share
         self.scaled_out.add(sym)
         self.protected.add(sym)
@@ -184,7 +184,8 @@ class PortfolioBot(Bot):
         cushion = cost + 2.0 * self.tick_move.get(sym, 0.0)
         peak_gain = (hw - entry) * d
         # 1) once comfortably green, the stop can never again sit below break-even + costs
-        if peak_gain >= max(s.breakeven_trigger_r * r, 2 * cushion):
+        trigger_r = s.flip_breakeven_r if self.quick else s.breakeven_trigger_r
+        if peak_gain >= max(trigger_r * r, 2 * cushion):
             floor = entry + d * max(cushion, s.profit_lock_pct * peak_gain)
             before = pos.stop_price
             pos.stop_price = tighten(pos.stop_price, floor)
@@ -248,10 +249,13 @@ class PortfolioBot(Bot):
             sym = pos.symbol
             if sym in self.exiting or sym in self.scaled_out or not pos.opened_ts or self._is_skim(sym):
                 continue
-            hours = s.meme_max_hold_hours if s.is_meme(sym) else s.max_hold_hours
+            if self.quick:
+                hours = s.flip_meme_max_hold_hours if s.is_meme(sym) else s.flip_max_hold_hours
+            else:
+                hours = s.meme_max_hold_hours if s.is_meme(sym) else s.max_hold_hours
             if hours <= 0 or t - pos.opened_ts < hours * 3600 or pos.last_price is None:
                 continue
-            net = (pos.last_price - pos.avg_price) * pos.qty - self.round_trip_cost(pos.avg_price, sym) * abs(pos.qty)
+            net = s.net_if_sold(pos, pos.last_price)  # after both fees
             if net > 0:
                 self.bump("stale_flips")
                 self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot")
