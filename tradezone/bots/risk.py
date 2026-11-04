@@ -165,8 +165,8 @@ class RiskBot(Bot):
             return self.reject(sig, "already positioned in this direction")
         guard = self.day_guard()
         if guard["locked"]:  # minimal losses: a good day isn't handed back
-            return self.reject(sig, f"locking in today's gains: up {guard['best_today_pct']:.1%} at best and half "
-                                    "given back - no new trades until tomorrow")
+            return self.reject(sig, f"locking in today's gains: up {guard['best_today_pct']:.1%} at best and too much "
+                                    "of it given back - no new trades until tomorrow")
         if sig.side is Side.SELL and (why := self.desk.short_block(sig.symbol)):
             return self.reject(sig, f"no short: {why}")
         s0 = self.settings

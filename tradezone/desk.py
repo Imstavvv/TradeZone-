@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
+import os
 import re
 import time
 from collections.abc import Callable
@@ -881,7 +882,7 @@ class TradingDesk:
         self.halt_kind = data.get("halt_kind", "")
         self.floor_ack = data.get("floor_ack", {})
         self.goal = data.get("goal", {})
-        if data.get("risk_profile") in ("normal", "aggressive"):
+        if data.get("risk_profile") in ("normal", "aggressive") and "TZ_RISK_PROFILE" not in os.environ:  # a server setting wins
             self.settings.risk_profile = data["risk_profile"]
         hunt = data.get("hunt")
         if isinstance(hunt, dict) and hunt.get("day") == self._today():

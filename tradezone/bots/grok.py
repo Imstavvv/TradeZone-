@@ -202,7 +202,9 @@ class GrokBot(Bot):
         self.client = GrokClient(api_key, model or s.grok_model, s.grok_base_url, s.grok_timeout_s) \
             if api_key and mode != "off" else None
         if old is not None and _loop_running():
-            asyncio.ensure_future(old.close())  # release the previous HTTP connection pool
+            task = asyncio.ensure_future(old.close())  # release the previous HTTP connection pool
+            self._tasks.add(task)  # keep a reference so it isn't garbage-collected mid-close
+            task.add_done_callback(self._tasks.discard)
         self.mode = mode if self.client else "off"
         if self.mode == "auto":
             self.mode = "veto"

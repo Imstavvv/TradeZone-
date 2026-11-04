@@ -571,7 +571,7 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 | Meme coins stop · target | -8% · +15% | -5% · +10% |
 | Bank half of a trade | halfway to target (25%) | as soon as it's +1.2% after fees |
 | Close a winner that's going nowhere | after 24 h (meme 6 h) | after 3 h (meme 1.5 h) |
-| Skims at once · time limit · cooldown | 2 · 120 min · 15 min | 4 · 60 min · 5 min |
+| Skims at once · target · time limit · cooldown | 2 · +2.5% · 120 min · 15 min | 4 · +1.5% · 120 min · 5 min |
 | Target must pay the fees at least | 3× | 2× |
 
 **Fees are counted in every trade.** Every target is profit *after* the buy and the sell fee (and slippage), each trade's result includes both fees, and the clock or a profit-taker only ever sells when the sale makes money after fees. Practice charges your real-money venue's fee: Alpaca 0.25%, Kraken 0.40% (`TZ_KRAKEN_FEE_BPS`), Uphold about 1% (`TZ_UPHOLD_FEE_BPS`). With Uphold's spread a round trip costs about 2%, so quick flips are rare there; Kraken or Alpaca suit them best.
