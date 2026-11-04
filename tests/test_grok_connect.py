@@ -111,9 +111,8 @@ def test_set_key_from_dashboard_never_leaks_and_survives_restart(fake, tmp_path)
     desk = TradingDesk(Settings(feed="sim", api_token=TOKEN), journal=Journal(db))
     with TestClient(create_app(desk, run_desk=False), base_url="https://testserver") as c:
         c.post("/api/login", json={"token": TOKEN})
-        c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
         assert c.get("/api/grok").json()["configured"] is False
-        assert c.post("/api/grok/config", json={"api_key": KEY}).status_code == 403  # needs the access token
+        assert TestClient(c.app, base_url="https://testserver").post("/api/grok/config", json={"api_key": KEY}).status_code == 401
         assert c.post("/api/grok/config", json={"api_key": "short"}, headers={"X-TZ-Confirm": TOKEN}).status_code == 400
         r = c.post("/api/grok/config", json={"api_key": KEY, "mode": "veto"}, headers={"X-TZ-Confirm": TOKEN}).json()
         assert r["ok"] and r["connected"] and r["source"] == "dashboard" and r["key"] == "…" + KEY[-4:]

@@ -92,8 +92,6 @@ class Settings:
     ban_minutes: float = 30.0  # first ban; repeat offenders are banned twice as long each time (max 7 days)
     trusted_proxies: str = ""
     # ---- app lock (PIN / Face ID) ----
-    lock_after_min: float = 0.0  # re-lock after this many idle minutes (0 = stay logged in until "Lock now")
-    public_url: str = ""  # e.g. https://tradezone-blqn.onrender.com (Face ID binds to this; default: request host)
     live_confirm: str = ""
     alpaca_key: str = ""  # Alpaca PAPER account keys (paper broker / market data)
     alpaca_secret: str = ""

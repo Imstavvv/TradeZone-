@@ -1,4 +1,4 @@
-"""Front-page PIN login on new devices and linking a real-money broker from the app."""
+"""Linking a real-money broker from the app (a logged-in device needs no extra password)."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,39 +10,17 @@ from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
 
-PIN = "482915"
-
-
 @pytest.fixture
 def site(tmp_path):
     desk = TradingDesk(Settings(feed="coinbase", host="0.0.0.0"), journal=Journal(str(tmp_path / "tz.db")))
     with TestClient(create_app(desk, run_desk=False), base_url=ORIGIN) as c:
         c.desk, c.sec = desk, desk.security
-        c.post("/api/setup", json={"code": desk.security.recovery_code, "pin": PIN})
-        c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
+        c.post("/api/signin/code", json={"code": desk.security.recovery_code})
         yield c
 
 
 def fresh(c):
     return TestClient(c.app, base_url=ORIGIN)
-
-
-def test_new_device_logs_in_with_just_the_pin(site):
-    phone = fresh(site)
-    assert phone.get("/api/state").status_code == 401
-    r = phone.post("/api/signin/pin", json={"pin": "000001"})
-    assert r.status_code == 401 and "isn't right" in r.json()["detail"]
-    assert phone.post("/api/signin/pin", json={"pin": PIN}).status_code == 200
-    assert phone.get("/api/state").status_code == 200
-
-
-def test_pin_login_is_capped_across_the_whole_internet(site):
-    for i in range(site.sec.PIN_SIGNIN_MAX_PER_HOUR):
-        fresh(site).post("/api/signin/pin", json={"pin": f"00000{i}"})
-        site.sec.unban("testclient")  # pretend each guess came from a different computer
-    r = fresh(site).post("/api/signin/pin", json={"pin": PIN})
-    assert r.status_code == 429 and "paused" in r.json()["detail"]  # even the right PIN waits
-    assert site.get("/api/state").status_code == 200  # devices already logged in are unaffected
 
 
 @pytest.fixture
@@ -55,9 +33,9 @@ def fake_alpaca(monkeypatch):
 
 
 def test_link_broker_from_the_app(site, fake_alpaca, tmp_path):
-    h = {"X-TZ-PIN": PIN}
+    h = {}
     assert site.get("/api/accounts").json()["broker"]["linked"] is False
-    assert site.post("/api/accounts/broker", json={"key": "AKGOODKEY123", "secret": "s"}).status_code == 403  # PIN needed
+    assert fresh(site).post("/api/accounts/broker", json={"key": "AKGOODKEY123", "secret": "s"}).status_code == 401
     r = site.post("/api/accounts/broker", json={"key": "PKPAPER", "secret": "s"}, headers=h)
     assert r.status_code == 400 and "practice (paper) keys" in r.json()["detail"]
     r = site.post("/api/accounts/broker", json={"key": "AKWRONG", "secret": "s"}, headers=h)
@@ -73,7 +51,7 @@ def test_link_broker_from_the_app(site, fake_alpaca, tmp_path):
     assert site.get("/api/accounts").json()["broker"]["linked"] is False
 
 
-def test_public_site_with_a_pin_can_go_live_without_any_token(site, fake_alpaca):
-    site.post("/api/accounts/broker", json={"key": "AKGOODKEY123", "secret": "s"}, headers={"X-TZ-PIN": PIN})
+def test_logged_in_public_site_can_go_live_without_any_token(site, fake_alpaca):
+    site.post("/api/accounts/broker", json={"key": "AKGOODKEY123", "secret": "s"})
     chk = site.get("/api/mode").json()
-    assert chk["blockers"] == [] and chk["account"]["cash"] == 1234.5  # the PIN protects real money now
+    assert chk["blockers"] == [] and chk["account"]["cash"] == 1234.5  # the owner is logged in

@@ -104,7 +104,7 @@ def test_unconfigured_live_is_unavailable(desk):
 
 def test_exposed_dashboard_needs_token():
     desk = make_desk(host="0.0.0.0")
-    with pytest.raises(ModeSwitchError, match="password"):
+    with pytest.raises(ModeSwitchError, match="log in"):
         run(desk.switch_mode("live"))
 
 
@@ -130,14 +130,14 @@ def test_live_withdrawals_are_manual_and_deposits_not_credited():
     assert desk.portfolio.cash == cash
 
 
-def test_live_withdrawal_needs_a_pin_not_the_old_token():
+def test_live_withdrawal_needs_the_owner_logged_in():
     desk = make_desk(withdrawal_cooldown_h=0)  # no TZ_API_TOKEN, local host
     run(desk.switch_mode("live"))
     w = desk.wallets.link("ETH", "0x52908400098527886E0F7030069857D2E4169EE7")
     assert desk.wallets.withdraw(w.id, "USDC", 10).status == "manual_required"
-    desk.settings.host = "0.0.0.0"  # public, and nobody has chosen a PIN
+    desk.settings.host = "0.0.0.0"  # public, and nobody has logged in yet
     from tradezone.wallets import WalletError
-    with pytest.raises(WalletError, match="password"):
+    with pytest.raises(WalletError, match="log in"):
         desk.wallets.withdraw(w.id, "USDC", 10)
 
 

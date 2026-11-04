@@ -6,11 +6,13 @@ Layers, outermost first (``SecurityMiddleware`` wraps the whole app, HTTP and We
 2. **Rate limits:** requests per IP per minute, WebSocket connections per IP, max body size.
 3. **Origin check:** state-changing requests and WebSockets from another site are refused
    (blocks cross-site request forgery and cross-site WebSocket hijacking).
-4. **Authentication:** the access token is exchanged once for an HttpOnly, Secure,
-   SameSite=Strict session cookie. Scripts can't read it and it never appears in a URL.
-   API clients may still send ``Authorization: Bearer <token>``.
-5. **Brute-force lockout:** repeated wrong tokens ban the IP, with escalating ban length.
-6. **Step-up:** going live, adding a withdrawal wallet and withdrawing need the token again.
+4. **Sign-in:** a device logs in once - with the one-time code from the server logs, or a
+   6-digit code made on a device that's already in - and gets an HttpOnly, Secure, SameSite=Lax
+   session cookie for a year. Scripts can't read it and it never appears in a URL. API clients
+   may send ``Authorization: Bearer <token>`` if a token is configured.
+5. **Brute-force lockout:** repeated wrong codes or tokens ban the IP, with escalating ban length;
+   the log code rotates after 10 wrong tries, pairing codes burn out after 5.
+6. **Money safety:** real money needs typing LIVE; a new wallet waits 24 h before it can receive.
 7. **Headers:** CSP with a per-request nonce, no framing, HSTS, nosniff, no-referrer and more.
 8. **Audit log:** logins, failures, bans and sensitive actions, with IP and device.
 """
@@ -33,12 +35,13 @@ from urllib.parse import urlsplit
 
 log = logging.getLogger("tradezone.security")
 SESSION_COOKIE = "tz_session"
-SESSION_TTL_S = 30 * 24 * 3600  # sliding: refreshed on use
+SESSION_TTL_S = 365 * 24 * 3600  # a device stays logged in for a year (sliding: refreshed on use)
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sessions (
     id_hash TEXT PRIMARY KEY, created REAL, last_seen REAL, expires REAL, ip TEXT, agent TEXT
 );
 CREATE TABLE IF NOT EXISTS bans (ip TEXT PRIMARY KEY, until REAL, strikes INTEGER, reason TEXT);
+CREATE TABLE IF NOT EXISTS owner (id INTEGER PRIMARY KEY CHECK (id = 1), claimed_at REAL);
 """
 
 
@@ -69,7 +72,6 @@ class SecurityConfig:
     max_body_bytes: int = 64 * 1024
     max_ws_per_ip: int = 6
     max_ws_total: int = 60
-    lock_after_min: float = 0.0
     public: bool = False  # served beyond localhost: sign-in is always required
 
 
@@ -90,11 +92,15 @@ class SecurityManager:
         self.bans: dict[str, dict[str, Any]] = {
             ip: {"until": until, "strikes": strikes, "reason": reason} for ip, until, strikes, reason in rows
         }
-        from .applock import AppLock
-
-        self.lock = AppLock(journal, cfg.lock_after_min)
+        self._owner = bool(journal.one("SELECT 1 FROM owner WHERE id = 1"))
+        if not self._owner:  # sites set up before simple sign-in had a password / Face ID table
+            try:
+                self._owner = bool(journal.one("SELECT 1 FROM app_lock LIMIT 1") or journal.one("SELECT 1 FROM passkeys LIMIT 1"))
+            except Exception:  # noqa: BLE001 - tables simply don't exist on a new site
+                self._owner = False
+            if self._owner:
+                self.claim_owner()
         self._pairing: dict[str, list[float]] = {}  # code -> [expires, attempts]
-        self._pin_signin_fails: deque[float] = deque()  # wrong passwords on the login page, any IP
         self.recovery_code = ""
         self._recovery_attempts = 0
         self.rotate_recovery_code()
@@ -116,12 +122,18 @@ class SecurityManager:
     # --------------------------------------------------------- firewall
     @property
     def auth_required(self) -> bool:
-        """Sign-in is needed on any public site, once an owner PIN/Face ID exists, or with a token set."""
-        return bool(self.cfg.token) or self.cfg.public or self.lock.enabled
+        """Sign-in is needed on any public site, once the owner has logged in, or with a token set."""
+        return bool(self.cfg.token) or self.cfg.public or self._owner
 
     @property
     def owner_exists(self) -> bool:
-        return self.lock.enabled
+        return self._owner
+
+    def claim_owner(self) -> None:
+        """The first device that logs in makes the site "owned" (sign-in is required from then on)."""
+        if not self._owner or not self.journal.one("SELECT 1 FROM owner WHERE id = 1"):
+            self.journal.run("INSERT OR IGNORE INTO owner(id, claimed_at) VALUES (1, ?)", (time.time(),))
+            self._owner = True
 
     # ------------------------------------------------- setup / recovery / pairing codes
     RECOVERY_MAX_ATTEMPTS = 10
@@ -129,21 +141,19 @@ class SecurityManager:
     PAIRING_MAX_ATTEMPTS = 5
 
     def rotate_recovery_code(self) -> None:
-        """A one-time code shown only in the server logs: used for first setup and lost-device recovery."""
+        """A one-time login code shown only in the server logs (first device, or every device lost)."""
         n = secrets.randbelow(10**8)
         self.recovery_code = f"{n // 10**4:04d}-{n % 10**4:04d}"
         self._recovery_attempts = 0
         log.warning("=" * 60)
-        log.warning("  TradeZone %s code: %s", "recovery" if self.owner_exists else "SETUP", self.recovery_code)
-        log.warning("  Enter it on the website to %s.",
-                    "recover access" if self.owner_exists else "create your password")
+        log.warning("  TradeZone login code: %s", self.recovery_code)
+        log.warning("  Type it on the website to log a phone or computer in (works once).")
         log.warning("=" * 60)
 
-    def check_recovery(self, code: str | None, consume: bool = True) -> bool:
-        """The logged setup/recovery code (any formatting), or the API token if one is configured.
+    def check_recovery(self, code: str | None) -> bool:
+        """The login code from the server logs (any formatting), or the API token if one is configured.
 
-        ``consume=False`` checks it without using it up (first-time setup only uses the code once
-        the password or Face ID is actually saved, so a weak password can be retried).
+        Single use: a fresh code is written to the logs after each use and each restart.
         """
         code = (code or "").strip()
         if self.check_token(code):
@@ -151,8 +161,7 @@ class SecurityManager:
         digits = "".join(c for c in code if c.isdigit())
         ok = len(digits) == 8 and hmac.compare_digest(digits, self.recovery_code.replace("-", ""))
         if ok:
-            if consume:
-                self.rotate_recovery_code()  # single use
+            self.rotate_recovery_code()  # single use
             return True
         self._recovery_attempts += 1
         if self._recovery_attempts >= self.RECOVERY_MAX_ATTEMPTS:
@@ -160,20 +169,6 @@ class SecurityManager:
                        level="critical")
             self.rotate_recovery_code()
         return False
-
-    # PIN sign-in from a *new* device: a 6-digit PIN is only safe with a hard global limit, so wrong
-    # PINs from anywhere on the internet are capped per hour (each IP is also banned separately).
-    PIN_SIGNIN_MAX_PER_HOUR = 10
-
-    def pin_signin_blocked_for(self) -> float:
-        dq = self._pin_signin_fails
-        now = time.time()
-        while dq and now - dq[0] > 3600:
-            dq.popleft()
-        return (dq[0] + 3600 - now) if len(dq) >= self.PIN_SIGNIN_MAX_PER_HOUR else 0.0
-
-    def pin_signin_failed(self) -> None:
-        self._pin_signin_fails.append(time.time())
 
     def create_pairing_code(self) -> str:
         now = time.time()

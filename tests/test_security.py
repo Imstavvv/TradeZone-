@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
+from tests.helpers import ORIGIN
 from tradezone.config import Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
@@ -24,7 +25,6 @@ def client(journal=None, **kw):
 
 def login(c, token=TOKEN):
     r = c.post("/api/login", json={"token": token})
-    c.app.state.expire_confirmations()  # logging in counts as a confirmation for a few minutes; these tests check the step-up itself
     return r
 
 
@@ -160,28 +160,25 @@ def test_ip_allowlist_firewall():
         assert c.get("/api/health").status_code == 200  # platform health checks still pass
 
 
-def test_money_moves_need_the_token_again():
+def test_money_moves_are_logged_and_need_a_logged_in_device():
     desk, c = client(withdrawal_cooldown_h=0)
     with c:
         login(c)
         body = {"chain": "XRP", "address": XRP, "tag": "7"}
-        assert c.post("/api/wallets", json=body).status_code == 403  # a stolen session isn't enough
-        assert c.post("/api/wallets", json=body, headers={"X-TZ-Confirm": "wrong"}).status_code == 403
-        r = c.post("/api/wallets", json=body, headers={"X-TZ-Confirm": TOKEN})
+        r = c.post("/api/wallets", json=body)  # a logged-in device: no extra password step
         assert r.status_code == 200
         wd = {"wallet_id": r.json()["id"], "asset": "XRP", "amount": 1}
         desk.prices["XRP-USD"] = 1.0
-        assert c.post("/api/withdrawals", json=wd).status_code == 403
-        assert c.post("/api/withdrawals", json=wd, headers={"X-TZ-Confirm": TOKEN}).status_code == 200
+        assert c.post("/api/withdrawals", json=wd).status_code == 200
+        assert TestClient(c.app, base_url=ORIGIN).post("/api/withdrawals", json=wd).status_code == 401  # not logged in
         actions = [e["detail"] for e in desk.security.events if e["kind"] == "action"]
         assert any("link XRP" in a for a in actions) and any("withdraw" in a for a in actions)
 
 
-def test_going_live_needs_the_token_again():
+def test_going_live_needs_a_logged_in_device():
     _, c = client()
     with c:
-        login(c)
-        assert c.post("/api/mode", json={"mode": "live", "confirm": "LIVE"}).status_code == 403
+        assert c.post("/api/mode", json={"mode": "live", "confirm": "LIVE"}).status_code == 401
 
 
 def test_public_site_needs_sign_in_and_rejects_weak_token():
@@ -192,7 +189,7 @@ def test_public_site_needs_sign_in_and_rejects_weak_token():
     desk = TradingDesk(Settings(feed="sim", host="0.0.0.0"), journal=Journal(":memory:"))
     with TestClient(create_app(desk, run_desk=False)) as c:
         assert c.get("/api/state").status_code == 401
-        assert c.get("/api/setup/status").json() == {"owner": False, "auth_required": True, "faceid": False}
+        assert c.get("/api/setup/status").json() == {"owner": False, "auth_required": True}
 
 
 def test_local_dev_without_token_still_works():
