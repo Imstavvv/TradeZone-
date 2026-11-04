@@ -155,6 +155,8 @@ class Order(Model):
     reduce_only: bool = False
     stop_price: float | None = None
     take_profit: float | None = None
+    maker: bool = False  # entry placed as a post-only limit at the bid / ask (lower fee); market for any rest
+    limit_price: float | None = None
     id: str = field(default_factory=lambda: new_id("ord"))
     ts: float = field(default_factory=now)
 

@@ -167,8 +167,11 @@ class ExecutiveBot(Bot):
         qty, why = req.qty, f"stance {self.mode}"
         if self.mode == "defensive" and not req.reason.startswith("flipper: buy back"):  # (halving a buy-back = fewer coins)
             strength = self._strength(req)
-            if strength is not None and strength < s.exec_defensive_min_strength:
-                return self.hold(req, f"defensive stance needs conviction {s.exec_defensive_min_strength:.2f}+ "
+            coach = self.desk.bots.get("coach")
+            bar = coach.bar() if coach is not None else s.risk.min_signal_strength
+            need = min(s.exec_defensive_min_strength, bar + s.exec_defensive_extra)  # a step above the usual bar
+            if strength is not None and strength < need:
+                return self.hold(req, f"defensive stance needs conviction {need:.2f}+ "
                                       f"(this {strength:.2f})", latency())
             qty = round_qty(req.qty * 0.5, price, s.risk.fractional)
             if qty <= 0:

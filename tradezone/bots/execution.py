@@ -160,6 +160,9 @@ class ExecutionBot(Bot):
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
         )
         self.orders[order.id] = order
+        if self.desk.is_live and not req.reduce_only and self.settings.maker_entries \
+                and getattr(self.desk.broker, "name", "") == "kraken":
+            order.maker = True  # a limit at the bid first (maker fee); the rest at market after maker_wait_s
         if self.desk.is_live:
             await self.desk.broker.fresh_quote(req.symbol)  # the venue's bid/ask right now, for the fill check
         self.ref_price[order.id] = self.reference_price(req.symbol, req.side)
@@ -176,6 +179,8 @@ class ExecutionBot(Bot):
             self._submitted_at[order.id] = now()
         self.publish("order.update", order)
         self._emit(order, fills)
+        if order.maker and order.status.is_terminal and order.status is not OrderStatus.FILLED:
+            await self._maker_fallback(order)  # post-only refused (it would have taken liquidity): go market
         self.act(f"sent {order.side.value.upper()} {order.qty:g} {order.symbol} via {self.desk.broker.name} -> {order.status.value}")
 
     def _emit(self, order: Order, fills: list[Fill]) -> None:
@@ -198,6 +203,18 @@ class ExecutionBot(Bot):
                 self._submitted_at.pop(oid, None)
                 if not fills:
                     self.publish("order.update", order)
+                if order.maker and order.status is not OrderStatus.FILLED:
+                    await self._maker_fallback(order)
+            elif order.maker and now() - self._submitted_at.get(oid, now()) > self.settings.maker_wait_s:
+                await self.desk.broker.cancel(order)  # waited at the bid long enough: the rest goes market
+                late = await self.desk.broker.poll(order)
+                self._emit(order, late)
+                self.working.pop(oid, None)
+                self._submitted_at.pop(oid, None)
+                if order.status is not OrderStatus.FILLED:
+                    order.status = OrderStatus.CANCELED
+                    self.publish("order.update", order)
+                    await self._maker_fallback(order)
             elif now() - self._submitted_at.get(oid, now()) > self.ORDER_TIMEOUT_S:
                 await self.desk.broker.cancel(order)
                 late = await self.desk.broker.poll(order)  # it may have filled while we waited: never lose a fill
@@ -211,6 +228,27 @@ class ExecutionBot(Bot):
         self.metrics["working"] = len(self.working)
         self.metrics["accuracy"] = round(self.accuracy, 6)
         self._prune()
+
+    async def _maker_fallback(self, order: Order) -> None:
+        """Buy whatever the bid-side limit didn't get, at market (the trade is never missed)."""
+        rest = order.qty - order.filled_qty
+        if rest <= max(self.desk.broker.min_qty(order.symbol, self.desk.prices.get(order.symbol, 0) or 1), 1e-12):
+            return
+        child = Order(order.symbol, order.side, rest, order.request_id, reason=order.reason,
+                      reduce_only=False, stop_price=order.stop_price, take_profit=order.take_profit)
+        self.orders[child.id] = child
+        self.ref_price[child.id] = self.reference_price(order.symbol, order.side)
+        fills = await self.desk.broker.submit(child)
+        if child.status is OrderStatus.REJECTED:
+            self.publish("order.update", child)
+            self.act(f"market rest of {order.symbol} rejected: {child.reason}", "warning")
+            return
+        if not child.status.is_terminal:
+            self.working[child.id] = child
+            self._submitted_at[child.id] = now()
+        self.publish("order.update", child)
+        self._emit(child, fills)
+        self.bump("maker_fallbacks")
 
     KEEP_ORDERS = 3000
 

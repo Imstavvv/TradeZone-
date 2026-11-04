@@ -124,3 +124,14 @@ def test_skims_are_possible_on_real_money_with_krakens_fee():
     desk.bus.publish("market.snapshot", snap)
     run(desk.bus.drain())
     assert desk.bots["skimmer"].owns("SOL-USD")  # before: the target couldn't be reached inside an hour
+
+
+def test_defensive_stance_needs_only_a_step_more_conviction_than_usual():
+    desk = make()
+    exe = desk.bots["executive"]
+    exe.mode = "defensive"
+    pos = buy(desk, strength=0.36)  # usual real-money bar 0.22: defensive needs 0.32, not the old fixed 0.45
+    assert pos.qty > 0
+    calm = make()
+    calm.bots["executive"].mode = "defensive"
+    assert buy(calm, "ETH-USD", 3_000.0, strength=0.28).is_flat  # below 0.32: still held

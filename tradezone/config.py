@@ -120,6 +120,8 @@ class Settings:
     # Kraken (real money, crypto): a key WITHOUT withdraw permission - TradeZone refuses keys that can withdraw
     kraken_key: str = ""
     kraken_secret: str = ""
+    maker_entries: bool = True  # real-money buys wait at the bid as a post-only limit (maker fee) before going market
+    maker_wait_s: float = 20.0  # ...this long; what isn't filled by then is bought at market
     kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
     kraken_memes: bool = True  # with Kraken prices: add the meme coins Kraken lists (if they trade enough)
     min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added
@@ -240,7 +242,7 @@ class Settings:
     # ---- Grok (xAI) AI analyst ----
     # ---- Coach: the team learns from its own closed trades (hard safety limits never change) ----
     coach_learning: bool = True
-    coach_bench_minutes: float = 120.0  # how long a coin that keeps losing sits out
+    coach_bench_minutes: float = 45.0  # how long a coin that keeps losing sits out
     coach_idle_hours: float = 6.0  # idle this long with healthy results -> lower the bar a little
     grok_api_key: str = ""
     grok_model: str = "grok-4"
@@ -263,8 +265,9 @@ class Settings:
     exec_lookback_trades: int = 20
     exec_market_hours_only: bool = True  # stocks: only open positions during regular US market hours
     exec_defensive_after_losses: int = 3  # losses in a row that switch to the defensive stance
-    exec_defensive_min_strength: float = 0.45  # conviction needed while defensive (normal minimum is 0.35)
-    exec_defensive_cooloff_min: float = 30.0  # a losing streak stops counting this long after its last loss
+    exec_defensive_min_strength: float = 0.45  # conviction needed while defensive, at most...
+    exec_defensive_extra: float = 0.10  # ...or the usual bar + this, whichever is lower (real money: 0.22 + 0.10)
+    exec_defensive_cooloff_min: float = 20.0  # a losing streak stops counting this long after its last loss
     # ---- autonomy ----
     auto_rearm_daily: bool = True  # a daily-loss kill switch re-arms itself at the next UTC day
     resume_on_restart: bool = True  # restore books, stops and mode (incl. live) after a restart

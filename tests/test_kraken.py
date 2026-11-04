@@ -28,7 +28,8 @@ class FakeKraken:
         self.price = {"XBTUSD": 60_000.0, "XDGUSD": 0.2}
         self.spread = {"XBTUSD": 0.0002, "XDGUSD": 0.001}  # bid/ask gap
         self.volume = {"XBTUSD": 2_000.0, "XDGUSD": 50_000_000.0}  # coins traded in 24 h
-        self.orders, self.calls, self.oflags = {}, [], []
+        self.orders, self.calls, self.oflags, self.ordertypes = {}, [], [], []
+        self.limit_fills = True  # a limit order at the bid gets filled straight away (set False: it just waits)
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         path = req.url.path
@@ -65,7 +66,14 @@ class FakeKraken:
             if data.get("validate") == "true":
                 return self.ok({"descr": {"order": "validated"}})
             self.oflags.append(data.get("oflags"))
+            self.ordertypes.append(data.get("ordertype"))
+            if data.get("ordertype") == "limit" and not self.limit_fills:  # rests at the bid, nobody sells to it
+                txid = f"O{len(self.orders) + 1}"
+                self.orders[txid] = {"status": "open", "vol_exec": "0", "cost": "0", "fee": "0"}
+                return self.ok({"txid": [txid]})
             vol, px = float(data["volume"]), self.price[data["pair"]]
+            if data.get("ordertype") == "limit":
+                px = float(data["price"])  # a maker fill at the limit price
             base = "XXBT" if data["pair"] == "XBTUSD" else "XXDG"
             cost, fee = vol * px, vol * px * 0.0026
             sgn = 1 if data["type"] == "buy" else -1
@@ -76,6 +84,10 @@ class FakeKraken:
             return self.ok({"txid": [txid]})
         if method == "QueryOrders":
             return self.ok({data["txid"]: self.orders[data["txid"]]})
+        if method == "CancelOrder":
+            if self.orders[data["txid"]]["status"] == "open":
+                self.orders[data["txid"]]["status"] = "canceled"
+            return self.ok({"count": 1})
         return self.err(f"EGeneral:Unknown method {method}")
 
     @staticmethod
@@ -162,7 +174,7 @@ def test_bots_trade_and_take_profit_on_kraken_but_cannot_withdraw():
     run(desk.bus.drain())
     pos = desk.portfolio.position("BTC-USD")
     assert pos.qty > 0 and "AddOrder" in fk.calls
-    assert fk.oflags[-1] == "fciq"  # fee paid in USD: every coin bought arrives and can be sold again
+    assert "fciq" in fk.oflags[-1]  # fee paid in USD: every coin bought arrives and can be sold again
     # price rises to the +6% target: the bots take profit (half, then the runner rides)
     fk.price["XBTUSD"] = 63_700.0
     trades = capture(desk, "trade.closed")
@@ -503,3 +515,26 @@ def test_the_fill_check_uses_krakens_bid_and_ask_not_a_stale_last_price():
     run(desk.live_broker.fresh_quote("DOGE-USD"))
     ref = exe.reference_price("DOGE-USD", Side.BUY)
     assert ref == pytest.approx(0.2 * 1.006, rel=1e-4)  # the ask, so a normal fill isn't called "bad"
+
+
+def test_real_money_buys_wait_at_the_bid_for_the_lower_maker_fee():
+    fk, desk = live_kraken()
+    pos = kbuy(desk)
+    assert pos.qty > 0 and fk.ordertypes[-1] == "limit" and "post" in fk.oflags[-1]
+    bid = fk.price["XBTUSD"] * (1 - fk.spread["XBTUSD"] / 2)
+    assert pos.avg_price == pytest.approx(bid, rel=1e-6)  # bought at the bid, not the ask
+
+
+def test_a_bid_that_isnt_filled_in_time_is_bought_at_market():
+    fk, desk = live_kraken()
+    fk.limit_fills = False
+    exe = desk.bots["execution"]
+    pos = kbuy(desk)
+    assert pos.is_flat and exe.working  # waiting at the bid
+    for o in exe.working.values():
+        exe._submitted_at[o.id] -= desk.settings.maker_wait_s + 1
+    run(exe.on_cycle())
+    run(desk.bus.drain())
+    assert pos.qty > 0 and fk.ordertypes[-1] == "market" and exe.metrics["maker_fallbacks"] == 1
+    assert pos.stop_price is not None  # the market rest still got the trade's stop and target
+    assert check(desk) == [] and not desk.paused  # books match Kraken

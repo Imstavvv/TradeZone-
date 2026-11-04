@@ -271,8 +271,20 @@ class KrakenBroker(Broker):
                 order.reason = (f"kraken: {order.symbol} isn't traded on Kraken" if order.symbol not in self.pairs
                                 else f"kraken: below Kraken's minimum order for {order.symbol}")
                 return []
+            p = self.pairs[order.symbol]
+            if order.maker and not order.reduce_only:  # wait at the bid (ask for a sell) for the lower maker fee
+                q = await self.fresh_quote(order.symbol)
+                px = (q or {}).get("bid" if order.side.sign > 0 else "ask")
+                if px:
+                    order.limit_price = px
+                    res = await self._private("AddOrder", pair=p["pair"], type=order.side.value, ordertype="limit",
+                                              price=f"{px:.{p.get('price_dec', 8)}f}", volume=vol, oflags="post,fciq")
+                    order.broker_id = (res.get("txid") or [None])[0]
+                    order.status = OrderStatus.SUBMITTED
+                    return await self.poll(order)
+                order.maker = False  # no quote: just buy at market
             # fciq: Kraken takes its fee in USD, so every coin bought arrives in full and can be sold again
-            res = await self._private("AddOrder", pair=self.pairs[order.symbol]["pair"], type=order.side.value,
+            res = await self._private("AddOrder", pair=p["pair"], type=order.side.value,
                                       ordertype="market", volume=vol, oflags="fciq")
         except (KrakenError, httpx.HTTPError) as exc:
             order.status = OrderStatus.REJECTED

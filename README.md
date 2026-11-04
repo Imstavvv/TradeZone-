@@ -598,6 +598,17 @@ Every feature runs with real money. Each can be switched off on its own:
 
 Patient exits, skims and the quick-flip slice had been switched off after the losing-trades review below. They're back on by request. With the -33% stop, patient exits are what cuts a falling trade early (when momentum and heavy volume both point down) instead of riding it to -33%. In simulated real-money trading (random prices, Kraken fees), switching all three back on made more trades and left almost no money stuck in losing positions, and ended about 1% lower over four $500 runs (the extra fees). That's within the noise of random prices; real markets will tell.
 
+### Cheaper buys: waiting at the bid (maker orders)
+
+Fees were the biggest cost in every review of the bots' trades. So with real money on Kraken, a buy is first placed as a **post-only limit order at the bid** (`TZ_MAKER_ENTRIES`): it pays Kraken's **maker** fee (0.25% at the starting tier instead of the 0.40% taker fee) and buys at the bid instead of the ask, saving about half the bid/ask gap too. If it isn't filled within **20 seconds** (`TZ_MAKER_WAIT_S`), or Kraken refuses it because it would have bought straight away, the rest is bought at market, so no trade is missed. Exits, stop-losses and profit-taking always sell at market, so they are never delayed.
+
+### Fewer trades lost after a losing streak
+
+Two protections used to sideline the bots for long after a few losses:
+
+* the **Coach's bench** (a coin with 5+ trades, a poor win rate and a net loss sits out) is now **45 minutes** (`TZ_COACH_BENCH_MINUTES`, was 2 hours);
+* the **Executive's defensive stance** (after 3 losses in a row: half-size trades) now needs only **0.10 more conviction than usual** (`TZ_EXEC_DEFENSIVE_EXTRA`; with real money about 0.32 instead of a fixed 0.45, which held back nearly every idea), and a losing streak stops counting **20 minutes** after its last loss (was 30).
+
 ### Stop-loss at -33% from the buy price
 
 Every trade's stop-loss sits **33% below the buy price** (`TZ_WIDE_STOP_PCT`; 33% above for a short), so ordinary dips, even a 20-30% drop, never stop a trade out. Three things keep this from risking more money:
