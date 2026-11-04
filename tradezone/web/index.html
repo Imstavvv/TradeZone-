@@ -528,6 +528,67 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 @keyframes burst{0%{opacity:0}12%{opacity:1}70%{opacity:1}100%{opacity:0}}
 @keyframes pop{0%{transform:skewX(-10deg) rotate(-6deg) scale(.2)}100%{transform:skewX(-10deg) rotate(-6deg) scale(1)}}
 @media (max-width:700px){.hero .bal{font-size:44px}.ftitle{font-size:40px}#burst b{font-size:48px}}
+/* ---- the arena: two original anime fighters who react to trading ---- */
+.arena{position:relative;height:250px;margin-bottom:14px;border:3px solid var(--ink);border-radius:26px;overflow:hidden;box-shadow:6px 6px 0 var(--ink);
+  display:flex;align-items:flex-end;justify-content:space-between;padding:0 4%}
+.arena .sky{position:absolute;inset:0;background:radial-gradient(circle at 50% 120%,#ffb347 0%,#ff6a3d 25%,#8e2de2 60%,#1b1464 100%)}
+.arena .sky::after{content:"";position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 100%,rgba(255,255,255,.07) 0deg 3deg,transparent 3deg 9deg)}
+.arena .ground{position:absolute;left:0;right:0;bottom:0;height:46px;background:linear-gradient(180deg,#5b3a29,#2b1a12);
+  clip-path:polygon(0 30%,8% 18%,18% 34%,30% 14%,44% 30%,56% 12%,70% 32%,82% 16%,92% 30%,100% 20%,100% 100%,0 100%)}
+.fighter{position:relative;z-index:2;width:40%;max-width:190px;height:220px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.fighter svg{width:100%;height:190px;overflow:visible;filter:drop-shadow(3px 4px 0 rgba(0,0,0,.45))}
+.fighter.rin svg{transform:scaleX(-1)}
+.fighter .say{position:absolute;top:2px;left:50%;transform:translateX(-50%);width:max-content;max-width:160px;background:#fff;color:var(--ink);
+  border:2px solid var(--ink);border-radius:12px;padding:4px 8px;font-size:11px;font-weight:800;line-height:1.25;text-align:center;z-index:3}
+.fighter .say:empty{display:none}
+.fighter .say::after{content:"";position:absolute;bottom:-8px;left:50%;border:6px solid transparent;border-top-color:var(--ink);transform:translateX(-50%)}
+.arenatag{position:absolute;left:50%;bottom:8px;background:rgba(10,10,26,.55);padding:2px 10px;border-radius:999px;transform:translateX(-50%);z-index:3;font-family:var(--anime);font-style:italic;font-weight:900;
+  color:#fff;font-size:13px;letter-spacing:1px;text-shadow:2px 2px 0 var(--ink);white-space:nowrap}
+.arenatag span{color:var(--gold)}.arenatag b{color:var(--gold)}
+/* body parts animate per state */
+.fighter .aura{opacity:0;transform-origin:60px 110px;transition:opacity .4s}
+.fighter .hair{fill:var(--hair);transition:fill .5s}
+.fighter .eyes-hurt,.fighter .mouth-open,.fighter .mouth-hurt,.fighter .sweat,.fighter .sparks{display:none}
+.fighter .armR,.fighter .armL{transition:transform .35s cubic-bezier(.3,1.5,.5,1)}
+.fighter .armR{transform-origin:78px 82px}.fighter .armL{transform-origin:42px 82px}
+.fighter .body{transform-origin:60px 150px;animation:breathe 2.8s ease-in-out infinite}
+@keyframes breathe{50%{transform:translateY(1.5px) scaleY(.99)}}
+.fighter.power .aura,.fighter.super .aura{opacity:1;animation:auraPulse .7s ease-in-out infinite}
+@keyframes auraPulse{50%{transform:scale(1.08);opacity:.75}}
+.fighter.power .armL{transform:rotate(25deg)}.fighter.power .armR{transform:rotate(-25deg)}
+.fighter.power .mouth-open,.fighter.super .mouth-open,.fighter.cheer .mouth-open{display:inline}
+.fighter.power .mouth-smile,.fighter.super .mouth-smile,.fighter.cheer .mouth-smile{display:none}
+.fighter.super .hair{fill:#ffd23f}
+.fighter.kai.super .aura ellipse{fill:url(#auraGold-kai)}.fighter.rin.super .aura ellipse{fill:url(#auraGold-rin)}
+.fighter.super .sparks{display:inline;animation:spark .25s steps(2) infinite}
+@keyframes spark{50%{opacity:.2}}
+.fighter.super .body{animation:shake .12s linear infinite}
+@keyframes shake{25%{transform:translate(1px,-1px)}75%{transform:translate(-1px,1px)}}
+.fighter.cheer .body{animation:jump .6s ease-out 3}
+@keyframes jump{40%{transform:translateY(-22px)}}
+.fighter.cheer .armR{transform:rotate(-160deg)}
+.fighter.hurt .body{transform:rotate(-7deg) translateX(-4px);animation:none}
+.fighter.hurt .eyes-open{display:none}.fighter.hurt .eyes-hurt{display:inline}
+.fighter.hurt .mouth-smile{display:none}.fighter.hurt .mouth-hurt,.fighter.hurt .sweat{display:inline}
+.fighter.hurt .armL{transform:rotate(-70deg)}.fighter.hurt .armR{transform:rotate(60deg)}
+.fighter.guard .armL{transform:rotate(-62deg)}.fighter.guard .armR{transform:rotate(62deg)}
+.fighter.guard{filter:saturate(.6)}
+.kiclash{position:relative;z-index:2;flex:1;height:120px;align-self:center;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .4s}
+.kiclash i{width:46px;height:46px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#9ff0ff 35%,#2f7bff 70%,transparent 72%);
+  box-shadow:0 0 30px 10px rgba(110,200,255,.8);animation:kiPulse .5s ease-in-out infinite}
+@keyframes kiPulse{50%{transform:scale(1.25)}}
+.arena.power .kiclash,.arena.super .kiclash,.arena.cheer .kiclash{opacity:1}
+.arena.super .kiclash i{background:radial-gradient(circle,#fff 0%,#fff3a0 35%,#ffb100 70%,transparent 72%);box-shadow:0 0 40px 16px rgba(255,200,0,.85)}
+.arena.hurt .sky{filter:saturate(.7) brightness(.85)}
+.arena.guard .sky{filter:grayscale(.6) brightness(.7)}
+@media (max-width:420px){.arena{height:220px}.fighter{height:196px}.fighter svg{height:166px}.fighter .say{max-width:130px;font-size:10px}}
+/* the goal */
+.goal{margin-top:10px;background:rgba(5,10,30,.55);border:2px solid var(--ink);border-radius:14px;padding:8px 10px;color:#fff}
+.goal .row1{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:800;font-size:13px}
+.goal .row1 b{font-family:var(--anime);font-style:italic;font-weight:900;color:var(--gold);font-size:15px}
+.goal .bar{position:relative;height:14px;margin-top:6px;border-radius:999px;background:rgba(255,255,255,.12);border:2px solid var(--ink);overflow:hidden}
+.goal .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#2f7bff,#9ff0ff,#ffd23f);transition:width .8s}
+.goal .note{font-size:11px;color:rgba(255,255,255,.8);margin-top:5px}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
@@ -572,6 +633,14 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     </div>
   </div>
 </div>
+<div class="sheet" id="goalSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">🏆 Set your goal</h3>
+  <label class="fl">Starting amount ($)</label><input id="goalStart" class="txt" inputmode="decimal" placeholder="50">
+  <label class="fl">Target ($)</label><input id="goalTarget" class="txt" inputmode="decimal" placeholder="10000">
+  <div class="muted" style="font-size:12px;margin-top:6px">Progress is measured from now. In practice mode your account's growth is shown on this scale.</div>
+  <div class="lockerr" id="goalErr"></div>
+  <div class="row"><button id="goalCancel">Cancel</button><button id="goalSave" class="gopaper">Save goal</button></div>
+</div></div>
 <div class="sheet" id="askSheet"><div class="panel2">
   <h3 id="askTitle"></h3>
   <div class="muted" id="askBody" style="font-size:14px;white-space:pre-line"></div>
@@ -701,6 +770,13 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 <main>
   <div class="banner" id="banner"></div>
   <section id="simple">
+    <div class="arena" id="arena" aria-label="Your fighters react to how trading is going">
+      <div class="sky"></div><div class="ground"></div>
+      <div class="fighter kai" id="fKai"><div class="say" id="sayKai"></div></div>
+      <div class="kiclash" aria-hidden="true"><i></i></div>
+      <div class="fighter rin" id="fRin"><div class="say" id="sayRin"></div></div>
+      <div class="arenatag">KAI <span>&amp;</span> RIN · <b id="arenaState">ready</b></div>
+    </div>
     <div class="hero">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
@@ -709,6 +785,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
       <div class="since" id="sSince"></div>
       <div class="badges" id="sBadges"></div>
       <div class="power" id="sPower"></div>
+      <div class="goal" id="sGoal"></div>
       <div class="statusline" id="sStatus"><span class="led"></span><span id="sStatusText">Connecting…</span></div>
       <div class="actions2">
         <button id="sPause">Pause trading</button>
@@ -737,6 +814,9 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
           <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
           <div class="srow"><div class="ic">📱</div><div class="tx"><b>Log in another device</b><span>Shows a 6-digit code and a one-tap link (works once, for 5 minutes)</span></div><button id="setPairBtn" class="gopaper">Show code</button></div>
           <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>To come back, use a code from another device or your Render logs</span></div><button id="setLogoutBtn">Log out</button></div>
+        </div>
+        <div class="scard"><h4>🏆 Your goal</h4>
+          <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
         </div>
         <div class="scard"><h4>🔗 Linked accounts</h4>
           <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
@@ -924,7 +1004,7 @@ async function showWelcome(mode = 'auto', msg = ''){
   try { S.ws && S.ws.close(); } catch {}
   let first = false;
   try { first = !(await (await fetch('/api/setup/status', {credentials: 'same-origin'})).json()).owner; } catch {}
-  document.body.classList.add('locked'); $('welcome').classList.add('open');
+  document.body.classList.add('locked'); $('welcome').classList.add('open'); $('wLogin').classList.add('on');
   $('wLoginTitle').textContent = first ? 'Welcome to TradeZone 👋' : 'Log in to TradeZone';
   $('wLoginHint').textContent = first
     ? 'First time? Type the 8-digit login code from your Render logs (tap "Where do I get a code?"). That\'s it - no password.'
@@ -1640,6 +1720,8 @@ function renderBadges(st){
   if (st.executive && st.executive.median_ms != null) out.push(`⚡ decides in ${st.executive.median_ms < 1 ? '<1' : Math.round(st.executive.median_ms)} ms`);
   $('sBadges').innerHTML = out.map(b => `<span class="badge2">${esc(b)}</span>`).join('');
   renderPower(st, streak);
+  renderArena(st);
+  renderGoal(st.goal);
 }
 // ---- power level: balance as a readout, today's move as a meter, rank from total growth ----
 const RANKS = [[-Infinity, 'Rookie'], [0, 'Fighter'], [0.05, 'Elite'], [0.15, 'Champion'], [0.5, 'Legend']];
@@ -1659,6 +1741,82 @@ function powerUp(){
   const b = $('burst'); b.classList.remove('on'); void b.offsetWidth; b.classList.add('on');
   clearTimeout(powerUp.t); powerUp.t = setTimeout(() => b.classList.remove('on'), 1200);
 }
+// =================== the arena: Kai & Rin (original characters) react to trading ===================
+// Drawn as inline SVG so there are no image files; colours come from CSS so "super" can turn the hair gold.
+function fighterSVG(who){
+  const kai = who === 'kai';
+  const gi = kai ? '#d7263d' : '#6d28d9', gi2 = kai ? '#8f1424' : '#3b0f8c', under = kai ? '#1e293b' : '#0ea5e9';
+  const hair = kai
+    ? '<path class="hair" d="M37 52 L26 30 L42 38 L38 12 L53 30 L60 4 L67 30 L82 12 L78 38 L94 30 L83 52 Q60 34 37 52 Z" stroke="#0a0a1a" stroke-width="2"/>'
+    : '<path class="hair" d="M38 54 Q36 26 60 24 Q86 24 84 54 Q78 36 60 36 Q44 36 38 54 Z M80 34 Q104 40 98 78 Q92 60 82 50 Z" stroke="#0a0a1a" stroke-width="2"/>';
+  return `<svg viewBox="0 0 120 160" style="--hair:${kai ? '#14141f' : '#2563eb'}">
+    <defs><radialGradient id="aura-${who}" cx="50%" cy="60%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".5" stop-color="${kai ? '#7dd3fc' : '#c4b5fd'}" stop-opacity=".55"/><stop offset="1" stop-color="${kai ? '#2f7bff' : '#7c3aed'}" stop-opacity="0"/></radialGradient>
+      <radialGradient id="auraGold-${who}" cx="50%" cy="60%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset=".5" stop-color="#ffe066" stop-opacity=".7"/><stop offset="1" stop-color="#ff9f1c" stop-opacity="0"/></radialGradient></defs>
+    <g class="aura"><ellipse cx="60" cy="96" rx="56" ry="74" fill="url(#aura-${who})"/></g>
+    <g class="sparks" stroke="#fff6a0" stroke-width="2"><path d="M14 60 l8 6 -6 2 8 8" fill="none"/><path d="M104 70 l-8 5 6 3 -8 8" fill="none"/><path d="M30 20 l4 8" /><path d="M92 24 l-4 8"/></g>
+    <g class="body">
+      <rect x="42" y="110" width="15" height="36" rx="5" fill="${gi2}" stroke="#0a0a1a" stroke-width="2"/>
+      <rect x="63" y="110" width="15" height="36" rx="5" fill="${gi2}" stroke="#0a0a1a" stroke-width="2"/>
+      <rect x="39" y="142" width="20" height="10" rx="4" fill="#1e293b" stroke="#0a0a1a" stroke-width="2"/>
+      <rect x="61" y="142" width="20" height="10" rx="4" fill="#1e293b" stroke="#0a0a1a" stroke-width="2"/>
+      <path d="M40 76 Q60 68 80 76 L84 114 L36 114 Z" fill="${gi}" stroke="#0a0a1a" stroke-width="2"/>
+      <path d="M52 74 L60 92 L68 74 Z" fill="${under}" stroke="#0a0a1a" stroke-width="1.5"/>
+      <rect x="36" y="104" width="48" height="8" rx="2" fill="${kai ? '#f8fafc' : '#facc15'}" stroke="#0a0a1a" stroke-width="2"/>
+      <g class="armL"><rect x="28" y="78" width="14" height="32" rx="7" fill="${gi}" stroke="#0a0a1a" stroke-width="2"/><circle cx="35" cy="112" r="7" fill="#f6c8a4" stroke="#0a0a1a" stroke-width="2"/></g>
+      <g class="armR"><rect x="78" y="78" width="14" height="32" rx="7" fill="${gi}" stroke="#0a0a1a" stroke-width="2"/><circle cx="85" cy="112" r="7" fill="#f6c8a4" stroke="#0a0a1a" stroke-width="2"/></g>
+      <rect x="54" y="62" width="12" height="10" fill="#f6c8a4"/>
+      <circle cx="60" cy="50" r="20" fill="#f6c8a4" stroke="#0a0a1a" stroke-width="2"/>
+      ${hair}
+      <g class="eyes-open"><path d="M47 46 l9 3" stroke="#0a0a1a" stroke-width="2.5" stroke-linecap="round"/><path d="M73 46 l-9 3" stroke="#0a0a1a" stroke-width="2.5" stroke-linecap="round"/>
+        <ellipse cx="52" cy="53" rx="4" ry="5" fill="#fff" stroke="#0a0a1a" stroke-width="1.5"/><ellipse cx="68" cy="53" rx="4" ry="5" fill="#fff" stroke="#0a0a1a" stroke-width="1.5"/>
+        <ellipse cx="53" cy="54" rx="2.4" ry="3.4" fill="${kai ? '#111827' : '#1d4ed8'}"/><ellipse cx="67" cy="54" rx="2.4" ry="3.4" fill="${kai ? '#111827' : '#1d4ed8'}"/>
+        <circle cx="54" cy="52.5" r="1" fill="#fff"/><circle cx="68" cy="52.5" r="1" fill="#fff"/></g>
+      <g class="eyes-hurt" stroke="#0a0a1a" stroke-width="2.5" stroke-linecap="round" fill="none"><path d="M48 51 l6 3 -6 3"/><path d="M72 51 l-6 3 6 3"/></g>
+      <path class="mouth-smile" d="M54 62 Q60 66 66 62" stroke="#0a0a1a" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path class="mouth-open" d="M54 61 Q60 70 66 61 Z" fill="#7f1d1d" stroke="#0a0a1a" stroke-width="2"/>
+      <path class="mouth-hurt" d="M54 64 Q60 60 66 64" stroke="#0a0a1a" stroke-width="2" fill="none"/>
+      <path class="sweat" d="M80 40 q4 6 0 9 q-4 -3 0 -9 Z" fill="#7dd3fc" stroke="#0a0a1a" stroke-width="1"/>
+    </g></svg>`;
+}
+$('fKai').insertAdjacentHTML('beforeend', fighterSVG('kai'));
+$('fRin').insertAdjacentHTML('beforeend', fighterSVG('rin'));
+const ARENA = {flash: null, until: 0, last: ''};
+const LINES = {
+  idle: ["Scanning the market… ready when you are!", "Patience. The best fights come to us."],
+  power: ["My power level is rising!", "Keep the stops tight - we're climbing!"],
+  super: ["SUPER MODE! We're on a roll!", "This is our training paying off!"],
+  hurt: ["Ugh - that one hit. The stop kept it small!", "Shake it off. We protect the money first."],
+  cheer: ["TAKE THAT! Profit banked!", "Clean hit - locked it in!"],
+  guard: ["Defensive stance - trading's on hold.", "Resting is part of training."],
+};
+function arenaReact(kind, ms = 4500, extra = ''){  // a trade just closed: a short reaction
+  ARENA.flash = {kind, extra}; ARENA.until = Date.now() + ms; if (S.state) renderArena(S.state);
+}
+function renderArena(st){
+  const p = st.portfolio, d = p.daily_pnl_pct || 0, streak = winStreak(), g = st.goal;
+  let state = st.halted || st.paused ? 'guard' : d >= 0.01 || streak >= 3 || (g && g.reached) ? 'super'
+    : d > 0.001 ? 'power' : d < -0.005 ? 'hurt' : 'idle';
+  let extra = state === 'power' ? ` +${(d * 100).toFixed(2)}% today` : state === 'super' && streak >= 3 ? ` ${streak} wins in a row!` : '';
+  if (ARENA.flash && Date.now() < ARENA.until && state !== 'guard') { state = ARENA.flash.kind; extra = ARENA.flash.extra; }
+  if (state + extra === ARENA.last) return;
+  ARENA.last = state + extra;
+  ['fKai', 'fRin'].forEach(id => { $(id).className = `fighter ${id === 'fKai' ? 'kai' : 'rin'} ${state}`; });
+  $('arena').className = `arena ${state}`;
+  $('sayKai').textContent = LINES[state][0] + (extra && state !== 'idle' ? extra : '');
+  $('sayRin').textContent = LINES[state][1];
+  $('arenaState').textContent = {idle: 'ready', power: 'powering up', super: 'SUPER MODE', hurt: 'took a hit', cheer: 'BANKED IT!', guard: 'on guard'}[state];
+}
+function renderGoal(g){
+  if (!g) return;
+  const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: v < 1000 ? 2 : 0});
+  const pace = g.reached ? '🎉 Goal reached!'
+    : g.eta_days != null ? `At this pace: about ${Math.round(g.eta_days).toLocaleString()} days to go`
+    : `Even a strong +1% every day would take about ${g.days_at_1pct.toLocaleString()} days - the bots grow it safely, not by gambling`;
+  setHTML($('sGoal'), `<div class="row1"><span>🏆 Goal ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
+    <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
+    <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>`);
+}
+
 // ---- confetti for profitable trades ----
 function confetti(){
   if (REDUCED) return;
@@ -1680,11 +1838,11 @@ function confetti(){
 function celebrate(t){
   if (t.pnl == null) return;
   if (t.pnl > 0) {
-    confetti(); powerUp(); navigator.vibrate?.([12, 40, 12]);
+    confetti(); powerUp(); arenaReact('cheer', 4500, ` +${money(t.pnl)}`); if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.([12, 40, 12]);
     const el = document.createElement('div'); el.className = 'toast party';
     el.textContent = `🎉 ${t.symbol} closed with +${money(t.pnl)} profit!`; $('toasts').appendChild(el);
     setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4500);
-  } else toast(`${t.symbol} closed ${money(t.pnl)} · ${friendlyReason(t.reason)}. Small losses are part of the plan.`, 'info', 4500);
+  } else { arenaReact('hurt'); toast(`${t.symbol} closed ${money(t.pnl)} · ${friendlyReason(t.reason)}. Small losses are part of the plan.`, 'info', 4500); }
 }
 // a tiny tap on Android when pressing buttons (iPhone ignores this)
 document.addEventListener('click', e => { if (e.target.closest('button')) navigator.vibrate?.(8); }, {passive: true});
@@ -1861,7 +2019,8 @@ function coolWait(){
 }
 function setHTML(el, html){ if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; return true; } return false; }
 function renderSettings(){
-  const A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo;
+  const A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo, G = S.state && S.state.goal;
+  if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
     $('accBrokerTxt').textContent = b.linked ? `Connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''}` : "Not connected - you're using practice money";
@@ -1900,6 +2059,15 @@ function renderSettings(){
   }
 }
 $('setPairBtn').onclick = () => addDevice();
+$('setGoalBtn').onclick = () => { const g = S.state && S.state.goal; $('goalStart').value = g ? g.start : 50; $('goalTarget').value = g ? g.target : 10000;
+  $('goalErr').textContent = ''; $('goalSheet').classList.add('open'); };
+$('goalCancel').onclick = () => $('goalSheet').classList.remove('open');
+$('goalSave').onclick = async () => {
+  const start = parseFloat($('goalStart').value), target = parseFloat($('goalTarget').value);
+  if (!(start > 0 && target > start)) { $('goalErr').textContent = 'The target must be bigger than the starting amount.'; return; }
+  try { await api('/api/goal', {start, target}); $('goalSheet').classList.remove('open'); toast('Goal saved 🏆', 'ok'); }
+  catch (e) { $('goalErr').textContent = e.message; }
+};
 $('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', 'To come back, use a code from another device or the login code in your Render logs.', {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };
 $('devOutAll').onclick = () => $('btnSignoutAll').onclick();
 $('setProBtn').onclick = () => { setView('pro'); setTimeout(() => scrollToSection('sec-security'), 80); };
