@@ -79,8 +79,15 @@ def test_live_not_resumed_when_broker_disagrees(tmp_path):
     d2 = make(db, FakeLiveBroker(cash=5_000, positions={}))  # position closed outside TradeZone
     alerts = capture(d2, "alert")
     run(d2.start())
-    assert not d2.is_live
-    assert any("could not resume" in a.message for a in alerts)
+    assert d2.is_live  # resumes; the records' check sorts out the difference instead of refusing
+    pm = d2.bots["portfolio"]
+    pm.last_fill_ts = 0
+    run(pm.reconcile_positions())
+    fixed = run(pm.reconcile_positions())
+    run(d2.bus.drain())
+    assert fixed and d2.portfolio.position("AAPL").is_flat and not d2.paused
+    assert any("Records updated to match your account" in a.message for a in alerts)
+    assert d2.bots["sentinel"].audit_books() == []
 
 
 def test_resume_can_be_disabled(tmp_path):

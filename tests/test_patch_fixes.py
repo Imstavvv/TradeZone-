@@ -75,14 +75,20 @@ def test_reconcile_adopts_fee_sized_difference_and_keeps_audit_balanced():
     run(desk.bus.drain())
     q = desk.portfolio.position("BTC-USD").qty
     broker._positions = {"BTCUSD": q * 0.9975}
-    problems = run(desk.bots["portfolio"].reconcile_positions())
+    pm = desk.bots["portfolio"]
+    pm.last_fill_ts = 0
+    run(pm.reconcile_positions())  # seen once: wait for the next check
+    problems = run(pm.reconcile_positions())
     run(desk.bus.drain())
     assert problems == [] and not desk.paused
     assert desk.portfolio.position("BTC-USD").qty == pytest.approx(q * 0.9975)
     sentinel = desk.bots["sentinel"]
     assert sentinel.audit_books() == []  # independent ledger applied the same adjustment
-    broker._positions = {"BTCUSD": q * 0.5}  # a real discrepancy still pauses trading
-    assert run(desk.bots["portfolio"].reconcile_positions()) and desk.paused
+    broker._positions = {"BTCUSD": q * 0.5}  # half sold outside TradeZone: the records follow the account
+    run(pm.reconcile_positions())
+    assert run(pm.reconcile_positions()) and not desk.paused
+    run(desk.bus.drain())
+    assert desk.portfolio.position("BTC-USD").qty == pytest.approx(q * 0.5) and sentinel.audit_books() == []
 
 
 def test_executive_holds_stocks_when_market_closed(monkeypatch):

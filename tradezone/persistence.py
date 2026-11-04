@@ -76,5 +76,6 @@ def snapshot(desk: TradingDesk) -> dict[str, Any]:
             "trail_dist": pm.trail_dist,  # type: ignore[attr-defined]
             "protected": sorted(pm.protected),  # type: ignore[attr-defined]
             "scaled_out": sorted(pm.scaled_out),  # type: ignore[attr-defined]
+            "outside": pm.outside,  # type: ignore[attr-defined]  # the owner's coins in the live account
         },
     }

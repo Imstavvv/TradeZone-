@@ -17,7 +17,6 @@ from .config import VENUES, Settings
 from .core.bus import Event, EventBus
 from .core.models import Alert
 from .core.portfolio import Portfolio
-from .core.util import position_mismatches
 from .journal import Journal
 from .market.base import MarketFeed
 
@@ -324,6 +323,7 @@ class TradingDesk:
             book = Portfolio(capital)
             self.live_portfolio = book
             self.portfolio = book
+            self.bots["portfolio"].outside.clear()  # type: ignore[attr-defined]  # a fresh live book: recount
         else:
             self.portfolio = self.paper_portfolio
         self.mode = target
@@ -837,6 +837,7 @@ class TradingDesk:
             self.halted, self.halt_reason, self.halt_kind = False, "", ""
         pm = self.bots["portfolio"]
         saved_pm = data.get("pm", {})
+        self.bots["portfolio"].outside.update(saved_pm.get("outside", {}))  # type: ignore[attr-defined]
         msg = f"restored paper book ({len(self.paper_portfolio.open_positions)} open)"
         if data.get("mode") == "live" and data.get("live"):
             book = portfolio_from_state(data["live"])
@@ -864,11 +865,9 @@ class TradingDesk:
         acct = await self.live_broker.account()
         if acct is None:
             return "live account unreachable"
-        theirs = await self.live_broker.positions() or {}
-        diff = position_mismatches({p.symbol: p.qty for p in book.open_positions}, theirs)
-        for sym, (a, b) in diff.items():
-            return f"broker shows {sym} {b:g} but saved book has {a:g}"
-        return None
+        if await self.live_broker.positions() is None:
+            return "couldn't read your live account's holdings"
+        return None  # differences are sorted out by the records' check (yours vs the bots', sold outside, ...)
 
     FEED_DOWN_AFTER = 10  # cycles without data before alerting
 

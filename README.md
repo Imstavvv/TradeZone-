@@ -432,6 +432,13 @@ A few things used to stop real-money trading quietly. They're fixed:
 
 * **One worse-than-expected fill paused everything.** A market buy fills at the *ask* (the seller's price), and on a coin with a wider gap between buy and sell prices that can be well over the 0.5% slippage limit. Now the expected price for a real-money order is Kraken's ask (bid when selling), and a fill beyond the limit only **cools that coin off for 30 minutes**. Real integrity problems (wrong coin, wrong side, overfill) still pause everything.
 * **Pauses that never ended.** A pause because the books didn't match the broker **clears itself** as soon as they match again; a pause left over from an interrupted mode switch, or from an old bad fill, is cleared on restart.
+* **The records' check paused trading over normal things.** Every 30 seconds the Portfolio Manager compares the bots' records with what the account really holds. It used to pause trading on *any* difference. Now:
+  * a difference must show up on **two checks in a row**, with nothing in flight and no fill in the last 20 s (a broker's balance can lag a fill by a few seconds);
+  * **more** in the account than the bots bought (Kraken Rewards interest, coins you bought or deposited yourself) is noted as **yours** and left alone, and remembered across restarts;
+  * **less** than the bots' records (you sold or moved the bots' coins outside TradeZone) **updates the records** as a sale at the market price, with a warning, and trading continues;
+  * only if the records need correcting **3 times within an hour** does trading pause, because then something really is wrong;
+  * after a restart, live trading resumes even if the account changed while TradeZone was off; the same check sorts it out.
+* **Orders that fill late.** An order still open after 60 s is cancelled, and the bots now check it once more afterwards, so a fill that arrived meanwhile is always booked (a lost fill used to cause a mismatch later).
 * **Kraken Rewards (auto-earn).** Kraken books coins and USD in Rewards as `XBT.F`, `USD.F` and so on. These are now counted as yours, so the bots' records match the account instead of pausing for a mismatch.
 * **Small accounts.** Kraken's minimum order (about $5 of most coins) is bigger than a 1%-risk meme-coin trade on $50. Such buys are now rounded up to the minimum when that's still safe (see the table below), and transfer fees no longer block new trades.
 * **Skims on real money.** With Kraken's 0.40% fee, a +2.5% skim couldn't be reached inside an hour. Real-money skims now aim for **+1.5% after fees** within 2 hours.

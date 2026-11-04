@@ -103,13 +103,16 @@ def test_duplicate_signal_ids_rejected(desk):
     assert len(desk.bots["execution"].orders) == 1
 
 
-def test_broker_position_mismatch_pauses(desk):
+def test_shares_in_the_account_the_bots_never_bought_are_left_alone(desk):
     async def broker_positions():
         return {"AAPL": 999.0}
 
     desk.broker.positions = broker_positions
-    problems = asyncio.run(desk.bots["portfolio"].reconcile_positions())
-    assert problems and desk.paused
+    pm = desk.bots["portfolio"]
+    assert asyncio.run(pm.reconcile_positions()) == [] and pm.outside == {}  # seen once: wait
+    assert asyncio.run(pm.reconcile_positions()) == []  # seen twice: they're the owner's
+    assert pm.outside == {"AAPL": 999.0} and not desk.paused
+    assert asyncio.run(pm.reconcile_positions()) == [] and not desk.paused  # and stay that way
 
 
 def test_simultaneous_exits_never_oversell(desk):

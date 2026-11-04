@@ -193,9 +193,13 @@ class ExecutionBot(Bot):
                     self.publish("order.update", order)
             elif now() - self._submitted_at.get(oid, now()) > self.ORDER_TIMEOUT_S:
                 await self.desk.broker.cancel(order)
-                order.status = OrderStatus.CANCELED
+                late = await self.desk.broker.poll(order)  # it may have filled while we waited: never lose a fill
+                self._emit(order, late)
+                if not order.status.is_terminal or order.status is not OrderStatus.FILLED:
+                    order.status = OrderStatus.CANCELED
                 self.working.pop(oid, None)
+                self._submitted_at.pop(oid, None)
                 self.publish("order.update", order)
-                self.act(f"canceled stale order {oid}", "warning")
+                self.act(f"{'filled late' if late else 'canceled stale'} order {oid}", "warning")
         self.metrics["working"] = len(self.working)
         self.metrics["accuracy"] = round(self.accuracy, 6)

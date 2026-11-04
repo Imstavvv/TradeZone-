@@ -189,7 +189,9 @@ class KrakenBroker(Broker):
     async def _balances(self) -> dict[str, float]:
         """Balances by Kraken asset name. Coins / USD in Kraken Rewards (auto-earn) show up as e.g. "XBT.F" or
         "USD.F": they're still yours to trade, so they're folded into the normal name ("XXBT", "ZUSD")."""
-        raw = {k: float(v) for k, v in (await self._private("Balance")).items()}
+        return self._fold({k: float(v) for k, v in (await self._private("Balance")).items()})
+
+    def _fold(self, raw: dict[str, float]) -> dict[str, float]:
         alias = {"USD": "ZUSD", "ZUSD": "ZUSD"}
         for p in self.pairs.values():
             alias[p["base"]] = p["base"]
@@ -231,10 +233,11 @@ class KrakenBroker(Broker):
         except (KrakenError, httpx.HTTPError) as exc:
             log.warning("kraken positions fetch failed: %s", exc)
             return None
+        base = self._fold(self.baseline)  # a baseline saved before Rewards names were folded still matches
         out = {}
         for sym, p in self.pairs.items():
-            qty = bal.get(p["base"], 0.0) - self.baseline.get(p["base"], 0.0)
-            if qty > max(p["ordermin"], 1e-12):
+            qty = bal.get(p["base"], 0.0) - base.get(p["base"], 0.0)
+            if abs(qty) > 1e-10:  # every amount counts: the records' check sorts yours from the bots'
                 out[sym] = qty
         return out
 

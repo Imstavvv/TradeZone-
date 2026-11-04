@@ -328,8 +328,106 @@ def test_a_mismatch_pause_clears_itself_once_the_books_match_again():
     desk = kraken_desk(fk)
     run(desk.live_broker.refresh_market())
     run(desk.switch_mode("live"))
-    fk.bal["XXBT"] = 0.01  # something appears that the bots didn't buy
+    desk.pause("position mismatch: from before the update")
+    run(desk.bots["portfolio"].reconcile_positions())
+    assert not desk.paused  # books match Kraken: the old automatic pause is lifted
+
+
+def live_kraken(**kw):
+    fk = FakeKraken(usd=5_000.0, **kw)
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    run(desk.switch_mode("live"))
+    return fk, desk
+
+
+def kbuy(desk, sym="BTC-USD", px=60_000.0):
+    prime(desk, sym, px, atr=px * 0.005)
+    desk.bus.publish("signal.proposed", Signal(sym, Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    return desk.portfolio.position(sym)
+
+
+def check(desk, times=2):
     pm = desk.bots["portfolio"]
-    assert run(pm.reconcile_positions()) and desk.paused
-    fk.bal["XXBT"] = 0.0  # sorted out
-    assert run(pm.reconcile_positions()) == [] and not desk.paused
+    pm.last_fill_ts = 0
+    out = [run(pm.reconcile_positions()) for _ in range(times)]
+    run(desk.bus.drain())
+    return out[-1]
+
+
+def test_rewards_interest_and_your_own_coins_never_pause_trading():
+    fk, desk = live_kraken(held={"XBT.F": 0.2})
+    pos = kbuy(desk)
+    fk.bal["XBT.F"] += 0.003  # Kraken Rewards paid interest
+    fk.bal["XXDG"] = 500.0  # you bought DOGE yourself on Kraken
+    assert check(desk) == [] and not desk.paused
+    assert desk.portfolio.position("BTC-USD").qty == pytest.approx(pos.qty)  # the bots' BTC unchanged
+    assert desk.portfolio.position("DOGE-USD").is_flat  # your DOGE isn't the bots'
+    assert check(desk) == [] and not desk.paused  # and it stays settled
+    fk.bal["XXDG"] = 0.0  # you sold your DOGE again: still nothing to do with the bots
+    assert check(desk) == [] and not desk.paused
+
+
+def test_coins_sold_outside_tradezone_update_the_records_instead_of_pausing():
+    fk, desk = live_kraken()
+    pos = kbuy(desk)
+    alerts = capture(desk, "alert")
+    fk.bal["XXBT"] = 0.0  # you sold the bots' BTC in the Kraken app
+    assert check(desk, 1) == []  # seen once: could be a balance catching up - wait
+    assert check(desk, 1) and pos.is_flat and not desk.paused
+    assert any("Records updated" in a.message for a in alerts)
+    assert desk.bots["sentinel"].audit_books() == []
+
+
+def test_a_brief_balance_lag_after_a_fill_is_ignored():
+    fk, desk = live_kraken()
+    pos = kbuy(desk)
+    real = fk.bal["XXBT"]
+    fk.bal["XXBT"] = 0.0  # Kraken's balance hasn't caught up yet
+    pm = desk.bots["portfolio"]
+    pm.last_fill_ts = 0
+    run(pm.reconcile_positions())
+    fk.bal["XXBT"] = real  # ...and now it has
+    assert run(pm.reconcile_positions()) == [] and pos.qty > 0 and not desk.paused
+
+
+def test_repeated_corrections_mean_something_is_wrong_and_pause():
+    fk, desk = live_kraken()
+    for sym, px, base in (("BTC-USD", 60_000.0, "XXBT"), ("DOGE-USD", 0.2, "XXDG")):
+        kbuy(desk, sym, px)
+        fk.bal[base] = 0.0
+        check(desk)
+    assert not desk.paused
+    kbuy(desk, "BTC-USD", 60_000.0)
+    fk.bal["XXBT"] = 0.0
+    check(desk)
+    assert desk.paused and "3 times in an hour" in desk.pause_reason
+
+
+def test_an_order_that_fills_after_the_timeout_is_still_booked():
+    fk, desk = live_kraken()
+    exe = desk.bots["execution"]
+    real_query = fk.handler
+
+    def slow(req):  # Kraken reports the order "open" until we give up on it
+        r = real_query(req)
+        if req.url.path.endswith("QueryOrders") and not slow.cancelled:
+            import json as _j
+            body = _j.loads(r.content)
+            for o in body["result"].values():
+                o["status"], o["vol_exec"] = "open", "0"
+            return httpx.Response(200, json=body)
+        if req.url.path.endswith("CancelOrder"):
+            slow.cancelled = True
+            return httpx.Response(200, json={"error": ["EOrder:Unknown order"], "result": {}})
+        return r
+    slow.cancelled = False
+    desk.live_broker.client = httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(slow))
+    pos = kbuy(desk)
+    assert pos.is_flat and exe.working
+    for o in exe.working.values():
+        exe._submitted_at[o.id] = 0  # time's up
+    run(exe.on_cycle())
+    run(desk.bus.drain())
+    assert pos.qty > 0 and not exe.working  # the late fill was found and booked: no "mismatch" later

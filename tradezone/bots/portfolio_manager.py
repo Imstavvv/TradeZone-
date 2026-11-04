@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections import deque
+
 from ..core.bus import Event
 from ..core.models import Alert, Fill, OrderStatus, Side, Signal, SignalKind, Tick, now
-from ..core.util import norm_symbol, position_mismatches
+from ..core.util import norm_symbol
 from .base import Bot
 
 
@@ -20,6 +22,8 @@ class PortfolioBot(Bot):
     critical = True
 
     RECONCILE_EVERY = 30
+    SETTLE_S = 20.0  # wait this long after a fill before comparing with the broker
+    FIXES_BEFORE_PAUSE = 3  # record corrections within an hour that mean something is really wrong
     FEE_TOLERANCE = 0.01  # differences up to 1% (fee-sized) on crypto are the broker's fee, not an error
 
     def __init__(self, desk) -> None:
@@ -31,6 +35,11 @@ class PortfolioBot(Bot):
         self.tick_move: dict[str, float] = {}  # EWMA of absolute tick-to-tick price change
         self._last_px: dict[str, float] = {}
         self._cycles = 0
+        self.outside: dict[str, float] = {}  # coins in the account that are the owner's, not the bots' (by norm symbol)
+        self._suspect: dict[str, int] = {}  # mismatches seen on consecutive checks
+        self._noted: dict[str, int] = {}
+        self._fixes: deque[float] = deque()
+        self.last_fill_ts = 0.0
 
     def subscriptions(self):
         return {
@@ -41,6 +50,7 @@ class PortfolioBot(Bot):
 
     def on_fill(self, ev: Event) -> None:
         f: Fill = ev.payload
+        self.last_fill_ts = now()
         p = self.portfolio
         was_flat = p.position(f.symbol).is_flat
         closed = p.apply_fill(f)
@@ -211,38 +221,94 @@ class PortfolioBot(Bot):
         return n
 
     async def reconcile_positions(self) -> list[str]:
-        """Compare ledger positions with the broker's. Mismatch pauses trading."""
+        """Compare the bots' records with what the broker really holds, and fix the records instead of
+        stopping trading. Returns what had to be corrected.
+
+        * A difference must show up on two checks in a row (balances can lag a fill by a few seconds),
+          and nothing may be in flight.
+        * **More** in the account than the bots hold (your own coins, Kraken Rewards interest, a deposit):
+          noted as yours and left alone.
+        * **Less** than the bots' records (sold or moved outside TradeZone): the records are updated as a sale
+          at the market price, so the books match the account again.
+        * Trading only pauses if the records needed correcting 3+ times in an hour (something is wrong)."""
         exe = self.desk.bots.get("execution")
-        if exe is not None and exe.working:
+        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())):
             return []  # in-flight orders legitimately cause temporary differences
+        if now() - self.last_fill_ts < self.SETTLE_S:
+            return []  # let the broker's balances catch up with the latest fill
         broker_pos = await self.desk.broker.positions()
         if broker_pos is None:
             return []
-        ours = {p.symbol: p.qty for p in self.portfolio.open_positions}
-        problems = []
-        for sym, (a, b) in position_mismatches(ours, broker_pos).items():
-            pos = next((p for p in self.portfolio.open_positions if norm_symbol(p.symbol) == sym), None)
-            # fee taken in the coin: the broker holds slightly less than we bought -> adopt its number
+        ours = {norm_symbol(p.symbol): p for p in self.portfolio.open_positions}
+        theirs = {norm_symbol(k): v for k, v in broker_pos.items()}
+        diff = {}
+        for sym in set(ours) | set(theirs) | set(self.outside):
+            a = ours[sym].qty if sym in ours else 0.0
+            b = theirs.get(sym, 0.0) - self.outside.get(sym, 0.0)
+            if abs(a - b) > 1e-6 * max(1.0, abs(b)):
+                diff[sym] = (a, b)
+        for sym in list(self._suspect):
+            if sym not in diff:
+                del self._suspect[sym]
+        fixed = []
+        for sym, (a, b) in diff.items():
+            self._suspect[sym] = self._suspect.get(sym, 0) + 1
+            if self._suspect[sym] < 2:
+                continue  # seen once: wait for the next check before believing it
+            del self._suspect[sym]
+            pos = ours.get(sym)
             if pos is not None and self.settings.is_crypto(pos.symbol) and 0 < abs(b) < abs(a) \
                     and (abs(a) - abs(b)) <= abs(a) * self.FEE_TOLERANCE and (a > 0) == (b > 0):
-                delta = b - a
+                delta = b - a  # fee taken in the coin: the broker holds slightly less than we bought
                 pos.qty = b
-                self.publish("position.adjusted", {"symbol": pos.symbol, "delta": delta,
-                                                   "reason": "broker fee taken in coin"})
+                self.publish("position.adjusted", {"symbol": pos.symbol, "delta": delta, "reason": "broker fee taken in coin"})
                 self.act(f"{pos.symbol}: adopted broker quantity {b:g} (fee in coin {delta:+g})")
                 continue
-            problems.append(f"{sym}: ledger {a:g} vs broker {b:g}")
-        self.metrics["positions_reconciled"] = not problems
-        if not problems and self.desk.paused and self.desk.pause_reason.startswith("position mismatch"):
+            if (a >= 0 and b > a) or (a <= 0 and b < a):  # more in the account than the bots hold: yours
+                self.outside[sym] = self.outside.get(sym, 0.0) + (b - a)
+                if abs(self.outside[sym]) < 1e-12:
+                    del self.outside[sym]
+                day = int(now() // 86_400)
+                if self._noted.get(sym) != day:
+                    self._noted[sym] = day
+                    self.publish("alert", Alert("info", f"Your account holds {abs(b - a):.8g} more {sym} than the bots "
+                                                        "bought (your own coins, rewards or a deposit) - left alone", self.name))
+                self.act(f"{sym}: {b - a:+.8g} in the account isn't the bots' - left alone")
+                continue
+            fixed.append(self._external_change(pos, a, b))
+        if fixed:
+            self._fixes.extend([now()] * len(fixed))
+            while self._fixes and now() - self._fixes[0] > 3600:
+                self._fixes.popleft()
+            msg = "; ".join(fixed)
+            if len(self._fixes) >= self.FIXES_BEFORE_PAUSE:
+                self.publish("alert", Alert("critical", f"The records had to be corrected {len(self._fixes)} times in "
+                                                        f"an hour ({msg}) - trading paused so you can check", self.name))
+                self.desk.pause(f"position mismatch: corrected {len(self._fixes)} times in an hour")
+            else:
+                self.publish("alert", Alert("warning", f"Records updated to match your account: {msg}. "
+                                                       "Trading continues.", self.name))
+        self.metrics["positions_reconciled"] = not diff
+        if not diff and self.desk.paused and self.desk.pause_reason.startswith("position mismatch") \
+                and len(self._fixes) < self.FIXES_BEFORE_PAUSE:
             self.desk.resume()  # it was only a mismatch, and the books match the broker again
             self.publish("alert", Alert("info", "Positions match the broker again - trading resumed", self.name))
             self.act("positions match the broker again - trading resumed")
-        if problems:
-            msg = "; ".join(problems)
-            self.act(f"POSITION MISMATCH: {msg}", "critical")
-            self.publish("alert", Alert("critical", f"Broker position mismatch - trading paused: {msg}", self.name))
-            self.desk.pause(f"position mismatch: {msg}")
-        return problems
+        return fixed
+
+    def _external_change(self, pos, a: float, b: float) -> str:
+        """The account holds less than the bots' records: book the difference as a trade at the market price."""
+        sym = pos.symbol
+        change = b - a  # negative: coins sold / moved out (a long); positive: a short bought back
+        price = self.desk.prices.get(sym) or pos.last_price or pos.avg_price
+        side = Side.BUY if change > 0 else Side.SELL
+        exe = self.desk.bots.get("execution")
+        if exe is not None:  # the ledger books it like any fill (and the audit follows)
+            exe.unbooked[sym] = exe.unbooked.get(sym, 0.0) + change
+        self.publish("order.filled", Fill("external", sym, side, abs(change), price, 0.0))
+        self.act(f"{sym}: account holds {b:g}, records said {a:g} - booked {change:+g} at {price:,.6g} "
+                 "(sold or moved outside TradeZone)", "warning")
+        return f"{sym} {a:g} -> {b:g}"
 
     def _free_stale_slots(self) -> None:
         """Quick flips: a trade that went nowhere for hours but is in profit after fees is closed,
