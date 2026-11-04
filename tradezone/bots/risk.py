@@ -60,10 +60,14 @@ class RiskBot(Bot):
         trigger = AGGRESSIVE["day_lock_trigger"] if agg else s.day_lock_trigger_pct
         giveback = AGGRESSIVE["day_giveback"] if agg else s.day_giveback_pct
         locked = start > 0 and best >= trigger * start and p.equity <= start + best * (1 - giveback)
+        goal = self.desk.daily_goal()
+        goal_day = goal > 0 and best >= goal  # a goal day: protect it more tightly
+        if goal_day and p.equity <= start + best * (1 - s.daily_goal_giveback):
+            locked, giveback = True, s.daily_goal_giveback
         lim = s.limits(self.desk.is_live).max_daily_loss_pct
         if self.desk.is_live:
             lim = min(lim, s.live_limits()[0])
-        return {"locked": bool(locked), "best_today": best, "best_today_pct": best / start if start > 0 else 0.0,
+        return {"locked": bool(locked), "goal_day": bool(goal_day), "best_today": best, "best_today_pct": best / start if start > 0 else 0.0,
                 "brake": p.daily_pnl_pct <= -lim / 2, "keep_at_least": start + best * (1 - giveback)}
 
     def subscriptions(self):

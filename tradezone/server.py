@@ -83,6 +83,7 @@ class RiskBody(BaseModel):
 class GoalBody(BaseModel):
     start: float
     target: float
+    daily: float | None = None  # the daily profit goal in USD (0 = off)
 
 
 class CodeBody(BaseModel):
@@ -453,8 +454,11 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
 
     @app.post("/api/goal", dependencies=[Depends(check_token)])
     async def set_goal(body: GoalBody, request: Request):
-        audit(request, f"goal set: ${body.start:,.2f} -> ${body.target:,.2f}")
+        audit(request, f"goal set: ${body.start:,.2f} -> ${body.target:,.2f}"
+                       + (f", ${body.daily:,.0f} a day" if body.daily is not None else ""))
         try:
+            if body.daily is not None:
+                desk.set_daily_goal(body.daily)
             return desk.set_goal(body.start, body.target)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None

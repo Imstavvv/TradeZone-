@@ -173,6 +173,9 @@ class Settings:
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
+    # ---- the daily goal: a $1,000+ day with the money on hand (never by betting bigger) ----
+    daily_goal_usd: float = 1_000.0
+    daily_goal_giveback: float = 0.25  # once reached, giving back 25% of the day's best stops new trades
     # ---- the goal: grow the balance rapidly with minimal losses ----
     day_lock_trigger_pct: float = 0.02  # once the day is up 2%...
     day_giveback_pct: float = 0.5  # ...giving back half of the day's best gain stops new trades until tomorrow

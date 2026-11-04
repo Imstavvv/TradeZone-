@@ -654,6 +654,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <h3 style="text-align:center">🏆 Set your goal</h3>
   <label class="fl">Starting amount ($)</label><input id="goalStart" class="txt" inputmode="decimal" placeholder="50">
   <label class="fl">Target ($)</label><input id="goalTarget" class="txt" inputmode="decimal" placeholder="10000">
+  <label class="fl">Daily goal ($ profit a day, 0 = off)</label><input id="goalDaily" class="txt" inputmode="decimal" placeholder="1000">
   <div class="muted" style="font-size:12px;margin-top:6px">Progress is measured from now. In practice mode your account's growth is shown on this scale.</div>
   <div class="lockerr" id="goalErr"></div>
   <div class="row"><button id="goalCancel">Cancel</button><button id="goalSave" class="gopaper">Save goal</button></div>
@@ -1860,6 +1861,16 @@ function renderArena(st){
   $('sayB').textContent = LINES[state][1];
   $('arenaState').textContent = {idle: 'cruising', power: 'thrusters up', super: 'WARP SPEED', hurt: 'took a hit', cheer: 'BANKED IT!', guard: 'shields up'}[state];
 }
+function dailyLine(d, gd){
+  if (!d || !(d.goal > 0)) return '';
+  const pct = (d.pct_of_balance * 100);
+  const head = d.reached ? `💵 ${money(d.today)} today - a ${money(d.goal)}+ day! Protected: giving back a quarter of it stops new trades`
+    : `💵 Today ${d.today >= 0 ? '+' : ''}${money(d.today)} of ${money(d.goal)}`;
+  const note = d.reached ? '' : d.realistic ? ` (${pct.toFixed(1)}% of the balance)`
+    : ` · that's ${pct >= 100 ? Math.round(pct).toLocaleString() : pct.toFixed(1)}% of your balance in a day - the bots won't bet bigger to force it; at ~1% a day it needs about ${money(d.balance_for_1pct, 0)}`;
+  return `<div class="row1" style="margin-top:8px"><span>${esc(head + note)}</span></div>
+    <div class="bar"><i style="width:${Math.max(1, d.progress * 100).toFixed(1)}%"></i></div>`;
+}
 function focusLine(){
   const f = S.state && S.state.focus;
   if (!f || !f.on) return '';
@@ -1884,7 +1895,7 @@ function renderGoal(g){
   setHTML($('sGoal'), `<div class="row1"><span>${agg ? '⚡ Aggressive' : '🚀 Grow fast, lose little'} · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
     <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
     <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>
-    <div class="note">${esc(guard)}</div>${focusLine()}`);
+    ${dailyLine(g.daily, gd)}<div class="note">${esc(guard)}</div>${focusLine()}`);
 }
 
 // ---- confetti for profitable trades ----
@@ -2153,12 +2164,14 @@ $('riskSave').onclick = async () => {
   catch (e) { $('riskErr').textContent = e.message; }
 };
 $('setGoalBtn').onclick = () => { const g = S.state && S.state.goal; $('goalStart').value = g ? g.start : 50; $('goalTarget').value = g ? g.target : 10000;
+  $('goalDaily').value = g && g.daily ? g.daily.goal : 1000;
   $('goalErr').textContent = ''; $('goalSheet').classList.add('open'); };
 $('goalCancel').onclick = () => $('goalSheet').classList.remove('open');
 $('goalSave').onclick = async () => {
-  const start = parseFloat($('goalStart').value), target = parseFloat($('goalTarget').value);
+  const start = parseFloat($('goalStart').value), target = parseFloat($('goalTarget').value), daily = parseFloat($('goalDaily').value || '0');
   if (!(start > 0 && target > start)) { $('goalErr').textContent = 'The target must be bigger than the starting amount.'; return; }
-  try { await api('/api/goal', {start, target}); $('goalSheet').classList.remove('open'); toast('Goal saved 🏆', 'ok'); }
+  if (!(daily >= 0)) { $('goalErr').textContent = 'The daily goal must be 0 (off) or more.'; return; }
+  try { await api('/api/goal', {start, target, daily}); $('goalSheet').classList.remove('open'); toast('Goal saved 🏆', 'ok'); }
   catch (e) { $('goalErr').textContent = e.message; }
 };
 $('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', 'To come back, use a code from another device or the login code in your Render logs.', {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };

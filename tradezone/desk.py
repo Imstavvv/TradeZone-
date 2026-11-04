@@ -813,10 +813,30 @@ class TradingDesk:
                 "max_daily_loss_pct": min(lim.max_daily_loss_pct, daily), "max_drawdown_pct": min(lim.max_drawdown_pct, dd),
                 "capital_floor_pct": floor}
 
+    def daily_goal(self) -> float:
+        return float(self.goal.get("daily", self.settings.daily_goal_usd))
+
+    def daily_goal_status(self) -> dict:
+        """Today's profit vs the daily goal, and how big that goal is for the money on hand."""
+        p, goal = self.portfolio, self.daily_goal()
+        today = p.equity - p.day_start_equity
+        need = goal / p.day_start_equity if p.day_start_equity > 0 else 0.0
+        return {"goal": goal, "today": today, "progress": max(0.0, min(1.0, today / goal)) if goal > 0 else 0.0,
+                "reached": goal > 0 and today >= goal, "pct_of_balance": need,
+                "balance_for_1pct": goal * 100, "realistic": need <= 0.02}
+
+    def set_daily_goal(self, amount: float) -> dict:
+        if not (math.isfinite(amount) and amount >= 0):
+            raise ValueError("the daily goal must be 0 (off) or more")
+        self.goal["daily"] = float(amount)
+        self._dirty = True
+        return self.daily_goal_status()
+
     def set_goal(self, start: float, target: float) -> dict:
         if not (math.isfinite(start) and math.isfinite(target) and 0 < start < target <= start * 1e6):
             raise ValueError("the goal needs a starting amount above 0 and a bigger target")
-        self.goal = {"start": float(start), "target": float(target), "bases": {}, "since": {}}
+        self.goal = {"start": float(start), "target": float(target), "bases": {}, "since": {},
+                     **({"daily": self.goal["daily"]} if "daily" in self.goal else {})}
         self._dirty = True
         return self.goal_status()
 
@@ -1025,7 +1045,8 @@ class TradingDesk:
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
-            "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard()},  # type: ignore[attr-defined]
+            "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard(),  # type: ignore[attr-defined]
+                     "daily": self.daily_goal_status()},
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),

@@ -191,6 +191,8 @@ News can only make the team more careful or slightly more confident. It never op
 | Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
 | Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) stops new trades until tomorrow; open trades keep their stops and targets, so a good day stays a good day |
 
+**💵 The daily goal: a $1,000+ day with the money on hand** (`TZ_DAILY_GOAL_USD`, or **Settings → Your goal**; 0 turns it off). The goal card shows today's profit against it. Once a day reaches it, the day is **protected**: giving back a quarter of the day's best (`TZ_DAILY_GOAL_GIVEBACK`) stops new trades until tomorrow, so a $1,000 day stays at least a $750 day. The bots never bet bigger to force it. The card also says plainly how big the goal is for your balance: $1,000 is 1% of $100,000, but 2,000% of $50 in a single day, which no amount of risk can make reliable (at about 1% a day, a $1,000 day needs roughly a $100,000 balance).
+
 The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, change it in **Settings → Your goal**), the pace so far, and which guard is active. Growing fast never means bigger bets than the limits allow: compounding makes each trade a little bigger as the balance grows, and the Coach sizes up slowly after good results and down after bad ones. Be realistic: $50 → $10,000 is a 200× increase, about 530 days at a steady +1% a day or 270 at +2%.
 
 **🛡️ Don't lose the money** is the 6th team rule. Real money risks more per trade (with patient exits), so its loss limits are set to match:
