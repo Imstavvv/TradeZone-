@@ -57,13 +57,12 @@ def test_risk_rejections(desk, mutate, reason):
     assert rejected and reason in rejected[0]["reason"]
 
 
-def test_short_can_be_switched_off(desk):
-    desk.settings.risk.allow_short = False
+def test_never_opens_a_short(desk):
     prime(desk)
     rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 0.9, "t", "quant"))
     run(desk.bus.drain())
-    assert "short" in rejected[0]["reason"]
+    assert "only buys" in rejected[0]["reason"] and desk.portfolio.position("AAPL").is_flat
 
 
 def test_stop_loss_triggers_exit(desk):

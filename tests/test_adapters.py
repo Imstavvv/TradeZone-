@@ -105,6 +105,5 @@ def test_paper_defaults_to_real_market_data():
 def test_settings_from_env(monkeypatch):
     monkeypatch.setenv("TZ_SYMBOLS", "AAA, BBB")
     monkeypatch.setenv("TZ_MAX_DAILY_LOSS_PCT", "0.02")
-    monkeypatch.setenv("TZ_ALLOW_SHORT", "true")
     s = Settings.from_env()
-    assert s.symbols == ["AAA", "BBB"] and s.risk.max_daily_loss_pct == 0.02 and s.risk.allow_short
+    assert s.symbols == ["AAA", "BBB"] and s.risk.max_daily_loss_pct == 0.02

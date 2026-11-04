@@ -329,12 +329,6 @@ class WalletService:
         return t
 
     # -- withdrawals ------------------------------------------------------
-    def free_cash(self) -> float:
-        """Cash that is really yours to send: short sales put cash in the account that is owed back."""
-        p = self.desk.portfolio
-        owed = sum(abs(x.market_value) for x in p.open_positions if x.qty < 0)
-        return max(0.0, p.cash - owed)
-
     def withdrawn_today(self) -> float:
         start = time.time() - 86_400
         return sum(t.usd_value for t in self.transfers
@@ -360,7 +354,7 @@ class WalletService:
             raise WalletError(f"The first send to a new wallet is a test of up to ${s.test_send_usd:,.0f}, so a wrong "
                               f"address can never cost much. Send a small amount, check it arrived, tap \"I got it\", "
                               f"and full amounts unlock.")
-        free = self.free_cash()
+        free = self.desk.portfolio.cash
         if usd > free + 1e-9:
             raise WalletError(f"insufficient free cash ({free:,.2f} USD available)")
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:
@@ -391,6 +385,5 @@ class WalletService:
             "withdrawn_today": self.withdrawn_today(),
             "max_daily_withdrawal": self.desk.settings.max_daily_withdrawal,
             "cooldown_h": cd,
-            "free_cash": self.free_cash(),
             "test_send_usd": self.desk.settings.test_send_usd,
         }

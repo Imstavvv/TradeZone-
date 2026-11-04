@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from itertools import pairwise
 
 from ..core.bus import Event
 from ..core.models import Alert, now
@@ -33,6 +32,8 @@ class SentinelBot(Bot):
         self.events: deque[dict] = deque(maxlen=300)
         self.alerts: deque[dict] = deque(maxlen=100)
         self.equity_curve: deque[tuple[float, float]] = deque(maxlen=5000)
+        self._perf_key: tuple | None = None
+        self._perf: dict | None = None
         self._last_errors: dict[str, int] = {}
         self._cycles = 0
         self.reset_shadow()
@@ -97,33 +98,51 @@ class SentinelBot(Bot):
                 self.publish("alert", Alert("warning", f"large loss on {t.symbol}: {t.pnl:,.2f}", self.name))
 
     def performance(self) -> dict:
+        """Win rate, profit factor, Sharpe and max drawdown. Cached: computed at most once per cycle
+        (the safety check and the live page both ask for it), in a single pass over the equity curve."""
         trades = self.portfolio.closed_trades
-        wins = [t.pnl for t in trades if t.pnl > 0]
-        losses = [t.pnl for t in trades if t.pnl <= 0]
-        eq = [e for _, e in self.equity_curve]
-        rets = [b / a - 1 for a, b in pairwise(eq) if a > 0]
+        key = (self._cycles, len(trades), len(self.equity_curve))
+        if self._perf_key == key and self._perf is not None:
+            return self._perf
+        won = lost = 0.0
+        wins = 0
+        for t in trades:
+            if t.pnl > 0:
+                won += t.pnl
+                wins += 1
+            else:
+                lost -= t.pnl
+        n = s1 = s2 = 0.0
+        max_dd, peak, prev = 0.0, -math.inf, None
+        for _, e in self.equity_curve:
+            if prev is not None and prev > 0:
+                r = e / prev - 1
+                n += 1
+                s1 += r
+                s2 += r * r
+            prev = e
+            if e > peak:
+                peak = e
+            elif peak > 0 and 1 - e / peak > max_dd:
+                max_dd = 1 - e / peak
         sharpe = 0.0
-        if len(rets) > 2:
-            m = sum(rets) / len(rets)
-            sd = math.sqrt(sum((r - m) ** 2 for r in rets) / (len(rets) - 1))
+        if n > 2:
+            m = s1 / n
+            var = max(0.0, (s2 - n * m * m) / (n - 1))
             # Sharpe of the observed window (per-cycle mean/stdev scaled by sqrt(n));
             # annualising second-level returns produces meaningless numbers.
-            sharpe = m / sd * math.sqrt(len(rets)) if sd > 0 else 0.0
-        max_dd, peak = 0.0, -math.inf
-        for e in eq:
-            peak = max(peak, e)
-            if peak > 0:
-                max_dd = max(max_dd, 1 - e / peak)
-        gross_loss = -sum(losses)
-        return {
+            sharpe = m / math.sqrt(var) * math.sqrt(n) if var > 0 else 0.0
+        losses = len(trades) - wins
+        self._perf_key, self._perf = key, {
             "trades": len(trades),
-            "win_rate": len(wins) / len(trades) if trades else 0.0,
-            "avg_win": sum(wins) / len(wins) if wins else 0.0,
-            "avg_loss": sum(losses) / len(losses) if losses else 0.0,
-            "profit_factor": (sum(wins) / gross_loss) if gross_loss > 0 else None,
+            "win_rate": wins / len(trades) if trades else 0.0,
+            "avg_win": won / wins if wins else 0.0,
+            "avg_loss": -lost / losses if losses else 0.0,
+            "profit_factor": (won / lost) if lost > 0 else None,
             "sharpe": max(-99.0, min(99.0, sharpe)),
             "max_drawdown": max_dd,
         }
+        return self._perf
 
     async def on_cycle(self) -> None:
         t = now()
@@ -143,9 +162,8 @@ class SentinelBot(Bot):
                 self.metrics["degraded"] = True
         self.metrics["audit_checks"] = self.metrics.get("audit_checks", 0) + 1
         problems = self.audit_books()
-        if not self.settings.risk.allow_short:
-            problems += [f"{p.symbol} is short {p.qty:g} but shorting is disabled"
-                         for p in self.portfolio.open_positions if p.qty < 0]
+        problems += [f"{p.symbol} is short {p.qty:g} - TradeZone never shorts"
+                     for p in self.portfolio.open_positions if p.qty < 0]
         balanced = not problems
         if not balanced and self.books_balanced:
             msg = "; ".join(problems)

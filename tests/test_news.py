@@ -54,7 +54,7 @@ def test_reads_feeds_and_fear_and_greed(desk):
     assert s["headlines"][0]["title"] and s["mood_word"] in ("scary", "nervous")
 
 
-def test_bad_news_blocks_buys_good_news_blocks_shorts(desk):
+def test_bad_news_blocks_buys(desk):
     news = live(desk)
     news.add_items(parse_feed(RSS.format(d=rfc822(time.time())), "x"))
     rejected = capture(desk, "signal.rejected")
@@ -63,11 +63,6 @@ def test_bad_news_blocks_buys_good_news_blocks_shorts(desk):
     desk.bus.publish("signal.proposed", Signal("SOL-USD", Side.BUY, 0.9, "t", "quant"))
     run(desk.bus.drain())
     assert desk.portfolio.position("SOL-USD").is_flat and "bad news" in rejected[-1]["reason"]
-    prime(desk, "ETH-USD", 1000.0)
-    desk.settings.symbols.append("ETH-USD")
-    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.SELL, 0.9, "t", "quant"))
-    run(desk.bus.drain())
-    assert desk.portfolio.position("ETH-USD").is_flat and "good news" in rejected[-1]["reason"]
     # old news no longer blocks
     for h in news.headlines:
         h["ts"] -= 3 * 3600

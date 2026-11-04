@@ -8,7 +8,6 @@ positive) and matched to the coins it mentions. Headlines without a coin feed a 
 How the team uses it - always inside the hard safety limits:
 
 * **Bad news on a coin** (a hack, a delisting, a lawsuit in the last 2 hours): no new buys of it.
-  Good news on a coin likewise blocks new shorts of it.
 * **Conviction nudge:** a trade with the news gets up to +0.1 conviction, against it up to -0.1.
 * **Scary world news** (very negative market mood): new trades are sized at half.
 * **Grok** (if connected) sees the recent headlines when it reviews a trade.
@@ -241,11 +240,8 @@ class NewsBot(Bot):
         """A reason to skip a NEW trade this way because of breaking news, or None."""
         if not self.enabled or not self.active():
             return None
-        recent = self.coin_score(symbol, self.BREAKING_S)
-        if direction > 0 and recent <= -0.5:
+        if direction > 0 and self.coin_score(symbol, self.BREAKING_S) <= -0.5:
             return f"bad news on {symbol} in the last 2 hours"
-        if direction < 0 and recent >= 0.5:
-            return f"good news on {symbol} in the last 2 hours"
         return None
 
     def conviction_nudge(self, symbol: str, direction: int) -> float:

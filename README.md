@@ -158,18 +158,11 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 
 Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
 
-## Shorting: profit when prices fall
-
-The bots can also **short**: sell first, buy back lower. Shorts use the **same percentages, mirrored**. Meme coins: stop +8% above the entry, target −15% below. Other coins: +3% / −6%. Everything else applies the same way: the team vote, runners, the Skimmer's profit-taking, profit protection, and meme-coin breakdowns sniped like breakouts. Turn it off with `TZ_ALLOW_SHORT=false`.
-
-* **Real money:** Alpaca can't short crypto with real money, so crypto shorts are **practice only**. The Risk Manager refuses them live, with that reason.
-* **Short sales aren't free cash:** a short puts cash in the account that is owed back, so withdrawals only use the cash that is really yours.
-
 ## News: what the world is saying
 
 The 📰 **Reporter** reads public news feeds every 5 minutes: CoinDesk, Cointelegraph, Decrypt, and BBC World and Business, plus CNBC markets (`TZ_NEWS_FEEDS` to change them). It also reads the crypto **Fear & Greed index**. No account or key is needed. Each headline is scored with a transparent word list (for example "hack", "lawsuit" and "rate hike" are negative; "ETF approval", "rate cut" and "record high" are positive) and matched to the coins it mentions.
 
-* **Bad news on a coin in the last 2 hours** (a hack, a delisting, a lawsuit): no new buys of it. Good news likewise blocks new shorts of it.
+* **Bad news on a coin in the last 2 hours** (a hack, a delisting, a lawsuit): no new buys of it.
 * **Conviction nudge:** a trade with the news gets up to +0.1 conviction, one against it up to −0.1.
 * **Scary world news** (very negative market mood): new buys are half-size.
 * **Grok** (if connected) sees the recent headlines and the market mood when it reviews a trade.
@@ -214,7 +207,7 @@ The default is the fixed **−8% / +15%** plan above (`TZ_STOP_METHOD=percent`).
 
 With `TZ_STOP_METHOD=structure`, stops go where most traders put them, **just beyond the most recent swing point**:
 
-* **Long:** below the lowest low of the last 10 bars (the last dip buyers defended), minus a 1×ATR buffer so ordinary noise doesn't tag it. Shorts mirror this above the swing high.
+* **Long:** below the lowest low of the last 10 bars (the last dip buyers defended), minus a 1×ATR buffer so ordinary noise doesn't tag it.
 * **Off round numbers:** if the stop lands on or near a round number (100, 105, 65,000…), where stops cluster and get hunted, it moves just beyond it.
 * **Never too tight:** at least 1.5×ATR from entry.
 * **Never too wide:** if the swing stop is more than 4×ATR away, the trade is **skipped** rather than taken with oversized risk.
@@ -297,7 +290,7 @@ Link wallets under **Settings → Crypto wallets** or via the API. **20 networks
 * **Test send first:** the first send to a new wallet is capped at **$25** (`TZ_TEST_SEND_USD`). When it arrives, tap **I got it** and full amounts unlock. A checksum proves an address is well-formed, not that it's yours; the test send proves that.
 * **Withdrawal tags and memos:** XRP destination tags and Stellar, Cosmos, Hedera and EOS memos are validated and attached to every withdrawal. If you leave the tag empty on a tag chain, you must confirm the destination doesn't need one, because a missing tag is the classic way to lose exchange deposits.
 * **Deposit tags:** every linked wallet gets a unique numeric deposit tag. Deposits that carry it are credited to that wallet. On chains without tags, deposits are matched by sender address. Unmatched deposits are **held** for review and credited only when you attribute them (`POST /api/deposits/{id}/credit`). A transaction hash can't be credited twice.
-* **Withdrawal safety:** withdrawals go only to linked wallets, only after a 24-hour cooldown on new wallets (`TZ_WITHDRAWAL_COOLDOWN_H`), within a rolling 24-hour limit (`TZ_MAX_DAILY_WITHDRAWAL`), and never above free cash (short-sale cash doesn't count).
+* **Withdrawal safety:** withdrawals go only to linked wallets, only after a 24-hour cooldown on new wallets (`TZ_WITHDRAWAL_COOLDOWN_H`), within a rolling 24-hour limit (`TZ_MAX_DAILY_WITHDRAWAL`), and never above free cash.
 * **Funding isn't P&L:** deposits and withdrawals move the P&L baselines, so returns and the kill switch aren't distorted.
 * **Deposit addresses:** set the desk's own receiving addresses with `TZ_DEPOSIT_ADDRESSES=XRP:r...,ETH:0x...`. They're checksum-checked too.
 

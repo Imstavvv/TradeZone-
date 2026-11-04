@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import itertools
 import time
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field, fields
 from enum import Enum
 from typing import Any
 
@@ -58,20 +58,29 @@ def now() -> float:
     return time.time()
 
 
+def _conv(v: Any) -> Any:
+    if isinstance(v, (str, int, float, bool)) or v is None:  # the common case first
+        return v.value if isinstance(v, Enum) else v
+    if isinstance(v, Enum):
+        return v.value
+    if isinstance(v, Model):
+        return v.to_dict()
+    if isinstance(v, dict):
+        return {k: _conv(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_conv(x) for x in v]
+    return v
+
+
 class Model:
     def to_dict(self) -> dict[str, Any]:
-        def conv(v: Any) -> Any:
-            if isinstance(v, Enum):
-                return v.value
-            if isinstance(v, Model):
-                return v.to_dict()
-            if isinstance(v, dict):
-                return {k: conv(x) for k, x in v.items()}
-            if isinstance(v, (list, tuple)):
-                return [conv(x) for x in v]
-            return v
-
-        return {k: conv(v) for k, v in asdict(self).items()}  # type: ignore[call-overload]
+        """Plain JSON-ready dict. Reads the fields directly (no deep copy like dataclasses.asdict),
+        which matters because the live page converts ~100 orders/trades every second."""
+        names = type(self).__dict__.get("_field_names")
+        if names is None:
+            names = tuple(f.name for f in fields(self))  # type: ignore[arg-type]
+            type(self)._field_names = names  # type: ignore[attr-defined]
+        return {k: _conv(getattr(self, k)) for k in names}
 
 
 @dataclass

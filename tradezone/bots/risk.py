@@ -133,10 +133,10 @@ class RiskBot(Bot):
             return self.reject(sig, "trading paused")
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
-        if sig.side is Side.SELL and not limits.allow_short:
-            return self.reject(sig, "short selling disabled")
+        if sig.side is Side.SELL:
+            return self.reject(sig, "TradeZone only buys - it never bets on prices falling")
         news = self.desk.bots.get("news")
-        if news is not None:  # 📰 breaking news: don't buy into a hack, don't short into an ETF approval
+        if news is not None:  # 📰 breaking news: don't buy into a hack
             if (why := news.veto(sig.symbol, sig.side.sign)) is not None:
                 return self.reject(sig, why)
             sig.strength = round(max(0.0, min(1.0, sig.strength + news.conviction_nudge(sig.symbol, sig.side.sign))), 3)
@@ -152,11 +152,8 @@ class RiskBot(Bot):
         if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
                 >= self.settings.max_meme_positions:
             return self.reject(sig, f"already holding {self.settings.max_meme_positions} meme coins")
-        if self.desk.is_live and self.desk.broker.name == "alpaca":
-            if not self.settings.live_tradeable(sig.symbol):
-                return self.reject(sig, f"{sig.symbol} can't be traded on your real-money account (practice only)")
-            if sig.side is Side.SELL and self.settings.is_crypto(sig.symbol):
-                return self.reject(sig, "Alpaca can't short crypto with real money (shorts are practice only)")
+        if self.desk.is_live and self.desk.broker.name == "alpaca" and not self.settings.live_tradeable(sig.symbol):
+            return self.reject(sig, f"{sig.symbol} can't be traded on your real-money account (practice only)")
         since = now() - self.last_trade.get(sig.symbol, 0)
         if since < limits.symbol_cooldown_s:
             return self.reject(sig, f"symbol cooldown ({limits.symbol_cooldown_s - since:.0f}s left)")
