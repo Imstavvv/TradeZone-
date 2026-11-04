@@ -232,7 +232,7 @@ class Settings:
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
     flip_meme_max_hold_hours: float = 1.5
     flip_breakeven_r: float = 1.0  # lock in break-even + fees once up 1R (sooner shook winners out on noise)
-    flip_max_skims: int = 4  # real-money skims (0 = off)
+    flip_max_skims: int = 0  # real-money skims off: they lost money in every simulated run (Kraken fees vs a +1.5% target)
     flip_skim_max_minutes: float = 120.0
     flip_skim_target_pct: float = 0.015  # real-money skims aim for +1.5% after fees (practice: skim_target_pct)
     flip_skim_cooldown_min: float = 5.0

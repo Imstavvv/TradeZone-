@@ -616,7 +616,7 @@ Every feature runs with real money. Each can be switched off on its own:
 | Patient exits (cut early only when momentum and volume say no comeback) | on (and in practice whenever the -33% stop is on) | `TZ_PATIENT_EXITS` |
 | Moving take-profit past +10% | on | `TZ_TP_STEP` |
 | Quick-flip slice (a quarter banked at +1.2% after fees) | on | `TZ_FLIP_BANK_FRACTION` (0 = off) |
-| Skims (small dip-buy day trades) | on, 4 at once | `TZ_FLIP_MAX_SKIMS` (0 = off) |
+| Skims (small dip-buy day trades) | **off**: they lost money in every simulated run (see below) | `TZ_FLIP_MAX_SKIMS` (4 to turn on) |
 | Flipper: best hours to flip, volume flips, accumulating coins | on | `TZ_FLIPPER`, `TZ_ACCUMULATE` |
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
 | Growth ladder (smaller coins first) | on | `TZ_FOCUS_SMALL_COINS` |
@@ -638,6 +638,19 @@ Two protections used to sideline the bots for long after a few losses:
 
 * the **Coach's bench** (a coin with 5+ trades, a poor win rate and a net loss sits out) is now **45 minutes** (`TZ_COACH_BENCH_MINUTES`, was 2 hours);
 * the **Executive's defensive stance** (after 3 losses in a row: half-size trades) now needs only **0.10 more conviction than usual** (`TZ_EXEC_DEFENSIVE_EXTRA`; with real money about 0.32 instead of a fixed 0.45, which held back nearly every idea), and a losing streak stops counting **20 minutes** after its last loss (was 30).
+
+### Which trades were losing (second review)
+
+Every simulated real-money position (Kraken fees, four $500 runs) was traced from the strategy that opened it to how it ended:
+
+| Opened by | Positions | Won | Total |
+| --- | --- | --- | --- |
+| Skims | 8 | 2 | **-$16.28** (lost in every run) |
+| Quant trend trades | 85 | 39 | -$4.53 |
+| Pullback Hunter | 42 | 22 | -$1.73 |
+| Snipes (meme breakouts) | 23 | 13 | +$1.88 |
+
+Skims risk their tight 1.2% stop plus ~0.9% of round-trip fees to make 1.5%, so they need to win about 58% of the time just to break even, and they didn't. **Real-money skims are off** (`TZ_FLIP_MAX_SKIMS=0`; practice keeps them). That improved the four runs from $1,973.90 to $1,985.64. Also tested and left as they are, because the differences were within the noise: stricter or looser patient exits, holding a recovering loser for +1% instead of +0.3%, and dropping the quick-flip slice. What's left is mostly fees: the simulated prices are random, so no setting can beat them. Real markets will show whether the entries have an edge.
 
 ### Stop-loss at -33% from the buy price
 
