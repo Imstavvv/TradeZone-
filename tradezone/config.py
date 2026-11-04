@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 
 LIVE_CONFIRM_PHRASE = "I UNDERSTAND THE RISKS"
 #: what the operator types in the dashboard to switch to live trading
@@ -43,6 +43,11 @@ def _env(name: str, default):
         return [s.strip() for s in raw.split(",") if s.strip()]
     return raw
 
+
+#: the Aggressive risk level (real money only). Every trade still has a stop; nothing is borrowed.
+AGGRESSIVE = {"risk_per_trade": 0.03, "max_position_pct": 0.40, "max_portfolio_heat": 0.15, "meme_risk_mult": 0.75,
+              "daily_loss": 0.08, "drawdown": 0.25, "floor": 0.30, "max_open_positions": 8, "extra_memes": 1,
+              "bar_cut": 0.03, "day_lock_trigger": 0.04, "day_giveback": 0.6}
 
 # real-money venues -> how the app names them
 VENUES = {"alpaca": "Alpaca", "kraken": "Kraken", "uphold": "Uphold"}
@@ -137,6 +142,8 @@ class Settings:
     # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
     # Never crypto (Kraken is used spot-only, Alpaca and Uphold can't short it) and never meme coins.
     shorting: str = "auto"  # auto | off
+    # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
+    risk_profile: str = "normal"
     # ---- the goal: grow the balance rapidly with minimal losses ----
     day_lock_trigger_pct: float = 0.02  # once the day is up 2%...
     day_giveback_pct: float = 0.5  # ...giving back half of the day's best gain stops new trades until tomorrow
@@ -252,6 +259,26 @@ class Settings:
     scale_out_fraction: float = 0.5  # ...on this share of the position (0 disables)
     exit_only_in_profit: bool = True  # strategy-driven exits only when net profitable; stops still cut losers
     risk: RiskLimits = field(default_factory=RiskLimits)
+
+    def aggressive(self, live: bool) -> bool:
+        return live and self.risk_profile == "aggressive"
+
+    def limits(self, live: bool) -> RiskLimits:
+        """The risk limits in force: Aggressive (real money only) roughly doubles what a trade may risk and
+        widens the loss limits. Stops stay on every trade, and nothing is ever borrowed (no leverage)."""
+        if not self.aggressive(live):
+            return self.risk
+        return replace(self.risk, risk_per_trade=AGGRESSIVE["risk_per_trade"], max_position_pct=AGGRESSIVE["max_position_pct"],
+                       max_open_positions=max(self.risk.max_open_positions, AGGRESSIVE["max_open_positions"]),
+                       max_portfolio_heat=AGGRESSIVE["max_portfolio_heat"],
+                       max_daily_loss_pct=max(self.risk.max_daily_loss_pct, AGGRESSIVE["daily_loss"]),
+                       max_drawdown_pct=max(self.risk.max_drawdown_pct, AGGRESSIVE["drawdown"]))
+
+    def live_limits(self) -> tuple[float, float, float]:
+        """(daily loss, drawdown, capital floor) that stop real-money trading."""
+        if self.risk_profile == "aggressive":
+            return AGGRESSIVE["daily_loss"], AGGRESSIVE["drawdown"], AGGRESSIVE["floor"]
+        return self.live_max_daily_loss_pct, self.live_max_drawdown_pct, self.live_capital_floor_pct
 
     def quick(self, live: bool) -> bool:
         """Quick-flip mode: real money with live_quick_flips on."""
@@ -388,6 +415,8 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
+        if self.risk_profile not in ("normal", "aggressive"):
+            raise ValueError("TZ_RISK_PROFILE must be normal or aggressive")
         if self.shorting not in ("auto", "off"):
             raise ValueError("TZ_SHORTING must be auto or off")
         if self.stop_method not in ("structure", "atr", "percent"):

@@ -69,6 +69,7 @@ def snapshot(desk: TradingDesk) -> dict[str, Any]:
         "halted": desk.halted, "halt_reason": desk.halt_reason, "halt_kind": desk.halt_kind,
         "floor_ack": desk.floor_ack, "goal": desk.goal,
         "hunt": desk.hunt,  # today's counts survive a restart
+        "risk_profile": desk.settings.risk_profile,
         "day": desk._day,
         "paper": portfolio_to_state(desk.paper_portfolio),
         "live": portfolio_to_state(desk.live_portfolio) if desk.live_portfolio else None,

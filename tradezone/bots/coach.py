@@ -241,7 +241,7 @@ class CoachBot(Bot):
         won = sum(t.pnl for t in trades if t.pnl > 0)
         lost = -sum(t.pnl for t in trades if t.pnl <= 0)
         pf = won / lost if lost > 0 else 3.0
-        if self.portfolio.drawdown >= self.settings.risk.max_drawdown_pct * 0.5:
+        if self.portfolio.drawdown >= self.settings.limits(self.desk.is_live).max_drawdown_pct * 0.5:
             return 0.6
         if pf >= 1.5:
             return 1.25
@@ -256,6 +256,9 @@ class CoachBot(Bot):
     def bar(self) -> float:
         """The conviction a new trade needs: the configured minimum, nudged by what was learned."""
         base = self.settings.flip_min_strength if self.quick else self.settings.risk.min_signal_strength
+        if self.settings.aggressive(self.desk.is_live):  # takes a few more chances, not just bigger ones
+            from ..config import AGGRESSIVE
+            base -= AGGRESSIVE["bar_cut"]
         if not self.enabled or not self.settings.coach_learning:
             return base
         return round(max(min(base, 0.25 if self.quick else 0.30), base + self.threshold_adj), 3)

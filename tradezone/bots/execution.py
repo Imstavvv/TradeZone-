@@ -85,7 +85,7 @@ class ExecutionBot(Bot):
         if not px or not math.isfinite(px) or px <= 0:
             return "no valid reference price"
         if not req.reduce_only:
-            cap = self.portfolio.equity * self.settings.risk.max_position_pct * 1.05
+            cap = self.portfolio.equity * self.settings.limits(self.desk.is_live).max_position_pct * 1.05
             if req.qty * px > cap:
                 return f"fat-finger guard: notional {req.qty * px:,.0f} exceeds cap {cap:,.0f}"
         return None

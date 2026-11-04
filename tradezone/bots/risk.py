@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 
+from ..config import AGGRESSIVE
 from ..core.bus import Event
 from ..core.models import (
     Alert,
@@ -55,12 +56,15 @@ class RiskBot(Bot):
         p, s = self.portfolio, self.settings
         start, peak = p.day_start_equity, self._track_day_peak()
         best = peak - start
-        locked = start > 0 and best >= s.day_lock_trigger_pct * start and p.equity <= start + best * (1 - s.day_giveback_pct)
-        lim = s.risk.max_daily_loss_pct
+        agg = s.aggressive(self.desk.is_live)
+        trigger = AGGRESSIVE["day_lock_trigger"] if agg else s.day_lock_trigger_pct
+        giveback = AGGRESSIVE["day_giveback"] if agg else s.day_giveback_pct
+        locked = start > 0 and best >= trigger * start and p.equity <= start + best * (1 - giveback)
+        lim = s.limits(self.desk.is_live).max_daily_loss_pct
         if self.desk.is_live:
-            lim = min(lim, s.live_max_daily_loss_pct)
+            lim = min(lim, s.live_limits()[0])
         return {"locked": bool(locked), "best_today": best, "best_today_pct": best / start if start > 0 else 0.0,
-                "brake": p.daily_pnl_pct <= -lim / 2, "keep_at_least": start + best * (1 - s.day_giveback_pct)}
+                "brake": p.daily_pnl_pct <= -lim / 2, "keep_at_least": start + best * (1 - giveback)}
 
     def subscriptions(self):
         return {
@@ -117,7 +121,7 @@ class RiskBot(Bot):
         self.seen_signals.add(sig.id)
         if len(self.seen_signals) > 50_000:
             self.seen_signals.clear()
-        limits = self.settings.risk
+        limits = self.settings.limits(self.desk.is_live)  # Aggressive (real money) allows bigger bets
         pos = self.portfolio.position(sig.symbol)
         price = self.desk.prices.get(sig.symbol)
         if not price:
@@ -185,8 +189,8 @@ class RiskBot(Bot):
             return self.reject(sig, "max open positions reached")
         meme = self.settings.is_meme(sig.symbol)
         if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
-                >= self.settings.max_meme_positions:
-            return self.reject(sig, f"already holding {self.settings.max_meme_positions} meme coins")
+                >= self.settings.max_meme_positions + (AGGRESSIVE["extra_memes"] if s0.aggressive(self.desk.is_live) else 0):
+            return self.reject(sig, "already holding the most meme coins allowed at once")
         if self.desk.is_live and self.desk.broker.supports(sig.symbol) is False:
             return self.reject(sig, f"{sig.symbol} can't be traded on your real-money {self.desk.broker.label} "
                                     "account (practice only)")
@@ -250,7 +254,7 @@ class RiskBot(Bot):
         if coach is not None:  # 🌱 grow: size up slowly after good results, down after bad ones
             risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
         if meme:  # meme coins swing hard: smaller bets
-            risk_budget *= s.meme_risk_mult
+            risk_budget *= AGGRESSIVE["meme_risk_mult"] if s.aggressive(self.desk.is_live) else s.meme_risk_mult
         if news is not None:  # scary world news: half-size new buys
             risk_budget *= news.size_mult(direction)
         if guard["brake"]:  # a losing day: smaller trades until it turns
@@ -306,7 +310,7 @@ class RiskBot(Bot):
     # ------------------------------------------------------------------
     async def on_cycle(self) -> None:
         p = self.portfolio
-        limits = self.settings.risk
+        limits = self.settings.limits(self.desk.is_live)
         self._track_day_peak()
         self.metrics.update(
             {
@@ -321,11 +325,12 @@ class RiskBot(Bot):
         s = self.settings
         daily_lim, dd_lim = limits.max_daily_loss_pct, limits.max_drawdown_pct
         if self.desk.is_live:  # real money: the stricter of the two
-            daily_lim, dd_lim = min(daily_lim, s.live_max_daily_loss_pct), min(dd_lim, s.live_max_drawdown_pct)
+            live_daily, live_dd, _ = s.live_limits()
+            daily_lim, dd_lim = min(daily_lim, live_daily), min(dd_lim, live_dd)
         reason, kind = None, "manual"
         principal = p.starting_cash + p.net_flows  # what you put in
         base = min(principal, self.desk.floor_ack.get(self.desk.mode, principal))
-        if self.desk.is_live and base > 0 and p.equity < base * (1 - s.live_capital_floor_pct):
+        if self.desk.is_live and base > 0 and p.equity < base * (1 - s.live_limits()[2]):
             reason, kind = (f"your real money fell {1 - p.equity / base:.1%} below what you put in - "
                             "everything stopped to protect what's left"), "floor"
         elif p.daily_pnl_pct <= -daily_lim:

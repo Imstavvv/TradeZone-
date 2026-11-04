@@ -275,8 +275,7 @@ class TradingDesk:
                 account["trading_capital"] = min(acct["cash"], cap) if cap > 0 else acct["cash"]
         return {"mode": self.mode, "target": target, "blockers": blockers, "account": account,
                 "live_max_capital": self.settings.live_max_capital,
-                "risk": {k: getattr(self.settings.risk, k) for k in (
-                    "risk_per_trade", "max_position_pct", "max_daily_loss_pct", "max_drawdown_pct")}}
+                "risk": self.risk_info(live=True)}
 
     async def switch_mode(self, target: str, flatten: bool = False, timeout: float = 60.0) -> dict:
         """Switch books/brokers. With ``flatten``, new entries are paused and open positions are
@@ -760,6 +759,32 @@ class TradingDesk:
                 h["wins"] += p["pnl"] > 0
 
     # -- the goal: e.g. $50 -> $10,000, reached by compounding (never by taking more risk) ------
+    RISK_WORD = "RISK"
+
+    def set_risk_profile(self, profile: str, confirm: str = "") -> dict:
+        """Normal or Aggressive (real money only). Turning Aggressive on needs the word RISK typed."""
+        profile = (profile or "").strip().lower()
+        if profile not in ("normal", "aggressive"):
+            raise ValueError("choose normal or aggressive")
+        if profile == "aggressive" and confirm.strip().upper() != self.RISK_WORD:
+            raise ValueError(f"type {self.RISK_WORD} to confirm bigger bets with real money")
+        self.settings.risk_profile = profile
+        self._dirty = True
+        self.bus.publish("alert", Alert("warning" if profile == "aggressive" else "info",
+                                        f"Real-money risk level: {profile.upper()}", "desk"))
+        return self.risk_info(live=True)
+
+    def risk_info(self, live: bool | None = None) -> dict:
+        """The limits in force (for the current mode, or for real money with ``live=True``)."""
+        live = self.is_live if live is None else live
+        s = self.settings
+        lim = s.limits(live)
+        daily, dd, floor = s.live_limits() if live else (lim.max_daily_loss_pct, lim.max_drawdown_pct, None)
+        return {"profile": s.risk_profile, "active": s.aggressive(live), "risk_per_trade": lim.risk_per_trade,
+                "max_position_pct": lim.max_position_pct, "max_portfolio_heat": lim.max_portfolio_heat,
+                "max_daily_loss_pct": min(lim.max_daily_loss_pct, daily), "max_drawdown_pct": min(lim.max_drawdown_pct, dd),
+                "capital_floor_pct": floor}
+
     def set_goal(self, start: float, target: float) -> dict:
         if not (math.isfinite(start) and math.isfinite(target) and 0 < start < target <= start * 1e6):
             raise ValueError("the goal needs a starting amount above 0 and a bigger target")
@@ -829,6 +854,8 @@ class TradingDesk:
         self.halt_kind = data.get("halt_kind", "")
         self.floor_ack = data.get("floor_ack", {})
         self.goal = data.get("goal", {})
+        if data.get("risk_profile") in ("normal", "aggressive"):
+            self.settings.risk_profile = data["risk_profile"]
         hunt = data.get("hunt")
         if isinstance(hunt, dict) and hunt.get("day") == self._today():
             self.hunt = {**self._new_hunt(), **hunt}
@@ -943,7 +970,9 @@ class TradingDesk:
             "prices": self.prices,
             "portfolio": self.portfolio.to_dict(),
             "pnl_point": [time.time(), self.lifetime_pnl()],
-            "cashout": self.cashout_summary(),  # the live chart follows this every update
+            "cashout": self.cashout_summary(),
+            "limits": self.risk_info(),
+            "live_risk": self.risk_info(live=True),  # the live chart follows this every update
             "performance": sentinel.performance(),  # type: ignore[attr-defined]
             "bots": [vars(b.status()) for b in self.bots.values()],
             "orders": [o.to_dict() for o in list(execution.orders.values())[-50:]],  # type: ignore[attr-defined]

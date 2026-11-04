@@ -75,6 +75,11 @@ class BrokerBody(BaseModel):
     venue: str = "alpaca"  # alpaca | kraken (Key + Secret) | uphold (key = access token)
 
 
+class RiskBody(BaseModel):
+    profile: str
+    confirm: str = ""
+
+
 class GoalBody(BaseModel):
     start: float
     target: float
@@ -437,6 +442,15 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(409, str(exc)) from None
 
     # -- the goal ------------------------------------------------------------
+    @app.post("/api/risk-profile", dependencies=[Depends(check_token)])
+    async def set_risk_profile(body: RiskBody, request: Request):
+        try:
+            info = desk.set_risk_profile(body.profile, body.confirm)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, f"real-money risk level set to {body.profile}", "warning")
+        return info
+
     @app.post("/api/goal", dependencies=[Depends(check_token)])
     async def set_goal(body: GoalBody, request: Request):
         audit(request, f"goal set: ${body.start:,.2f} -> ${body.target:,.2f}")

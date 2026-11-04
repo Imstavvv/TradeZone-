@@ -77,7 +77,7 @@ class ExecutiveBot(Bot):
         reasons = []
         if losses_in_row >= s.exec_defensive_after_losses:
             reasons.append(f"{losses_in_row} losses in a row")
-        if dd >= s.risk.max_drawdown_pct * 0.5:
+        if dd >= s.limits(self.desk.is_live).max_drawdown_pct * 0.5:
             reasons.append(f"drawdown {dd:.1%}")
         if wr is not None and wr < 0.3 and recent and now() - recent[-1].ts <= s.exec_defensive_cooloff_min * 60:
             reasons.append(f"win rate {wr:.0%} over last {len(recent)}")

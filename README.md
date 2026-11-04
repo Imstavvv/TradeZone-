@@ -515,6 +515,24 @@ How it works and what to expect:
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
 
+### Aggressive risk (real money, opt-in)
+
+For faster growth with real money, switch **Settings → Your goal → Real-money risk** to **⚡ Aggressive** (type RISK to confirm; `TZ_RISK_PROFILE=aggressive` on the server does the same). Practice money is never affected.
+
+| | Normal | Aggressive |
+| --- | --- | --- |
+| Risked per trade (to its stop) | 1.5% | **3%** |
+| Biggest single position | 25% | **40%** |
+| All open stops together | 7% | **15%** |
+| Open trades / meme coins at once | 6 / 3 | **8 / 4** |
+| Conviction needed | 0.30 | **0.27** |
+| Stop for the day after a loss of | 3% | **8%** |
+| Stop everything after a drop of | 10% | **25%** |
+| Stop if below what you put in by | 10% | **30%** |
+| Day lock | up 2%, half given back | **up 4%, 60% given back** |
+
+Positions are about **1.6–2×** bigger (with the tight quick-flip stops, the position cap is usually what binds), so good runs grow faster and bad runs cost more. It doesn't make the bots better at picking trades. Some things don't change: a stop-loss on every trade, the losing-day brake, fees and "never buy what can't be sold" checks, and **no borrowing / leverage** (Kraken is used spot-only).
+
 ### Shorting (only where it really works)
 
 The bots can also **short**: sell first and buy back lower, profiting when a price falls. Shorts follow the same guidelines as buys, mirrored: the same stop-loss and target percentages (the stop above the price, the target below, after fees), the same quick-flip plan, profit-taking, fee and transfer-fee rules, day lock and losing-day brake, and the same team vote, with a bearish majority and nobody objecting. Good news on a coin blocks shorting it, just as bad news blocks buying.

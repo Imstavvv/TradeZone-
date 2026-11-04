@@ -583,6 +583,10 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 .arena.guard .ship .flame{transform:scaleX(.15)}.arena.guard{filter:saturate(.7)}
 @media (max-width:420px){.arena{height:210px}.arena .ship{width:120px;height:62px;left:8%}.arena .planet{width:96px;height:96px}.arena .planet i{top:40px}.arena .log{font-size:11px;max-width:70%}}
 /* ---- the live profit / loss chart ---- */
+.pick2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px}
+.pick2 button.on{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff}
+.risktbl{width:100%;font-size:12px;border-collapse:collapse}.risktbl td,.risktbl th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
+.risktbl td:first-child,.risktbl th:first-child{text-align:left;color:var(--muted)}
 .pnlhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
 .pnlhead .big{font-family:var(--anime);font-size:26px;font-weight:800}
 .pnlhead .pnlsub{font-size:12px;color:var(--muted)}
@@ -653,6 +657,22 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <div class="muted" style="font-size:12px;margin-top:6px">Progress is measured from now. In practice mode your account's growth is shown on this scale.</div>
   <div class="lockerr" id="goalErr"></div>
   <div class="row"><button id="goalCancel">Cancel</button><button id="goalSave" class="gopaper">Save goal</button></div>
+</div></div>
+<div class="sheet" id="riskSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">⚡ Real-money risk level</h3>
+  <div class="pick2" id="riskPick"><button type="button" data-p="normal">🛡️ Normal</button><button type="button" data-p="aggressive">⚡ Aggressive</button></div>
+  <table class="risktbl"><thead><tr><th></th><th>Normal</th><th>Aggressive</th></tr></thead><tbody>
+    <tr><td>Risked per trade (to its stop)</td><td>1.5%</td><td><b>3%</b></td></tr>
+    <tr><td>Biggest single position</td><td>25%</td><td><b>40%</b></td></tr>
+    <tr><td>All open stops together</td><td>7%</td><td><b>15%</b></td></tr>
+    <tr><td>Stop for the day after a loss of</td><td>3%</td><td><b>8%</b></td></tr>
+    <tr><td>Stop everything after a drop of</td><td>10%</td><td><b>25%</b></td></tr>
+    <tr><td>Stop if below what you put in by</td><td>10%</td><td><b>30%</b></td></tr>
+  </tbody></table>
+  <div class="muted" style="font-size:13px;margin-top:8px">Aggressive makes good runs grow about twice as fast - and bad runs hurt about twice as much. It doesn't make the bots better at picking trades. Every trade still has a stop-loss, nothing is ever borrowed, and practice money is unaffected.</div>
+  <div id="riskConfirm" style="display:none"><label class="fl">To confirm bigger bets with real money, type <b>RISK</b></label><input id="riskWord" class="txt" autocomplete="off" placeholder="RISK"></div>
+  <div class="lockerr" id="riskErr"></div>
+  <div class="row"><button id="riskCancel">Cancel</button><button id="riskSave" class="gopaper">Save</button></div>
 </div></div>
 <div class="sheet" id="askSheet"><div class="panel2">
   <h3 id="askTitle"></h3>
@@ -873,6 +893,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         </div>
         <div class="scard" data-page="settings"><h4>🏆 Your goal</h4>
           <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
+          <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
         </div>
         <div class="scard" data-page="money" style="grid-column:1/-1"><h4>🔗 Your accounts &amp; wallets</h4>
           <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
@@ -1850,7 +1871,8 @@ function renderGoal(g){
     : gd.brake ? '🛟 Losing day: new trades are half size until it turns'
     : gd.best_today_pct >= 0.02 ? `🔐 Up ${(gd.best_today_pct * 100).toFixed(1)}% today - if half of it slips away, the bots stop for the day`
     : '🛡️ Small stop on every trade · half-size trades on a losing day · good days get locked in';
-  setHTML($('sGoal'), `<div class="row1"><span>🚀 Grow fast, lose little · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
+  const agg = S.state && S.state.limits && S.state.limits.active;
+  setHTML($('sGoal'), `<div class="row1"><span>${agg ? '⚡ Aggressive' : '🚀 Grow fast, lose little'} · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
     <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
     <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>
     <div class="note">${esc(guard)}</div>`);
@@ -2066,6 +2088,9 @@ function renderSettings(){
     ? `Banked ${money(C.banked)} · after a ~${money(C.transfer_fee)} transfer out you'd keep ${money(C.take_home)}` +
       (C.worth_it ? ' · worth moving out' : ` · waiting until it's about ${money(10 * C.transfer_fee)} keeps the fee a small share`)
     : `Nothing banked yet · moving money out costs about ${money(C.transfer_fee)} a transfer, so the bots skip profits too small to be worth it`;
+  const LR = S.state && S.state.live_risk;
+  if (LR) { $('setRiskTxt').textContent = `Real-money risk: ${LR.profile === 'aggressive' ? '⚡ Aggressive' : 'Normal'}`;
+    $('setRiskSub').textContent = `${(LR.risk_per_trade * 100).toFixed(1)}% risked per trade · stops for the day at -${(LR.max_daily_loss_pct * 100).toFixed(0)}% · stops everything at -${(LR.max_drawdown_pct * 100).toFixed(0)}%`; }
   if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
@@ -2106,6 +2131,17 @@ function renderSettings(){
   }
 }
 $('setPairBtn').onclick = () => addDevice();
+const RK = {p: 'normal'};
+function riskPick(p){ RK.p = p; document.querySelectorAll('#riskPick [data-p]').forEach(b => b.classList.toggle('on', b.dataset.p === p));
+  $('riskConfirm').style.display = p === 'aggressive' ? '' : 'none'; $('riskErr').textContent = ''; }
+document.querySelectorAll('#riskPick [data-p]').forEach(b => b.onclick = () => riskPick(b.dataset.p));
+$('setRiskBtn').onclick = () => { riskPick((S.state && S.state.live_risk && S.state.live_risk.profile) || 'normal'); $('riskWord').value = ''; $('riskSheet').classList.add('open'); };
+$('riskCancel').onclick = () => $('riskSheet').classList.remove('open');
+$('riskSave').onclick = async () => {
+  try { await api('/api/risk-profile', {profile: RK.p, confirm: $('riskWord').value});
+        $('riskSheet').classList.remove('open'); toast(RK.p === 'aggressive' ? 'Aggressive risk on for real money ⚡' : 'Normal risk for real money 🛡️', RK.p === 'aggressive' ? 'warn' : 'ok', 5000); }
+  catch (e) { $('riskErr').textContent = e.message; }
+};
 $('setGoalBtn').onclick = () => { const g = S.state && S.state.goal; $('goalStart').value = g ? g.start : 50; $('goalTarget').value = g ? g.target : 10000;
   $('goalErr').textContent = ''; $('goalSheet').classList.add('open'); };
 $('goalCancel').onclick = () => $('goalSheet').classList.remove('open');
