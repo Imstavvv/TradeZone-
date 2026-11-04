@@ -288,6 +288,12 @@ class WalletService:
         return t
 
     # -- withdrawals ------------------------------------------------------
+    def free_cash(self) -> float:
+        """Cash that is really yours to send: short sales put cash in the account that is owed back."""
+        p = self.desk.portfolio
+        owed = sum(abs(x.market_value) for x in p.open_positions if x.qty < 0)
+        return max(0.0, p.cash - owed)
+
     def withdrawn_today(self) -> float:
         start = time.time() - 86_400
         return sum(t.usd_value for t in self.transfers
@@ -309,8 +315,9 @@ class WalletService:
             hrs = (unlock - time.time()) / 3600
             raise WalletError(f"security cooldown: new wallet can receive withdrawals in {hrs:.1f}h")
         usd = round(amount * self.usd_price(asset), 2)
-        if usd > self.desk.portfolio.cash + 1e-9:
-            raise WalletError(f"insufficient free cash ({self.desk.portfolio.cash:,.2f} USD available)")
+        free = self.free_cash()
+        if usd > free + 1e-9:
+            raise WalletError(f"insufficient free cash ({free:,.2f} USD available)")
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:
             raise WalletError(f"daily withdrawal limit {s.max_daily_withdrawal:,.0f} USD would be exceeded")
         if self.desk.is_live and not self.desk.owner_protected():
@@ -339,4 +346,5 @@ class WalletService:
             "withdrawn_today": self.withdrawn_today(),
             "max_daily_withdrawal": self.desk.settings.max_daily_withdrawal,
             "cooldown_h": cd,
+            "free_cash": self.free_cash(),
         }

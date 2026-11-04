@@ -1583,7 +1583,7 @@ function crewSay(b){  // a bot's latest action, as something it might actually s
   if ((m = a.match(/^BANKED (\d+%) of (\S+) at ([+\d.%]+)/))) return `Banked ${m[1]} of ${m[2]} at ${m[3]} 💰`;
   if ((m = a.match(/^SPIKE (\S+) ([+\d.%]+)/))) return `${m[1]} spiked ${m[2]} - cashing in! 💰`;
   if ((m = a.match(/^SKIM time's up on (\S+)/))) return `Time's up on ${m[1]} - banking it ⏱️`;
-  if ((m = a.match(/^SNIPE (\S+)/))) return `Sniping ${m[1]} - it just broke out! 🎯`;
+  if ((m = a.match(/^SNIPE (BUY|SHORT) (\S+)/))) return m[1] === 'BUY' ? `Sniping ${m[2]} - it just broke out! 🎯` : `Shorting ${m[2]} - it just broke down! 📉`;
   if ((m = a.match(/^(\S+) hit \+\d+%: banking/))) return `${m[1]} hit the target - banked some, letting it run 🏃`;
   if ((m = a.match(/^proposed (\w+) (\S+)/))) return `Ooh - ${m[1].toLowerCase()} ${m[2]}? Asking the team 💡`;
   if ((m = a.match(/^REJECTED \w+ (\S+): (.*)/))) return `Passed on ${m[1]}: ${m[2].replace(/\(.*?\)/g, '').slice(0, 60)} 🛡️`;
@@ -1704,7 +1704,7 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
     [/is offline/, 'a team member is switched off'], [/meme coins/, 'enough meme coins are already held'],
     [/practice only/, "your real-money account can't trade that coin"], [/holding the runner/, "it's a runner - the trailing stop will sell it"],
-    [/benched/, 'it kept losing, so it is sitting out for a while'], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
+    [/benched/, 'it kept losing, so it is sitting out for a while'], [/can't short crypto/, "real-money crypto can't be shorted (practice only)"], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
   for (const [re, t] of rules) if (re.test(r)) return t;
   return r.length > 60 ? r.slice(0, 60) + '…' : r;
 }
@@ -1723,9 +1723,11 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
   const p = it.raw || {}, who = botTitle(it.bot);
   switch (it.topic) {
     case 'trade.log':
-      if (p.action === 'open' || p.action === 'add') return ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
+      if (p.action === 'open' || p.action === 'add') return p.side === 'sell'
+        ? ['📉', COLORS.execution, `Shorted ${num(p.qty)} ${p.symbol} at ${px(p.price)} (betting it falls)`]
+        : ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
       return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
-        `${p.action === 'partial' ? 'Sold half of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
+        `${p.side === 'buy' ? (p.action === 'partial' ? 'Bought back part of' : 'Bought back') : (p.action === 'partial' ? 'Sold part of' : 'Sold')} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
     case 'signal.proposed':
       if (p.kind === 'entry' && p.source === 'skimmer') return ['🏄', COLORS.skimmer, `Skimmer spotted a quick dip to skim on ${p.symbol} and asked the team`];
       if (p.kind === 'entry' && p.source === 'quant' && /^snipe/.test(p.reason)) return ['🎯', COLORS.quant, `Quant sniped a breakout on ${p.symbol} and asked the team`];
@@ -1778,7 +1780,7 @@ function renderSimple(st){
     const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
       : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
     return `<div class="ptrade"><div class="s">${esc(x.symbol)}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
-      <div class="d">${x.qty > 0 ? 'Bought' : 'Sold'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
+      <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (betting it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
       <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
       ${prot ? `<div class="d" style="grid-column:1/-1">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
   }).join('') : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';
@@ -1992,7 +1994,7 @@ function openSend(walletId){
   const hint = () => { const a = $('sdAsset').value, amt = +$('sdAmount').value || 0;
     const usd = ['USD', 'USDC', 'USDT'].includes(a) ? 1 : (S.state.prices[a + '-USD'] || 0);
     $('sdHint').textContent = (usd ? `≈ ${money(amt * usd)}` : `There's no live ${a} price right now, so this coin can't be sent yet`) +
-      (usd ? ` · you have ${money(S.state.portfolio.cash)} free to send` : '');
+      (usd ? ` · you have ${money(S.state.wallets.free_cash ?? S.state.portfolio.cash)} free to send` : '');
     $('sdGo').disabled = !usd; };
   $('sdWallet').onchange = fill; $('sdAsset').onchange = hint; $('sdAmount').oninput = hint;
   $('sdAmount').value = ''; $('sdErr').textContent = ''; fill(); $('sendSheet').classList.add('open');

@@ -113,6 +113,7 @@ def test_simultaneous_exits_never_oversell(desk):
 
 
 def test_unexpected_short_pauses_trading(desk):
+    desk.settings.risk.allow_short = False  # with shorting switched off, a short is a books error
     desk.bus.publish("order.filled", Fill("x", "AAPL", Side.SELL, 1, 100))
     run(desk.bus.drain())
     run(desk.bots["sentinel"].on_cycle())

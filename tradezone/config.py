@@ -51,7 +51,7 @@ class RiskLimits:
     max_portfolio_heat: float = 0.05  # total risk to all stops, as a fraction of equity
     min_signal_strength: float = 0.35
     symbol_cooldown_s: float = 10.0
-    allow_short: bool = False
+    allow_short: bool = True  # bet on falling prices too (practice; Alpaca can't short crypto with real money)
     # Buys need team consensus: no voter may object and at least this many must actively agree.
     # Voters: momentum, mean-reversion and breakout models plus the Strategist (then Grok, then Risk).
     consensus_min_yes: int = 2

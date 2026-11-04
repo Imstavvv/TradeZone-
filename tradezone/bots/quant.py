@@ -72,19 +72,24 @@ class QuantBot(Bot):
     def subscriptions(self):
         return {"market.snapshot": self.on_snapshot, "market.tick": self.on_tick}
 
-    # ---- sniping: act on a meme-coin breakout the moment it happens, not at the bar close ----
+    # ---- sniping: act on a meme-coin breakout (or, with shorting on, a breakdown) at once ----
     def on_tick(self, ev: Event) -> None:
         t = ev.payload
         s = self.settings
         if not s.snipe or not s.is_meme(t.symbol) or (snap := self.last_snap.get(t.symbol)) is None:
             return
-        level = snap.indicators["donchian_high"]
-        if t.price < level * (1 + s.snipe_breakout_pct) or self.sniped.get(t.symbol) == level:
+        hi, lo = snap.indicators["donchian_high"], snap.indicators["donchian_low"]
+        if t.price >= hi * (1 + s.snipe_breakout_pct):
+            d, level = 1, hi
+        elif s.risk.allow_short and t.price <= lo * (1 - s.snipe_breakout_pct):
+            d, level = -1, lo
+        else:
             return
-        if not self.portfolio.position(t.symbol).is_flat or self.emitted.get(t.symbol) == 1:
+        if self.sniped.get(t.symbol) == level or not self.portfolio.position(t.symbol).is_flat \
+                or self.emitted.get(t.symbol) == d:
             return
         self.sniped[t.symbol] = level  # one shot per breakout level
-        mom = momentum_score(snap)
+        mom = momentum_score(snap) * d  # > 0: momentum agrees with the direction
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(t.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
         # a breakout isn't a mean-reversion setup, and meme coins are always "volatile": those two
@@ -94,19 +99,21 @@ class QuantBot(Bot):
                  "strategist": "yes" if regime is Regime.TRENDING and mom > 0 else
                                "no" if regime is Regime.TRENDING else "abstain"}
         yes = sum(v == "yes" for v in votes.values())
+        word = "breakout" if d > 0 else "breakdown"
         if any(v == "no" for v in votes.values()) or yes < s.risk.consensus_min_yes:
             self.bump("snipes_passed")
-            self.act(f"no snipe on {t.symbol}: breakout without momentum")
+            self.act(f"no snipe on {t.symbol}: {word} without momentum")
             return
-        jump = t.price / level - 1
-        self.stance[t.symbol] = self.emitted[t.symbol] = 1
+        move = t.price / level - 1
+        self.stance[t.symbol] = self.emitted[t.symbol] = d
         self.blocked.pop(t.symbol, None)
-        sig = Signal(t.symbol, Side.BUY, round(min(1.0, 0.5 + 0.5 * mom), 3),
-                     f"snipe: {t.symbol} broke {jump:+.1%} above its recent high; consensus {yes} yes",
-                     self.name, votes=votes)
+        side = Side.BUY if d > 0 else Side.SELL
+        sig = Signal(t.symbol, side, round(min(1.0, 0.5 + 0.5 * mom), 3),
+                     f"snipe: {t.symbol} {'broke' if d > 0 else 'fell'} {move:+.1%} {'above its recent high' if d > 0 else 'below its recent low'}"
+                     f"; consensus {yes} yes", self.name, votes=votes)
         self.publish("signal.proposed", sig)
         self.bump("snipes")
-        self.act(f"SNIPE {t.symbol} @ {t.price:,.6g} (+{jump:.1%} through the high)")
+        self.act(f"SNIPE {'BUY' if d > 0 else 'SHORT'} {t.symbol} @ {t.price:,.6g} ({move:+.1%} through the {'high' if d > 0 else 'low'})")
 
     def on_snapshot(self, ev: Event) -> None:
         s: Snapshot = ev.payload

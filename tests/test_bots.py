@@ -57,7 +57,8 @@ def test_risk_rejections(desk, mutate, reason):
     assert rejected and reason in rejected[0]["reason"]
 
 
-def test_short_disabled_by_default(desk):
+def test_short_can_be_switched_off(desk):
+    desk.settings.risk.allow_short = False
     prime(desk)
     rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 0.9, "t", "quant"))
