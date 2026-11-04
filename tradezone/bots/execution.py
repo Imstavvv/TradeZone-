@@ -21,6 +21,19 @@ class ExecutionBot(Bot):
     critical = True
 
     ORDER_TIMEOUT_S = 60.0
+    SLIPPAGE_COOLOFF_S = 1800.0
+
+    def cooling(self, symbol: str) -> float:
+        """Seconds left before ``symbol`` may be traded again after a bad fill (0 = fine)."""
+        return max(0.0, self.cool_until.get(symbol, 0.0) - now())
+
+    def reference_price(self, symbol: str, side) -> float:
+        """What a fair fill looks like: the ask for a buy, the bid for a sell when the venue's quote is fresh
+        (a market order always crosses the spread), else the last price."""
+        q = getattr(self.desk.broker, "quotes", {}).get(symbol)
+        if q and now() - q.get("ts", 0) < 180 and q.get("bid", 0) > 0 and q.get("ask", 0) > 0:
+            return q["ask"] if side.sign > 0 else q["bid"]
+        return self.desk.prices[symbol]
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
@@ -32,6 +45,7 @@ class ExecutionBot(Bot):
         self._processed_requests: set[str] = set()
         # fills emitted but not yet booked by the ledger (they sit in the event queue)
         self.unbooked: dict[str, float] = {}
+        self.cool_until: dict[str, float] = {}  # symbol -> no new trades before (after a bad fill)
         self.metrics.update({"fills_verified": 0, "integrity_violations": 0, "pretrade_blocks": 0})
 
     def subscriptions(self):
@@ -92,8 +106,13 @@ class ExecutionBot(Bot):
         ref = self.ref_price.get(order.id)
         if ref and math.isfinite(f.price):
             adverse_bps = (f.price - ref) / ref * 10_000 * order.side.sign
-            if adverse_bps > self.settings.max_slippage_bps:
-                problems.append(f"slippage {adverse_bps:.0f}bps > limit {self.settings.max_slippage_bps:.0f}bps")
+            if adverse_bps > self.settings.max_slippage_bps and not order.reduce_only:
+                # a worse-than-expected fill isn't a broken system: cool this coin off instead of stopping everything
+                self.cool_until[f.symbol] = now() + self.SLIPPAGE_COOLOFF_S
+                self.bump("bad_fills")
+                self.publish("alert", Alert("warning", f"{f.symbol} filled {adverse_bps:.0f}bps worse than expected - "
+                                                       f"no new {f.symbol} trades for {self.SLIPPAGE_COOLOFF_S / 60:.0f} min", self.name))
+                self.act(f"bad fill on {f.symbol}: {adverse_bps:.0f}bps slippage - cooling it off", "warning")
         if problems:
             self.integrity_violation(f"{order.id} {'; '.join(problems)}")
             return False
@@ -136,7 +155,7 @@ class ExecutionBot(Bot):
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
         )
         self.orders[order.id] = order
-        self.ref_price[order.id] = self.desk.prices[req.symbol]
+        self.ref_price[order.id] = self.reference_price(req.symbol, req.side)
         fills = await self.desk.broker.submit(order)
         self.bump("orders")
         if order.status is OrderStatus.REJECTED:

@@ -89,7 +89,7 @@ class SkimmerBot(Bot):
         scout = self.desk.bots.get("scout")
         bar_s = getattr(scout, "bar_seconds", 0) or 60
         bars = self.max_minutes() * 60 / bar_s
-        gross = s.skim_target_pct + s.round_trip_cost(sym, price) / price  # the target is after fees
+        gross = self.target() + s.round_trip_cost(sym, price) / price  # the target is after fees
         if ind["volatility"] * math.sqrt(max(bars, 1)) < gross * 0.5:
             return
         # ...but calm enough that ordinary wiggles over ~10 bars stay well inside the tight stop
@@ -102,11 +102,14 @@ class SkimmerBot(Bot):
         if "no" in votes.values():
             return
         sig = Signal(sym, Side.BUY, 0.6, f"skim: {sym} dipped in an uptrend (RSI {ind['rsi']:.0f}) - "
-                     f"quick +{s.skim_target_pct:.1%} target after fees", self.name, votes=votes)
+                     f"quick +{self.target():.1%} target after fees", self.name, votes=votes)
         self.signals[sig.id] = sym
         self.wait_bars[sym] = 3  # don't re-offer it every bar if the team passes
         self.publish("signal.proposed", sig)
-        self.act(f"SKIM idea {sym} @ {price:,.6g}: dip in an uptrend, aiming +{s.skim_target_pct:.1%}")
+        self.act(f"SKIM idea {sym} @ {price:,.6g}: dip in an uptrend, aiming +{self.target():.1%} after fees")
+
+    def target(self) -> float:
+        return self.settings.flip_skim_target_pct if self.quick else self.settings.skim_target_pct
 
     def max_minutes(self) -> float:
         return self.settings.flip_skim_max_minutes if self.quick else self.settings.skim_max_minutes

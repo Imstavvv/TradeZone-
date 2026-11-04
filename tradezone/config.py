@@ -155,7 +155,8 @@ class Settings:
     flip_meme_max_hold_hours: float = 1.5
     flip_breakeven_r: float = 0.35  # lock in break-even + fees sooner
     flip_max_skims: int = 4
-    flip_skim_max_minutes: float = 60.0
+    flip_skim_max_minutes: float = 120.0
+    flip_skim_target_pct: float = 0.015  # real-money skims aim for +1.5% after fees (practice: skim_target_pct)
     flip_skim_cooldown_min: float = 5.0
     # ---- the goal the bots work toward (by compounding - it never raises risk) ----
     goal_start: float = 50.0

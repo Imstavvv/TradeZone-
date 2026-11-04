@@ -45,13 +45,13 @@ def test_small_profit_takes_wait_until_they_are_worth_a_transfer():
     assert p2.is_flat
 
 
-def test_trades_too_small_to_pay_their_share_of_a_transfer_are_skipped():
-    desk = make(cashout_fee_usd=5_000.0, starting_cash=1_000.0)  # absurd fee: nothing small is worth it
+def test_transfer_fees_never_stop_a_small_account_from_trading():
+    desk = make(cashout_fee_usd=5.0, starting_cash=50.0)  # a $5 transfer fee on a $50 account
+    assert desk.min_take() == pytest.approx(0.05)  # 0.1% of the balance, not $0.50 per profit-take
     prime(desk, "BTC-USD", 50_000.0, atr=250.0)
-    rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))
     run(desk.bus.drain())
-    assert desk.portfolio.position("BTC-USD").is_flat and "transfer fee" in rejected[-1]["reason"]
+    assert desk.portfolio.position("BTC-USD").qty > 0  # a fee is paid per cash-out, not per trade
 
 
 def test_take_home_profit_shows_what_is_left_after_moving_it_out():

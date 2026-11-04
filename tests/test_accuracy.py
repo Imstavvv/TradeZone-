@@ -41,7 +41,23 @@ def test_clean_run_is_100_percent_accurate(desk):
     assert not desk.paused
 
 
-@pytest.mark.parametrize("mode", ["slippage", "overfill", "wrong_side"])
+def test_a_bad_fill_cools_that_coin_off_instead_of_stopping_everything(desk):
+    desk.broker = BadBroker("slippage")
+    prime(desk)
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    exe = desk.bots["execution"]
+    assert not desk.paused and exe.metrics["integrity_violations"] == 0  # the rest of the market keeps trading
+    assert exe.cooling("AAPL") > 0 and exe.metrics["bad_fills"] == 1
+    desk.portfolio.positions.pop("AAPL", None)
+    from tests.helpers import capture
+    rejected = capture(desk, "signal.rejected")
+    desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t2", "quant"))
+    run(desk.bus.drain())
+    assert "cooling off after a bad fill" in rejected[-1]["reason"]
+
+
+@pytest.mark.parametrize("mode", ["overfill", "wrong_side"])
 def test_bad_fills_are_caught_and_pause_trading(desk, mode):
     desk.broker = BadBroker(mode)
     prime(desk)

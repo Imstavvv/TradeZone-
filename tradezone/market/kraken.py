@@ -43,7 +43,8 @@ def parse_pairs(result: dict) -> dict[str, dict]:
         if not ws.endswith("/USD") or p.get("status", "online") != "online":
             continue  # cancel_only / post_only / reduce_only pairs can't be bought and sold freely
         sym = f"{ours(ws.split('/')[0])}-USD"
-        out[sym] = {"pair": p.get("altname") or key, "key": key, "base": p["base"], "lot": int(p.get("lot_decimals", 8)),
+        out[sym] = {"pair": p.get("altname") or key, "key": key, "base": p["base"], "alt": ws.split("/")[0],
+                    "lot": int(p.get("lot_decimals", 8)),
                     "ordermin": float(p.get("ordermin") or 0), "costmin": float(p.get("costmin") or 0)}
     return out
 

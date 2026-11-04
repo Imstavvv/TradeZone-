@@ -127,10 +127,9 @@ class KrakenBroker(Broker):
             return "can't confirm it can be sold: Kraken's pair list isn't loaded yet" if strict else None
         if symbol not in self.pairs:
             return f"{symbol} can't be bought and sold on Kraken right now"
-        mq = self.min_qty(symbol, price)
-        if qty < 2 * mq:
-            return (f"too small to sell again: Kraken's minimum sale is {mq:.6g} {symbol.split('-')[0]}, "
-                    "and the profit-takers sell in parts")
+        p = self.pairs[symbol]
+        if qty < p["ordermin"] or qty * price < 1.25 * p["costmin"]:  # 25% room: still sellable after a fall to the stop
+            return f"too small to sell again: Kraken's minimum sale is {self.min_qty(symbol, price):.6g} {symbol.split('-')[0]}"
         q = self.quotes.get(symbol)
         if q is None or time.time() - q["ts"] > 180:
             return "can't confirm it can be sold: no fresh bid / ask from Kraken" if strict else None
@@ -188,7 +187,21 @@ class KrakenBroker(Broker):
 
     # ---------------------------------------------------------- balances
     async def _balances(self) -> dict[str, float]:
-        return {k: float(v) for k, v in (await self._private("Balance")).items()}
+        """Balances by Kraken asset name. Coins / USD in Kraken Rewards (auto-earn) show up as e.g. "XBT.F" or
+        "USD.F": they're still yours to trade, so they're folded into the normal name ("XXBT", "ZUSD")."""
+        raw = {k: float(v) for k, v in (await self._private("Balance")).items()}
+        alias = {"USD": "ZUSD", "ZUSD": "ZUSD"}
+        for p in self.pairs.values():
+            alias[p["base"]] = p["base"]
+            alias[p.get("alt", p["base"])] = p["base"]
+        out: dict[str, float] = {}
+        for k, v in raw.items():
+            name = k.removesuffix(".F")
+            if name != k and name not in alias and "X" + name in alias:
+                name = "X" + name
+            key = alias.get(name, name)
+            out[key] = out.get(key, 0.0) + v
+        return out
 
     async def capture_baseline(self) -> dict[str, float]:
         """Remember what the owner already holds, so the bots never trade those coins."""
@@ -205,8 +218,9 @@ class KrakenBroker(Broker):
                 raise
             log.warning("kraken account fetch failed: %s", exc)
             return None
-        cash = bal.get("ZUSD", bal.get("USD", 0.0))
-        return {"cash": cash, "equity": float(tb.get("eb", cash))}
+        cash = bal.get("ZUSD", 0.0)
+        stable = {k: v for k, v in bal.items() if k in ("USDC", "USDT", "PYUSD", "USDG") and v > 0.01}
+        return {"cash": cash, "equity": float(tb.get("eb", cash)), "stablecoins": stable}
 
     async def positions(self) -> dict[str, float] | None:
         """Coins the bots bought: what Kraken holds minus what you held before (dust ignored)."""

@@ -258,6 +258,10 @@ class TradingDesk:
             kraken = hasattr(self.live_broker, "capture_baseline")
             # Kraken: coins you already hold are noted and left alone, so they don't block anything
             positions = {} if kraken else await self.live_broker.positions()
+            if acct is not None and acct.get("cash", 0) < 1 and acct.get("stablecoins"):
+                coins = ", ".join(f"{v:,.2f} {k}" for k, v in acct["stablecoins"].items())
+                blockers.append(f"your {self.live_broker.label} account has no US dollars to trade with (it holds {coins}) - "
+                                f"convert some to USD in {self.live_broker.label} first; the bots trade the USD pairs")
             if acct is None:
                 blockers.append(f"couldn't reach your {self.live_broker.label} account - check it in Settings → Linked accounts")
             else:
@@ -525,8 +529,10 @@ class TradingDesk:
         return min(fees) if fees else 1.0
 
     def min_take(self) -> float:
-        """The least a profit-taking sale must make (after trading fees) to be worth its share of a transfer."""
-        return self.transfer_fee() * self.settings.transfer_fee_share
+        """The least a profit-taking sale must make (after trading fees) to be worth its share of a transfer.
+        Capped at 0.1% of the balance: a fee is paid once per cash-out, so on a small account it must not stop
+        the bots banking small wins (they add up, and get moved out together)."""
+        return min(self.transfer_fee() * self.settings.transfer_fee_share, 0.001 * max(self.portfolio.equity, 0.0))
 
     def cashout_summary(self) -> dict:
         """Profit the bots have banked, and what's left after one transfer fee to move it out."""
@@ -816,6 +822,9 @@ class TradingDesk:
             return None
         self.paper_portfolio = self.portfolio = portfolio_from_state(data["paper"])
         self.paused, self.pause_reason = data.get("paused", False), data.get("pause_reason", "")
+        r = self.pause_reason
+        if self.paused and (r.startswith("switching to") or (r.startswith("execution integrity") and "slippage" in r)):
+            self.paused, self.pause_reason = False, ""  # left over from an interrupted switch / an old bad-fill pause
         self.halted, self.halt_reason = data.get("halted", False), data.get("halt_reason", "")
         self.halt_kind = data.get("halt_kind", "")
         self.floor_ack = data.get("floor_ack", {})

@@ -171,6 +171,9 @@ class RiskBot(Bot):
             if (why := news.veto(sig.symbol, sig.side.sign)) is not None:
                 return self.reject(sig, why)
             sig.strength = round(max(0.0, min(1.0, sig.strength + news.conviction_nudge(sig.symbol, sig.side.sign))), 3)
+        exe = self.desk.bots.get("execution")
+        if exe is not None and (left := exe.cooling(sig.symbol)) > 0:
+            return self.reject(sig, f"{sig.symbol} is cooling off after a bad fill ({left / 60:.0f} min left)")
         coach = self.desk.bots.get("coach")
         quick = self.quick
         bar = coach.bar() if coach is not None else (s0.flip_min_strength if quick else limits.min_signal_strength)
@@ -204,8 +207,9 @@ class RiskBot(Bot):
         if sig.source == "skimmer":  # a quick day-trade skim: small target, tight stop
             stop_dist = price * s.skim_stop_pct
             stop = price - stop_dist * direction
-            tp = price * (1 + s.skim_target_pct * direction) + cost * direction  # the target is after fees
-            how = f"skim -{s.skim_stop_pct:.1%} / +{s.skim_target_pct:.1%} after fees"
+            skim = s.flip_skim_target_pct if quick else s.skim_target_pct
+            tp = price * (1 + skim * direction) + cost * direction  # the target is after fees
+            how = f"skim -{s.skim_stop_pct:.1%} / +{skim:.1%} after fees"
         elif s.stop_method == "percent":
             sl_pct, tp_pct = s.plan_pcts(sig.symbol, quick)
             stop_dist = price * sl_pct
@@ -268,19 +272,20 @@ class RiskBot(Bot):
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 
-        # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
+        # small accounts: a buy just under the venue's minimum order is rounded UP to it, if that stays inside
+        # the position cap and risks at most 1.5x a normal trade (else it'd be unsellable dust: skipped below)
         checker = self.desk.live_broker
+        if checker is not None and sig.side is Side.BUY:
+            least = checker.min_qty(sig.symbol, price) * 1.02
+            if 0 < qty < least and least * price <= min(equity * limits.max_position_pct, self.desk.free_cash() * 0.995) \
+                    and least * (stop_dist + cost) <= 1.5 * equity * limits.risk_per_trade:
+                qty = least
+        # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
         if checker is not None and s.is_crypto(sig.symbol) and sig.side is Side.BUY:
             why = checker.sell_check(sig.symbol, qty, price, strict=self.desk.is_live)
             if why:
                 self.bump("rejected_unsellable")
                 return self.reject(sig, f"won't buy what it can't sell: {why}")
-        # profit-taking keeps transfer fees in mind: a trade too small to pay its share isn't worth taking
-        take = qty * (reward - cost)
-        if take < 2 * self.desk.min_take():
-            self.bump("rejected_fees")
-            return self.reject(sig, f"too small: +{take:,.2f} at the target wouldn't cover its share of the "
-                                    f"~${self.desk.transfer_fee():,.2f} transfer fee")
         risk_amt = qty * (stop_dist + cost)
         sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
         self.strength_by_signal[sig.id] = sig.strength

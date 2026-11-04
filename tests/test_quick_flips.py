@@ -110,3 +110,17 @@ def test_fees_are_always_counted_and_hard_limits_unchanged():
     s2 = Settings(kraken_key="k", kraken_secret="s", feed="coinbase")
     s2.apply_venue_costs()
     assert s2.venue() == "kraken" and s2.crypto_fee_bps == 40  # practice charges Kraken's real fee
+
+
+def test_skims_are_possible_on_real_money_with_krakens_fee():
+    from tests.test_skimmer import ind
+    from tradezone.core.models import Snapshot
+    desk = make()  # 0.40% per side, like Kraken
+    desk.set_bot_enabled("quant", False)
+    desk.settings.symbols.append("SOL-USD")
+    prime(desk, "SOL-USD", 100.0, atr=0.4)
+    snap = Snapshot("SOL-USD", 100.0, ind(100.0))  # a normal dip in an uptrend, 0.15% per-minute moves
+    desk.bots["risk"].snapshots["SOL-USD"] = snap
+    desk.bus.publish("market.snapshot", snap)
+    run(desk.bus.drain())
+    assert desk.bots["skimmer"].owns("SOL-USD")  # before: the target couldn't be reached inside an hour

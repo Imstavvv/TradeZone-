@@ -171,6 +171,9 @@ class SentinelBot(Bot):
             self.act(f"BOOKS OUT OF BALANCE: {msg}", "critical")
             self.publish("alert", Alert("critical", f"Audit mismatch - trading paused: {msg}", self.name))
             self.desk.pause(f"audit mismatch: {msg}")
+        if balanced and self.desk.paused and self.desk.pause_reason.startswith("audit mismatch"):
+            self.desk.resume()  # the books balance again: the automatic pause has done its job
+            self.publish("alert", Alert("info", "Books balance again - trading resumed", self.name))
         self.books_balanced = balanced
         self.metrics["books_balanced"] = balanced
         perf = self.performance()

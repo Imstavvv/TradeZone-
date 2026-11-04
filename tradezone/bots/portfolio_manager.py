@@ -233,6 +233,10 @@ class PortfolioBot(Bot):
                 continue
             problems.append(f"{sym}: ledger {a:g} vs broker {b:g}")
         self.metrics["positions_reconciled"] = not problems
+        if not problems and self.desk.paused and self.desk.pause_reason.startswith("position mismatch"):
+            self.desk.resume()  # it was only a mismatch, and the books match the broker again
+            self.publish("alert", Alert("info", "Positions match the broker again - trading resumed", self.name))
+            self.act("positions match the broker again - trading resumed")
         if problems:
             msg = "; ".join(problems)
             self.act(f"POSITION MISMATCH: {msg}", "critical")

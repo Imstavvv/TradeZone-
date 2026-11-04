@@ -426,6 +426,19 @@ Make the key in Kraken → **Settings → API → Create API key**. Turn on **Qu
 
 Orders are market orders on each coin's USD pair, rounded down to Kraken's lot size and checked against its minimum order. Kraken's fee comes back with every fill and is counted in your results. The bots trade with the USD in the account (not USDC or USDT). Server-side alternative to linking in the app: `TZ_LIVE_VENUE=kraken`, `TZ_KRAKEN_KEY`, `TZ_KRAKEN_SECRET`.
 
+### When real money isn't trading
+
+A few things used to stop real-money trading quietly. They're fixed:
+
+* **One worse-than-expected fill paused everything.** A market buy fills at the *ask* (the seller's price), and on a coin with a wider gap between buy and sell prices that can be well over the 0.5% slippage limit. Now the expected price for a real-money order is Kraken's ask (bid when selling), and a fill beyond the limit only **cools that coin off for 30 minutes**. Real integrity problems (wrong coin, wrong side, overfill) still pause everything.
+* **Pauses that never ended.** A pause because the books didn't match the broker **clears itself** as soon as they match again; a pause left over from an interrupted mode switch, or from an old bad fill, is cleared on restart.
+* **Kraken Rewards (auto-earn).** Kraken books coins and USD in Rewards as `XBT.F`, `USD.F` and so on. These are now counted as yours, so the bots' records match the account instead of pausing for a mismatch.
+* **Small accounts.** Kraken's minimum order (about $5 of most coins) is bigger than a 1%-risk meme-coin trade on $50. Such buys are now rounded up to the minimum when that's still safe (see the table below), and transfer fees no longer block new trades.
+* **Skims on real money.** With Kraken's 0.40% fee, a +2.5% skim couldn't be reached inside an hour. Real-money skims now aim for **+1.5% after fees** within 2 hours.
+* **No US dollars.** The bots trade USD pairs. If your Kraken account holds only USDC or USDT, *Use real money* now says so and asks you to convert some to USD.
+
+If the bots still aren't trading, the **🎯 Today's hunt** card on Home lists the most common reasons they skipped, in plain words.
+
 ### Kraken's meme coins
 
 With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:
@@ -440,7 +453,7 @@ Before every real-money buy (and in practice too when a real account is linked),
 | Check | Refused when |
 | --- | --- |
 | Listed for buying *and* selling | Kraken doesn't offer the USD pair, or it's paused / cancel-only / reduce-only (the pair list is refreshed every 15 min) |
-| Big enough to sell | the amount is under **twice** Kraken's minimum order (size and value), so even half of it (the profit-takers sell in parts) can still be sold |
+| Big enough to sell | the amount is under Kraken's minimum order size, or worth under 1.25× its minimum order value (room for a fall to the stop). On a small account, a buy just under the minimum is **rounded up** to it when that stays inside the position cap and risks at most 1.5× a normal trade |
 | Someone to sell to | the bid/ask gap is over **1.5%** (`TZ_SELL_MAX_SPREAD_PCT`), the coin trades under **$250k a day** (`TZ_SELL_MIN_VOLUME_USD`), or the position would be over **1%** of a day's trading (`TZ_SELL_MAX_VOLUME_SHARE`) |
 | Fresh data | bid/ask is over 3 minutes old (refreshed every 30 s): real money refuses rather than guesses |
 
@@ -450,8 +463,7 @@ Orders also ask Kraken to take its fee in **USD** (`oflags=fciq`), so every coin
 
 Moving profit out (to a wallet or the bank) costs a transfer fee. TradeZone estimates it from your **cheapest linked wallet's network** (e.g. XRP or Stellar about $0.10-0.20, Solana ~$0.30, Bitcoin ~$5), or uses `TZ_CASHOUT_FEE_USD` if you set it (else $1). Then:
 
-* every **profit-taking sale** (banking a slice, selling into a spike, a quick flip, the clock closing a stale winner, a strategy exit) must make at least **10%** of one transfer fee after trading fees (`TZ_TRANSFER_FEE_SHARE`), so ten wins pay for one transfer out;
-* a **new trade** is skipped if its profit at the target wouldn't cover twice that share;
+* every **profit-taking sale** (banking a slice, selling into a spike, a quick flip, the clock closing a stale winner, a strategy exit) must make at least **10%** of one transfer fee after trading fees (`TZ_TRANSFER_FEE_SHARE`), so ten wins pay for one transfer out. This is capped at **0.1% of your balance**: a fee is paid once per cash-out, not per trade, so on a small account it never stops the bots from banking small wins;
 * the **Money** page shows *Profit to take home*: what the bots banked, and what you'd keep after one transfer out, and tells you to wait until it's about 10× the fee so the fee stays a small share;
 * sending money out shows the fee and how much arrives, and refuses amounts the fee would mostly eat (under 2× the fee).
 

@@ -225,7 +225,8 @@ def test_never_buys_a_coin_it_cannot_sell_again():
     desk.bots["risk"].last_trade.clear()
     assert try_buy("DOGE-USD", 0.2) > 0  # liquid, listed, big enough: fine
     b = desk.live_broker
-    assert b.sell_check("DOGE-USD", 30, 0.2) is not None  # under 2x Kraken's 20 DOGE minimum: halves unsellable
+    assert "too small to sell" in b.sell_check("DOGE-USD", 15, 0.2)  # under Kraken's 20 DOGE minimum
+    assert b.sell_check("DOGE-USD", 30, 0.2) is None  # partial profit-takes sell it all rather than leave dust
     b.quotes["BTC-USD"]["ts"] -= 600  # stale market data: real money refuses rather than guesses
     assert "can't confirm" in b.sell_check("BTC-USD", 0.01, 60_000)
 
@@ -293,3 +294,42 @@ def test_linking_kraken_in_the_app_switches_to_krakens_prices():
     assert desk.feed.name == "kraken" and desk.settings.feed == "kraken"
     run(desk.feed.close())
     run(desk.live_broker.close())
+
+
+def test_kraken_rewards_balances_count_as_yours():
+    fk = FakeKraken(usd=0.0, held={"XBT.F": 0.25, "USD.F": 120.0})  # auto-earn: Kraken books coins as XBT.F
+    b = broker(fk)
+    run(b.load_pairs())
+    assert run(b.account())["cash"] == 120.0
+    assert run(b.positions()) == {"BTC-USD": pytest.approx(0.25)}  # not a "mismatch" that pauses trading
+
+
+def test_a_stablecoin_only_account_gets_a_clear_message():
+    fk = FakeKraken(usd=0.0, held={"USDC": 75.0})
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    chk = run(desk.mode_check())
+    assert any("no US dollars" in b and "75.00 USDC" in b for b in chk["blockers"])
+
+
+def test_small_accounts_round_up_to_krakens_minimum_order():
+    fk = FakeKraken(usd=50.0)  # $50: a normal DOGE trade would be under Kraken's 20 DOGE minimum
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    run(desk.switch_mode("live"))
+    prime(desk, "DOGE-USD", 0.2, atr=0.001)
+    desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.BUY, 0.5, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("DOGE-USD").qty >= 20  # rounded up to a sellable size (risk stays small)
+
+
+def test_a_mismatch_pause_clears_itself_once_the_books_match_again():
+    fk = FakeKraken(usd=5_000.0)
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    run(desk.switch_mode("live"))
+    fk.bal["XXBT"] = 0.01  # something appears that the bots didn't buy
+    pm = desk.bots["portfolio"]
+    assert run(pm.reconcile_positions()) and desk.paused
+    fk.bal["XXBT"] = 0.0  # sorted out
+    assert run(pm.reconcile_positions()) == [] and not desk.paused
