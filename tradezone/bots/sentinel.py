@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
+from itertools import pairwise
 
 from ..core.bus import Event
 from ..core.models import Alert, now
@@ -100,7 +101,7 @@ class SentinelBot(Bot):
         wins = [t.pnl for t in trades if t.pnl > 0]
         losses = [t.pnl for t in trades if t.pnl <= 0]
         eq = [e for _, e in self.equity_curve]
-        rets = [b / a - 1 for a, b in zip(eq, eq[1:]) if a > 0]
+        rets = [b / a - 1 for a, b in pairwise(eq) if a > 0]
         sharpe = 0.0
         if len(rets) > 2:
             m = sum(rets) / len(rets)

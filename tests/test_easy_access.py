@@ -10,6 +10,7 @@ from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.server import create_app
 
+
 @pytest.fixture
 def site(tmp_path):
     desk = TradingDesk(Settings(feed="coinbase", host="0.0.0.0"), journal=Journal(str(tmp_path / "tz.db")))

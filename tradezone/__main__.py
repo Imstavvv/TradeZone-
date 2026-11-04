@@ -57,7 +57,7 @@ def main() -> None:
     port = getattr(args, "port", None) or settings.port
     desk = TradingDesk(settings)
     if desk.settings.mode == "live":
-        logging.warning("*** LIVE TRADING ENABLED - real money is at risk ***")
+        logging.getLogger("tradezone").warning("*** LIVE TRADING ENABLED - real money is at risk ***")
     # behind a hosting proxy (Render sets PORT) the real client IP arrives in X-Forwarded-For;
     # only trust that header from the proxy, otherwise per-IP limits and bans could be dodged
     proxies = settings.trusted_proxies or ("*" if "PORT" in os.environ else "127.0.0.1")

@@ -65,7 +65,7 @@ def test_login_sets_secure_session_cookie_and_logout_revokes():
 
 
 def test_signout_everywhere():
-    desk, c = client()
+    _, c = client()
     with c:
         login(c)
         other = TestClient(c.app, base_url="https://testserver")

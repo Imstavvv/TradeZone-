@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import deque
+from itertools import pairwise
 
 
 class EMA:
@@ -81,7 +82,7 @@ def efficiency_ratio(prices: list[float]) -> float:
     """Kaufman efficiency ratio: 1 = perfectly directional, 0 = pure noise."""
     if len(prices) < 2:
         return 0.0
-    path = sum(abs(b - a) for a, b in zip(prices, prices[1:]))
+    path = sum(abs(b - a) for a, b in pairwise(prices))
     if path == 0:
         return 0.0
     return abs(prices[-1] - prices[0]) / path

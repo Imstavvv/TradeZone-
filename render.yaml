@@ -1,6 +1,6 @@
 # One-click hosting on Render (https://render.com): New > Blueprint > pick this repo.
-# The dashboard gets a public https URL. On first visit the site asks for the SETUP code
-# printed in the service logs (Render dashboard > tradezone > Logs), then you choose a PIN.
+# The dashboard gets a public https URL. On first visit, type the login code printed in the
+# service logs (Render dashboard > tradezone > Logs: "TradeZone login code"). No password needed.
 services:
   - type: web
     name: tradezone

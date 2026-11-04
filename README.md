@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Eleven specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Twelve specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -17,6 +17,7 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | **Executor** | Order execution and routing | Runs pre-trade checks, sends orders to the broker, blocks duplicates, enforces reduce-only exits, verifies every fill, and cancels stale orders |
 | **Portfolio Manager** | Positions, P&L and exits | Books fills (average-cost accounting), marks positions to market, manages stop-loss, take-profit, trailing stops and profit protection, and reconciles against the broker |
 | **Sentinel** | Audit, compliance and performance | Journals every decision to SQLite, keeps an independent audit ledger that is checked against the books every cycle, computes Sharpe, drawdown, win rate and profit factor, and raises alerts when any bot errors |
+| **Reporter** 📰 | World and market news | Reads crypto, world and business news and the Fear & Greed index; bad news on a coin blocks buying it, scary world news makes trades smaller (see [News](#news-what-the-world-is-saying)) |
 | **Skimmer** 🏄 | Profit taking and day-trade skims | Takes profits of every size (see [The Skimmer](#the-skimmer-profits-big-and-small)) |
 | **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
 
@@ -48,6 +49,19 @@ Safety properties:
 
 **🎯 Today's hunt** (top of the Home screen) shows what the bots did today: chances checked, how many the team liked, trades opened, and wins out of trades closed. It also lists, in plain words, the most common reasons they skipped, so you can tell the bots are working even when they're not buying. If something is stopping them altogether (no live prices, paused, or emergency stop), the card says so.
 
+**⚔️ The arena: Kai & Rin.** Two original anime fighters, created for TradeZone in the style of classic 90s battle anime, stand on a sunset battlefield above your balance and react to how trading is going:
+
+| What's happening | Kai & Rin |
+| --- | --- |
+| Quiet market | Ready stance, breathing |
+| Up today | **Powering up:** blue aura, fists clenched, energy ball between them |
+| +1% day, 3+ wins in a row, or the goal reached | **SUPER MODE:** golden hair, sparks, golden energy |
+| A winning trade closes | **BANKED IT!** Jump, fist raised, the profit in a speech bubble |
+| Down day or a losing trade | **Took a hit:** eyes squeezed shut, sweat drop ("the stop kept it small!") |
+| Paused or emergency stop | **On guard:** arms crossed, the scene dims |
+
+They're drawn in code (inline SVG), with no image files, so they load instantly and stay sharp on any screen. They're not characters from any existing series.
+
 **Anime power-up theme:** an original look inspired by classic 90s battle anime. It has a sunset-orange and sky-blue palette, comic-panel cards with ink outlines, and speed lines behind your balance. A **⚡ power level** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Rookie → Fighter → Elite → Champion → Legend). Your win streak shows as glowing energy orbs. A golden aura pulses around the balance card on an up day, bots glow when they act, and winning trades end with a **POWER UP!** burst. It's all CSS, with no outside fonts or images, so the security policy stays strict. Animations switch off if your phone has "Reduce Motion" on.
 
 TradeZone opens in **Simple view**: a colourful home screen in plain English. The **Pro** switch in the header shows the full trading dashboard.
@@ -64,7 +78,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 11 bots in the order a trade flows through them (Scout → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 12 bots in the order a trade flows through them (Scout → Reporter → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -144,6 +158,42 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 
 Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
 
+## Shorting: profit when prices fall
+
+The bots can also **short**: sell first, buy back lower. Shorts use the **same percentages, mirrored**. Meme coins: stop +8% above the entry, target −15% below. Other coins: +3% / −6%. Everything else applies the same way: the team vote, runners, the Skimmer's profit-taking, profit protection, and meme-coin breakdowns sniped like breakouts. Turn it off with `TZ_ALLOW_SHORT=false`.
+
+* **Real money:** Alpaca can't short crypto with real money, so crypto shorts are **practice only**. The Risk Manager refuses them live, with that reason.
+* **Short sales aren't free cash:** a short puts cash in the account that is owed back, so withdrawals only use the cash that is really yours.
+
+## News: what the world is saying
+
+The 📰 **Reporter** reads public news feeds every 5 minutes: CoinDesk, Cointelegraph, Decrypt, and BBC World and Business, plus CNBC markets (`TZ_NEWS_FEEDS` to change them). It also reads the crypto **Fear & Greed index**. No account or key is needed. Each headline is scored with a transparent word list (for example "hack", "lawsuit" and "rate hike" are negative; "ETF approval", "rate cut" and "record high" are positive) and matched to the coins it mentions.
+
+* **Bad news on a coin in the last 2 hours** (a hack, a delisting, a lawsuit): no new buys of it. Good news likewise blocks new shorts of it.
+* **Conviction nudge:** a trade with the news gets up to +0.1 conviction, one against it up to −0.1.
+* **Scary world news** (very negative market mood): new buys are half-size.
+* **Grok** (if connected) sees the recent headlines and the market mood when it reviews a trade.
+
+News can only make the team more careful or slightly more confident. It never opens a trade, never moves a stop and never touches the loss limits. It is off when the bots trade synthetic demo prices. The Home screen's "What the world is saying" card shows the mood, Fear & Greed and the latest headlines, with links.
+
+## Your goal, and "don't lose my money"
+
+**🏆 The goal** (default **$50 → $10,000**, change it in **Settings → Your goal**) is the 5th team rule: *reach it by compounding many small, safe wins, never by betting the account.* The goal card shows your progress, the next milestone ($100, $250, $500, …) and the pace so far. In practice mode, your account's growth is shown on the $50 scale.
+
+Be realistic about this goal: it is a **200×** increase. Even an excellent, steady **+1% every day** would take about **530 days**; +2% a day, about 270. Trying to do it "quickly" would mean betting big, which is the fastest way to lose the $50. So the goal never raises the bots' risk.
+
+**🛡️ Don't lose the money** is the 6th team rule, and with real money the limits get stricter:
+
+| Protection | Practice | Real money |
+| --- | --- | --- |
+| Stop for the day after a loss of | 5% | **3%** (`TZ_LIVE_MAX_DAILY_LOSS_PCT`) |
+| Stop everything after a drop from the peak of | 15% | **10%** (`TZ_LIVE_MAX_DRAWDOWN_PCT`) |
+| Stop everything if the account falls below what you put in by | – | **10%** (`TZ_LIVE_CAPITAL_FLOOR_PCT`); only you can restart it |
+| Stop-loss on every trade, ≤1% of the account at risk per trade, ≤5% across all trades | ✓ | ✓ |
+| Optional cap on how much of the account the bots may use | – | `TZ_LIVE_MAX_CAPITAL` |
+
+**No trading system can promise you won't lose money.** Prices can jump straight through a stop, and a run of losing trades is normal. These rules keep losses small and stop the bots before a bad stretch becomes a big one. Only trade money you can afford to lose.
+
 ## The Skimmer: profits big and small
 
 The 🏄 **Skimmer** does two jobs:
@@ -195,7 +245,7 @@ The **Winners lost** tile counts any winner that still closed at a loss. That ca
 
 ## Grok (xAI) connection
 
-**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (it asks for your password or Face ID). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
+**Easiest:** tap the **Grok** button (or the GROK badge) in the dashboard, paste your xAI API key, choose the mode, and tap **Save & connect** (on a logged-in device). The key is stored on your server only, shown afterwards as `…abcd`, and never sent back to the browser. It survives restarts, and it overrides `TZ_GROK_API_KEY` if both are set.
 
 Or set it on Render as an environment variable:
 
@@ -240,16 +290,18 @@ To make the desk more selective, rather than "more accurate", raise `TZ_MIN_SIGN
 
 ## Wallets, deposits and withdrawals
 
-Link wallets in the **Wallets & funding** panel or via the API. Supported chains: BTC, ETH, SOL, XRP, XLM, ATOM, HBAR and EOS.
+Link wallets under **Settings → Crypto wallets** or via the API. **20 networks:** Bitcoin, Ethereum, Base, Arbitrum, Optimism, Polygon, BNB Smart Chain, Avalanche C-Chain, Solana, Tron, Litecoin, Dogecoin, Cardano, Polkadot, Algorand, XRP Ledger, Stellar, Cosmos, Hedera and EOS. Each shows its typical network fee, so you can pick a cheap one: USDC on Base, Solana or Polygon costs cents, while Ethereum can cost dollars.
 
-* **Address validation:** every address is format-checked for its chain.
-* **Withdrawal tags and memos:** XRP destination tags, and XLM, ATOM, HBAR and EOS memos, are validated and attached to every withdrawal to that wallet. If you leave the tag empty on a tag chain, you must explicitly confirm the destination doesn't need one, because a missing tag is the classic way to lose exchange deposits.
+* **Real checksum checks:** a typo is the most common way people lose crypto, and most address formats have a built-in checksum. TradeZone verifies it: Base58Check (Bitcoin legacy, Litecoin, Dogecoin, Tron, XRP), Bech32/Bech32m (Bitcoin SegWit and Taproot, Litecoin, Cosmos, Cardano), EIP-55 (all Ethereum-style networks), Stellar CRC16, Polkadot SS58 and Algorand. Solana, Hedera and EOS addresses have no checksum, and the app says so.
+* **The right network:** an Ethereum-style 0x address is valid on every EVM network, and sending on the wrong one can lose the money. The app asks which network your wallet uses.
+* **Test send first:** the first send to a new wallet is capped at **$25** (`TZ_TEST_SEND_USD`). When it arrives, tap **I got it** and full amounts unlock. A checksum proves an address is well-formed, not that it's yours; the test send proves that.
+* **Withdrawal tags and memos:** XRP destination tags and Stellar, Cosmos, Hedera and EOS memos are validated and attached to every withdrawal. If you leave the tag empty on a tag chain, you must confirm the destination doesn't need one, because a missing tag is the classic way to lose exchange deposits.
 * **Deposit tags:** every linked wallet gets a unique numeric deposit tag. Deposits that carry it are credited to that wallet. On chains without tags, deposits are matched by sender address. Unmatched deposits are **held** for review and credited only when you attribute them (`POST /api/deposits/{id}/credit`). A transaction hash can't be credited twice.
-* **Withdrawal safety:** withdrawals go only to linked wallets, only after a cooldown on newly linked wallets (`TZ_WITHDRAWAL_COOLDOWN_H`, default 24h), within a rolling 24h limit (`TZ_MAX_DAILY_WITHDRAWAL`) and never above free cash.
+* **Withdrawal safety:** withdrawals go only to linked wallets, only after a 24-hour cooldown on new wallets (`TZ_WITHDRAWAL_COOLDOWN_H`), within a rolling 24-hour limit (`TZ_MAX_DAILY_WITHDRAWAL`), and never above free cash (short-sale cash doesn't count).
 * **Funding isn't P&L:** deposits and withdrawals move the P&L baselines, so returns and the kill switch aren't distorted.
-* **Deposit addresses:** set the desk's own receiving addresses with `TZ_DEPOSIT_ADDRESSES=XRP:r...,ETH:0x...`.
+* **Deposit addresses:** set the desk's own receiving addresses with `TZ_DEPOSIT_ADDRESSES=XRP:r...,ETH:0x...`. They're checksum-checked too.
 
-> **Paper vs live.** In paper mode, deposits and withdrawals move simulated cash. The "Record deposit" form stands in for an on-chain watcher, which isn't included. In live mode, your funds sit at your broker, so withdrawals are recorded as `manual_required` and aren't debited until you complete them at the broker. TradeZone never moves real crypto on its own.
+> **Paper vs live, and cashing out real money.** In paper mode, deposits and withdrawals move simulated cash. In live mode, your money sits at your broker (Alpaca). To cash out real money as crypto, sell to cash or USDC in TradeZone, then withdraw from Alpaca's own app to a wallet you linked and **test-sent** here. TradeZone records it as `manual_required` and doesn't send real crypto on its own. Every crypto network charges a transfer fee, so a withdrawal is never entirely free; picking a cheap network (USDC on Base, Solana or Polygon) keeps the fee to cents.
 
 ## Security
 
@@ -257,7 +309,7 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 
 | Threat | Protection |
 | --- | --- |
-| Someone finds your site | Nothing works without signing in with your password (or Face ID). Until a password is chosen, setting up needs the one-time SETUP code that is only printed in the server logs. An optional `TZ_API_TOKEN` must be at least 16 characters on a public address, or the server refuses to start. `/api/health` reveals nothing, and the API docs (`/docs`, `/openapi.json`) are switched off. |
+| Someone finds your site | Nothing works without logging in. A device logs in only with the one-time code printed in the server logs, or a 6-digit code (or one-tap link) made on a device that's already logged in. Wrong codes ban the guessing address, the log code rotates after 10 wrong tries, and pairing codes burn out after 5. An optional `TZ_API_TOKEN` must be at least 16 characters on a public address, or the server refuses to start. `/api/health` reveals nothing, and the API docs are switched off. |
 | Guessing the token | After 5 wrong tokens in 15 minutes (`TZ_LOGIN_FAILURES_BEFORE_BAN`) the IP is blocked for 30 minutes (`TZ_BAN_MINUTES`), doubling for each repeat offence up to 7 days. Bans survive restarts. Devices already signed in keep working, so someone guessing on your Wi-Fi can't lock you out. |
 | Stolen token from the page or logs | The token is exchanged once for an **HttpOnly, Secure, SameSite=Strict session cookie**. Page scripts can't read it, and it never appears in a URL or the server's request logs. Sessions expire after 30 days unused. **Sign out all devices** cuts off any stolen session instantly. |
 | Stolen session moving money | Going live, adding a withdrawal wallet and withdrawing need the **token typed again** (step-up). New wallets also wait 24 hours before they can receive withdrawals. |
@@ -269,34 +321,29 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 | Spoofed IP addresses | Forwarded-for headers are only trusted from the hosting proxy (`TZ_TRUSTED_PROXIES`, set automatically on Render). |
 | Not knowing what happened | The **Security** panel shows signed-in devices, blocked IPs (with Unban), and a log of every sign-in, failure, ban and sensitive action, with IP and device. It's also stored in the journal. |
 
-Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. If you think someone else got in, use **Settings → Log out everywhere** and change your password. If you use an access token for scripts and suspect it leaked, change `TZ_API_TOKEN` on Render and redeploy.
+Also sent: HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, a restrictive `Permissions-Policy`, cross-origin isolation headers, `Cache-Control: no-store` on the API, and no `Server` header. If you think someone else got in, use **Settings → Log out everywhere**. If you use an access token for scripts and suspect it leaked, change `TZ_API_TOKEN` on Render and redeploy.
 
-### Logging in: a password your phone remembers (or Face ID)
+### Logging in: one code, no password, no Face ID
 
-Every visit starts on the **front page**: the TradeZone logo, your bot mascots, and **one** way to log in: a big Face ID button if you use Face ID, otherwise a password box (with a small link to switch).
+Every visit starts on the **front page** with **one box**: type a login code.
 
-* **First visit ever:** the front page asks for the one-time **setup code**. Find it in Render → your service → **Logs**, on the line `TradeZone SETUP code`. Then you pick **one** way to log in: **Face ID / fingerprint** (nothing to remember) or a **password** (at least 6 letters or numbers; spaces and emoji are fine). You can add the other later in Settings. Nobody can set up your site without that code, and it's only used up once your login is saved, so a cancelled Face ID prompt or a too-weak password can simply be retried.
-* **Let your phone save it.** The login box is a normal password form, so iPhone (iCloud Keychain), Android (Google Password Manager) and desktop browsers offer to save it and fill it in with Face ID or your fingerprint. Logging in becomes one tap.
-* **You stay logged in.** A device you've logged in on stays logged in for 30 days from your last visit, including the home-screen app. It doesn't ask for the password every time you open it. **Settings → Lock now** locks it on demand. To re-lock automatically after some idle minutes, set `TZ_LOCK_AFTER_MIN`.
-* **Had a 6-digit PIN before?** It still works: type it in the password box. You can change it in **Settings → Your password**.
-* **Typos are forgiven:** a wrong password never blocks your phone's internet address. Wrong passwords across the whole internet are limited to 10 per hour, so nobody can guess it. While that limit is active, Face ID, the code from another phone, and devices already logged in keep working. 8 wrong tries on a locked device log that device out.
-* **Other options on the front page:** "Have a code from your other phone?" (Settings → Show a login code) and **Forgot your password?**. That one uses the recovery code from the same Render logs (`TradeZone recovery code`, single use, a fresh one appears after each use and each restart), then you choose a new password.
-* **Stored safely:** only a salted scrypt hash is kept. Very common passwords (password, 123456, qwerty…) are refused.
-* **Face ID:** uses passkeys. Your phone's secure chip checks your face and signs a one-time challenge. **No face data ever leaves the phone**; the server stores only a public key. Also works with Touch ID, Android fingerprint and face unlock, and Windows Hello.
-* **Linking accounts and other important actions** (real money, broker, wallets, sending money, changing your login, adding a device) ask you to confirm it's you, with **one** method at a time: Face ID if you use it, otherwise your password, plus a small link to switch. **Logging in counts as confirming for 10 minutes**, so linking right after you log in asks nothing extra. Each confirmation also lasts 10 minutes.
-* **Linking your broker:** the sheet has an **Open Alpaca** button, and if you copy both keys together, one **Paste** fills both boxes.
-* **Your data stays put:** if a disk is mounted at `/data` (the Render blueprint does this), the password, trades and everything the bots learned are kept there automatically, so a redeploy doesn't wipe them.
-* `TZ_API_TOKEN` is optional: it's only for scripts (`Authorization: Bearer …`), and it also works as a recovery code.
+* **First time (or every device lost):** open Render → your service → **Logs** and find the line `TradeZone login code: 1234-5678`. Type the 8 numbers. A fresh code appears after each use and each restart.
+* **Another phone or computer:** on a device that's already logged in, open **Settings → Log in another device**. It shows a **6-digit code** (works once, for 5 minutes) and a **one-tap link** you can send yourself. Open the link on the other device and it's logged in.
+* **You stay logged in for a year** on each device, including the home-screen app. **Log out** in Settings, or **Log out everywhere** if a device is lost.
+* **Money safety without passwords:** real money only starts after you type **LIVE**. A new withdrawal wallet waits 24 hours and must pass a small **test send** before full amounts. Withdrawals go only to linked wallets, within a daily limit.
+* **Your data stays put:** if a disk is mounted at `/data` (the Render blueprint does this), your logins, trades and everything the bots learned survive redeploys.
+* `TZ_API_TOKEN` is optional: it's only for scripts (`Authorization: Bearer …`), and it also works as a login code.
 
 ## Settings and linked accounts
 
 Everything is under **Settings** on the home screen, in plain language:
 
-* **Logging in:** change your password, turn on Face ID, show a code for another phone, lock now, log out.
+* **Logging in:** log in another device (code or link), log out, log out everywhere.
+* **Your goal:** change the starting amount and target.
 * **Linked accounts:**
   * 🏦 **Real-money account (Alpaca):** tap **Connect** and follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
   * 🤖 **Grok AI helper:** paste your xAI key (see below).
-  * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone recognises the coin (Bitcoin, Ethereum, Solana, XRP, Stellar, Cosmos, Hedera, EOS), even from `bitcoin:…?amount=` links. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), confirm with your password or Face ID.
+  * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone checks it against the network's real checksum and recognises the network (20 supported, see below), even from `bitcoin:…?amount=` links. Ethereum-style 0x addresses work on several networks, so it asks which one. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), and the first send to a new wallet is a small test.
 * **Devices logged in:** see your phones and computers and **Log out everywhere**.
 * **Advanced:** the security log, blocked addresses and every technical detail are in the **Pro** view.
 
@@ -310,10 +357,10 @@ The dashboard is served by TradeZone itself. **It's ready the moment the server 
 
 1. Push this repo to GitHub.
 2. In Render: **New → Blueprint**, then pick the repo. `render.yaml` sets up an always-on service with a disk for the trade journal.
-3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. The front page asks for the SETUP code (shown in Render's **Logs** tab), then you pick a password.
+3. When the deploy turns **Live**, open the `https://tradezone-….onrender.com` URL Render shows. The front page asks for the login code (shown in Render's **Logs** tab). That's it.
 4. Optionally add your Alpaca / Grok keys under Environment. Never commit keys.
 
-Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Choose your password as soon as the site is up, because it controls real-money trading.
+Any Docker host works the same way (`docker run -p 8000:8000 --env-file .env -v tz-data:/data tradezone`). Log in as soon as the site is up (the first device to log in becomes the owner), because it controls real-money trading.
 
 ## Quick start
 
@@ -370,7 +417,7 @@ TZ_ALPACA_LIVE_SECRET=...
 TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
 ```
 
-Prices must be live (the default `TZ_FEED=auto` is). Your password protects the switch, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
+Prices must be live (the default `TZ_FEED=auto` is). You must be logged in, and you type LIVE to confirm, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
 
 ### Switching
 
@@ -386,7 +433,7 @@ Prices must be live (the default `TZ_FEED=auto` is). Your password protects the 
 | Live account reachable and **flat** | The desk doesn't import existing positions, so it refuses accounts that already hold any |
 | Paper book flat (the dialog offers **Flatten paper positions**) | Positions never carry across modes |
 | Kill switch not tripped | Investigate first, then reset |
-| A password is set before going live on a public address | Nobody else on the network can flip you to live |
+| Someone has logged in (the owner) before going live on a public address | Nobody else on the network can flip you to live |
 
 Paper and live keep **separate books**, so P&L, trades and the audit ledger never mix, and paper resumes where it left off. In live mode, Portfolio Manager checks positions against the broker every 30 cycles, and any mismatch pauses trading. Wallet deposits are recorded but not added to trading capital (your broker balance is the source of truth), and withdrawals are `manual_required`.
 
@@ -394,35 +441,35 @@ To start directly in live mode (for example, on a server after a restart), set `
 
 ## API
 
-The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scripts can instead send `Authorization: Bearer <TZ_API_TOKEN>` on every request; Bearer clients skip the app lock. Tokens are never accepted in URLs. Endpoints marked **step-up** also need the header `X-TZ-Confirm: <TZ_API_TOKEN>`.
+The dashboard signs in with an HttpOnly session cookie (a year, sliding). Scripts can instead send `Authorization: Bearer <TZ_API_TOKEN>` on every request. Tokens are never accepted in URLs.
 
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | `/api/health` | Liveness, returns `{"ok": true}` only (no auth) |
-| POST | `/api/login` · `/api/logout` | `{"token": …}` → session cookie / end the session |
-| GET | `/api/auth` | Signed in? Locked? Which unlock methods (password / Face ID) are set |
-| POST | `/api/unlock/pin` · `/api/lock` | Unlock with `{"pin": "482915"}` / lock now |
-| POST | `/api/webauthn/auth/options` · `/api/webauthn/auth/verify` | Face ID unlock (WebAuthn) |
-| GET | `/api/applock` | App-lock status: password set, Face ID keys, lock timeout |
-| POST / DELETE | `/api/applock/pin` | Set or change / remove the password (an old 6-digit PIN counts as one) (**step-up**) |
-| POST | `/api/webauthn/register/options` (**step-up**) · `/api/webauthn/register/verify` | Turn on Face ID for this device |
-| DELETE | `/api/webauthn/passkeys/{id}` | Remove a Face ID key (**step-up**) |
+| GET | `/api/setup/status` | `{owner, auth_required}`: has anyone logged in yet? |
+| POST | `/api/signin/code` | `{"code": …}`: the 8-digit code from the logs or a 6-digit code from another device → session cookie |
+| POST | `/api/devices/pair` | Make a 6-digit code (5 minutes, works once) to log in another device |
+| POST | `/api/login` · `/api/logout` | `{"token": …}` (API token) → session cookie / end the session |
+| GET | `/api/auth` | Signed in? |
 | GET | `/api/security` | Sessions, bans, security log, limits |
 | POST | `/api/security/unban` · `/api/security/signout-all` | Unblock an IP / sign out every device |
-| GET | `/api/state` | Full desk state: portfolio, bots, orders, events, Executive, Grok status |
+| GET | `/api/state` | Full desk state: portfolio, bots, orders, events, Executive, Grok, news, goal, today's hunt |
 | GET | `/api/bots` · `/api/bots/{name}/log` | Bot team status / one bot's last 200 actions |
 | POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot (safety-critical bots can't be disabled with positions open) |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
 | GET | `/api/trades?mode=&symbol=&limit=&offset=` · `/api/trades.csv` | Permanent trade log with totals / as CSV |
 | GET | `/api/journal?topic=order.filled` | Raw audit trail |
-| GET / POST | `/api/mode` | Preview a paper/live switch / switch: `{"mode": "live", "confirm": "LIVE"}` (**step-up**) or `{"mode": "paper", "flatten": true}` |
-| GET · POST · DELETE | `/api/grok` · `/api/grok/config` (**step-up**) | Grok status / save key, model and mode / remove the saved key |
+| GET / POST | `/api/mode` | Preview a paper/live switch / switch: `{"mode": "live", "confirm": "LIVE"}` or `{"mode": "paper", "flatten": true}` |
+| POST | `/api/goal` | `{"start": 50, "target": 10000}` |
+| GET · POST · DELETE | `/api/grok` · `/api/grok/config` | Grok status / save key, model and mode / remove the saved key |
 | POST | `/api/grok/ping` | Test the Grok connection |
-| GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` (**step-up**) |
+| GET / POST | `/api/wallets` | List wallets and transfers / link a wallet `{chain, address, tag?, label?, no_tag_confirmed?}` |
+| GET | `/api/wallets/check?address=` | Which network(s) an address is valid on, checksum-verified |
+| POST | `/api/wallets/{id}/received` | Confirm a test send arrived (unlocks full amounts) |
 | DELETE | `/api/wallets/{id}` | Unlink a wallet |
 | GET | `/api/deposits/info` | Deposit address and deposit tag for each wallet |
 | POST | `/api/deposits` · `/api/deposits/{id}/credit` | Record an incoming deposit / attribute a held one |
-| POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` (**step-up**) |
+| POST | `/api/withdrawals` | Withdraw to a linked wallet `{wallet_id, asset, amount}` |
 | WS | `/ws` | Live stream: `snapshot` on connect, then `action` (bot thoughts) and `event` (team events) as they happen, and `state` every cycle. Authorised by the session cookie; scripts send `{"type": "auth", "token": …}` as their first message. |
 
 ## Project layout
@@ -430,7 +477,7 @@ The dashboard signs in with an HttpOnly session cookie (`POST /api/login`). Scri
 ```
 tradezone/
   core/        event bus, models, indicators, portfolio ledger
-  bots/        the 11-bot team (incl. Grok AI analyst, the Executive head trader, the Skimmer and the learning Coach)
+  bots/        the 12-bot team (incl. the news Reporter, Grok AI analyst, the Executive head trader, the Skimmer and the learning Coach)
   wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
   brokers/     paper broker, Alpaca broker
