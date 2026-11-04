@@ -23,7 +23,6 @@ import asyncio
 import json
 import logging
 import re
-import time
 import xml.etree.ElementTree as ET
 from collections import deque
 from email.utils import parsedate_to_datetime
@@ -66,15 +65,15 @@ COINS = {
     "PEPE": r"pepe", "BONK": r"bonk", "WIF": r"dogwifhat|\bwif\b", "FLOKI": r"floki", "ADA": r"cardano|ada\b",
     "LTC": r"litecoin|ltc", "DOT": r"polkadot|dot\b",
 }
-CRYPTO_WORDS = re.compile(r"crypto|bitcoin|ethereum|stablecoin|token|blockchain|defi|exchange", re.I)
+CRYPTO_WORDS = re.compile(r"crypto|bitcoin|ethereum|stablecoin|token|blockchain|defi|exchange", re.IGNORECASE)
 
 
 def _words(table: dict[str, float]) -> list[tuple[re.Pattern, float]]:
-    return [(re.compile(rf"(?<![\w-]){re.escape(k)}(?![\w-])", re.I), w) for k, w in table.items()]
+    return [(re.compile(rf"(?<![\w-]){re.escape(k)}(?![\w-])", re.IGNORECASE), w) for k, w in table.items()]
 
 
 _POS, _NEG = _words(POSITIVE), _words(NEGATIVE)
-_COIN_RE = {c: re.compile(rf"(?<![\w$]){p}", re.I) for c, p in COINS.items()}
+_COIN_RE = {c: re.compile(rf"(?<![\w$]){p}", re.IGNORECASE) for c, p in COINS.items()}
 
 
 def score_headline(text: str) -> float:
