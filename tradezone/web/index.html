@@ -1119,7 +1119,7 @@ async function openLive(){
   const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">To make sure, type <b>LIVE</b></div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
   $('liveBody').innerHTML = blockers + acct + confirmBox;
   $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
-  $('liveConnect').style.display = c.blockers.some(b => /Linked accounts/.test(b)) ? '' : 'none';
+  $('liveConnect').style.display = c.blockers.some(b => /Linked accounts|Real-money account/.test(b)) ? '' : 'none';
   const w = $('liveWord');
   if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
 }
