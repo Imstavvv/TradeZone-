@@ -38,6 +38,29 @@ class RiskBot(Bot):
         self.last_trade: dict[str, float] = {}
         self.seen_signals: set[str] = set()
         self.strength_by_signal: dict[str, float] = {}  # for the Executive's defensive stance
+        self._peak_key: tuple | None = None  # (mode, day, book) the day's best equity belongs to
+        self.day_peak = 0.0
+
+    # ---- the goal: grow fast, lose little --------------------------------------------
+    def _track_day_peak(self) -> float:
+        p = self.portfolio
+        key = (self.desk.mode, self.desk._day, id(p))
+        if key != self._peak_key:
+            self._peak_key, self.day_peak = key, max(p.day_start_equity, p.equity)
+        self.day_peak = max(self.day_peak, p.equity)
+        return self.day_peak
+
+    def day_guard(self) -> dict:
+        """Today's gains lock and the losing-day brake."""
+        p, s = self.portfolio, self.settings
+        start, peak = p.day_start_equity, self._track_day_peak()
+        best = peak - start
+        locked = start > 0 and best >= s.day_lock_trigger_pct * start and p.equity <= start + best * (1 - s.day_giveback_pct)
+        lim = s.risk.max_daily_loss_pct
+        if self.desk.is_live:
+            lim = min(lim, s.live_max_daily_loss_pct)
+        return {"locked": bool(locked), "best_today": best, "best_today_pct": best / start if start > 0 else 0.0,
+                "brake": p.daily_pnl_pct <= -lim / 2, "keep_at_least": start + best * (1 - s.day_giveback_pct)}
 
     def subscriptions(self):
         return {
@@ -136,8 +159,12 @@ class RiskBot(Bot):
             return self.reject(sig, "trading paused")
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
-        if sig.side is Side.SELL:
-            return self.reject(sig, "TradeZone only buys - it never bets on prices falling")
+        guard = self.day_guard()
+        if guard["locked"]:  # minimal losses: a good day isn't handed back
+            return self.reject(sig, f"locking in today's gains: up {guard['best_today_pct']:.1%} at best and half "
+                                    "given back - no new trades until tomorrow")
+        if sig.side is Side.SELL and (why := self.desk.short_block(sig.symbol)):
+            return self.reject(sig, f"no short: {why}")
         s0 = self.settings
         news = self.desk.bots.get("news")
         if news is not None:  # 📰 breaking news: don't buy into a hack
@@ -222,24 +249,28 @@ class RiskBot(Bot):
             risk_budget *= s.meme_risk_mult
         if news is not None:  # scary world news: half-size new buys
             risk_budget *= news.size_mult(direction)
+        if guard["brake"]:  # a losing day: smaller trades until it turns
+            risk_budget *= s.losing_day_size
         qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
-        if sig.side is Side.BUY:
-            qty = min(qty, max(self.portfolio.cash, 0) * 0.995 / price)
+        # buys need cash; a short needs the same amount set aside (no borrowing to make bets bigger)
+        qty = min(qty, self.desk.free_cash() * 0.995 / price)
         # portfolio heat: total money at risk to all stops stays under the cap
         heat_room = equity * limits.max_portfolio_heat - self.open_risk()
         if heat_room <= 0:
             return self.reject(sig, f"portfolio heat at limit ({limits.max_portfolio_heat:.0%} of equity at risk)")
         qty = min(qty, heat_room / (stop_dist + cost))
         qty = self._round_qty(qty, price)
+        if sig.side is Side.SELL and not s.is_crypto(sig.symbol):
+            qty = float(int(qty))  # shares can only be shorted whole
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 
         # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
         checker = self.desk.live_broker
-        if checker is not None and s.is_crypto(sig.symbol):
+        if checker is not None and s.is_crypto(sig.symbol) and sig.side is Side.BUY:
             why = checker.sell_check(sig.symbol, qty, price, strict=self.desk.is_live)
             if why:
                 self.bump("rejected_unsellable")
@@ -271,6 +302,7 @@ class RiskBot(Bot):
     async def on_cycle(self) -> None:
         p = self.portfolio
         limits = self.settings.risk
+        self._track_day_peak()
         self.metrics.update(
             {
                 "drawdown": round(p.drawdown, 4),

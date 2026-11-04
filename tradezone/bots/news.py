@@ -240,8 +240,11 @@ class NewsBot(Bot):
         """A reason to skip a NEW trade this way because of breaking news, or None."""
         if not self.enabled or not self.active():
             return None
-        if direction > 0 and self.coin_score(symbol, self.BREAKING_S) <= -0.5:
+        recent = self.coin_score(symbol, self.BREAKING_S)
+        if direction > 0 and recent <= -0.5:
             return f"bad news on {symbol} in the last 2 hours"
+        if direction < 0 and recent >= 0.5:
+            return f"good news on {symbol} in the last 2 hours"
         return None
 
     def conviction_nudge(self, symbol: str, direction: int) -> float:

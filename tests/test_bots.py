@@ -57,12 +57,12 @@ def test_risk_rejections(desk, mutate, reason):
     assert rejected and reason in rejected[0]["reason"]
 
 
-def test_never_opens_a_short(desk):
-    prime(desk)
+def test_never_shorts_crypto(desk):
+    prime(desk, "BTC-USD", 50_000.0, atr=250.0)
     rejected = capture(desk, "signal.rejected")
-    desk.bus.publish("signal.proposed", Signal("AAPL", Side.SELL, 0.9, "t", "quant"))
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 0.9, "t", "quant"))
     run(desk.bus.drain())
-    assert "only buys" in rejected[0]["reason"] and desk.portfolio.position("AAPL").is_flat
+    assert "can't be shorted" in rejected[0]["reason"] and desk.portfolio.position("BTC-USD").is_flat
 
 
 def test_stop_loss_triggers_exit(desk):

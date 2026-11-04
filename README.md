@@ -183,9 +183,15 @@ News can only make the team more careful or slightly more confident. It never op
 
 ## Your goal, and "don't lose my money"
 
-**🏆 The goal** (default **$50 → $10,000**, change it in **Settings → Your goal**) is the 5th team rule: *reach it by compounding many small, safe wins, never by betting the account.* The goal card shows your progress, the next milestone ($100, $250, $500, …) and the pace so far. In practice mode, your account's growth is shown on the $50 scale.
+**🚀 The goal: grow the balance rapidly with minimal losses.** This is the 5th team rule. Growth comes from compounding many quick, fee-paid wins (quick flips on real money, skims, runners, and shorts where they work); minimal losses come from three guards that sit on top of the hard limits below:
 
-Be realistic about this goal: it is a **200×** increase. Even an excellent, steady **+1% every day** would take about **530 days**; +2% a day, about 270. Trying to do it "quickly" would mean betting big, which is the fastest way to lose the $50. So the goal never raises the bots' risk.
+| Guard | What it does |
+| --- | --- |
+| A small stop on every trade | each trade risks about 1% of the balance (less for meme coins), longs and shorts alike |
+| Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
+| Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) stops new trades until tomorrow; open trades keep their stops and targets, so a good day stays a good day |
+
+The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, change it in **Settings → Your goal**), the pace so far, and which guard is active. Growing fast never means bigger bets than the limits allow: compounding makes each trade a little bigger as the balance grows, and the Coach sizes up slowly after good results and down after bad ones. Be realistic: $50 → $10,000 is a 200× increase, about 530 days at a steady +1% a day or 270 at +2%.
 
 **🛡️ Don't lose the money** is the 6th team rule, and with real money the limits get stricter:
 
@@ -486,6 +492,21 @@ How it works and what to expect:
 * **Coins Uphold doesn't list** stay practice-only; the Connect screen lists them, and the Risk Manager explains instead of sending an order that would fail.
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
+
+### Shorting (only where it really works)
+
+The bots can also **short**: sell first and buy back lower, profiting when a price falls. Shorts follow the same guidelines as buys, mirrored: the same stop-loss and target percentages (the stop above the price, the target below, after fees), the same quick-flip plan, profit-taking, fee and transfer-fee rules, day lock and losing-day brake, and the same team vote, with a bearish majority and nobody objecting. Good news on a coin blocks shorting it, just as bad news blocks buying.
+
+Shorting switches itself on **only where it's possible** (`TZ_SHORTING=auto`; `off` disables it):
+
+| | Shorts? |
+| --- | --- |
+| Stocks on an **Alpaca margin account** (shorting enabled, $2,000+ equity) | ✅ only stocks Alpaca says are **easy to borrow** (checked every 10 min), whole shares only |
+| Crypto, anywhere | ❌ Kraken is used spot-only (no borrowing), and Alpaca and Uphold can't short crypto |
+| Meme coins | ❌ never: they can jump many times over, so a short's loss has no ceiling |
+| Practice | follows your linked account; with none linked, practice shorts stocks the way an Alpaca margin account would |
+
+A short never borrows to make the bet bigger: the same amount of cash is set aside as for a buy, and the cash a short sale brings in is shown as owed, so it can't be spent or sent. With the default crypto setup (Coinbase or Kraken prices), the bots therefore never short; add stocks (`TZ_SYMBOLS`) on an Alpaca margin account to use it.
 
 ### Quick flips (real money)
 

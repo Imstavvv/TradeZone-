@@ -145,9 +145,9 @@ class QuantBot(Bot):
         reason = f"{top} lead in {regime.value} regime (score {score:+.2f})"
         votes: dict[str, str] = {}
         if not closing:
-            if side is Side.SELL:
+            if side is Side.SELL and self.desk.short_block(s.symbol):
                 self.emitted[s.symbol] = new
-                return  # buy-only desk: a bearish view with nothing to sell is a no-op
+                return  # shorting isn't possible here: a bearish view with nothing to sell is a no-op
             if not pos.is_flat:
                 return  # already positioned this way
             self._voting_meme = self.settings.is_meme(s.symbol)

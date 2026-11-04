@@ -27,7 +27,7 @@ def trade(desk, sym="AAPL", entry=100.0, exit_=101.0, regime="trending_up", part
 
 def test_every_bot_has_a_mission_and_the_rules_are_shared(desk):
     assert [r["rule"] for r in TEAM_RULES] == ["Make money", "Take trades", "Grow", "Learn the markets",
-                                              "Reach the goal", "Don't lose the money"]
+                                              "The goal: grow fast, lose little", "Don't lose the money"]
     for bot in desk.bots.values():
         assert bot.mission, f"{bot.name} has no mission"
     st = desk.state()

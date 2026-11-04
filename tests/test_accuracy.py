@@ -113,7 +113,8 @@ def test_simultaneous_exits_never_oversell(desk):
 
 
 def test_unexpected_short_pauses_trading(desk):
-    desk.bus.publish("order.filled", Fill("x", "AAPL", Side.SELL, 1, 100))
+    desk.prices["BTC-USD"] = 100.0
+    desk.bus.publish("order.filled", Fill("x", "BTC-USD", Side.SELL, 1, 100))  # crypto can never be short
     run(desk.bus.drain())
     run(desk.bots["sentinel"].on_cycle())
     assert desk.paused and "short" in desk.pause_reason

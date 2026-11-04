@@ -26,6 +26,10 @@ class Broker(abc.ABC):
         """The smallest amount this venue lets you sell (0 = no known minimum)."""
         return 0.0
 
+    def can_short(self, symbol: str) -> bool:
+        """Whether this account can sell ``symbol`` short right now (borrow it and buy it back later)."""
+        return False
+
     def sell_check(self, symbol: str, qty: float, price: float, strict: bool = True) -> str | None:
         """Why buying could leave coins that can't be sold again, or None when it's fine."""
         return None

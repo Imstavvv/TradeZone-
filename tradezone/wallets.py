@@ -364,7 +364,7 @@ class WalletService:
         if usd < 2 * fee:
             raise WalletError(f"too small to be worth sending: the transfer fee (about ${fee:,.2f}) would take over half "
                               "of it - send more at once")
-        free = self.desk.portfolio.cash
+        free = self.desk.free_cash()
         if usd > free + 1e-9:
             raise WalletError(f"insufficient free cash ({free:,.2f} USD available)")
         if self.withdrawn_today() + usd > s.max_daily_withdrawal:

@@ -143,8 +143,9 @@ class SkimmerBot(Bot):
 
     # ---------------------------------------------------- profit-taking (exits)
     def _sell(self, sym: str, fraction: float, reason: str) -> None:
-        """Sell part of a position - always reduce-only."""
-        self.publish("signal.proposed", Signal(sym, Side.SELL, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction))
+        """Close part of a position (sell a long, buy back a short) - always reduce-only."""
+        side = Side.SELL if self.portfolio.position(sym).qty > 0 else Side.BUY
+        self.publish("signal.proposed", Signal(sym, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction))
 
     def on_tick(self, ev: Event) -> None:
         s = self.settings
@@ -154,10 +155,11 @@ class SkimmerBot(Bot):
             return
         pos = self.portfolio.position(t.symbol)
         pm = self.desk.bots.get("portfolio")
-        if pos.qty <= 0 or not pos.opened_ts or (pm and t.symbol in pm.exiting):
+        if pos.is_flat or not pos.opened_ts or (pm and t.symbol in pm.exiting):
             return
         price, entry = t.price, pos.avg_price
-        gain = price / entry - 1
+        d = 1 if pos.qty > 0 else -1  # shorts profit when the price falls
+        gain = (price / entry - 1) * d
         net = s.net_if_sold(pos, price)  # what selling now really makes, after both fees
         net_pct = net / (entry * abs(pos.qty)) if entry > 0 else 0.0
         if net_pct <= s.round_trip_cost(t.symbol, price) / price:
@@ -166,8 +168,8 @@ class SkimmerBot(Bot):
         sym = t.symbol
         # large: a sharp spike over the last few bars (5 minutes on 1-minute bars) -> sell half into it
         recent = self.bars.get(sym)
-        low = min(recent) if recent else price
-        spike = price / low - 1 if low > 0 else 0.0
+        ref = (min(recent) if d > 0 else max(recent)) if recent else price
+        spike = (price / ref - 1) * d if ref > 0 else 0.0  # a sharp move our way
         need = s.meme_spike_pct if s.is_meme(sym) else s.spike_pct
         last = self.spiked.get(sym)
         if spike >= need and net * s.spike_fraction >= least and (last is None or last[0] != pos.opened_ts or ts - last[1] > self.SPIKE_REPEAT_S):

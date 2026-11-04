@@ -1674,7 +1674,7 @@ function renderHunt(st){
   const n = v => Number(v || 0).toLocaleString();
   const stat = (big, label) => `<div class="hstat"><b>${big}</b><span>${label}</span></div>`;
   const reasons = {};
-  if (h.not_agreed) reasons["the signals didn't line up (the team only buys when they agree)"] = h.not_agreed;
+  if (h.not_agreed) reasons["the signals didn't line up (the team only trades when they agree)"] = h.not_agreed;
   for (const x of h.skipped || []) { const k = friendlyWhy(x.reason); reasons[k] = (reasons[k] || 0) + x.count; }
   const top = Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const warming = st.feed_status && st.feed_status.warming_up;
@@ -1844,10 +1844,16 @@ function renderGoal(g){
   const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: v < 1000 ? 2 : 0});
   const pace = g.reached ? '🎉 Goal reached!'
     : g.eta_days != null ? `At this pace: about ${Math.round(g.eta_days).toLocaleString()} days to go`
-    : `Even a strong +1% every day would take about ${g.days_at_1pct.toLocaleString()} days - the bots grow it safely, not by gambling`;
-  setHTML($('sGoal'), `<div class="row1"><span>🏆 Goal ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
+    : `At +1% a day that's about ${g.days_at_1pct.toLocaleString()} days, at +2% about ${g.days_at_2pct.toLocaleString()} - growing fast by compounding, never by gambling`;
+  const gd = g.guard || {};
+  const guard = gd.locked ? `🔒 Today's gains are locked in (best today +${(gd.best_today_pct * 100).toFixed(1)}%) - no new trades until tomorrow`
+    : gd.brake ? '🛟 Losing day: new trades are half size until it turns'
+    : gd.best_today_pct >= 0.02 ? `🔐 Up ${(gd.best_today_pct * 100).toFixed(1)}% today - if half of it slips away, the bots stop for the day`
+    : '🛡️ Small stop on every trade · half-size trades on a losing day · good days get locked in';
+  setHTML($('sGoal'), `<div class="row1"><span>🚀 Grow fast, lose little · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
     <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
-    <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>`);
+    <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>
+    <div class="note">${esc(guard)}</div>`);
 }
 
 // ---- confetti for profitable trades ----
@@ -1911,7 +1917,9 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/not chasing/, 'the price moved too fast'], [/through the stop/, 'the price had already fallen too far'], [/market is closed/, 'the stock market is closed'],
     [/correlated/, 'similar coins are already being held'], [/stale|no market data|no live price/, 'prices were out of date'],
     [/conviction/, "the signal wasn't strong enough"], [/already positioned/, "it's already being held"],
-    [/only buys/, "TradeZone only buys - it never bets on prices falling"], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
+    [/no short: meme/, 'meme coins are never shorted'], [/no short: crypto/, "crypto can't be shorted on your accounts"],
+    [/no short: (your|practice follows)/, "your account can't short it"], [/no short: shorting is off/, 'shorting is switched off'],
+    [/locking in today's gains/, "today's gains are locked in"], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
     [/is offline/, 'a team member is switched off'], [/meme coins/, 'enough meme coins are already held'],
     [/practice only/, "your real-money account can't trade that coin"], [/holding the runner/, "it's a runner - the trailing stop will sell it"],
@@ -1934,9 +1942,11 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
   const p = it.raw || {}, who = botTitle(it.bot);
   switch (it.topic) {
     case 'trade.log':
-      if (p.action === 'open' || p.action === 'add') return ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
+      if (p.action === 'open' || p.action === 'add') return p.side === 'sell'
+        ? ['📉', COLORS.execution, `Shorted ${num(p.qty)} ${p.symbol} at ${px(p.price)} (profits if it falls)`]
+        : ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
       return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
-        `${p.action === 'partial' ? 'Sold part of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
+        `${p.side === 'buy' ? (p.action === 'partial' ? 'Bought back part of' : 'Bought back') : (p.action === 'partial' ? 'Sold part of' : 'Sold')} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
     case 'signal.proposed':
       if (p.kind === 'entry' && p.source === 'skimmer') return ['🏄', COLORS.skimmer, `Skimmer spotted a quick dip to skim on ${p.symbol} and asked the team`];
       if (p.kind === 'entry' && p.source === 'quant' && /^snipe/.test(p.reason)) return ['🎯', COLORS.quant, `Quant sniped a breakout on ${p.symbol} and asked the team`];
@@ -1989,7 +1999,7 @@ function renderSimple(st){
     const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
       : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
     return `<div class="ptrade"><div class="s">${esc(x.symbol)}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
-      <div class="d">Bought ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
+      <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (profits if it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
       <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
       ${prot ? `<div class="d" style="grid-column:1/-1">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
   }).join('') : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';

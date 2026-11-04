@@ -132,6 +132,15 @@ class Settings:
     live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
     live_max_drawdown_pct: float = 0.10  # real money: stop after -10% from the peak (practice: -15%)
     live_capital_floor_pct: float = 0.10  # real money: stop if the account falls 10% below what you put in
+    # ---- shorting: profit from falling prices, same stops / targets / fees, mirrored ----
+    # auto = only where it really works: stocks on an Alpaca margin account that are easy to borrow
+    # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
+    # Never crypto (Kraken is used spot-only, Alpaca and Uphold can't short it) and never meme coins.
+    shorting: str = "auto"  # auto | off
+    # ---- the goal: grow the balance rapidly with minimal losses ----
+    day_lock_trigger_pct: float = 0.02  # once the day is up 2%...
+    day_giveback_pct: float = 0.5  # ...giving back half of the day's best gain stops new trades until tomorrow
+    losing_day_size: float = 0.5  # on a day already down half the daily limit, new trades are this size
     # ---- quick flips: on real money the bots trade more often and bank smaller wins sooner ----
     # Every target is counted AFTER fees (both buy and sell), and the hard limits above never change.
     live_quick_flips: bool = True
@@ -378,6 +387,8 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
+        if self.shorting not in ("auto", "off"):
+            raise ValueError("TZ_SHORTING must be auto or off")
         if self.stop_method not in ("structure", "atr", "percent"):
             raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
         for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):

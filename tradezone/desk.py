@@ -491,6 +491,31 @@ class TradingDesk:
             await self.backfill()
             self.bus.publish("alert", Alert("info", f"Now using {self.feed.name.title()}'s own prices", "desk"))
 
+    # -- shorting: only where it really works -----------------------------------------
+    def short_block(self, symbol: str) -> str | None:
+        """Why the bots may NOT short ``symbol`` here, or None when they may."""
+        s = self.settings
+        if s.shorting == "off":
+            return "shorting is off"
+        if s.is_meme(symbol):
+            return "meme coins are never shorted - they can jump many times over"
+        if s.is_crypto(symbol):
+            return "crypto can't be shorted on your accounts (Kraken is used spot-only; Alpaca and Uphold don't short it)"
+        b = self.live_broker
+        if self.is_live:
+            if b is None or not b.can_short(symbol):
+                return (f"your {b.label if b else 'real-money'} account can't short {symbol} "
+                        "(needs a margin account with shorting on and easy-to-borrow shares)")
+            return None
+        if b is not None and not b.can_short(symbol):
+            return f"practice follows your {b.label} account, which can't short {symbol}"
+        return None
+
+    def free_cash(self) -> float:
+        """Cash that is really yours: money from a short sale is owed back when the short is bought back."""
+        p = self.portfolio
+        return max(0.0, p.cash - sum(abs(x.market_value) for x in p.open_positions if x.qty < 0))
+
     # -- transfer fees: what it costs to move profit out ------------------------------
     def transfer_fee(self) -> float:
         """Estimated cost of one transfer out (USD): your setting, else the cheapest linked wallet's network."""
@@ -931,7 +956,7 @@ class TradingDesk:
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
-            "goal": self.goal_status(),
+            "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard()},  # type: ignore[attr-defined]
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),
