@@ -245,7 +245,13 @@ def test_partial_profit_takes_never_leave_an_unsellable_remainder():
     desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.SELL, 1.0, "bank half", "skimmer",
                                                kind=SignalKind.EXIT, fraction=0.5))
     run(desk.bus.drain())
-    assert approved and approved[-1].qty == pytest.approx(30.0)  # 15 + 15 would both be under 20: sells all 30
+    assert not approved and pos.qty == 30.0  # 15 + 15 would both be under 20: no slice, the trade keeps running
+    pos.qty = 60.0
+    fk.bal["XXDG"] = 60.0
+    desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.SELL, 1.0, "bank a quarter", "skimmer",
+                                               kind=SignalKind.EXIT, fraction=0.25))
+    run(desk.bus.drain())
+    assert approved and approved[-1].qty == pytest.approx(20.4)  # a quarter (15) raised to Kraken's minimum
 
 
 def test_feed_finds_kraken_meme_coins_that_trade_enough():

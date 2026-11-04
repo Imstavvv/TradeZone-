@@ -522,7 +522,7 @@ How it works and what to expect:
 Nothing caps how much the bots can make in a day or on a trade:
 
 * winners keep running: the **moving take-profit** (below) has no top, and a runner has no target at all;
-* only a **slice** is banked early: a quarter at a quick flip (`TZ_FLIP_BANK_FRACTION`), a third at the target (`TZ_RUNNER_SELL_FRACTION`); the rest keeps going;
+* only a **slice** is banked early: a quarter at a quick flip (`TZ_FLIP_BANK_FRACTION`), a third at the target (`TZ_RUNNER_SELL_FRACTION`); the rest keeps going. A slice smaller than the venue's minimum order is raised to the minimum, or skipped if the rest would then be too small to sell (the whole trade keeps running, protected by its stop), so a small account's winners are never sold off whole by a profit-take;
 * a great day **never stops trading**, not at +2%, not at the daily goal, not at +1,000%; if a good day starts slipping, new trades just get smaller;
 * trade sizes **compound**: each trade is a share of the current balance, so they grow as it grows.
 

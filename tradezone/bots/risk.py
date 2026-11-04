@@ -150,11 +150,13 @@ class RiskBot(Bot):
                     return self.reject(sig, f"strategy exit skipped: +{net:,.2f} isn't worth its share of the "
                                             f"~${self.desk.transfer_fee():,.2f} transfer fee yet")
             qty = abs(pos.qty)
-            if sig.fraction < 1.0:
-                part = self._round_qty(qty * sig.fraction, price)
+            if sig.fraction < 1.0:  # a partial take is profit-taking: never let it turn into selling everything
                 least = max(self.desk.broker.min_qty(sig.symbol, price), 1.0 / price)  # the venue's smallest sale
-                if part >= least and qty - part >= least:  # both the part and what's left can still be sold
-                    qty = part
+                part = max(self._round_qty(qty * sig.fraction, price), least * 1.02)  # at least the minimum
+                if qty - part < least:  # the rest would be unsellable dust: keep the whole trade running instead
+                    return self.reject(sig, "profit slice skipped: too small to split on this venue - the whole trade "
+                                            "keeps running (its stop protects it)")
+                qty = part
             # reduce-only exits are always allowed: they lower risk
             return self.approve(
                 OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, reduce_only=True)
