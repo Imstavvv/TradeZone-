@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from tests.helpers import run
-from tests.test_kraken import SECRET, FakeKraken, broker, kraken_desk
+from tests.test_kraken import SECRET, FakeKraken, kraken_desk
 from tradezone.config import Settings
 from tradezone.desk import ModeSwitchError, TradingDesk
 from tradezone.journal import Journal
