@@ -47,6 +47,18 @@ Safety properties:
 
 ## A fun, friendly interface
 
+**One page per tab (Simple view).** The bottom bar has five tabs, and each is its own page that opens at the top. The phone's back button works, and links like `…/#/trades` open straight to that page.
+
+| Tab | What's on it |
+| --- | --- |
+| 🏠 **Home** | The bots and all the trading: Kai & Rin, your balance and the trading buttons, Today's hunt, open trades, the bot crew |
+| 📣 **Activity** | What's happening (live), what the world is saying (news), team rules, what the team has learned |
+| 📈 **Trades** | Latest results and the full trade log (filter, export) |
+| 💰 **Money** | Real-money account, Grok AI helper, crypto wallets and sending money |
+| ⚙️ **Settings** | Logging in (another device, log out), your goal, devices logged in |
+
+The **Pro** view keeps everything on one long, detailed page for experts.
+
 **🎯 Today's hunt** (top of the Home screen) shows what the bots did today: chances checked, how many the team liked, trades opened, and wins out of trades closed. It also lists, in plain words, the most common reasons they skipped, so you can tell the bots are working even when they're not buying. If something is stopping them altogether (no live prices, paused, or emergency stop), the card says so.
 
 **⚔️ The arena: Kai & Rin.** Two original anime fighters, created for TradeZone in the style of classic 90s battle anime, stand on a sunset battlefield above your balance and react to how trading is going:

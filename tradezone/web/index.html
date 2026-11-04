@@ -243,6 +243,10 @@ body.simple #mode,body.simple #grokBadge,body.simple #conn{display:none}
 #simple{grid-column:1/-1;display:none;gap:14px}
 body.simple #simple{display:grid}
 body.simple .pro{display:none !important}
+[hidden]{display:none !important}
+.pagehead{margin:2px 2px 12px}
+.pagehead h2{margin:0;font-family:var(--anime,inherit);font-style:italic;font-weight:900;font-size:28px;color:var(--gold,#fde047);text-shadow:2px 2px 0 var(--ink,#000)}
+.pagehead p{margin:4px 0 0;color:var(--muted);font-size:14px}
 body.simple header .controls{display:none}
 .hero{background:linear-gradient(135deg,#1e1b4b,#0f172a 60%);border:1px solid #312e81;border-radius:18px;padding:20px}
 body.is-live .hero{background:linear-gradient(135deg,#3b0d0d,#0f172a 60%);border-color:#7f1d1d}
@@ -770,14 +774,18 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 <main>
   <div class="banner" id="banner"></div>
   <section id="simple">
-    <div class="arena" id="arena" aria-label="Your fighters react to how trading is going">
+    <div class="pagehead" data-page="activity"><h2>📣 Activity</h2><p>What the bots are doing, what the world is saying, and what the team has learned.</p></div>
+    <div class="pagehead" data-page="trades"><h2>📈 Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
+    <div class="pagehead" data-page="money"><h2>💰 Money</h2><p>Your real-money account, your crypto wallets and sending money out.</p></div>
+    <div class="pagehead" data-page="settings"><h2>⚙️ Settings</h2><p>Logging in, your goal and the devices that are logged in.</p></div>
+    <div class="arena" data-page="home" id="arena" aria-label="Your fighters react to how trading is going">
       <div class="sky"></div><div class="ground"></div>
       <div class="fighter kai" id="fKai"><div class="say" id="sayKai"></div></div>
       <div class="kiclash" aria-hidden="true"><i></i></div>
       <div class="fighter rin" id="fRin"><div class="say" id="sayRin"></div></div>
       <div class="arenatag">KAI <span>&amp;</span> RIN · <b id="arenaState">ready</b></div>
     </div>
-    <div class="hero">
+    <div class="hero" data-page="home">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
       <div class="bal" id="sBal">—</div>
@@ -795,36 +803,35 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
       </div>
     </div>
     <div class="sgrid">
-      <div class="scard" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
-      <div class="scard" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
-      <div class="scard"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
-      <div class="scard" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Everything ›</a></h4><div id="sHappen"></div></div>
-      <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
-      <div class="scard" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
+      <div class="scard" data-page="home" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
+      <div class="scard" data-page="home"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
+      <div class="scard" data-page="activity" id="sec-happening" style="grid-column:1/-1"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
+      <div class="scard" data-page="activity" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
+      <div class="scard" data-page="trades" style="grid-column:1/-1"><h4>Latest results</h4><div id="sResults"></div></div>
+      <div class="scard" data-page="home" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
-      <div class="scard" id="sec-rules"><h4>📜 Team rules</h4><div id="sRules"></div>
+      <div class="scard" data-page="activity" id="sec-rules"><h4>📜 Team rules</h4><div id="sRules"></div>
         <div class="muted" style="font-size:12px;margin-top:8px">Every bot works by these. The safety limits (stops, daily loss limit) always come first.</div></div>
-      <div class="scard" id="sec-learned"><h4>🧠 What the team has learned <span class="muted" id="sLearnN" style="font-size:12px"></span></h4>
+      <div class="scard" data-page="activity" id="sec-learned"><h4>🧠 What the team has learned <span class="muted" id="sLearnN" style="font-size:12px"></span></h4>
         <div id="sLearnStats" class="learnstats"></div><div id="sLearned"></div></div>
     </div>
     <div id="sec-settings">
-      <h3 class="shead">⚙️ Settings</h3>
       <div class="sgrid">
-        <div class="scard"><h4>🔐 Logging in</h4>
+        <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
           <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
           <div class="srow"><div class="ic">📱</div><div class="tx"><b>Log in another device</b><span>Shows a 6-digit code and a one-tap link (works once, for 5 minutes)</span></div><button id="setPairBtn" class="gopaper">Show code</button></div>
           <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>To come back, use a code from another device or your Render logs</span></div><button id="setLogoutBtn">Log out</button></div>
         </div>
-        <div class="scard"><h4>🏆 Your goal</h4>
+        <div class="scard" data-page="settings"><h4>🏆 Your goal</h4>
           <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
         </div>
-        <div class="scard"><h4>🔗 Linked accounts</h4>
+        <div class="scard" data-page="money" style="grid-column:1/-1"><h4>🔗 Your accounts &amp; wallets</h4>
           <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
           <div class="srow"><div class="ic">🤖</div><div class="tx"><b>Grok AI helper</b><span id="accGrokTxt">Optional - double-checks every trade</span></div><button id="accGrokBtn">Connect</button></div>
           <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
           <div id="walletCards"></div>
         </div>
-        <div class="scard"><h4>📱 Devices logged in</h4>
+        <div class="scard" data-page="settings"><h4>📱 Devices logged in</h4>
           <div id="devList" class="emptyhint">Loading…</div>
           <button id="devOutAll" class="danger" style="margin-top:12px;width:100%">Log out everywhere</button>
           <details style="margin-top:14px"><summary class="muted" style="cursor:pointer">Advanced (for experts)</summary>
@@ -872,7 +879,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     <section class="panel"><h2>Alerts</h2><div class="feed" id="alerts"></div></section>
   </div>
 
-  <section class="panel tradelog" id="tradelog">
+  <section class="panel tradelog" data-page="trades" id="tradelog">
     <h2><span><span class="livedot"></span>Trade log · every fill</span><a class="counter" id="csvLink" href="#" download>Export CSV</a></h2>
     <div class="tl-bar">
       <select id="tlMode"><option value="">Paper + live</option><option value="paper">Paper only</option><option value="live">Live only</option></select>
@@ -2211,32 +2218,51 @@ $('sdGo').onclick = async () => {
   catch (e) { $('sdErr').textContent = e.message || 'Could not send'; }
 };
 
-// =================== Simple / Pro view + bottom navigation ===================
-const NAV = {
-  simple: [['top', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'],
-           ['sec-happening', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
-           ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
-           ['sec-settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>']],
-  pro:    [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
-           ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],
-           ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
-           ['sec-activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
-           ['sec-security', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>']],
-};
+// =================== pages (Simple view) / sections (Pro view) + bottom navigation ===================
+// Simple view: Home holds the bots and all the trading; every other tab is its own page.
+const PAGES = [['home', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'], ['activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'], ['trades', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+               ['money', 'Money', '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>'], ['settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>']];
+const PRO_NAV = [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
+                 ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],
+                 ['tradelog', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'], ['sec-activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'],
+                 ['sec-security', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>']];
+const PAGE_OF = {top: 'home', 'sec-hunt': 'home', tradelog: 'trades', 'sec-happening': 'activity', 'sec-news': 'activity',
+                 'sec-settings': 'settings', 'sec-wallet': 'money'};
+S.page = 'home';
+function pageFromHash(){ const m = location.hash.match(/^#\/(\w+)/); return m && PAGES.some(([k]) => k === m[1]) ? m[1] : 'home'; }
+function showPage(pg, {push = true} = {}){
+  if (!PAGES.some(([k]) => k === pg)) pg = 'home';
+  S.page = pg;
+  const simple = S.view === 'simple';
+  document.querySelectorAll('main [data-page]').forEach(el => { el.hidden = simple && el.dataset.page !== pg; });
+  document.body.dataset.tab = simple ? pg : '';  // (not data-page: that marks the blocks shown per page)
+  document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
+  if (push && simple && location.hash !== '#/' + pg) history.pushState(null, '', pg === 'home' ? location.pathname : '#/' + pg);
+  window.scrollTo({top: 0});
+  if (pg === 'trades' && S.state) loadTrades(true);
+  if (S.state) render();
+}
+window.addEventListener('popstate', () => { if (S.view === 'simple') showPage(pageFromHash(), {push: false}); });
 function scrollToSection(id){
+  if (S.view === 'simple' && PAGE_OF[id]) return showPage(PAGE_OF[id]);
   if (id === 'top') return window.scrollTo({top: 0, behavior: 'smooth'});
   const el = $(id); if (!el) return;
   window.scrollTo({top: el.getBoundingClientRect().top + window.scrollY - $('top').offsetHeight - 8, behavior: 'smooth'});
 }
 function updateNav(){
-  const items = NAV[S.view] || NAV.simple;
-  $('bottomnav').innerHTML = items.map(([id, label, icon], i) => `<a href="#${id}" data-sec="${id}" class="${i ? '' : 'on'}">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>${label}</a>`).join('');
-  $('bottomnav').querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); scrollToSection(a.dataset.sec); });
+  const nav = $('bottomnav'), svg = icon => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>`;
+  if (S.view === 'simple') {
+    nav.innerHTML = PAGES.map(([k, label, icon]) => `<a href="#/${k}" data-pg="${k}" class="${k === S.page ? 'on' : ''}">${svg(icon)}${label}</a>`).join('');
+    nav.querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); showPage(a.dataset.pg); });
+  } else {
+    nav.innerHTML = PRO_NAV.map(([id, label, icon], i) => `<a href="#${id}" data-sec="${id}" class="${i ? '' : 'on'}">${svg(icon)}${label}</a>`).join('');
+    nav.querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); scrollToSection(a.dataset.sec); });
+  }
 }
 window.addEventListener('scroll', () => {
+  if (S.view === 'simple') return;  // pages, not scroll positions
   const hdr = $('top').offsetHeight; let cur = 'top';
-  for (const [id] of (NAV[S.view] || []).slice(1)) { const el = $(id); if (el && el.offsetParent && el.getBoundingClientRect().top - hdr < innerHeight * 0.35) cur = id; }
+  for (const [id] of PRO_NAV.slice(1)) { const el = $(id); if (el && el.offsetParent && el.getBoundingClientRect().top - hdr < innerHeight * 0.35) cur = id; }
   document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.sec === cur));
 }, {passive: true});
 function setView(v){
@@ -2245,7 +2271,7 @@ function setView(v){
   document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
   try { localStorage.setItem('tz_view', S.view); } catch {}
   updateNav();
-  if (S.state) render();
+  showPage(S.view === 'simple' ? pageFromHash() : S.page, {push: false});
 }
 document.querySelectorAll('#viewToggle button').forEach(b => b.onclick = () => setView(b.dataset.view));
 
