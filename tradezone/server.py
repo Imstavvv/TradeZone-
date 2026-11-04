@@ -71,8 +71,8 @@ class LoginBody(BaseModel):
 
 class BrokerBody(BaseModel):
     key: str
-    secret: str
-    platform: str = "alpaca"  # alpaca | kraken
+    secret: str = ""
+    venue: str = "alpaca"  # alpaca | kraken (Key + Secret) | uphold (key = access token)
 
 
 class GoalBody(BaseModel):
@@ -506,10 +506,10 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
     @app.post("/api/accounts/broker", dependencies=[Depends(check_token)])
     async def link_broker(body: BrokerBody, request: Request):
         try:
-            acct = await desk.link_broker(body.key, body.secret, body.platform)
+            acct = await desk.link_broker(body.key, body.secret, venue=body.venue)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None
-        audit(request, f"linked a real-money {body.platform} account (trading only, no withdrawals)", "warning")
+        audit(request, f"linked a real-money {desk.broker_info()['label']} account (trading only, no withdrawals)", "warning")
         return _clean({"ok": True, "account": acct, **desk.broker_info()})
 
     @app.delete("/api/accounts/broker", dependencies=[Depends(check_token)])

@@ -194,10 +194,6 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .pastebox{display:flex;gap:8px;margin-top:4px}
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
-.pick2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.pick2 button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:10px}
-.pick2 button small{font-size:11px;font-weight:500;opacity:.8}
-.pick2 button.on{background:linear-gradient(180deg,#ffc14a,#ff7a00);color:var(--ink,#000)}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
 .okbox{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:8px}
 .coinchips{display:flex;flex-wrap:wrap;gap:8px}
@@ -670,19 +666,30 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     <div class="row" style="margin-top:12px"><button id="brokerClose2">Done</button><button id="brokerUnlink" class="danger">Disconnect</button></div>
   </div>
   <div id="brokerForm">
-    <div class="pick2" id="brokerPick">
-      <button type="button" data-plat="alpaca" class="on">🦙 Alpaca<small>stocks + crypto</small></button>
-      <button type="button" data-plat="kraken">🐙 Kraken<small>crypto, incl. meme coins</small></button>
+    <div class="muted" style="font-size:14px">Where do you keep your money?</div>
+    <div class="coinchips" id="venuePick" style="margin:6px 0 4px"><button type="button" data-venue="uphold" class="on">🟢 Uphold</button><button type="button" data-venue="alpaca">🦙 Alpaca</button><button type="button" data-venue="kraken">🐙 Kraken</button></div>
+    <div id="upholdForm">
+    <div class="muted" style="font-size:14px">TradeZone trades real money in your <b>Uphold</b> account - crypto and meme coins, straight from your USD balance. Connecting takes a few minutes:</div>
+    <ol class="howto">
+      <li>Put the money the bots may use (e.g. <b>$50</b>) in your Uphold <b>USD</b> balance.</li>
+      <li>On the computer running TradeZone, run <span class="mono">python -m tradezone uphold-token</span> and log in to Uphold when asked (your password goes only to Uphold and isn't saved).</li>
+      <li>Copy the long token it prints and paste it below.</li>
+    </ol>
+    <a class="openlink" href="https://wallet.uphold.com/" target="_blank" rel="noopener noreferrer">Open Uphold ↗</a>
+    <label class="fl">Uphold access token</label>
+    <div class="pastebox"><input id="upholdToken" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="upholdToken">📋 Paste</button></div>
+    <div class="muted" style="font-size:12px">Heads-up: Uphold's price includes a spread of about 1% each way, so the bots skip tiny trades that couldn't beat it. Practice trades charge the same cost, so practice results match real ones.</div>
     </div>
+    <div id="alpacaForm" style="display:none">
     <div class="steps-alpaca">
-      <div class="muted" style="font-size:14px">TradeZone trades real money through <b>Alpaca</b>, a regulated broker. Connecting takes about 2 minutes:</div>
-      <ol class="howto">
-        <li>Open <b>alpaca.markets</b> and log in (or sign up - it's free).</li>
-        <li>Make sure you're in your <b>Live</b> account, not "Paper".</li>
-        <li>On the home page find <b>API Keys</b> and tap <b>Generate New Keys</b>.</li>
-        <li>Copy the two codes and paste them below (copying both at once works too).</li>
-      </ol>
-      <a class="openlink" href="https://app.alpaca.markets/" target="_blank" rel="noopener noreferrer">Open Alpaca ↗</a>
+    <div class="muted" style="font-size:14px">TradeZone trades real money through <b>Alpaca</b>, a regulated broker. Connecting takes about 2 minutes:</div>
+    <ol class="howto">
+      <li>Open <b>alpaca.markets</b> and log in (or sign up - it's free).</li>
+      <li>Make sure you're in your <b>Live</b> account, not "Paper".</li>
+      <li>On the home page find <b>API Keys</b> and tap <b>Generate New Keys</b>.</li>
+      <li>Copy the two codes and paste them below (copying both at once works too).</li>
+    </ol>
+    <a class="openlink" href="https://app.alpaca.markets/" target="_blank" rel="noopener noreferrer">Open Alpaca ↗</a>
     </div>
     <div class="steps-kraken" style="display:none">
       <div class="muted" style="font-size:14px">The bots can <b>buy, sell and take profits</b> on Kraken. They can <b>never withdraw</b> money or crypto.</div>
@@ -699,6 +706,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     <div class="pastebox"><input id="brokerKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="AK…"><button type="button" data-paste="brokerKey">📋 Paste</button></div>
     <label class="fl" id="brokerSecretLbl">Secret Key</label>
     <div class="pastebox"><input id="brokerSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="brokerSecret">📋 Paste</button></div>
+    </div>
     <div class="lockerr" id="brokerErr"></div>
     <div class="muted" style="font-size:12px">Your keys stay on your own server and are never shown again. TradeZone keeps using practice money until you choose "Use real money".</div>
     <div class="row" style="margin-top:12px"><button id="brokerCancel">Cancel</button><button id="brokerGo" class="gopaper">Connect</button></div>
@@ -783,7 +791,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 </div></div>
 <div class="modal" id="liveModal"><div class="box">
   <h3>💵 Use real money?</h3>
-  <div class="muted">From now on the bots buy and sell with <b>real money</b> in your connected account (Alpaca or Kraken), on their own, until you switch back, pause or use the emergency stop.</div>
+  <div class="muted">From now on the bots buy and sell with <b>real money</b> in your <span class="venueName">Alpaca</span> account, on their own, until you switch back, pause or use the emergency stop. They can trade and take profits, but <b>can't withdraw</b>.</div>
   <div id="liveBody" style="margin-top:12px">Checking live account…</div>
   <div class="actions">
     <button id="liveCancel">Keep practising</button>
@@ -2049,7 +2057,8 @@ function renderSettings(){
   if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
-    $('accBrokerTxt').textContent = b.linked ? `${b.platform_name || 'Connected'} ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''} · trades only, can't withdraw` : "Not connected - Alpaca or Kraken (you're using practice money)";
+    document.querySelectorAll('.venueName').forEach(e => e.textContent = b.label || 'Alpaca');
+    $('accBrokerTxt').textContent = b.linked ? `${b.label} connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''} · trades only, can't withdraw` : "Not connected - Uphold, Alpaca or Kraken (you're using practice money)";
     $('accBrokerBtn').textContent = b.linked ? 'Manage' : 'Connect'; $('accBrokerBtn').className = b.linked ? '' : 'gopaper';
     $('accGrokTxt').textContent = !g.configured ? 'Optional - double-checks every trade'
       : g.connected ? `Connected ✓ · ${g.mode === 'veto' ? 'approves every new trade' : g.mode === 'advisory' ? 'gives advice only' : 'switched off'}`
@@ -2105,7 +2114,7 @@ async function pasteInto(input){
   try {
     const text = (await navigator.clipboard.readText()).trim();
     // broker keys copied together ("Key ID ... Secret ..."): fill both boxes in one go
-    const keys = (input.id === 'brokerKey' || input.id === 'brokerSecret') && BR.plat === 'alpaca' && text.match(/\b(A?[KP]K[A-Z0-9]{14,})\b[\s\S]*?\b([A-Za-z0-9/+]{30,})\b/);
+    const keys = (input.id === 'brokerKey' || input.id === 'brokerSecret') && VENUE === 'alpaca' && text.match(/\b(A?[KP]K[A-Z0-9]{14,})\b[\s\S]*?\b([A-Za-z0-9/+]{30,})\b/);
     if (keys) { $('brokerKey').value = keys[1]; $('brokerSecret').value = keys[2]; toast('Both keys pasted ✓', 'ok'); return; }
     input.value = text; input.dispatchEvent(new Event('input')); }
   catch { input.focus(); toast('Tap the box, then choose Paste', 'info'); }
@@ -2113,37 +2122,41 @@ async function pasteInto(input){
 document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e => { if (e.target === sh && sh.id !== 'askSheet') sh.classList.remove('open'); }));
 
 // ---- connect a real-money broker ----
-const BR = {plat: 'alpaca'};
-function brokerPlatform(p){
-  BR.plat = p;
-  document.querySelectorAll('#brokerPick [data-plat]').forEach(b => b.classList.toggle('on', b.dataset.plat === p));
-  document.querySelector('#brokerForm .steps-alpaca').style.display = p === 'alpaca' ? '' : 'none';
-  document.querySelector('#brokerForm .steps-kraken').style.display = p === 'kraken' ? '' : 'none';
-  $('brokerKeyLbl').innerHTML = p === 'kraken' ? 'API Key' : 'Key ID <span class="muted">(starts with AK)</span>';
-  $('brokerSecretLbl').textContent = p === 'kraken' ? 'Private Key' : 'Secret Key';
-  $('brokerKey').placeholder = p === 'kraken' ? 'Kraken API key' : 'AK…';
+let VENUE = 'uphold';
+function pickVenue(v){
+  VENUE = v; document.querySelectorAll('#venuePick [data-venue]').forEach(b => b.classList.toggle('on', b.dataset.venue === v));
+  const kr = v === 'kraken';
+  $('upholdForm').style.display = v === 'uphold' ? '' : 'none'; $('alpacaForm').style.display = v === 'uphold' ? 'none' : '';
+  document.querySelector('#alpacaForm .steps-alpaca').style.display = kr ? 'none' : '';
+  document.querySelector('#alpacaForm .steps-kraken').style.display = kr ? '' : 'none';
+  $('brokerKeyLbl').innerHTML = kr ? 'API Key' : 'Key ID <span class="muted">(starts with AK)</span>';
+  $('brokerSecretLbl').textContent = kr ? 'Private Key' : 'Secret Key';
+  $('brokerKey').placeholder = kr ? 'Kraken API key' : 'AK…';
   $('brokerErr').textContent = '';
 }
-document.querySelectorAll('#brokerPick [data-plat]').forEach(b => b.onclick = () => brokerPlatform(b.dataset.plat));
+document.querySelectorAll('#venuePick [data-venue]').forEach(b => b.onclick = () => pickVenue(b.dataset.venue));
 async function openBroker(){
-  $('brokerErr').textContent = ''; $('brokerKey').value = $('brokerSecret').value = '';
+  $('brokerErr').textContent = ''; $('brokerKey').value = $('brokerSecret').value = $('upholdToken').value = '';
   const A = await loadAccounts(); const b = A && A.broker;
+  pickVenue(b && b.venue || 'uphold');
   $('brokerLinked').style.display = b && b.linked ? '' : 'none'; $('brokerForm').style.display = b && b.linked ? 'none' : '';
-  brokerPlatform(b && b.platform ? b.platform : 'alpaca');
-  if (b && b.linked) $('brokerStatus').innerHTML = `✅ Connected to <b>${esc(b.platform_name || 'your broker')}</b> (key ${esc(b.key)})` +
+  if (b && b.linked) $('brokerStatus').innerHTML = `✅ ${esc(b.label || '')} connected (key ${esc(b.key)})` +
     (b.account ? `<br>Available cash: <b>${money(b.account.cash)}</b> · Account value: <b>${money(b.account.equity)}</b>` : '') +
     '<br>🛡️ The bots can trade and take profits. <b>They can\'t withdraw</b> money or crypto.' +
+    (b.practice_only && b.practice_only.length ? `<br><span class="muted">Practice only (${esc(b.label)} can't trade them): ${b.practice_only.map(esc).join(', ')}</span>` : '') +
     '<br><span class="muted">To trade with it, tap <b>Use real money</b> on the home screen.</span>';
   $('brokerSheet').classList.add('open');
 }
 $('brokerCancel').onclick = $('brokerClose2').onclick = () => $('brokerSheet').classList.remove('open');
 $('brokerGo').onclick = async () => {
-  const key = $('brokerKey').value.trim(), secret = $('brokerSecret').value.trim();
-  if (!key || !secret) { $('brokerErr').textContent = 'Paste both keys.'; return; }
+  const up = VENUE === 'uphold';
+  const key = (up ? $('upholdToken') : $('brokerKey')).value.trim(), secret = up ? '' : $('brokerSecret').value.trim();
+  if (up && !key) { $('brokerErr').textContent = 'Paste your Uphold access token.'; return; }
+  if (!up && (!key || !secret)) { $('brokerErr').textContent = 'Paste both keys.'; return; }
   const h = await confirmAction('connect your real-money account'); if (h === null) return;
   $('brokerGo').disabled = true;
-  $('brokerErr').textContent = BR.plat === 'kraken' ? 'Checking with Kraken (and making sure the key can\'t withdraw)…' : 'Checking with Alpaca…';
-  try { const r = await api('/api/accounts/broker', {key, secret, platform: BR.plat}, h);
+  $('brokerErr').textContent = VENUE === 'kraken' ? 'Checking with Kraken (and making sure the key can\'t withdraw)…' : `Checking with ${up ? 'Uphold' : 'Alpaca'}…`;
+  try { const r = await api('/api/accounts/broker', {key, secret, venue: VENUE}, h);
         toast(`Connected ✓ ${r.account ? money(r.account.cash) + ' available' : ''}`, 'ok', 5000); confetti(); openBroker(); }
   catch (e) { $('brokerErr').textContent = e.message || 'Could not connect'; }
   finally { $('brokerGo').disabled = false; }

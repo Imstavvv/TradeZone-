@@ -133,7 +133,7 @@ def test_coins_you_already_hold_are_never_counted_or_sold():
 
 
 def kraken_desk(fk):
-    s = Settings(feed="coinbase", live_platform="kraken", kraken_key="KEY", kraken_secret=SECRET,
+    s = Settings(feed="coinbase", live_venue="kraken", kraken_key="KEY", kraken_secret=SECRET,
                  symbols=["BTC-USD", "DOGE-USD"], withdrawal_cooldown_h=0)
     s.risk.symbol_cooldown_s = 0
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"), live_broker=broker(fk))
@@ -175,10 +175,10 @@ def test_link_kraken_from_the_app_and_remember_it(monkeypatch, tmp_path):
     desk = TradingDesk(Settings(feed="coinbase"), journal=Journal(db))
     with pytest.raises(ValueError, match="Withdraw Funds"):
         fk.can_withdraw = True
-        run(desk.link_broker("KEY", SECRET, "kraken"))
+        run(desk.link_broker("KEY", SECRET, venue="kraken"))
     fk.can_withdraw = False
-    assert run(desk.link_broker("KEY", SECRET, "kraken"))["cash"] == 500.0
+    assert run(desk.link_broker("KEY", SECRET, venue="kraken"))["cash"] == 500.0
     info = desk.broker_info()
-    assert info["linked"] and info["platform"] == "kraken" and info["ready"]
+    assert info["linked"] and info["venue"] == "kraken" and info["label"] == "Kraken" and info["ready"]
     again = TradingDesk(Settings(feed="coinbase"), journal=Journal(db))
     assert again.load_linked_broker() and again.live_broker.name == "kraken"

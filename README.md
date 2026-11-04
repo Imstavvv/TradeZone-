@@ -2,7 +2,7 @@
 
 A multi-bot trading platform. Twelve specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
-It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
+It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through **Uphold** or Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
 ## The bot team
 
@@ -346,7 +346,7 @@ Everything is under **Settings** on the home screen, in plain language:
 * **Logging in:** log in another device (code or link), log out, log out everywhere.
 * **Your goal:** change the starting amount and target.
 * **Linked accounts:**
-  * 🏦 **Real-money account (Alpaca):** tap **Connect** and follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
+  * 🏦 **Real-money account (Uphold or Alpaca):** tap **Connect**, pick where your money is, and follow the steps. For Uphold, paste the access token (see [Trading real money on Uphold](#trading-real-money-on-uphold)). For Alpaca, follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
   * 🤖 **Grok AI helper:** paste your xAI key (see below).
   * 👛 **Crypto wallets:** tap **Add a wallet** and **paste** the address. TradeZone checks it against the network's real checksum and recognises the network (20 supported, see below), even from `bitcoin:…?amount=` links. Ethereum-style 0x addresses work on several networks, so it asks which one. For coins that use a tag or memo, it asks "Is this wallet at an exchange?" and, if yes, asks for the tag. Then you give it a nickname. Each saved wallet shows **💸 Send money**: pick the coin, type the amount (with a "≈ $" estimate), and the first send to a new wallet is a small test.
 * **Devices logged in:** see your phones and computers and **Log out everywhere**.
@@ -406,7 +406,7 @@ All settings are environment variables with the `TZ_` prefix. A `.env` file in t
 
 ## Live trading
 
-Real money trades through **Alpaca** (stocks + crypto) or **Kraken** (crypto, including BONK, WIF and FLOKI, which Alpaca doesn't list). Connect one on the **Money** page. The one you connected last is the one that trades.
+Real money trades through **Uphold** (crypto and meme coins), **Alpaca** (stocks + crypto) or **Kraken** (crypto, including BONK, WIF and FLOKI, which Alpaca doesn't list). Connect one on the **Money** page. The one you connected last is the one that trades.
 
 ### Kraken: trades and profits, never withdrawals
 
@@ -418,7 +418,7 @@ The bots can **buy, sell and take profits** on Kraken. **Nothing in TradeZone ca
 
 Make the key in Kraken → **Settings → API → Create API key**. Turn on **Query Funds**, **Query Open Orders & Trades**, **Query Closed Orders & Trades**, **Create & Modify Orders** and **Cancel/Close Orders**. Leave **Withdraw Funds**, Deposit Funds and Earn **off**.
 
-Orders are market orders on each coin's USD pair, rounded down to Kraken's lot size and checked against its minimum order. Kraken's fee comes back with every fill and is counted in your results. The bots trade with the USD in the account (not USDC or USDT). Server-side alternative to linking in the app: `TZ_LIVE_PLATFORM=kraken`, `TZ_KRAKEN_KEY`, `TZ_KRAKEN_SECRET`.
+Orders are market orders on each coin's USD pair, rounded down to Kraken's lot size and checked against its minimum order. Kraken's fee comes back with every fill and is counted in your results. The bots trade with the USD in the account (not USDC or USDT). Server-side alternative to linking in the app: `TZ_LIVE_VENUE=kraken`, `TZ_KRAKEN_KEY`, `TZ_KRAKEN_SECRET`.
 
 > **Warning.** Live mode places real orders with real money. The bundled strategies have only been tested on synthetic data, which says nothing about real-world profitability. Only trade money you can afford to lose, and use a dedicated account.
 
@@ -437,6 +437,24 @@ TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
 ```
 
 Prices must be live (the default `TZ_FEED=auto` is). You must be logged in, and you type LIVE to confirm, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
+
+### Trading real money on Uphold
+
+Uphold is a good fit for a small account (like the $50 goal): you trade straight from your Uphold USD balance into BTC, ETH, SOL, XRP, DOGE, SHIB, PEPE and more.
+
+1. Put the money the bots may use in your Uphold **USD** balance.
+2. Make an access token. On the machine running TradeZone, run `python -m tradezone uphold-token` and log in when asked. Your email, password and 2-step code go only to `api.uphold.com` over HTTPS and aren't saved. If Uphold won't make a token this way for your account, any Uphold OAuth access token also works.
+3. In the app, go to **Settings → Linked accounts → Real-money account → Connect**, choose **Uphold** and paste the token. Or set `TZ_UPHOLD_TOKEN=...` on the server.
+4. Tap **Use real money** when you're ready.
+
+How it works and what to expect:
+
+* **Prices** still come from Coinbase's real-time stream. **Orders** are Uphold transactions between your cards (USD → DOGE to buy, DOGE → USD to sell), committed at once. The first trade in a coin opens a "TradeZone DOGE" card for it.
+* **Cost:** Uphold has no separate fee; its cost is the *spread* built into its price, roughly 1% each way on crypto (often more on small coins). Every fill reports the market price and books the spread as a cost, so P&L includes every cent Uphold keeps. When Uphold is your real-money account, practice trades charge the same cost (`TZ_UPHOLD_FEE_BPS`, default 100 = 1% per side; set `TZ_CRYPTO_FEE_BPS` to override).
+* **That means fewer, bigger trades.** A round trip costs about 2%, and a trade must aim for at least 3× its cost, so tiny 2.5% skims are skipped and the team leans on meme-coin flips with 15% targets. Rapid trading that can't beat the spread just hands money to the exchange.
+* **Coins Uphold doesn't list** stay practice-only; the Connect screen lists them, and the Risk Manager explains instead of sending an order that would fail.
+* **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
+* `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
 
 ### Switching
 
@@ -499,7 +517,7 @@ tradezone/
   bots/        the 12-bot team (incl. the news Reporter, Grok AI analyst, the Executive head trader, the Skimmer and the learning Coach)
   wallets.py   wallet linking, deposit/withdrawal tags, funding ledger
   market/      feeds: simulated, Coinbase (public), Alpaca
-  brokers/     paper broker, Alpaca broker
+  brokers/     paper broker, Uphold broker, Alpaca broker
   desk.py      orchestrator: cycle loop, controls, kill switch
   server.py    FastAPI REST + WebSocket
   web/         single-file real-time dashboard

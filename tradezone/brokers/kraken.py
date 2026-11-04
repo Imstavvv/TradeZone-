@@ -54,6 +54,7 @@ def sign(path: str, data: dict, secret: str) -> str:
 
 class KrakenBroker(Broker):
     name = "kraken"
+    label = "Kraken"
     is_live = True
     BASE = "https://api.kraken.com"
 
@@ -98,8 +99,8 @@ class KrakenBroker(Broker):
             self.pairs[f"{ours}-USD"] = {"pair": p.get("altname") or key, "base": p["base"],
                                          "lot": int(p.get("lot_decimals", 8)), "ordermin": float(p.get("ordermin") or 0)}
 
-    def supports(self, symbol: str) -> bool:
-        return not self.pairs or symbol in self.pairs  # unknown until the pair list loads: let Risk decide later
+    def supports(self, symbol: str) -> bool | None:
+        return (symbol in self.pairs) if self.pairs else None  # None = unknown until the pair list loads
 
     # ------------------------------------------------------------- linking
     async def verify(self) -> dict:

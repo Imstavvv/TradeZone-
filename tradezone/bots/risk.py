@@ -152,8 +152,9 @@ class RiskBot(Bot):
         if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
                 >= self.settings.max_meme_positions:
             return self.reject(sig, f"already holding {self.settings.max_meme_positions} meme coins")
-        if self.desk.is_live and not self.desk.broker.supports(sig.symbol):
-            return self.reject(sig, f"{sig.symbol} can't be traded on your real-money account (practice only)")
+        if self.desk.is_live and self.desk.broker.supports(sig.symbol) is False:
+            return self.reject(sig, f"{sig.symbol} can't be traded on your real-money {self.desk.broker.label} "
+                                    "account (practice only)")
         since = now() - self.last_trade.get(sig.symbol, 0)
         if since < limits.symbol_cooldown_s:
             return self.reject(sig, f"symbol cooldown ({limits.symbol_cooldown_s - since:.0f}s left)")

@@ -30,9 +30,10 @@ class FakeLiveBroker(PaperBroker):
     """Stands in for the Alpaca live account."""
 
     name = "alpaca"
+    label = "Alpaca"
     is_live = True
 
-    def supports(self, symbol):  # like Alpaca: only the coins Alpaca lists
+    def supports(self, symbol):
         from tradezone.config import Settings
         return Settings.live_tradeable(symbol)
 

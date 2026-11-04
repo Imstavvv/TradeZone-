@@ -33,6 +33,7 @@ def _is_crypto(sym: str) -> bool:
 
 class AlpacaBroker(Broker):
     name = "alpaca"
+    label = "Alpaca"
     PAPER_URL = "https://paper-api.alpaca.markets"
     LIVE_URL = "https://api.alpaca.markets"
 
@@ -45,7 +46,7 @@ class AlpacaBroker(Broker):
         self.client = client or httpx.AsyncClient(base_url=base, headers=headers, timeout=10.0)
         self._reported: dict[str, tuple[float, float]] = {}  # order id -> (qty, avg)
 
-    def supports(self, symbol: str) -> bool:
+    def supports(self, symbol: str) -> bool | None:
         from ..config import Settings
         return Settings.live_tradeable(symbol)
 

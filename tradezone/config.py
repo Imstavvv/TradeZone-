@@ -39,6 +39,9 @@ def _env(name: str, default):
     return raw
 
 
+# real-money venues -> how the app names them
+VENUES = {"alpaca": "Alpaca", "kraken": "Kraken", "uphold": "Uphold"}
+
 @dataclass
 class RiskLimits:
     risk_per_trade: float = 0.01  # fraction of equity risked to the stop
@@ -99,7 +102,14 @@ class Settings:
     # Kraken (real money, crypto): a key WITHOUT withdraw permission - TradeZone refuses keys that can withdraw
     kraken_key: str = ""
     kraken_secret: str = ""
-    live_platform: str = "alpaca"  # which real-money account trades: alpaca | kraken (linking one in the app picks it)
+    # ---- Uphold (real money): one bearer token (Personal Access Token or OAuth token) ----
+    uphold_token: str = ""
+    # Uphold's cost is its spread (built into the rate). Practice trades charge this much per side
+    # when Uphold is the real-money venue, so practice results match what real money would do.
+    uphold_fee_bps: float = 100.0
+    # which venue trades real money: auto | uphold | alpaca | kraken
+    # (auto: Uphold if its token is set, else Kraken if its key is set, else Alpaca; linking one in the app picks it)
+    live_venue: str = "auto"
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- "don't lose my money": stricter limits whenever real money is trading ----
     live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
@@ -227,6 +237,19 @@ class Settings:
         """Per-unit cost to enter and exit: fees + slippage both ways, plus a small margin."""
         return price * (2 * (self.fee_bps(symbol) + self.slippage_bps) + 2) / 10_000
 
+    def venue(self) -> str:
+        """The real-money venue in use: uphold, kraken or alpaca."""
+        if self.live_venue in VENUES:
+            return self.live_venue
+        if self.uphold_token:
+            return "uphold"
+        return "kraken" if self.kraken_key else "alpaca"
+
+    def apply_venue_costs(self) -> None:
+        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee)."""
+        if self.venue() == "uphold" and "TZ_CRYPTO_FEE_BPS" not in os.environ:
+            self.crypto_fee_bps = max(self.crypto_fee_bps, self.uphold_fee_bps)
+
     def data_keys(self) -> tuple[str, str] | None:
         if self.alpaca_key and self.alpaca_secret:
             return self.alpaca_key, self.alpaca_secret
@@ -237,9 +260,14 @@ class Settings:
     def live_blockers(self) -> list[str]:
         """Configuration problems preventing live trading (empty = live can be enabled)."""
         out = []
-        if self.live_platform == "kraken":
+        if self.venue() == "uphold":
+            if not self.uphold_token:
+                out.append("connect your Uphold account first: Money → Real-money account "
+                           "(server setting TZ_UPHOLD_TOKEN)")
+        elif self.venue() == "kraken":
             if not (self.kraken_key and self.kraken_secret):
-                out.append("connect your Kraken account first: Money → Real-money account (server setting TZ_KRAKEN_KEY / TZ_KRAKEN_SECRET)")
+                out.append("connect your Kraken account first: Money → Real-money account "
+                           "(server setting TZ_KRAKEN_KEY / TZ_KRAKEN_SECRET)")
         elif not (self.alpaca_live_key and self.alpaca_live_secret):
             out.append("connect your real-money account first: Money → Real-money account "
                        "(server setting TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET)")
@@ -274,6 +302,10 @@ class Settings:
             bad = [s for s in self.symbols if not s.endswith("-USD")]
             if bad:
                 raise ValueError(f"Coinbase only quotes crypto pairs like BTC-USD; not: {', '.join(bad)}")
+        if self.live_venue not in ("auto", *VENUES):
+            raise ValueError("TZ_LIVE_VENUE must be auto, uphold, kraken or alpaca")
+        self.uphold_token = self.uphold_token.strip()
+        self.apply_venue_costs()
         if self.broker not in ("paper", "alpaca"):
             raise ValueError("TZ_BROKER must be paper or alpaca")
         if self.mode == "live":
@@ -288,8 +320,6 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
-        if self.live_platform not in ("alpaca", "kraken"):
-            raise ValueError("TZ_LIVE_PLATFORM must be alpaca or kraken")
         if self.stop_method not in ("structure", "atr", "percent"):
             raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
         for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):

@@ -36,10 +36,15 @@ def main() -> None:
     sv.add_argument("--port", type=int)
     sm = sub.add_parser("sim", parents=[common], help="run a fast headless simulation and print a report")
     sm.add_argument("--steps", type=int, default=2000)
+    sub.add_parser("uphold-token", parents=[common],
+                   help="make an Uphold access token for real-money trading (asks for your login)")
     args = ap.parse_args()
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
     load_dotenv()
+    if args.cmd == "uphold-token":
+        asyncio.run(_uphold_token())
+        return
     if "PORT" in os.environ and "TZ_PORT" not in os.environ:  # hosting platforms (Render, Railway, Fly)
         os.environ["TZ_PORT"] = os.environ["PORT"]
         os.environ.setdefault("TZ_HOST", "0.0.0.0")
@@ -68,6 +73,26 @@ def main() -> None:
         ws_max_size=64 * 1024,  # clients only ever send tiny messages
         limit_concurrency=300, timeout_keep_alive=5,
     )
+
+
+async def _uphold_token() -> None:
+    import getpass
+
+    from .brokers.uphold import create_personal_access_token
+
+    print("Make an Uphold access token for TradeZone.")
+    print("Your email and password go only to api.uphold.com over HTTPS and are not saved anywhere.\n")
+    user = input("Uphold email: ").strip()
+    password = getpass.getpass("Uphold password: ")
+    code = input("2-step verification code (leave empty if you don't use one): ").strip() or None
+    try:
+        token = await create_personal_access_token(user, password, code)
+    except Exception as exc:
+        print(f"\nCouldn't make a token: {exc}")
+        raise SystemExit(1) from None
+    print("\nDone. Paste this token into TradeZone (Settings → Linked accounts → Real-money account → Uphold),")
+    print("or set it on the server as TZ_UPHOLD_TOKEN. Treat it like a password:\n")
+    print(token)
 
 
 async def _sim(settings: Settings, steps: int) -> None:

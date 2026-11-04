@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from .bots import TEAM
 from .bots.base import Bot
 from .brokers.base import Broker
-from .config import Settings
+from .config import VENUES, Settings
 from .core.bus import Event, EventBus
 from .core.models import Alert
 from .core.portfolio import Portfolio
@@ -49,13 +49,14 @@ def build_broker(s: Settings) -> Broker:
     return PaperBroker(s.fee_bps, s.slippage_bps)
 
 
-PLATFORMS = {"alpaca": "Alpaca", "kraken": "Kraken"}
-
-
 def build_live_broker(s: Settings) -> Broker | None:
     if s.live_blockers():
         return None
-    if s.live_platform == "kraken":
+    if s.venue() == "uphold":
+        from .brokers.uphold import UpholdBroker
+
+        return UpholdBroker(s.uphold_token, symbols=s.symbols)
+    if s.venue() == "kraken":
         from .brokers.kraken import KrakenBroker
 
         return KrakenBroker(s.kraken_key, s.kraken_secret)
@@ -214,18 +215,18 @@ class TradingDesk:
         blockers = self._switch_blockers(target)
         account = None
         if target == "live" and self.live_broker is not None and not self.settings.live_blockers():
-            name = PLATFORMS[self.settings.live_platform]
             acct = await self.live_broker.account()
             kraken = hasattr(self.live_broker, "capture_baseline")
             # Kraken: coins you already hold are noted and left alone, so they don't block anything
             positions = {} if kraken else await self.live_broker.positions()
             if acct is None:
-                blockers.append(f"couldn't reach your {name} account - check it on the Money page")
+                blockers.append(f"couldn't reach your {self.live_broker.label} account - check it in Settings → Linked accounts")
             else:
-                account = {**acct, "positions": positions or {}, "platform": name}
+                account = {**acct, "positions": positions or {}, "venue": self.live_broker.label}
                 if positions:
                     blockers.append(
-                        f"your {name} account already holds {len(positions)} position(s) - close them in {name} first "
+                        f"your {self.live_broker.label} account already holds {len(positions)} position(s) of coins the "
+                        f"bots trade - sell them in {self.live_broker.label} first "
                         "(TradeZone needs an account with nothing open)"
                     )
                 cap = self.settings.live_max_capital
@@ -375,7 +376,9 @@ class TradingDesk:
             self.journal.conn.commit()
 
     # A real-money account linked in the app is stored server-side (never sent back to the browser).
-    # Rows: 'alpaca_live' / 'kraken_live' (keys), 'live_platform' (which one trades), 'kraken_baseline'.
+    # Rows: 'alpaca_live' / 'kraken_live' / 'uphold_live' (only one at a time) and 'kraken_baseline'.
+    LIVE_ROWS = ("alpaca_live", "kraken_live", "uphold_live", "kraken_baseline")
+
     def _account_row(self, kind: str) -> dict | None:
         import json as _json
         self._accounts_table()
@@ -390,33 +393,74 @@ class TradingDesk:
         else:
             self.journal.run("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES (?, ?)", (kind, _json.dumps(data)))
 
+    def _use_venue(self, venue: str, data: dict) -> None:
+        """Remember one real-money account (forgetting any other) and point the settings at it."""
+        for kind in self.LIVE_ROWS:
+            self._save_account_row(kind, None)
+        self._save_account_row(f"{venue}_live", data)
+        s = self.settings
+        s.alpaca_live_key = s.alpaca_live_secret = s.kraken_key = s.kraken_secret = s.uphold_token = ""
+        if venue == "uphold":
+            s.uphold_token = data["token"]
+        elif venue == "kraken":
+            s.kraken_key, s.kraken_secret = data["key"], data["secret"]
+        else:
+            s.alpaca_live_key, s.alpaca_live_secret = data["key"], data["secret"]
+        s.live_venue = venue
+        s.apply_venue_costs()
+
     def load_linked_broker(self) -> bool:
-        s, found = self.settings, False
-        if (d := self._account_row("alpaca_live")) is not None:
-            s.alpaca_live_key, s.alpaca_live_secret, found = d["key"], d["secret"], True
-        if (d := self._account_row("kraken_live")) is not None:
-            s.kraken_key, s.kraken_secret, found = d["key"], d["secret"], True
-        if (d := self._account_row("live_platform")) is not None:
-            s.live_platform = d["platform"]
-        if not found:
+        s = self.settings
+        if (d := self._account_row("uphold_live")) is not None:
+            s.uphold_token, s.live_venue = d["token"], "uphold"
+        elif (d := self._account_row("kraken_live")) is not None:
+            s.kraken_key, s.kraken_secret, s.live_venue = d["key"], d["secret"], "kraken"
+        elif (d := self._account_row("alpaca_live")) is not None:
+            s.alpaca_live_key, s.alpaca_live_secret, s.live_venue = d["key"], d["secret"], "alpaca"
+        else:
             return False
+        s.apply_venue_costs()
         self.broker_source = "app"
         if not s.live_blockers():
             self.live_broker = build_live_broker(s)
-            if s.live_platform == "kraken" and (b := self._account_row("kraken_baseline")) is not None:
+            if s.venue() == "kraken" and (b := self._account_row("kraken_baseline")) is not None:
                 self.live_broker.baseline = b  # type: ignore[union-attr]
         return True
 
-    async def link_broker(self, key: str, secret: str, platform: str = "alpaca") -> dict:
-        """Check real-money keys work, then use that account for live trading."""
-        key, secret = (key or "").strip(), (secret or "").strip()
-        if platform not in PLATFORMS:
-            raise ValueError("Pick Alpaca or Kraken.")
+    async def _link_uphold(self, token: str) -> dict:
+        from .brokers.uphold import UpholdBroker
+        token = token.strip().removeprefix("Bearer ").strip()
+        if len(token) < 20:
+            raise ValueError("Paste your whole Uphold access token (it's a long code).")
+        broker = UpholdBroker(token, symbols=self.settings.symbols)
+        acct = await broker.account()
+        if acct is None:
+            await broker.close()
+            raise ValueError("Uphold didn't accept this token. Make a new one and copy it completely.")
+        await broker.load_assets()
+        self._use_venue("uphold", {"token": token})
+        old, self.live_broker = self.live_broker, broker
+        self.broker_source = "app"
+        if old is not None and old is not broker:
+            await old.close()
+        unsupported = [s for s in self.settings.symbols if broker.supports(s) is False]
+        if unsupported:
+            self.bus.publish("alert", Alert("warning", "Uphold can't trade " + ", ".join(unsupported)
+                                            + " - those stay practice-only", "desk"))
+        return acct
+
+    async def link_broker(self, key: str, secret: str = "", venue: str = "alpaca") -> dict:
+        """Check the real-money credentials work, then use them for live trading (trading only, never withdrawals)."""
         if self.is_live:
             raise ValueError("Switch back to practice money before changing the account.")
+        if venue == "uphold":
+            return await self._link_uphold(key or "")
+        if venue not in ("alpaca", "kraken"):
+            raise ValueError("Choose Alpaca, Kraken or Uphold.")
+        key, secret = (key or "").strip(), (secret or "").strip()
         if not key or not secret:
             raise ValueError("Paste both keys.")
-        if platform == "kraken":
+        if venue == "kraken":
             from .brokers.kraken import KrakenBroker
             broker: Broker = KrakenBroker(key, secret)
             try:
@@ -434,14 +478,7 @@ class TradingDesk:
             if acct is None:
                 await broker.close()
                 raise ValueError("Alpaca didn't accept these keys. Check you copied both parts completely.")
-        self._save_account_row(f"{platform}_live", {"key": key, "secret": secret})
-        self._save_account_row("live_platform", {"platform": platform})
-        if platform == "kraken":
-            self._save_account_row("kraken_baseline", None)  # recorded fresh when live trading starts
-            self.settings.kraken_key, self.settings.kraken_secret = key, secret
-        else:
-            self.settings.alpaca_live_key, self.settings.alpaca_live_secret = key, secret
-        self.settings.live_platform = platform
+        self._use_venue(venue, {"key": key, "secret": secret})  # Kraken's baseline is recorded when live starts
         old, self.live_broker = self.live_broker, broker
         self.broker_source = "app"
         if old is not None and old is not broker:
@@ -451,16 +488,13 @@ class TradingDesk:
     async def unlink_broker(self) -> None:
         if self.is_live:
             raise ValueError("Switch back to practice money first.")
-        platform = self.settings.live_platform
-        self._save_account_row(f"{platform}_live", None)
-        if platform == "kraken":
-            self._save_account_row("kraken_baseline", None)
-            self.settings.kraken_key = self.settings.kraken_secret = ""
-        else:
-            self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
+        for kind in self.LIVE_ROWS:
+            self._save_account_row(kind, None)
         if self.live_broker is not None:
             await self.live_broker.close()
         self.live_broker = None
+        s = self.settings
+        s.alpaca_live_key = s.alpaca_live_secret = s.kraken_key = s.kraken_secret = s.uphold_token = ""
         self.broker_source = ""
 
     def owner_protected(self) -> bool:
@@ -471,13 +505,15 @@ class TradingDesk:
         return self.settings.host in ("127.0.0.1", "localhost", "::1")
 
     def broker_info(self) -> dict:
-        s = self.settings
-        key = s.kraken_key if s.live_platform == "kraken" else s.alpaca_live_key
-        return {"linked": bool(key), "platform": s.live_platform, "platform_name": PLATFORMS[s.live_platform],
+        venue = self.settings.venue()
+        key = {"uphold": self.settings.uphold_token, "kraken": self.settings.kraken_key}.get(venue, self.settings.alpaca_live_key)
+        return {"linked": bool(key), "source": getattr(self, "broker_source", "") or ("server" if key else ""),
+                "venue": venue, "label": VENUES[venue],
                 "can_withdraw": False,  # TradeZone never withdraws; Kraken keys that could are refused
-                "source": getattr(self, "broker_source", "") or ("server" if key else ""),
                 "key": f"…{key[-4:]}" if len(key) >= 8 else "", "ready": not self.settings.live_blockers(),
-                "blockers": self.settings.live_blockers()}
+                "blockers": self.settings.live_blockers(),
+                "practice_only": [s for s in self.settings.symbols
+                                  if self.live_broker is not None and self.live_broker.supports(s) is False]}
 
     async def start(self) -> None:
         self.load_linked_broker()
@@ -486,6 +522,8 @@ class TradingDesk:
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
+        if self.live_broker is not None and hasattr(self.live_broker, "load_assets"):
+            await self.live_broker.load_assets()  # which coins Uphold can trade (others stay practice-only)
         if dropped := getattr(self.feed, "dropped", None):
             self.bus.publish("alert", Alert("warning", f"Not listed on {self.feed.name}, skipped: {', '.join(dropped)}", "desk"))
         await self.backfill()
