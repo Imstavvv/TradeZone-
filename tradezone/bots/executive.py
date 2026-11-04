@@ -130,8 +130,8 @@ class ExecutiveBot(Bot):
         crypto = self.settings.is_crypto
         if not crypto(req.symbol):
             return 0
-        return sum(1 for p in self.portfolio.open_positions
-                   if crypto(p.symbol) and (p.qty > 0) == (req.side.sign > 0))
+        return sum(1 for p in self.portfolio.open_positions  # adding to a coin already held isn't a new bet
+                   if crypto(p.symbol) and p.symbol != req.symbol and (p.qty > 0) == (req.side.sign > 0))
 
     def on_approved(self, ev: Event) -> None:
         req: OrderRequest = ev.payload
@@ -165,7 +165,7 @@ class ExecutiveBot(Bot):
             return self.hold(req, f"already {n} crypto positions the same way (correlated)", latency())
 
         qty, why = req.qty, f"stance {self.mode}"
-        if self.mode == "defensive":
+        if self.mode == "defensive" and not req.reason.startswith("flipper: buy back"):  # (halving a buy-back = fewer coins)
             strength = self._strength(req)
             if strength is not None and strength < s.exec_defensive_min_strength:
                 return self.hold(req, f"defensive stance needs conviction {s.exec_defensive_min_strength:.2f}+ "

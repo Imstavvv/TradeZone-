@@ -528,6 +528,18 @@ The 13th bot does two jobs:
    The **What the team has learned** card shows the current hour's rating and the best and worst hours. What it learns is saved across restarts.
 2. **Finds flips itself:** a move up on **2× the usual volume** (`TZ_FLIP_VOLUME_RATIO`) with momentum behind it, the price above its fast average and the RSI between 50 and 70 (not yet overbought). It goes through Risk and the Executive like any trade, and the real-money plan, profit slices and moving take-profit apply. `TZ_FLIPPER=false` turns it off.
 
+### 🪙 Accumulating coins: sell a slice high, buy it back cheaper
+
+On a coin the bots hold, the Flipper also works to **own more of it**:
+
+1. When the price is **3% above** what the bots paid (`TZ_ACC_RISE_PCT`) and selling is a profit after fees, it sells a **20% slice** (`TZ_ACC_SLICE`).
+2. When the price dips **2.5% below that sale** (`TZ_ACC_DIP_PCT`), it buys the slice back, **only if that gets at least 0.5% more coins than were sold** after both fees (`TZ_ACC_MIN_GAIN`). The coins go back into the same position, which keeps its stop and target.
+3. If no dip comes within **48 h** (`TZ_ACC_TIMEOUT_H`), or the trade closes first, the slice simply stays sold, as **profit in dollars**. It never buys back at a higher price, because that would end with fewer coins.
+
+So every *completed* round ends with more coins. Not every round completes, though: when a coin keeps rising, the slice was sold early (as profit). The **What the team has learned** card shows the coins gained and any slice waiting to be bought back. `TZ_ACCUMULATE=false` turns it off.
+
+In simulated real-money trading (random prices, Kraken fees), 2-6 rounds per run completed (for example +8.5 DOGE), 5-9 stayed as dollar profit, and the account ended about where it would have without it (about -$11 across four $500 runs, the extra fees). Real markets that swing back and forth suit it best.
+
 ### 💰 Reinvesting what the flips make
 
 Trade sizes are always a share of the current balance, so profits compound by themselves. On top of that, **a quarter of the profit banked today** (`TZ_REINVEST_SHARE`) is added to the money each new trade may risk, so flipping profits go straight back to work the same day. It switches off on a losing day (the losing-day brake), and every trade still has its stop and the usual position and portfolio caps.

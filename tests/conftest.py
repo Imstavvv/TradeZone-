@@ -7,7 +7,7 @@ from tradezone.journal import Journal
 
 @pytest.fixture
 def settings():
-    s = Settings(feed="sim", wide_stop=False)  # most tests check the normal plan's stops (test_wide_stop.py: -33%)
+    s = Settings(feed="sim", wide_stop=False, accumulate=False)  # most tests check the normal plan (own tests cover these)
     s.risk.symbol_cooldown_s = 0
     s.risk.max_orders_per_minute = 10**6
     return s

@@ -1748,6 +1748,8 @@ function renderCoach(c){
     chips.push(`<span class="chip ${F.rating === 'good' ? 'good' : F.rating === 'bad' ? 'bad' : ''}">⏱️ Now (${hh(F.hour)}): ${F.rating === 'good' ? 'a good hour to flip' : F.rating === 'bad' ? 'a losing hour - smaller, fewer trades' : 'still learning this hour'}</span>`);
     for (const b of F.best || []) chips.push(`<span class="chip good">⏱️ Best: ${hh(b.hour)} · ${Math.round(b.win_rate * 100)}% won · ${money(b.avg)} avg</span>`);
     for (const b of F.worst || []) chips.push(`<span class="chip bad">⏱️ Worst: ${hh(b.hour)} · ${money(b.avg)} avg</span>`);
+    for (const [k, v] of Object.entries(F.coins_gained || {})) chips.push(`<span class="chip good">🪙 +${num(v)} ${esc(k.split('-')[0])} gained by flipping slices</span>`);
+    for (const [k, v] of Object.entries(F.slices_out || {})) chips.push(`<span class="chip">🪙 ${num(v.qty)} ${esc(k.split('-')[0])} sold at ${num(v.sold_at)} - waiting to buy back cheaper</span>`);
   }
   $('sLearnStats').innerHTML = chips.join('');
   $('sLearned').innerHTML = c.lessons.length ? c.lessons.slice(0, 6).map(l => `<div class="happen"><div class="ic" style="background:${l.level === 'warning' ? 'var(--warn)' : '#34d399'}">🎓</div>

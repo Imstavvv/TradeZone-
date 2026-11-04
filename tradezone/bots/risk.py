@@ -173,6 +173,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.qty and sig.source == "flipper" and sig.side is Side.BUY and pos.qty > 0:
+            return self._buy_back(sig, price)  # the Flipper buying back a slice it sold higher
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
         guard = self.day_guard()
@@ -328,6 +330,15 @@ class RiskBot(Bot):
         if len(self.strength_by_signal) > 5000:
             self.strength_by_signal.clear()
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp, price))
+
+    def _buy_back(self, sig: Signal, price: float) -> None:
+        """Add coins back to a held position (bought back cheaper than they were sold): no new stop or target,
+        the position keeps its own; paid from free cash, at least the venue's minimum order."""
+        qty = self._round_qty(min(sig.qty or 0.0, self.desk.free_cash() * 0.995 / price), price)
+        least = self.desk.broker.min_qty(sig.symbol, price)
+        if qty <= 0 or qty < least:
+            return self.reject(sig, "buy-back too small for the venue's minimum order")
+        self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, None, None, price))
 
     def realized_today(self) -> float:
         """Profit banked today (closed trades and slices, after fees) in the current book."""

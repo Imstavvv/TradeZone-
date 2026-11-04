@@ -154,6 +154,13 @@ class Settings:
     flip_min_samples: int = 12  # trades an hour needs before it's rated good or bad
     flip_good_hour_size: float = 1.25  # trades opened in a proven good hour are this much bigger...
     flip_bad_hour_size: float = 0.6  # ...and in a proven bad hour this much smaller
+    # ---- accumulating: the Flipper sells a slice of a held coin into a rise and buys it back cheaper ----
+    accumulate: bool = True
+    acc_slice: float = 0.20  # sell this share of the position...
+    acc_rise_pct: float = 0.03  # ...once the price is this far above what the bots paid (and the sale is a profit)
+    acc_dip_pct: float = 0.025  # buy it back once the price is this far below the sale price...
+    acc_min_gain: float = 0.005  # ...and only if that gets at least 0.5% more coins than were sold, after fees
+    acc_timeout_h: float = 48.0  # no dip in time: the slice simply stays sold (as profit in dollars)
     # ---- reinvest: a share of today's banked profit goes into the next trades (house money) ----
     reinvest_share: float = 0.25
     # ---- moving take-profit: once a trade is 10% past its buy price, the target moves up instead of selling ----
