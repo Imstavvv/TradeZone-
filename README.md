@@ -552,6 +552,16 @@ Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at 
 
 This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. Shorts work the same way, mirrored. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
 
+### Stop-loss at -33% from the buy price
+
+Every trade's stop-loss sits **33% below the buy price** (`TZ_WIDE_STOP_PCT`; 33% above for a short), so ordinary dips, even a 20-30% drop, never stop a trade out. Three things keep this from risking more money:
+
+* **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (2.5% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
+* **Winners are still protected** from the normal plan's stop distance (-2% / -5% with real money): once a trade is up that much, the stop moves to break-even + fees, then trails and locks profit as before, and the moving take-profit works as before. A winner never rides back down to -33%.
+* **The account limits still apply:** the daily-loss, drawdown and capital-floor stops close everything if the whole account falls too far.
+
+What to expect: in simulated trading almost every *closed* trade was a winner, because losing trades simply stay open. They don't come back on their own, and their money is tied up meanwhile (each simulated run ended holding a few positions down 5-25%). The account value ended about flat. `TZ_WIDE_STOP=false` goes back to the normal plan's stops.
+
 ### Why trades were losing, and what changed
 
 Every position was replayed in simulated real-money trading on Kraken (0.40% fee per side) and its result added up from buy to final sale:

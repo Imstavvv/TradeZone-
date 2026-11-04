@@ -82,7 +82,11 @@ class PortfolioBot(Bot):
                 and not pos.is_flat and order and order.stop_price:
             pos.stop_price = order.stop_price
             pos.take_profit = order.take_profit
-            self.trail_dist[f.symbol] = abs(pos.avg_price - order.stop_price)
+            # trailing stop / break-even lock work from the normal plan's stop, not a wide -33% safety stop
+            dist = abs(pos.avg_price - order.stop_price)
+            if self.settings.wide_stop:
+                dist = min(dist, pos.avg_price * self.settings.plan_pcts(f.symbol, self.quick)[0])
+            self.trail_dist[f.symbol] = dist
             self.protected.discard(f.symbol)
             self.scaled_out.discard(f.symbol)
         pos_after = pos.qty
@@ -179,7 +183,8 @@ class PortfolioBot(Bot):
         pos.high_water = hw
         tighten = (lambda a, b: max(a, b)) if long else (lambda a, b: min(a, b))
         r = self.trail_dist.get(t.symbol)
-        if self.settings.trailing_stop and pos.stop_price is not None and r:
+        if self.settings.trailing_stop and pos.stop_price is not None and r \
+                and (not self.settings.wide_stop or (hw - pos.avg_price) * d >= r):  # wide stop: trail once up 1R
             pos.stop_price = tighten(pos.stop_price, hw - d * r)
         if r and pos.stop_price is not None:
             self._protect_profit(t.symbol, pos, t.price, hw, r, d, tighten)

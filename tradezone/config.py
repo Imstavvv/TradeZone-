@@ -160,6 +160,11 @@ class Settings:
     tp_step: bool = True
     tp_step_pct: float = 0.10  # every +10% from the buy price: the target moves another 10% out...
     tp_step_lock: float = 0.5  # ...and the stop locks in at least half of the step reached (+5% at +10%, +10% at +20%)
+    # ---- wide stop-loss: -33% from the buy price, so ordinary dips never stop a trade out ----
+    # Positions are sized so hitting it still costs about risk_per_trade of the account. The trailing stop and
+    # the break-even lock still work from the normal plan's stop (-2% / -5%), so winners stay protected.
+    wide_stop: bool = True
+    wide_stop_pct: float = 0.33
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
     patient_exits: bool = False  # off: holding losers made the losses ~2x bigger than the wins (see README)

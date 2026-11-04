@@ -237,6 +237,8 @@ class RiskBot(Bot):
             sl_pct, tp_pct = s.plan_pcts(sig.symbol, quick)
             if s.patient(self.desk.is_live):  # a wider safety stop: losing trades get room to come back
                 sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
+            if s.wide_stop:  # -33%: small dips never stop the trade out (the size keeps the money at risk the same)
+                sl_pct = max(sl_pct, s.wide_stop_pct)
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
             tp = price * (1 + tp_pct * direction) + cost * direction  # the target is after fees
