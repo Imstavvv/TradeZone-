@@ -125,6 +125,7 @@ class TradingDesk:
             self.bots[bot.name] = bot
         for bot in self.bots.values():
             bot.attach()
+        self.advisors = [b for b in self.bots.values() if getattr(b, "advisor", False)]
         self.bus.subscribe("*", self._fanout, owner="desk")
         for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
             self.bus.subscribe(topic, self._mark_dirty, owner="desk")
@@ -1048,6 +1049,7 @@ class TradingDesk:
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "flipper": self.bots["flipper"].summary(),  # type: ignore[attr-defined]
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
+            "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
             "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard(),  # type: ignore[attr-defined]

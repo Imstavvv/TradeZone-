@@ -192,6 +192,20 @@ class RiskBot(Bot):
         trends = self.desk.bots.get("trends")
         if trends is not None and (boost := trends.nudge(sig.symbol, sig.side.sign)):  # 🔥 trending right now
             sig.strength = round(min(1.0, sig.strength + boost), 3)
+        # 🧑‍🤝‍🧑 the advisors: any may veto; nudges add up (+/-0.15 at most); size factors multiply (0.4x - 1.5x)
+        nudge, advice_mult = 0.0, 1.0
+        snap0 = self.snapshots.get(sig.symbol)
+        for adv in self.desk.advisors:
+            if not adv.enabled:
+                continue
+            veto, ds, sm = adv.advise(sig, snap0)
+            if veto:
+                self.bump("rejected_by_advisors")
+                return self.reject(sig, f"{adv.title}: {veto}")
+            nudge, advice_mult = nudge + ds, advice_mult * sm
+        if nudge:
+            sig.strength = round(max(0.0, min(1.0, sig.strength + max(-0.15, min(0.15, nudge)))), 3)
+        advice_mult = max(0.4, min(1.5, advice_mult))
         exe = self.desk.bots.get("execution")
         if exe is not None and (left := exe.cooling(sig.symbol)) > 0:
             return self.reject(sig, f"{sig.symbol} is cooling off after a bad fill ({left / 60:.0f} min left)")
@@ -290,6 +304,7 @@ class RiskBot(Bot):
             risk_budget *= news.size_mult(direction)
         if flipper is not None:  # ⏱️ bigger in proven good hours, smaller in proven bad ones
             risk_budget *= flipper.size_mult()
+        risk_budget *= advice_mult  # what the advisors made of it
         if not guard["brake"] and s.reinvest_share > 0:  # 💰 reinvest: today's banked profit works too (house money)
             risk_budget += s.reinvest_share * max(0.0, self.realized_today())
         if guard["brake"]:  # a losing day: smaller trades until it turns

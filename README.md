@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Fourteen specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Twenty-nine specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through **Uphold** or Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -90,7 +90,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 14 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 29 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -450,6 +450,36 @@ A few things used to stop real-money trading quietly. They're fixed:
 * **No US dollars.** The bots trade USD pairs. If your Kraken account holds only USDC or USDT, *Use real money* now says so and asks you to convert some to USD.
 
 If the bots still aren't trading, the **🎯 Today's hunt** card on Home lists the most common reasons they skipped, in plain words.
+
+### 🧑‍🤝‍🧑 15 helper bots
+
+Ten **advisors** look at one thing each, and the Risk Manager consults all of them before every *new* trade. Any of them can veto it (with a plain reason); their conviction nudges add up (at most ±0.15) and their size factors multiply (kept between 0.4× and 1.5×). Every hard limit still applies on top, and exits are never affected.
+
+| Bot | Looks at | What it does |
+| --- | --- | --- |
+| 🌦️ Market Weather | Bitcoin | no new buys in other coins while BTC is falling 1.5%+ in 15 bars (or 3× its normal 15-bar move, in a jumpy market); a small boost when BTC is strong |
+| 📏 Volatility Sizer | each coin's volatility vs its usual | trade size 0.6×-1.4× (smaller when unusually wild) |
+| 🏅 Momentum Ranker | every coin's 20-bar move | top third: +0.05 and 1.1×; bottom third: -0.03 and 0.85× |
+| 🪢 Overextension Guard | distance from the slow average, RSI | won't chase: vetoes buys 8+ ATR above the average or at RSI 90+ |
+| 🧱 Resistance Mapper | the nearest recent high | trims a buy (0.8×) when a ceiling sits within half the target |
+| 🧩 Correlation Officer | how coins move together | vetoes a buy that moves almost exactly (0.85+) like 2+ coins already held; 0.75× for one |
+| 🐋 Whale Watcher | volume vs price | 3× volume with a flat price = accumulation: +0.05 for 10 bars |
+| 💧 Liquidity Guard | volume, the bid/ask gap | no buys when volume is under a quarter of usual; 0.7× when the gap is over 0.8% |
+| 🧯 Flash-Crash Guard | market-wide shocks | 3+ coins moving 5+ standard deviations in the same bar, or BTC -3% in 5 bars (or 4× its normal 5-bar move): new trades wait 15 min |
+| 🔭 Big-Picture Trend | 15-minute candles | against the bigger trend: -0.03 and 0.8×; with it: +0.03 |
+
+One new **strategy**:
+
+* 🎣 **Pullback Hunter**: marks breakouts above the recent high; if within 8 bars the price dips back to that level and holds above it with momentum and normal volume, it proposes a buy (the classic breakout retest).
+
+Four **operations** bots:
+
+* 🧾 **Fee Auditor**: measures the fee actually paid on real-money fills; after 10 it sets the fee the bots plan with to what was really paid (maker orders and fee tiers make it lower).
+* 🎯 **Slippage Tracker**: a coin whose fills average 0.3%+ worse than expected over 5 fills trades at 0.6×.
+* 📡 **Exchange Health**: 5+ orders rejected by the exchange within 10 minutes: new trades wait 10 minutes (exits continue).
+* 📒 **Accountant**: a daily report when each UTC day ends (profit after fees, fees, wins, best and worst trade), kept for a week.
+
+Each one can be switched off on the bot floor (Pro view).
 
 ### 🔥 The Trend Scout: every meme coin worth trading, and what's trending
 
