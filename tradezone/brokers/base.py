@@ -9,7 +9,12 @@ class Broker(abc.ABC):
     """Order routing interface used by the Execution Trader bot."""
 
     name = "broker"
+    label = "broker"  # how the dashboard names it
     is_live = False
+
+    def supports(self, symbol: str) -> bool | None:
+        """Whether this venue can trade ``symbol`` (None = unknown, let the order decide)."""
+        return None
 
     def on_prices(self, ticks: list[Tick]) -> None:
         """Receive the latest prices (used by simulated brokers)."""
