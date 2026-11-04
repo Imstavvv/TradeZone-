@@ -264,10 +264,19 @@ class RiskBot(Bot):
         )
         if self.desk.halted:
             return
+        s = self.settings
+        daily_lim, dd_lim = limits.max_daily_loss_pct, limits.max_drawdown_pct
+        if self.desk.is_live:  # real money: the stricter of the two
+            daily_lim, dd_lim = min(daily_lim, s.live_max_daily_loss_pct), min(dd_lim, s.live_max_drawdown_pct)
         reason, kind = None, "manual"
-        if p.daily_pnl_pct <= -limits.max_daily_loss_pct:
+        principal = p.starting_cash + p.net_flows  # what you put in
+        base = min(principal, self.desk.floor_ack.get(self.desk.mode, principal))
+        if self.desk.is_live and base > 0 and p.equity < base * (1 - s.live_capital_floor_pct):
+            reason, kind = (f"your real money fell {1 - p.equity / base:.1%} below what you put in - "
+                            "everything stopped to protect what's left"), "floor"
+        elif p.daily_pnl_pct <= -daily_lim:
             reason, kind = f"daily loss {p.daily_pnl_pct:.2%} breached limit", "daily"
-        elif p.drawdown >= limits.max_drawdown_pct:
+        elif p.drawdown >= dd_lim:
             reason, kind = f"drawdown {p.drawdown:.2%} breached limit", "drawdown"
         if reason:
             self.act(f"KILL SWITCH: {reason}", "critical")

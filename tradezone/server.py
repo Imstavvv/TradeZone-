@@ -74,6 +74,11 @@ class BrokerBody(BaseModel):
     secret: str
 
 
+class GoalBody(BaseModel):
+    start: float
+    target: float
+
+
 class CodeBody(BaseModel):
     code: str
 
@@ -424,6 +429,15 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             return _clean(await desk.switch_mode(body.mode, flatten=body.flatten))
         except ModeSwitchError as exc:
             raise HTTPException(409, str(exc)) from None
+
+    # -- the goal ------------------------------------------------------------
+    @app.post("/api/goal", dependencies=[Depends(check_token)])
+    async def set_goal(body: GoalBody, request: Request):
+        audit(request, f"goal set: ${body.start:,.2f} -> ${body.target:,.2f}")
+        try:
+            return desk.set_goal(body.start, body.target)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
 
     # -- wallets / funding -------------------------------------------------
     def wallet_call(fn, *args, **kwargs):

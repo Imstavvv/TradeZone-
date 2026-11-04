@@ -40,6 +40,8 @@ TEAM_RULES = [
     {"icon": "🎯", "rule": "Take trades", "detail": "Don't sit idle when good chances appear."},
     {"icon": "🌱", "rule": "Grow", "detail": "Let winnings compound - size up slowly when doing well, down when not."},
     {"icon": "🧠", "rule": "Learn the markets", "detail": "Every closed trade teaches the team what works."},
+    {"icon": "🏆", "rule": "Reach the goal", "detail": "Turn $50 into $10,000 by compounding many small, safe wins - never by betting the account."},
+    {"icon": "🛡️", "rule": "Don't lose the money", "detail": "Protecting what you put in comes first: stops on every trade, and trading stops itself after a bad day or a 10% drop."},
 ]
 STRATEGIES = ("momentum", "mean_reversion", "breakout")
 NICE = {"momentum": "Momentum", "mean_reversion": "Buying dips", "breakout": "Breakouts"}

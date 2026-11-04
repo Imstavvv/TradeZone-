@@ -98,6 +98,13 @@ class Settings:
     alpaca_live_key: str = ""  # Alpaca LIVE (real money) account keys - enables the Go LIVE button
     alpaca_live_secret: str = ""
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
+    # ---- "don't lose my money": stricter limits whenever real money is trading ----
+    live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
+    live_max_drawdown_pct: float = 0.10  # real money: stop after -10% from the peak (practice: -15%)
+    live_capital_floor_pct: float = 0.10  # real money: stop if the account falls 10% below what you put in
+    # ---- the goal the bots work toward (by compounding - it never raises risk) ----
+    goal_start: float = 50.0
+    goal_target: float = 10_000.0
     # ---- Grok (xAI) AI analyst ----
     # ---- Coach: the team learns from its own closed trades (hard safety limits never change) ----
     coach_learning: bool = True

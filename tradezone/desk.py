@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 import time
 from collections.abc import Callable
@@ -110,6 +111,8 @@ class TradingDesk:
         for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
             self.bus.subscribe(topic, self._mark_dirty, owner="desk")
         self.hunt = self._new_hunt()
+        self.floor_ack: dict[str, float] = {}  # mode -> equity the owner restarted from after a capital-floor stop
+        self.goal: dict = {}
         for topic in ("market.snapshot", "signal.proposed", "signal.rejected", "order.held", "trade.log"):
             self.bus.subscribe(topic, self._count_hunt, owner="desk")
         from .persistence import StateStore
@@ -304,6 +307,8 @@ class TradingDesk:
             self.flatten(f"kill switch: {reason}")
 
     def reset_halt(self) -> None:
+        if self.halt_kind == "floor":  # the owner chose to carry on from here: this is the new floor base
+            self.floor_ack[self.mode] = self.portfolio.equity
         self.halted = False
         self.halt_reason = ""
         self.halt_kind = ""
@@ -530,6 +535,40 @@ class TradingDesk:
                 h["closed"] += 1
                 h["wins"] += p["pnl"] > 0
 
+    # -- the goal: e.g. $50 -> $10,000, reached by compounding (never by taking more risk) ------
+    def set_goal(self, start: float, target: float) -> dict:
+        if not (math.isfinite(start) and math.isfinite(target) and 0 < start < target <= start * 1e6):
+            raise ValueError("the goal needs a starting amount above 0 and a bigger target")
+        self.goal = {"start": float(start), "target": float(target), "bases": {}, "since": {}}
+        self._dirty = True
+        return self.goal_status()
+
+    def goal_status(self) -> dict:
+        s, g, eq = self.settings, self.goal, self.portfolio.equity
+        start, target = g.get("start", s.goal_start), g.get("target", s.goal_target)
+        bases, since = g.setdefault("bases", {}), g.setdefault("since", {})
+        if self.mode not in bases and eq > 0:  # growth is measured from when the goal was set, per book
+            bases[self.mode], since[self.mode] = eq, time.time()
+            self._dirty = True
+        growth = eq / bases.get(self.mode, eq) if eq > 0 else 0.0
+        value = start * growth  # live with $50: your balance. Practice: what $50 would be now
+        span = math.log(target / start)
+        progress = max(0.0, min(1.0, math.log(max(value, 1e-9) / start) / span)) if value > 0 else 0.0
+        days = max((time.time() - since.get(self.mode, time.time())) / 86_400, 0.0)
+        eta = None
+        if days >= 1 and growth > 1 and value < target:
+            daily = growth ** (1 / days) - 1
+            eta = math.log(target / value) / math.log(1 + daily)
+        ladder = [m for m in (2, 5, 10, 20, 50, 100, 200, 500, 1000) if start * m <= target] + [target / start]
+        nxt = next((start * m for m in ladder if start * m > value), target)
+        left = math.log(target / value) if 0 < value < target else 0.0
+        return {"start": start, "target": target, "value": round(value, 2), "growth": round(growth, 4),
+                "progress": round(progress, 4), "next_milestone": round(nxt, 2), "days": round(days, 2),
+                "eta_days": round(eta, 1) if eta is not None else None,
+                "days_at_1pct": round(left / math.log(1.01)) if left else 0,
+                "days_at_2pct": round(left / math.log(1.02)) if left else 0,
+                "reached": value >= target}
+
     def hunt_summary(self) -> dict:
         h = self.hunt if self.hunt["day"] == self._today() else self._new_hunt()
         top = sorted(h["skipped"].items(), key=lambda kv: -kv[1])[:4]
@@ -561,6 +600,8 @@ class TradingDesk:
         self.paused, self.pause_reason = data.get("paused", False), data.get("pause_reason", "")
         self.halted, self.halt_reason = data.get("halted", False), data.get("halt_reason", "")
         self.halt_kind = data.get("halt_kind", "")
+        self.floor_ack = data.get("floor_ack", {})
+        self.goal = data.get("goal", {})
         if data.get("day") and data["day"] != self._day and self.halted and self.halt_kind == "daily" \
                 and self.settings.auto_rearm_daily:
             self.halted, self.halt_reason, self.halt_kind = False, "", ""
@@ -692,6 +733,7 @@ class TradingDesk:
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
+            "goal": self.goal_status(),
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),
