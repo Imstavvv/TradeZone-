@@ -21,9 +21,9 @@ import base64
 import hashlib
 import hmac
 import logging
-import math
 import time
 import urllib.parse
+from decimal import ROUND_DOWN, Decimal
 
 import httpx
 
@@ -108,6 +108,14 @@ class KrakenBroker(Broker):
                 self.quotes.update(await fetch_quotes(self.client, self.pairs, self.symbols))
         except (httpx.HTTPError, KeyError, ValueError) as exc:
             log.warning("kraken market refresh failed: %s", exc)
+
+    async def fresh_quote(self, symbol: str) -> dict | None:
+        try:
+            self.quotes.update(await fetch_quotes(self.client, self.pairs, [symbol]))
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            log.warning("kraken quote %s failed: %s", symbol, exc)
+            return None
+        return self.quotes.get(symbol)
 
     def min_qty(self, symbol: str, price: float) -> float:
         """The smallest amount Kraken will let you sell (minimum order size and minimum order value)."""
@@ -246,9 +254,10 @@ class KrakenBroker(Broker):
         p = self.pairs.get(order.symbol)
         if p is None:
             return None
-        step = 10 ** -p["lot"]
-        vol = math.floor(order.qty / step + 1e-9) * step  # round DOWN: never more than asked
-        if vol < p["ordermin"]:
+        # exact decimal rounding DOWN to Kraken's lot size (float division used to shave off one lot,
+        # leaving unsellable dust like 0.00000001 behind after selling a whole position)
+        vol = Decimal(repr(order.qty)).quantize(Decimal(1).scaleb(-p["lot"]), rounding=ROUND_DOWN)
+        if vol <= 0 or float(vol) < p["ordermin"]:
             return None
         return f"{vol:.{p['lot']}f}"
 

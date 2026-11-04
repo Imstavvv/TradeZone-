@@ -187,7 +187,7 @@ News can only make the team more careful or slightly more confident. It never op
 
 | Guard | What it does |
 | --- | --- |
-| A small stop on every trade | each trade risks about 1% of the balance (less for meme coins), longs and shorts alike |
+| A small stop on every trade | each trade risks about 1.5% of the balance (less for meme coins), longs and shorts alike |
 | Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
 | Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) stops new trades until tomorrow; open trades keep their stops and targets, so a good day stays a good day |
 
@@ -200,7 +200,7 @@ The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, c
 | Stop for the day after a loss of | 5% | **3%** (`TZ_LIVE_MAX_DAILY_LOSS_PCT`) |
 | Stop everything after a drop from the peak of | 15% | **10%** (`TZ_LIVE_MAX_DRAWDOWN_PCT`) |
 | Stop everything if the account falls below what you put in by | – | **10%** (`TZ_LIVE_CAPITAL_FLOOR_PCT`); only you can restart it |
-| Stop-loss on every trade, ≤1% of the account at risk per trade, ≤5% across all trades | ✓ | ✓ |
+| Stop-loss on every trade, ≤1.5% of the account at risk per trade, ≤7% across all trades | ✓ | ✓ |
 | Optional cap on how much of the account the bots may use | – | `TZ_LIVE_MAX_CAPITAL` |
 
 **No trading system can promise you won't lose money.** Prices can jump straight through a stop, and a run of losing trades is normal. These rules keep losses small and stop the bots before a bad stretch becomes a big one. Only trade money you can afford to lose.
@@ -236,9 +236,9 @@ Risk management layered on top:
 
 | Rule | Default |
 | --- | --- |
-| Risk per trade: position sized so hitting the stop loses at most this | 1% of equity (half that in volatile regimes and for meme coins) |
-| Portfolio heat: total loss if *every* open stop is hit | 5% of equity |
-| Max position size / total exposure / open positions | 20% / 100% / 5 |
+| Risk per trade: position sized so hitting the stop loses at most this | 1.5% of equity (half that in volatile regimes and for meme coins) |
+| Portfolio heat: total loss if *every* open stop is hit | 7% of equity |
+| Max position size / total exposure / open positions | 25% / 100% / 6 |
 | Daily loss / drawdown kill switch (flattens everything) | −5% / −15% |
 | Profit protection after +0.5R | stop to break-even + costs, then locks 50% of peak profit |
 
@@ -438,6 +438,9 @@ A few things used to stop real-money trading quietly. They're fixed:
   * **less** than the bots' records (you sold or moved the bots' coins outside TradeZone) **updates the records** as a sale at the market price, with a warning, and trading continues;
   * only if the records need correcting **3 times within an hour** does trading pause, because then something really is wrong;
   * after a restart, live trading resumes even if the account changed while TradeZone was off; the same check sorts it out.
+* **Dust that blocked trading.** Selling a whole position on Kraken could leave one lot behind (e.g. 0.00000001 XRP), because the order size was rounded with floating-point maths. That leftover was below Kraken's minimum, so its exit was refused on every tick, and it still counted as an open trade: it blocked new trades on that coin and filled the open-position and "same direction" slots. Sizes are now rounded exactly; any leftover below the venue's minimum is taken off the bots' books (it stays in your account as yours); and a refused exit waits 30 s before it's tried again.
+* **One coin Kraken won't quote.** Kraken rejects a whole price request if a single pair is unknown (just delisted, say), which left every coin without a price. The bad pair is now found and dropped, and the rest stay priced.
+* **Fill check.** Right before each real-money order the bots fetch Kraken's bid and ask, so the "was this a bad fill?" check compares against what a market order really gets.
 * **Orders that fill late.** An order still open after 60 s is cancelled, and the bots now check it once more afterwards, so a fill that arrived meanwhile is always booked (a lost fill used to cause a mismatch later).
 * **Kraken Rewards (auto-earn).** Kraken books coins and USD in Rewards as `XBT.F`, `USD.F` and so on. These are now counted as yours, so the bots' records match the account instead of pausing for a mismatch.
 * **Small accounts.** Kraken's minimum order (about $5 of most coins) is bigger than a 1%-risk meme-coin trade on $50. Such buys are now rounded up to the minimum when that's still safe (see the table below), and transfer fees no longer block new trades.

@@ -431,3 +431,69 @@ def test_an_order_that_fills_after_the_timeout_is_still_booked():
     run(exe.on_cycle())
     run(desk.bus.drain())
     assert pos.qty > 0 and not exe.working  # the late fill was found and booked: no "mismatch" later
+
+
+def test_selling_a_whole_position_leaves_no_dust():
+    b = broker(FakeKraken())
+    run(b.load_pairs())
+    for sym, qty in (("DOGE-USD", 20.3), ("DOGE-USD", 1229.99), ("BTC-USD", 0.29), ("BTC-USD", 0.00016599),
+                     ("BTC-USD", 16.66666667)):
+        o = Order(sym, Side.SELL, qty, request_id="r")
+        assert float(b._volume(o)) == qty  # exactly what's held - float division used to shave off one lot
+
+
+def test_dust_below_the_minimum_is_taken_off_the_books_and_never_blocks_trading():
+    fk, desk = live_kraken()
+    pos = kbuy(desk, "DOGE-USD", 0.2)
+    pos.qty = 3.0  # a leftover under Kraken's 20 DOGE minimum
+    desk.bots["sentinel"].shadow_qty["DOGE-USD"] = 3.0
+    fk.bal["XXDG"] = 3.0
+    pm = desk.bots["portfolio"]
+    pm._exit("DOGE-USD", "stop hit")
+    run(desk.bus.drain())
+    assert pos.is_flat  # written off instead of being retried on every tick
+    assert desk.bots["sentinel"].audit_books() == []
+    assert check(desk) == [] and pm.outside.get("DOGEUSD") == pytest.approx(3.0)  # it's yours now
+    desk.bots["risk"].last_trade.clear()
+    assert kbuy(desk, "DOGE-USD", 0.2).qty > 0  # the coin can be traded again
+
+
+def test_a_refused_exit_waits_before_trying_again():
+    fk, desk = live_kraken()
+    pos = kbuy(desk)
+    pm, exe = desk.bots["portfolio"], desk.bots["execution"]
+    real = fk.handler
+    fk.handler = lambda req: (httpx.Response(200, json={"error": ["EService:Unavailable"], "result": {}})
+                              if req.url.path.endswith("AddOrder") else real(req))
+    desk.live_broker.client = httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(fk.handler))
+    n = exe.metrics.get("orders", 0)
+    for _ in range(5):
+        pm._exit("BTC-USD", "stop hit")
+        run(desk.bus.drain())
+    assert exe.metrics["orders"] == n + 1 and pos.qty > 0  # one try, then a 30 s pause - no order storm
+
+
+def test_one_coin_kraken_refuses_to_quote_doesnt_leave_all_coins_without_prices():
+    from tradezone.market.kraken import fetch_quotes
+    fk = FakeKraken()
+    real = fk.handler
+
+    def handler(req):
+        if req.url.path.endswith("Ticker") and "GONEUSD" in req.url.params["pair"]:
+            return httpx.Response(200, json={"error": ["EQuery:Unknown asset pair"], "result": {}})
+        return real(req)
+    client = httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(handler))
+    pairs = {"BTC-USD": {"pair": "XBTUSD", "key": "XXBTZUSD"}, "GONE-USD": {"pair": "GONEUSD", "key": "GONEUSD"},
+             "DOGE-USD": {"pair": "XDGUSD", "key": "XDGUSD"}}
+    q = run(fetch_quotes(client, pairs, ["BTC-USD", "GONE-USD", "DOGE-USD"]))
+    assert set(q) == {"BTC-USD", "DOGE-USD"} and "GONE-USD" not in pairs  # dropped, the rest still priced
+
+
+def test_the_fill_check_uses_krakens_bid_and_ask_not_a_stale_last_price():
+    fk, desk = live_kraken()
+    exe = desk.bots["execution"]
+    fk.spread["XDGUSD"] = 0.012  # a 1.2% gap: a market buy fills 0.6% above the last trade
+    prime(desk, "DOGE-USD", 0.2, atr=0.001)
+    run(desk.live_broker.fresh_quote("DOGE-USD"))
+    ref = exe.reference_price("DOGE-USD", Side.BUY)
+    assert ref == pytest.approx(0.2 * 1.006, rel=1e-4)  # the ask, so a normal fill isn't called "bad"

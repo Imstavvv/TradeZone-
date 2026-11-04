@@ -30,10 +30,15 @@ class ExecutionBot(Bot):
     def reference_price(self, symbol: str, side) -> float:
         """What a fair fill looks like: the ask for a buy, the bid for a sell when the venue's quote is fresh
         (a market order always crosses the spread), else the last price."""
+        price = self.desk.prices[symbol]
         q = getattr(self.desk.broker, "quotes", {}).get(symbol)
-        if q and now() - q.get("ts", 0) < 180 and q.get("bid", 0) > 0 and q.get("ask", 0) > 0:
-            return q["ask"] if side.sign > 0 else q["bid"]
-        return self.desk.prices[symbol]
+        if q and now() - q.get("ts", 0) < 10 and q.get("bid", 0) > 0 and q.get("ask", 0) > q["bid"]:
+            return q["ask"] if side.sign > 0 else q["bid"]  # fresh: exactly what a market order should get
+        if q and now() - q.get("ts", 0) < 180 and q.get("bid", 0) > 0 and q.get("ask", 0) > q["bid"]:
+            # the quote can be up to half a minute old: use its bid/ask GAP around the latest price
+            half = (q["ask"] - q["bid"]) / (q["ask"] + q["bid"])
+            return price * (1 + half * side.sign)
+        return price
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
@@ -155,6 +160,8 @@ class ExecutionBot(Bot):
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
         )
         self.orders[order.id] = order
+        if self.desk.is_live:
+            await self.desk.broker.fresh_quote(req.symbol)  # the venue's bid/ask right now, for the fill check
         self.ref_price[order.id] = self.reference_price(req.symbol, req.side)
         fills = await self.desk.broker.submit(order)
         self.bump("orders")

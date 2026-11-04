@@ -22,6 +22,7 @@ class PortfolioBot(Bot):
     critical = True
 
     RECONCILE_EVERY = 30
+    EXIT_RETRY_S = 30.0  # a refused exit is tried again after this, not on every tick
     SETTLE_S = 20.0  # wait this long after a fill before comparing with the broker
     FIXES_BEFORE_PAUSE = 3  # record corrections within an hour that mean something is really wrong
     FEE_TOLERANCE = 0.01  # differences up to 1% (fee-sized) on crypto are the broker's fee, not an error
@@ -40,6 +41,7 @@ class PortfolioBot(Bot):
         self._noted: dict[str, int] = {}
         self._fixes: deque[float] = deque()
         self.last_fill_ts = 0.0
+        self._retry_at: dict[str, float] = {}  # symbol -> don't resend a refused exit before
 
     def subscriptions(self):
         return {
@@ -110,11 +112,33 @@ class PortfolioBot(Bot):
     def on_order_update(self, ev: Event) -> None:
         o = ev.payload
         if o.reduce_only and o.status in (OrderStatus.REJECTED, OrderStatus.CANCELED):
-            self.exiting.discard(o.symbol)  # allow the exit to be retried
+            self.exiting.discard(o.symbol)  # allow the exit to be retried...
+            self._retry_at[o.symbol] = now() + self.EXIT_RETRY_S  # ...but not on every single tick
+            if o.status is OrderStatus.REJECTED and "minimum" in (o.reason or ""):
+                self._write_off_dust(o.symbol)
+
+    def _write_off_dust(self, symbol: str) -> None:
+        """A leftover too small for the venue to sell isn't a trade: take it off the bots' books, so it can't
+        block new trades or fill the open-position slots. (It stays in your account, counted as yours.)"""
+        pos = self.portfolio.position(symbol)
+        price = self.desk.prices.get(symbol) or pos.last_price or pos.avg_price
+        least = max(self.desk.broker.min_qty(symbol, price), 1.0 / price if price > 0 else 0.0)
+        if pos.is_flat or abs(pos.qty) >= least:
+            return
+        qty = pos.qty
+        pos.qty, pos.avg_price, pos.entry_fees = 0.0, 0.0, 0.0
+        pos.stop_price = pos.take_profit = pos.high_water = pos.opened_ts = None
+        for book in (self.trail_dist, self._retry_at):
+            book.pop(symbol, None)
+        self.exiting.discard(symbol)
+        self.protected.discard(symbol)
+        self.scaled_out.discard(symbol)
+        self.publish("position.adjusted", {"symbol": symbol, "delta": -qty, "reason": "dust below the venue's minimum"})
+        self.act(f"{symbol}: {qty:.8g} left over is below the venue's minimum sale - taken off the books (it's yours)")
 
     def _exit(self, symbol: str, reason: str, fraction: float = 1.0) -> None:
         pos = self.portfolio.position(symbol)
-        if pos.is_flat or symbol in self.exiting:
+        if pos.is_flat or symbol in self.exiting or now() < self._retry_at.get(symbol, 0.0):
             return
         if fraction >= 1.0:
             self.exiting.add(symbol)

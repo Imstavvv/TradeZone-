@@ -82,9 +82,9 @@ def test_meme_coins_trade_smaller_and_are_capped(desk):
     eq = desk.portfolio.equity
     meme = buy(desk, "PEPE-USD", 0.00001)
     assert meme.qty > 0
-    # money at risk to the -8% stop is half a normal trade's 1% x conviction (0.5 + 0.5 x 0.9)
+    # money at risk to the -8% stop is half a normal trade's risk (1.5%) x conviction (0.5 + 0.5 x 0.9)
     at_risk = meme.qty * 0.00001 * (0.08 + desk.settings.round_trip_cost("PEPE-USD", 1.0))
-    assert at_risk == pytest.approx(eq * 0.01 * 0.95 * desk.settings.meme_risk_mult, rel=0.05)
+    assert at_risk == pytest.approx(eq * desk.settings.risk.risk_per_trade * 0.95 * desk.settings.meme_risk_mult, rel=0.05)
     buy(desk, "DOGE-USD", 0.2)
     buy(desk, "SHIB-USD", 0.00002)
     rejected = capture(desk, "signal.rejected")

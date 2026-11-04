@@ -26,6 +26,10 @@ class Broker(abc.ABC):
         """The smallest amount this venue lets you sell (0 = no known minimum)."""
         return 0.0
 
+    async def fresh_quote(self, symbol: str) -> dict | None:
+        """A fresh {bid, ask, ...} for ``symbol`` just before an order, if the venue offers one."""
+        return None
+
     def can_short(self, symbol: str) -> bool:
         """Whether this account can sell ``symbol`` short right now (borrow it and buy it back later)."""
         return False

@@ -49,14 +49,14 @@ VENUES = {"alpaca": "Alpaca", "kraken": "Kraken", "uphold": "Uphold"}
 
 @dataclass
 class RiskLimits:
-    risk_per_trade: float = 0.01  # fraction of equity risked to the stop
-    max_position_pct: float = 0.20  # max notional per symbol as fraction of equity
+    risk_per_trade: float = 0.015  # fraction of equity risked to the stop (1.5%)
+    max_position_pct: float = 0.25  # max notional per symbol as fraction of equity
     max_gross_exposure: float = 1.0  # max total notional as multiple of equity
     max_open_positions: int = 6
     max_daily_loss_pct: float = 0.05  # kill switch trips beyond this daily loss
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30
-    max_portfolio_heat: float = 0.05  # total risk to all stops, as a fraction of equity
+    max_portfolio_heat: float = 0.07  # total risk to all stops, as a fraction of equity
     min_signal_strength: float = 0.35
     symbol_cooldown_s: float = 10.0
     # Buys need team consensus: no voter may object and at least this many must actively agree.

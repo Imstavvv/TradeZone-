@@ -78,6 +78,19 @@ async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbol
     r = await client.get("/0/public/Ticker", params={"pair": ",".join(want)})
     r.raise_for_status()
     body = r.json()
+    if body.get("error") and not body.get("result"):
+        # Kraken refuses the WHOLE request if one pair is unknown (e.g. just delisted). Find it, drop it,
+        # and keep the rest priced - one bad coin must never leave every coin without a price.
+        if len(want) == 1:
+            raise ValueError("; ".join(body["error"]))
+        out: dict[str, dict] = {}
+        for s in [x for x in symbols if x in pairs]:
+            try:
+                out.update(await fetch_quotes(client, pairs, [s]))
+            except ValueError as exc:
+                log.warning("kraken won't quote %s (%s): dropped", s, exc)
+                pairs.pop(s, None)
+        return out
     by_key = {}
     for s in symbols:
         if s in pairs:
