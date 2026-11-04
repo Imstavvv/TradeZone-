@@ -557,8 +557,8 @@ A small balance can't spread across every coin: Kraken's minimum orders and the 
 
 | Balance | Coins traded | Trades at once |
 | --- | --- | --- |
-| under **$250** (`TZ_FOCUS_SMALL_UNTIL`) | smaller coins only: meme coins (DOGE, SHIB, PEPE, BONK, WIF, FLOKI, ...) and small altcoins (ARB, OP, SUI, INJ, FET, ...) | 3 |
-| **$250 - $1,000** (`TZ_FOCUS_MID_UNTIL`) | + mid-size coins (SOL, XRP, ADA, AVAX, LINK, DOT, LTC, ...) | 5 |
+| under **$250** (`TZ_FOCUS_SMALL_UNTIL`) | smaller coins only: meme coins (DOGE, SHIB, PEPE, BONK, WIF, FLOKI, ...) and small altcoins (ARB, OP, SUI, INJ, FET, ...) | 4 |
+| **$250 - $1,000** (`TZ_FOCUS_MID_UNTIL`) | + mid-size coins (SOL, XRP, ADA, AVAX, LINK, DOT, LTC, ...) | 6 |
 | **$1,000+** | every coin, including BTC and ETH | normal limit |
 
 Open trades are never closed because of the ladder; it only decides which *new* trades are taken. With Kraken prices, up to 8 small altcoins that Kraken lists and that trade at least $1M a day are added automatically (`TZ_MAX_SMALL_COINS`). The goal card on Home shows the current stage. `TZ_FOCUS_SMALL_COINS=false` trades every coin from the start. Smaller coins swing harder in both directions: meme coins still trade smaller and with wider stops, and every "can it be sold?" check still applies.
@@ -573,7 +573,7 @@ For faster growth with real money, switch **Settings → Your goal → Real-mone
 | Biggest single position | 35% | **50%** |
 | All open stops together | 10% | **20%** |
 | Open trades / meme coins at once | 6 / 3 | **8 / 4** |
-| Conviction needed | 0.30 | **0.27** |
+| Conviction needed | 0.22 | **0.19** |
 | Stop for the day after a loss of | 5% | **10%** |
 | Stop everything after a drop of | 15% | **30%** |
 | Stop if below what you put in by | 15% | **35%** |
@@ -602,7 +602,9 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 
 | | Practice | Real money (quick flips) |
 |---|---|---|
-| Conviction needed for a trade | 0.35 | 0.30 |
+| Conviction needed for a trade | 0.35 | 0.22 |
+| A coin whose trend still holds can be traded again | after the trend flips | 5 bars after its last trade (`TZ_REENTRY_BARS`) |
+| Skims: a dip counts up to RSI | 45 | 55 (`TZ_FLIP_SKIM_RSI_MAX`) |
 | Majors / stocks stop · target | -3% · +6% | -5% safety stop (cut early from -2% only if momentum and volume say so) · +4% |
 | Meme coins stop · target | -8% · +15% | -12% safety stop (watch from -5%) · +10% |
 | Bank half of a trade | halfway to target (25%) | as soon as it's +1.2% after fees |

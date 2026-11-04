@@ -262,7 +262,7 @@ class CoachBot(Bot):
             base -= AGGRESSIVE["bar_cut"]
         if not self.enabled or not self.settings.coach_learning:
             return base
-        return round(max(min(base, 0.25 if self.quick else 0.30), base + self.threshold_adj), 3)
+        return round(max(min(base, 0.18 if self.quick else 0.30), base + self.threshold_adj), 3)
 
     # ----------------------------------------------------------------- cycle
     async def on_cycle(self) -> None:

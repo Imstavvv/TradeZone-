@@ -68,6 +68,7 @@ class QuantBot(Bot):
         self.last_snap: dict[str, Snapshot] = {}
         self._voting_meme = False
         self.sniped: dict[str, float] = {}  # meme coin -> breakout level already acted on
+        self._bars_since: dict[str, int] = {}  # symbol -> bars since its last trade idea
 
     def subscriptions(self):
         return {"market.snapshot": self.on_snapshot, "market.tick": self.on_tick}
@@ -134,8 +135,12 @@ class QuantBot(Bot):
         elif abs(score) < th / 3:
             new = 0
         self.stance[s.symbol] = new
+        self._bars_since[s.symbol] = self._bars_since.get(s.symbol, 0) + 1
         if new != prev:
             self.emitted.pop(s.symbol, None)
+        if new != 0 and self.emitted.get(s.symbol) == new and self.quick \
+                and self.portfolio.position(s.symbol).is_flat and self._bars_since[s.symbol] >= self.settings.reentry_bars:
+            self.emitted.pop(s.symbol, None)  # real money: the trend still holds and the last trade is done - go again
         if new == 0 or self.emitted.get(s.symbol) == new:
             return
         side = Side.BUY if new > 0 else Side.SELL
@@ -167,6 +172,7 @@ class QuantBot(Bot):
             reason += f"; consensus {yes} yes / {sum(v == 'abstain' for v in votes.values())} abstain"
         self.blocked.pop(s.symbol, None)
         self.emitted[s.symbol] = new
+        self._bars_since[s.symbol] = 0
         sig = Signal(s.symbol, side, round(min(1.0, abs(score)), 3), reason, self.name, votes=votes)
         self.publish("signal.proposed", sig)
         self.bump("signals")

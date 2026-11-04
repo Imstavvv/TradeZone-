@@ -168,8 +168,8 @@ class Settings:
     shorting: str = "auto"  # auto | off
     # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
     focus_small_coins: bool = True
-    focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins), 3 trades at once
-    focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...), 5 at once; above: all coins
+    focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins), 4 trades at once
+    focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...), 6 at once; above: all coins
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
@@ -187,7 +187,10 @@ class Settings:
     # ---- quick flips: on real money the bots trade more often and bank smaller wins sooner ----
     # Every target is counted AFTER fees (both buy and sell), and the hard limits above never change.
     live_quick_flips: bool = True
-    flip_min_strength: float = 0.30  # conviction a real-money trade needs (practice: risk.min_signal_strength)
+    flip_min_strength: float = 0.22  # conviction a real-money trade needs (practice: risk.min_signal_strength)
+    reentry_bars: int = 5  # real money: a coin whose trend still holds can be traded again this many bars after its last idea
+    flip_skim_rsi_max: float = 55.0  # real-money skims: a dip counts up to this RSI (practice 45)...
+    flip_skim_calm: float = 0.7  # ...and the "calm enough for a tight stop" check allows a bit more movement (practice 0.5)
     flip_major_stop_pct: float = 0.02  # majors and stocks: -2% stop...
     flip_major_target_pct: float = 0.04  # ...and +4% profit after fees
     flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...

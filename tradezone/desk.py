@@ -509,7 +509,7 @@ class TradingDesk:
         allowed = {"small"} | ({"mid"} if stage >= 2 else set()) | ({"large"} if stage >= 3 else set())
         return {"on": s.focus_small_coins, "stage": stage, "allowed": sorted(allowed), "next_at": nxt,
                 "small_until": s.focus_small_until, "mid_until": s.focus_mid_until,
-                "max_positions": {1: 3, 2: 5}.get(stage), "equity": eq,
+                "max_positions": {1: 4, 2: 6}.get(stage), "equity": eq,
                 "coins": [x for x in s.symbols if s.coin_size(x) in allowed]}
 
     def in_focus(self, symbol: str) -> str | None:

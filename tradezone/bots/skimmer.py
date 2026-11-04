@@ -83,7 +83,7 @@ class SkimmerBot(Bot):
         ind = snap.indicators
         price = snap.price
         uptrend = ind["ema_fast"] > ind["ema_slow"] and price > ind["sma50"] * 0.995
-        dip = price < ind["ema_fast"] and 30 <= ind["rsi"] <= (50 if quick else 45)
+        dip = price < ind["ema_fast"] and 30 <= ind["rsi"] <= (s.flip_skim_rsi_max if quick else 45)
         if not (uptrend and dip):
             return
         # the target must be reachable within the time limit at this coin's current volatility
@@ -94,7 +94,7 @@ class SkimmerBot(Bot):
         if ind["volatility"] * math.sqrt(max(bars, 1)) < gross * 0.5:
             return
         # ...but calm enough that ordinary wiggles over ~10 bars stay well inside the tight stop
-        if ind["volatility"] * math.sqrt(10) > s.skim_stop_pct * 0.5:
+        if ind["volatility"] * math.sqrt(10) > s.skim_stop_pct * (s.flip_skim_calm if quick else 0.5):
             return
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(sym) if strategist and strategist.enabled else Regime.UNKNOWN
