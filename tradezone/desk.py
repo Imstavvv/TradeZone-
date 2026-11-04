@@ -912,6 +912,7 @@ class TradingDesk:
         pm.protected.update(s for s in saved_pm.get("protected", []) if s in active)  # type: ignore[attr-defined]
         pm.scaled_out.update(s for s in saved_pm.get("scaled_out", []) if s in active)  # type: ignore[attr-defined]
         pm.patient.update(s for s in saved_pm.get("patient", []) if s in active)  # type: ignore[attr-defined]
+        pm.tp_steps.update({k: v for k, v in saved_pm.get("tp_steps", {}).items() if k in active})  # type: ignore[attr-defined]
         pm.watch.update({k: v for k, v in saved_pm.get("watch", {}).items() if k in active})  # type: ignore[attr-defined]
         self.bots["sentinel"].reset_shadow()  # type: ignore[attr-defined]
         return msg

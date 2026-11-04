@@ -148,6 +148,10 @@ class Settings:
     live_risk_per_trade: float = 0.025  # 2.5% of the balance risked to the (wider, patient) stop
     live_max_position_pct: float = 0.35
     live_max_portfolio_heat: float = 0.10
+    # ---- moving take-profit: once a trade is 10% past its buy price, the target moves up instead of selling ----
+    tp_step: bool = True
+    tp_step_pct: float = 0.10  # every +10% from the buy price: the target moves another 10% out...
+    tp_step_lock: float = 0.5  # ...and the stop locks in at least half of the step reached (+5% at +10%, +10% at +20%)
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
     patient_exits: bool = True

@@ -515,6 +515,15 @@ How it works and what to expect:
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
 
+### Moving take-profit: past +10%, the target moves out
+
+Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at its old target. Instead:
+
+* the **take-profit moves another 10% out** (to +20% after fees), and
+* the **stop moves up to lock in half of the step** (+5% at +10%).
+
+This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. Shorts work the same way, mirrored. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
+
 ### Patient exits (real money)
 
 With real money, a losing trade isn't cut at the first dip. Each trade gets a wider **safety stop** (**-5%** for bigger coins and stocks, **-12%** for meme coins; `TZ_PATIENT_STOP_PCT`, `TZ_PATIENT_MEME_STOP_PCT`), and once it's down past where the usual tight stop would be (-2% / -5%), the Portfolio Manager checks it at every bar close:

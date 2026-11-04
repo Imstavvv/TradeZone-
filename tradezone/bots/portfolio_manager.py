@@ -42,6 +42,7 @@ class PortfolioBot(Bot):
         self._fixes: deque[float] = deque()
         self.last_fill_ts = 0.0
         self.patient: set[str] = set()  # real-money trades with patient exits
+        self.tp_steps: dict[str, int] = {}  # symbol -> how many +10% steps the take-profit has moved
         self.watch: dict[str, float] = {}  # symbol -> since when it's been down past its usual stop
         self._held_note: dict[str, float] = {}
         self._retry_at: dict[str, float] = {}  # symbol -> don't resend a refused exit before
@@ -66,6 +67,8 @@ class PortfolioBot(Bot):
         was_protected = f.symbol in self.protected
         if was_flat and not pos.is_flat and self.settings.patient(self.desk.is_live) and not self._is_skim(f.symbol):
             self.patient.add(f.symbol)
+        if pos.is_flat or was_flat:
+            self.tp_steps.pop(f.symbol, None)  # a new trade starts counting steps from its own buy price
         if pos.is_flat:
             self.patient.discard(f.symbol)
             self.watch.pop(f.symbol, None)
@@ -180,6 +183,7 @@ class PortfolioBot(Bot):
             pos.stop_price = tighten(pos.stop_price, hw - d * r)
         if r and pos.stop_price is not None:
             self._protect_profit(t.symbol, pos, t.price, hw, r, d, tighten)
+        self._step_take_profit(t.symbol, pos, t.price, d, tighten)
         if pos.stop_price is not None and ((long and t.price <= pos.stop_price) or (not long and t.price >= pos.stop_price)):
             self._exit(t.symbol, f"stop hit at {t.price:,.2f} (stop {pos.stop_price:,.2f})")
         elif pos.take_profit is not None and ((long and t.price >= pos.take_profit) or (not long and t.price <= pos.take_profit)):
@@ -187,6 +191,29 @@ class PortfolioBot(Bot):
                 self._start_runner(t.symbol, pos, t.price, d, tighten)
             else:
                 self._exit(t.symbol, f"take-profit hit at {t.price:,.6g}")
+
+    def _step_take_profit(self, sym, pos, price, d, tighten) -> None:
+        """Past +10% from the buy price (and every further 10%), move the take-profit another step out and
+        lock in half of the step with the stop - the trade keeps going instead of being sold at the old target."""
+        s = self.settings
+        if not s.tp_step or s.tp_step_pct <= 0 or self._is_skim(sym) or not pos.avg_price:
+            return
+        gain = (price / pos.avg_price - 1) * d
+        n = int(gain / s.tp_step_pct + 1e-9)
+        if n < 1 or n <= self.tp_steps.get(sym, 0):
+            return
+        self.tp_steps[sym] = n
+        entry, cost = pos.avg_price, self.round_trip_cost(pos.avg_price, sym)
+        lock = entry * (1 + d * s.tp_step_pct * n * s.tp_step_lock)
+        pos.stop_price = lock if pos.stop_price is None else tighten(pos.stop_price, lock)
+        self.protected.add(sym)
+        moved = ""
+        if pos.take_profit is not None:  # a runner has no ceiling: only its stop steps up
+            new_tp = entry * (1 + d * s.tp_step_pct * (n + 1)) + d * cost
+            pos.take_profit = max(pos.take_profit, new_tp) if d > 0 else min(pos.take_profit, new_tp)
+            moved = f", take-profit moved to {pos.take_profit:,.6g} (+{s.tp_step_pct * (n + 1):.0%})"
+        self.bump("tp_steps")
+        self.act(f"{sym} is +{gain:.1%} past the buy price: stop locks +{s.tp_step_pct * n * s.tp_step_lock:.0%}{moved}")
 
     def _is_skim(self, symbol: str) -> bool:
         sk = self.desk.bots.get("skimmer")
