@@ -49,9 +49,16 @@ def build_broker(s: Settings) -> Broker:
     return PaperBroker(s.fee_bps, s.slippage_bps)
 
 
+PLATFORMS = {"alpaca": "Alpaca", "kraken": "Kraken"}
+
+
 def build_live_broker(s: Settings) -> Broker | None:
     if s.live_blockers():
         return None
+    if s.live_platform == "kraken":
+        from .brokers.kraken import KrakenBroker
+
+        return KrakenBroker(s.kraken_key, s.kraken_secret)
     from .brokers.alpaca import AlpacaBroker
 
     return AlpacaBroker(s.alpaca_live_key, s.alpaca_live_secret, paper=False)
@@ -207,15 +214,18 @@ class TradingDesk:
         blockers = self._switch_blockers(target)
         account = None
         if target == "live" and self.live_broker is not None and not self.settings.live_blockers():
+            name = PLATFORMS[self.settings.live_platform]
             acct = await self.live_broker.account()
-            positions = await self.live_broker.positions()
+            kraken = hasattr(self.live_broker, "capture_baseline")
+            # Kraken: coins you already hold are noted and left alone, so they don't block anything
+            positions = {} if kraken else await self.live_broker.positions()
             if acct is None:
-                blockers.append("couldn't reach your Alpaca account - check it in Settings → Linked accounts")
+                blockers.append(f"couldn't reach your {name} account - check it on the Money page")
             else:
-                account = {**acct, "positions": positions or {}}
+                account = {**acct, "positions": positions or {}, "platform": name}
                 if positions:
                     blockers.append(
-                        f"your Alpaca account already holds {len(positions)} position(s) - close them in Alpaca first "
+                        f"your {name} account already holds {len(positions)} position(s) - close them in {name} first "
                         "(TradeZone needs an account with nothing open)"
                     )
                 cap = self.settings.live_max_capital
@@ -261,6 +271,8 @@ class TradingDesk:
             capital = acct["trading_capital"]
             if capital <= 0:
                 raise ModeSwitchError("live account has no cash to trade")
+            if hasattr(self.live_broker, "capture_baseline"):  # Kraken: never touch the coins you already had
+                self._save_account_row("kraken_baseline", await self.live_broker.capture_baseline())  # type: ignore[union-attr]
             book = Portfolio(capital)
             self.live_portfolio = book
             self.portfolio = book
@@ -362,44 +374,75 @@ class TradingDesk:
             self.journal.conn.execute("CREATE TABLE IF NOT EXISTS linked_accounts (kind TEXT PRIMARY KEY, data TEXT)")
             self.journal.conn.commit()
 
-    def load_linked_broker(self) -> bool:
-        self._accounts_table()
-        with self.journal._lock:
-            row = self.journal.conn.execute("SELECT data FROM linked_accounts WHERE kind = 'alpaca_live'").fetchone()
-        if not row:
-            return False
+    # A real-money account linked in the app is stored server-side (never sent back to the browser).
+    # Rows: 'alpaca_live' / 'kraken_live' (keys), 'live_platform' (which one trades), 'kraken_baseline'.
+    def _account_row(self, kind: str) -> dict | None:
         import json as _json
-        d = _json.loads(row[0])
-        self.settings.alpaca_live_key, self.settings.alpaca_live_secret = d["key"], d["secret"]
+        self._accounts_table()
+        row = self.journal.one("SELECT data FROM linked_accounts WHERE kind = ?", (kind,))
+        return _json.loads(row[0]) if row else None
+
+    def _save_account_row(self, kind: str, data: dict | None) -> None:
+        import json as _json
+        self._accounts_table()
+        if data is None:
+            self.journal.run("DELETE FROM linked_accounts WHERE kind = ?", (kind,))
+        else:
+            self.journal.run("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES (?, ?)", (kind, _json.dumps(data)))
+
+    def load_linked_broker(self) -> bool:
+        s, found = self.settings, False
+        if (d := self._account_row("alpaca_live")) is not None:
+            s.alpaca_live_key, s.alpaca_live_secret, found = d["key"], d["secret"], True
+        if (d := self._account_row("kraken_live")) is not None:
+            s.kraken_key, s.kraken_secret, found = d["key"], d["secret"], True
+        if (d := self._account_row("live_platform")) is not None:
+            s.live_platform = d["platform"]
+        if not found:
+            return False
         self.broker_source = "app"
-        if not self.settings.live_blockers():
-            self.live_broker = build_live_broker(self.settings)
+        if not s.live_blockers():
+            self.live_broker = build_live_broker(s)
+            if s.live_platform == "kraken" and (b := self._account_row("kraken_baseline")) is not None:
+                self.live_broker.baseline = b  # type: ignore[union-attr]
         return True
 
-    async def link_broker(self, key: str, secret: str) -> dict:
-        """Check Alpaca live keys work, then use them for real-money trading."""
-        from .brokers.alpaca import AlpacaBroker
+    async def link_broker(self, key: str, secret: str, platform: str = "alpaca") -> dict:
+        """Check real-money keys work, then use that account for live trading."""
         key, secret = (key or "").strip(), (secret or "").strip()
+        if platform not in PLATFORMS:
+            raise ValueError("Pick Alpaca or Kraken.")
         if self.is_live:
             raise ValueError("Switch back to practice money before changing the account.")
         if not key or not secret:
-            raise ValueError("Paste both the Key ID and the Secret Key.")
-        if key.upper().startswith("PK"):
-            raise ValueError("These are practice (paper) keys. For real money, open your Alpaca *live* account "
-                             "(not Paper Trading) and make the keys there - they start with AK.")
-        broker = AlpacaBroker(key, secret, paper=False)
-        acct = await broker.account()
-        if acct is None:
-            await broker.close()
-            raise ValueError("Alpaca didn't accept these keys. Check you copied both parts completely.")
-        import json as _json
-        self._accounts_table()
-        with self.journal._lock:
-            self.journal.conn.execute("INSERT OR REPLACE INTO linked_accounts(kind, data) VALUES ('alpaca_live', ?)",
-                                      (_json.dumps({"key": key, "secret": secret}),))
-            self.journal.conn.commit()
+            raise ValueError("Paste both keys.")
+        if platform == "kraken":
+            from .brokers.kraken import KrakenBroker
+            broker: Broker = KrakenBroker(key, secret)
+            try:
+                acct = await broker.verify()  # type: ignore[attr-defined]  # refuses keys that can withdraw
+            except ValueError:
+                await broker.close()
+                raise
+        else:
+            from .brokers.alpaca import AlpacaBroker
+            if key.upper().startswith("PK"):
+                raise ValueError("These are practice (paper) keys. For real money, open your Alpaca *live* account "
+                                 "(not Paper Trading) and make the keys there - they start with AK.")
+            broker = AlpacaBroker(key, secret, paper=False)
+            acct = await broker.account()
+            if acct is None:
+                await broker.close()
+                raise ValueError("Alpaca didn't accept these keys. Check you copied both parts completely.")
+        self._save_account_row(f"{platform}_live", {"key": key, "secret": secret})
+        self._save_account_row("live_platform", {"platform": platform})
+        if platform == "kraken":
+            self._save_account_row("kraken_baseline", None)  # recorded fresh when live trading starts
+            self.settings.kraken_key, self.settings.kraken_secret = key, secret
+        else:
+            self.settings.alpaca_live_key, self.settings.alpaca_live_secret = key, secret
+        self.settings.live_platform = platform
         old, self.live_broker = self.live_broker, broker
-        self.settings.alpaca_live_key, self.settings.alpaca_live_secret = key, secret
         self.broker_source = "app"
         if old is not None and old is not broker:
             await old.close()
@@ -408,14 +451,16 @@ class TradingDesk:
     async def unlink_broker(self) -> None:
         if self.is_live:
             raise ValueError("Switch back to practice money first.")
-        self._accounts_table()
-        with self.journal._lock:
-            self.journal.conn.execute("DELETE FROM linked_accounts WHERE kind = 'alpaca_live'")
-            self.journal.conn.commit()
+        platform = self.settings.live_platform
+        self._save_account_row(f"{platform}_live", None)
+        if platform == "kraken":
+            self._save_account_row("kraken_baseline", None)
+            self.settings.kraken_key = self.settings.kraken_secret = ""
+        else:
+            self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
         if self.live_broker is not None:
             await self.live_broker.close()
         self.live_broker = None
-        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
         self.broker_source = ""
 
     def owner_protected(self) -> bool:
@@ -426,8 +471,11 @@ class TradingDesk:
         return self.settings.host in ("127.0.0.1", "localhost", "::1")
 
     def broker_info(self) -> dict:
-        key = self.settings.alpaca_live_key
-        return {"linked": bool(key), "source": getattr(self, "broker_source", "") or ("server" if key else ""),
+        s = self.settings
+        key = s.kraken_key if s.live_platform == "kraken" else s.alpaca_live_key
+        return {"linked": bool(key), "platform": s.live_platform, "platform_name": PLATFORMS[s.live_platform],
+                "can_withdraw": False,  # TradeZone never withdraws; Kraken keys that could are refused
+                "source": getattr(self, "broker_source", "") or ("server" if key else ""),
                 "key": f"…{key[-4:]}" if len(key) >= 8 else "", "ready": not self.settings.live_blockers(),
                 "blockers": self.settings.live_blockers()}
 

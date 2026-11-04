@@ -406,6 +406,20 @@ All settings are environment variables with the `TZ_` prefix. A `.env` file in t
 
 ## Live trading
 
+Real money trades through **Alpaca** (stocks + crypto) or **Kraken** (crypto, including BONK, WIF and FLOKI, which Alpaca doesn't list). Connect one on the **Money** page. The one you connected last is the one that trades.
+
+### Kraken: trades and profits, never withdrawals
+
+The bots can **buy, sell and take profits** on Kraken. **Nothing in TradeZone can withdraw** money or crypto from it, enforced three ways:
+
+1. **The code can't.** Every private Kraken request goes through one function that only allows `Balance`, `TradeBalance`, `AddOrder`, `CancelOrder`, `QueryOrders`, `OpenOrders` and `WithdrawInfo`. (`WithdrawInfo` only *reads* information and is used for the check below.) `Withdraw`, wallet transfers, staking and everything else are refused before any request is sent.
+2. **The key can't.** When you connect, TradeZone checks the key and **refuses one that has the "Withdraw Funds" permission**, even though it would never use it. It also checks the key can read balances and place orders, and explains which switch to turn on if not.
+3. **Your coins stay yours.** When live trading starts, TradeZone notes what you already hold on Kraken. It only ever trades what the bots buy themselves, so coins you had before are never sold, and they don't block going live.
+
+Make the key in Kraken → **Settings → API → Create API key**. Turn on **Query Funds**, **Query Open Orders & Trades**, **Query Closed Orders & Trades**, **Create & Modify Orders** and **Cancel/Close Orders**. Leave **Withdraw Funds**, Deposit Funds and Earn **off**.
+
+Orders are market orders on each coin's USD pair, rounded down to Kraken's lot size and checked against its minimum order. Kraken's fee comes back with every fill and is counted in your results. The bots trade with the USD in the account (not USDC or USDT). Server-side alternative to linking in the app: `TZ_LIVE_PLATFORM=kraken`, `TZ_KRAKEN_KEY`, `TZ_KRAKEN_SECRET`.
+
 > **Warning.** Live mode places real orders with real money. The bundled strategies have only been tested on synthetic data, which says nothing about real-world profitability. Only trade money you can afford to lose, and use a dedicated account.
 
 **The desk always starts in PAPER.** It stays there until you switch it yourself.

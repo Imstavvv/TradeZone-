@@ -96,6 +96,10 @@ class Settings:
     alpaca_secret: str = ""
     alpaca_live_key: str = ""  # Alpaca LIVE (real money) account keys - enables the Go LIVE button
     alpaca_live_secret: str = ""
+    # Kraken (real money, crypto): a key WITHOUT withdraw permission - TradeZone refuses keys that can withdraw
+    kraken_key: str = ""
+    kraken_secret: str = ""
+    live_platform: str = "alpaca"  # which real-money account trades: alpaca | kraken (linking one in the app picks it)
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- "don't lose my money": stricter limits whenever real money is trading ----
     live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
@@ -233,8 +237,11 @@ class Settings:
     def live_blockers(self) -> list[str]:
         """Configuration problems preventing live trading (empty = live can be enabled)."""
         out = []
-        if not (self.alpaca_live_key and self.alpaca_live_secret):
-            out.append("connect your real-money account first: Settings → Linked accounts → Real-money account "
+        if self.live_platform == "kraken":
+            if not (self.kraken_key and self.kraken_secret):
+                out.append("connect your Kraken account first: Money → Real-money account (server setting TZ_KRAKEN_KEY / TZ_KRAKEN_SECRET)")
+        elif not (self.alpaca_live_key and self.alpaca_live_secret):
+            out.append("connect your real-money account first: Money → Real-money account "
                        "(server setting TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET)")
         if self.feed == "sim":
             out.append("real money needs live prices, but this server uses simulated practice prices (TZ_FEED=sim)")
@@ -281,6 +288,8 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
+        if self.live_platform not in ("alpaca", "kraken"):
+            raise ValueError("TZ_LIVE_PLATFORM must be alpaca or kraken")
         if self.stop_method not in ("structure", "atr", "percent"):
             raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
         for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):

@@ -45,6 +45,10 @@ class AlpacaBroker(Broker):
         self.client = client or httpx.AsyncClient(base_url=base, headers=headers, timeout=10.0)
         self._reported: dict[str, tuple[float, float]] = {}  # order id -> (qty, avg)
 
+    def supports(self, symbol: str) -> bool:
+        from ..config import Settings
+        return Settings.live_tradeable(symbol)
+
     def _fills_from(self, order: Order, data: dict) -> list[Fill]:
         order.status = _STATUS.get(data.get("status", ""), order.status)
         filled = float(data.get("filled_qty") or 0)

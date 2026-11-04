@@ -11,6 +11,10 @@ class Broker(abc.ABC):
     name = "broker"
     is_live = False
 
+    def supports(self, symbol: str) -> bool:
+        """Whether this broker can trade the symbol (Risk checks it before a real-money buy)."""
+        return True
+
     def on_prices(self, ticks: list[Tick]) -> None:
         """Receive the latest prices (used by simulated brokers)."""
 
