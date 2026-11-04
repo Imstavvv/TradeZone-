@@ -442,6 +442,15 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         w = desk.wallets
         return wallet_call(w.link, body.chain, body.address, body.tag, body.label, body.no_tag_confirmed)
 
+    @app.get("/api/wallets/check", dependencies=[Depends(check_token)])
+    async def check_wallet_address(address: str = Query("", max_length=200)):
+        return desk.wallets.check(address)
+
+    @app.post("/api/wallets/{wallet_id}/received", dependencies=[Depends(check_token)])
+    async def wallet_received(wallet_id: str, request: Request):
+        audit(request, f"confirmed a test send arrived at wallet {wallet_id}", "warning")
+        return wallet_call(desk.wallets.confirm_received, wallet_id)
+
     @app.delete("/api/wallets/{wallet_id}", dependencies=[Depends(check_token)])
     async def unlink_wallet(wallet_id: str, request: Request):
         audit(request, f"unlink wallet {wallet_id}", "warning")

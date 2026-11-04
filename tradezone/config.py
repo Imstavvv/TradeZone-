@@ -116,6 +116,7 @@ class Settings:
     deposit_addresses: list[str] = field(default_factory=list)  # "CHAIN:address", e.g. XRP:rXXXX
     withdrawal_cooldown_h: float = 24.0  # newly linked wallets can't receive withdrawals until then
     max_daily_withdrawal: float = 10_000.0
+    test_send_usd: float = 25.0  # first send to a new wallet is capped at this until you confirm it arrived
     # ---- Executive (head trader) ----
     exec_max_chase_r: float = 0.5  # hold an entry if price already moved this many R past the plan
     exec_stale_after_s: float = 20.0  # hold entries when a symbol's price is older than this

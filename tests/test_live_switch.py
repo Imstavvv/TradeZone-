@@ -120,7 +120,7 @@ def test_mode_api_requires_typed_confirmation():
 
 
 def test_live_withdrawals_are_manual_and_deposits_not_credited():
-    desk = make_desk(api_token="t", withdrawal_cooldown_h=0)
+    desk = make_desk(api_token="t", withdrawal_cooldown_h=0, test_send_usd=1e9)
     run(desk.switch_mode("live"))
     eth = "0x52908400098527886E0F7030069857D2E4169EE7"
     w = desk.wallets.link("ETH", eth)

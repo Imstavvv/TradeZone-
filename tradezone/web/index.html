@@ -1850,7 +1850,8 @@ document.querySelectorAll('[data-jump]').forEach(a => a.onclick = () => {
 // =================== Settings page: logging in, linked accounts, devices ===================
 const COIN_NAME = {BTC: 'Bitcoin', ETH: 'Ethereum', SOL: 'Solana', XRP: 'XRP', XLM: 'Stellar', ATOM: 'Cosmos', HBAR: 'Hedera', EOS: 'EOS'};
 const coinName = k => COIN_NAME[k] || (S.state && S.state.wallets.chains[k] ? S.state.wallets.chains[k].name : k);
-const COIN_ICON = {BTC: '🟠', ETH: '🔷', SOL: '🟣', XRP: '⚫', XLM: '🚀', ATOM: '⚛️', HBAR: '🌐', EOS: '⚪'};
+const COIN_ICON = {BTC: '🟠', ETH: '🔷', BASE: '🔵', ARB: '🔷', OP: '🔴', POLYGON: '🟪', BSC: '🟡', AVAXC: '🔺', SOL: '🟣', TRX: '🔻',
+  LTC: '⚪', DOGE: '🐕', ADA: '🔵', DOT: '⚫', ALGO: '⬛', XRP: '⚫', XLM: '🚀', ATOM: '⚛️', HBAR: '🌐', EOS: '⚪'};
 function fmtWait(sec){ const h = Math.floor(sec / 3600), m = Math.ceil((sec % 3600) / 60); return h ? `${h} h ${m} min` : `${m} min`; }
 async function loadAccounts(){ try { S.accounts = await api('/api/accounts'); renderSettings(); } catch {} return S.accounts; }
 // the server's safety wait before a new wallet can receive money, e.g. "24-hour" ('' = no wait)
@@ -1876,8 +1877,16 @@ function renderSettings(){
     $('wwWaitNote').textContent = coolWait() ? `For your safety, a new wallet can receive money after a ${coolWait()} wait.` : '';
     if (setHTML($('walletCards'), W.wallets.map(w => { const wait = w.withdrawals_enabled_at - now;
       return `<div class="wcard"><div class="ic">${COIN_ICON[w.chain] || '👛'}</div><div><b>${esc(w.label)}</b> <span class="muted">· ${esc(coinName(w.chain))}</span></div>
-        <div class="sub2">${esc(w.address.slice(0, 10))}…${esc(w.address.slice(-6))}${w.tag ? ' · tag ' + esc(w.tag) : ''} · ${wait > 0 ? '⏳ ready in ' + fmtWait(wait) : '✅ ready'}</div>
+        <div class="sub2">${esc(w.address.slice(0, 10))}…${esc(w.address.slice(-6))}${w.tag ? ' · tag ' + esc(w.tag) : ''} · ${wait > 0 ? '⏳ ready in ' + fmtWait(wait) : '✅ ready'}
+          · fee ${esc(w.fee || '')}${w.checksum === 'verified' ? ' · ✅ checksum' : ''}</div>
+        ${w.verified ? '<div class="sub2" style="color:var(--up)">✔ Proven: a test send arrived - full amounts allowed</div>'
+          : W.transfers.some(t => t.wallet_id === w.id && t.kind === 'withdrawal')
+            ? `<div class="sub2">🧪 Test sent. Did it arrive in your wallet? <button class="gopaper" data-recv="${w.id}">I got it ✓</button></div>`
+            : `<div class="sub2">🧪 Send a small test first (up to ${money(W.test_send_usd || 25)}). Full amounts unlock once it arrives.</div>`}
         <div class="btns"><button data-send="${w.id}" ${wait > 0 ? 'disabled' : ''}>💸 Send money</button><button data-rmw="${w.id}">Remove</button></div></div>`; }).join(''))) {
+      document.querySelectorAll('[data-recv]').forEach(b => b.onclick = async () => {
+        if (!await ask('Did the test arrive?', 'Only tap yes if you can see the money in that wallet. This unlocks full amounts for it.', {ok: 'Yes, it arrived'})) return;
+        await api('/api/wallets/' + b.dataset.recv + '/received', {}); toast('Wallet proven ✓ Full amounts unlocked', 'ok'); });
       document.querySelectorAll('[data-send]').forEach(b => b.onclick = () => openSend(b.dataset.send));
       document.querySelectorAll('[data-rmw]').forEach(b => b.onclick = async () => {
         if (!await ask('Remove this wallet?', 'You can add it again later' + (coolWait() ? ` (with a new ${coolWait()} wait).` : '.'), {ok: 'Remove', danger: true})) return;
@@ -1937,44 +1946,48 @@ $('brokerUnlink').onclick = async () => {
 };
 
 // ---- add a wallet: paste -> we recognise the coin -> tag question -> nickname ----
-const DETECT = [['BTC', /^(bc1[ac-hj-np-z02-9]{11,71}|[13][1-9A-HJ-NP-Za-km-z]{25,34})$/], ['ETH', /^0x[0-9a-fA-F]{40}$/],
-  ['XRP', /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/], ['XLM', /^G[A-Z2-7]{55}$/], ['ATOM', /^cosmos1[02-9ac-hj-np-z]{38}$/],
-  ['HBAR', /^0\.0\.\d{1,10}$/], ['SOL', /^[1-9A-HJ-NP-Za-km-z]{32,44}$/], ['EOS', /^[a-z1-5.]{1,12}$/]];
-const cleanAddr = a => String(a || '').trim().replace(/^[a-z]+:(?!\/\/)/i, '').split('?')[0].trim();  // "bitcoin:bc1…?amount=1" -> address
-const detectChain = a => (DETECT.find(([, re]) => re.test(a)) || [null])[0];
-const WW = {chain: null, tag: null, noTag: false};
+// The server checks the address against each network's real checksum (one source of truth).
+const WW = {chain: null, tag: null, noTag: false, nets: [], addr: '', seq: 0};
 function wwStep(n){ ['ws1', 'ws2', 'ws3'].forEach((id, i) => $(id).style.display = i + 1 === n ? '' : 'none'); }
 function openWalletWizard(){
-  Object.assign(WW, {chain: null, tag: null, noTag: false});
+  Object.assign(WW, {chain: null, tag: null, noTag: false, nets: [], addr: ''});
   $('wwAddr').value = $('wwTag').value = $('wwName').value = ''; $('wwDetect').textContent = ''; $('wwChains').style.display = 'none';
   ['wwErr1', 'wwErr2', 'wwErr3'].forEach(i => $(i).textContent = ''); $('wwTagBox').style.display = 'none';
   wwStep(1); $('walletSheet').classList.add('open'); setTimeout(() => $('wwAddr').focus(), 60);
 }
-function wwChips(){
-  const C = S.state.wallets.chains;
-  $('wwChains').innerHTML = Object.keys(C).map(k => `<button type="button" data-coin="${k}" class="${WW.chain === k ? 'on' : ''}">${COIN_ICON[k] || ''} ${esc(coinName(k))}</button>`).join('');
+function wwChips(){  // several networks fit (Ethereum-style 0x addresses): you choose which one
+  $('wwChains').innerHTML = WW.nets.map(n => `<button type="button" data-coin="${n.chain}" class="${WW.chain === n.chain ? 'on' : ''}">${COIN_ICON[n.chain] || '🔗'} ${esc(n.name)} <small class="muted">· fee ${esc(n.fee)}</small></button>`).join('');
   $('wwChains').querySelectorAll('[data-coin]').forEach(b => b.onclick = () => { WW.chain = b.dataset.coin; wwChips(); wwDetectText(); });
 }
 function wwDetectText(){
-  const a = cleanAddr($('wwAddr').value), C = S.state.wallets.chains;
-  if (!a) { $('wwDetect').textContent = ''; return; }
-  $('wwDetect').innerHTML = WW.chain ? `${COIN_ICON[WW.chain] || '✓'} Recognised: <b>${esc(coinName(WW.chain))}</b> wallet ✓ <a href="#" id="wwChange" style="color:var(--accent2)">not right?</a>`
-                                     : "We couldn't tell which coin this is - please pick it:";
-  const ch = $('wwChange'); if (ch) ch.onclick = e => { e.preventDefault(); $('wwChains').style.display = ''; wwChips(); };
+  if (!WW.addr) { $('wwDetect').textContent = ''; return; }
+  if (!WW.nets.length) { $('wwDetect').innerHTML = "⚠️ That isn't a valid address on any network we support - a character may be missing or wrong. Copy it again from your wallet."; return; }
+  const n = WW.nets.find(x => x.chain === WW.chain);
+  if (!n) { $('wwDetect').innerHTML = 'This address works on several networks. <b>Pick the network your wallet uses</b> - sending on the wrong one can lose the money:'; return; }
+  const sum = n.checksum === 'verified' ? '✅ checksum verified' : `ℹ️ ${esc(n.note)}`;
+  $('wwDetect').innerHTML = `${COIN_ICON[n.chain] || '✓'} Recognised: <b>${esc(n.name)}</b> wallet · ${sum}` + (WW.nets.length > 1 ? ' <a href="#" id="wwChange" style="color:var(--accent2)">other network?</a>' : '');
+  const ch = $('wwChange'); if (ch) ch.onclick = e => { e.preventDefault(); WW.chain = null; $('wwChains').style.display = ''; wwChips(); wwDetectText(); };
 }
+let wwTimer = null;
 $('wwAddr').addEventListener('input', () => {
-  const a = cleanAddr($('wwAddr').value); WW.chain = a ? detectChain(a) : null;
-  $('wwChains').style.display = a && !WW.chain ? '' : 'none'; if (a && !WW.chain) wwChips(); wwDetectText(); $('wwErr1').textContent = '';
+  clearTimeout(wwTimer); $('wwErr1').textContent = '';
+  wwTimer = setTimeout(async () => {
+    const seq = ++WW.seq, raw = $('wwAddr').value.trim();
+    if (!raw) { WW.addr = ''; WW.nets = []; WW.chain = null; $('wwChains').style.display = 'none'; return wwDetectText(); }
+    let r; try { r = await api('/api/wallets/check?address=' + encodeURIComponent(raw)); } catch { return; }
+    if (seq !== WW.seq) return;  // a newer paste arrived
+    WW.addr = r.address; WW.nets = r.networks; WW.chain = WW.nets.length === 1 ? WW.nets[0].chain : null;
+    $('wwChains').style.display = WW.nets.length > 1 ? '' : 'none'; if (WW.nets.length > 1) wwChips();
+    wwDetectText();
+  }, 250);
 });
 $('wwPaste').onclick = () => pasteInto($('wwAddr'));
 $('wwCancel').onclick = () => $('walletSheet').classList.remove('open');
 $('wwNext1').onclick = () => {
-  const a = cleanAddr($('wwAddr').value), C = S.state.wallets.chains;
-  if (!a) { $('wwErr1').textContent = 'Paste the wallet address first.'; return; }
-  if (!WW.chain) { $('wwErr1').textContent = 'Pick which coin this wallet is for.'; $('wwChains').style.display = ''; wwChips(); return; }
-  const re = (DETECT.find(([k]) => k === WW.chain) || [])[1];
-  if (re && !re.test(a)) { $('wwErr1').textContent = `That doesn't look like a ${coinName(WW.chain)} address. Check you copied all of it.`; return; }
-  WW.addr = a;
+  const C = S.state.wallets.chains;
+  if (!WW.addr) { $('wwErr1').textContent = 'Paste the wallet address first.'; return; }
+  if (!WW.nets.length) { $('wwErr1').textContent = "That address didn't pass the check - copy it again from your wallet."; return; }
+  if (!WW.chain) { $('wwErr1').textContent = 'Pick the network your wallet uses.'; $('wwChains').style.display = ''; wwChips(); return; }
   if (C[WW.chain].tag) {
     const t = C[WW.chain].tag; $('wwTagLabel').textContent = t.charAt(0).toUpperCase() + t.slice(1);
     $('wwTagQ').textContent = `Is this ${coinName(WW.chain)} wallet at an exchange?`; $('wwTagBox').style.display = 'none'; wwStep(2);
@@ -1992,7 +2005,7 @@ $('wwNext2').onclick = () => {
 function wwToName(){
   const C = S.state.wallets.chains, c = C[WW.chain];
   $('wwName').value = $('wwName').value || `My ${coinName(WW.chain)} wallet`;
-  $('wwSummary').innerHTML = `${COIN_ICON[WW.chain] || '👛'} <b>${esc(coinName(WW.chain))}</b><br><span class="mono" style="word-break:break-all">${esc(WW.addr)}</span>` +
+  $('wwSummary').innerHTML = `${COIN_ICON[WW.chain] || '👛'} <b>${esc(coinName(WW.chain))}</b> · network fee ${esc(c.fee || '')}<br><span class="mono" style="word-break:break-all">${esc(WW.addr)}</span>` +
     (c.tag ? `<br>${WW.tag ? esc(c.tag) + ': <b>' + esc(WW.tag) + '</b>' : 'No ' + esc(c.tag) + ' (your own wallet)'}` : '');
   wwStep(3);
 }

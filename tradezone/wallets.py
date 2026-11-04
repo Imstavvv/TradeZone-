@@ -1,6 +1,7 @@
 """Wallet linking, deposits and withdrawals, with destination tag / memo support.
 
-* **Linking:** addresses are validated per chain. Chains that use a destination tag or memo
+* **Linking:** every address is checked against its network's real checksum (see addresses.py),
+  so a typo is caught before any money moves. Chains that use a destination tag or memo
   (XRP, XLM, ATOM, HBAR, EOS) validate it, and if you leave it empty you must confirm that
   the destination doesn't need one. That prevents the classic "missing tag = lost funds" mistake.
 * **Deposit tags:** every linked wallet gets a unique numeric deposit tag. Deposits to the desk's
@@ -8,7 +9,8 @@
   without tags are matched by sender address. Anything unmatched is held for manual review,
   never auto-credited.
 * **Withdrawals:** only to linked wallets, only after a security cooldown, within a daily limit
-  and available cash, and always with the wallet's tag attached.
+  and available cash, and always with the wallet's tag attached. The first send to a new wallet is
+  a small *test* (``TZ_TEST_SEND_USD``); full amounts unlock once you confirm it arrived.
 
 In paper mode deposits and withdrawals move simulated cash. In live mode the desk has no custody
 of funds (they sit at your broker), so withdrawals are recorded as ``manual_required`` and are not
@@ -19,19 +21,16 @@ from __future__ import annotations
 
 import json
 import math
-import re
 import secrets
 import time
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from .addresses import check_address, detect
 from .core.models import Alert
 
 if TYPE_CHECKING:
     from .desk import TradingDesk
-
-B58 = "1-9A-HJ-NP-Za-km-z"
-
 
 @dataclass(frozen=True)
 class TagRule:
@@ -44,22 +43,35 @@ class TagRule:
 class Chain:
     code: str
     name: str
-    address_re: str
     assets: tuple[str, ...]
     tag: TagRule | None = None
+    fee: str = ""  # typical network fee, so you can pick a cheap way to move money
 
 
+MEMO = TagRule("memo", False, 256)
 CHAINS: dict[str, Chain] = {
     c.code: c
     for c in [
-        Chain("BTC", "Bitcoin", rf"^(bc1[ac-hj-np-z02-9]{{11,71}}|[13][{B58}]{{25,34}})$", ("BTC",)),
-        Chain("ETH", "Ethereum", r"^0x[0-9a-fA-F]{40}$", ("ETH", "USDC", "USDT")),
-        Chain("SOL", "Solana", rf"^[{B58}]{{32,44}}$", ("SOL", "USDC", "USDT")),
-        Chain("XRP", "XRP Ledger", rf"^r[{B58}]{{24,34}}$", ("XRP",), TagRule("destination tag", True, 10)),
-        Chain("XLM", "Stellar", r"^G[A-Z2-7]{55}$", ("XLM", "USDC"), TagRule("memo", False, 28)),
-        Chain("ATOM", "Cosmos", r"^cosmos1[02-9ac-hj-np-z]{38}$", ("ATOM",), TagRule("memo", False, 256)),
-        Chain("HBAR", "Hedera", r"^0\.0\.\d{1,10}$", ("HBAR",), TagRule("memo", False, 100)),
-        Chain("EOS", "EOS", r"^[a-z1-5.]{1,12}$", ("EOS",), TagRule("memo", False, 256)),
+        Chain("BTC", "Bitcoin", ("BTC",), fee="about $1-5"),
+        Chain("ETH", "Ethereum", ("ETH", "USDC", "USDT"), fee="about $0.50-5"),
+        Chain("BASE", "Base (Ethereum L2)", ("ETH", "USDC"), fee="a few cents"),
+        Chain("ARB", "Arbitrum (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents"),
+        Chain("OP", "Optimism (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents"),
+        Chain("POLYGON", "Polygon", ("POL", "USDC", "USDT"), fee="a few cents"),
+        Chain("BSC", "BNB Smart Chain", ("BNB", "USDC", "USDT"), fee="a few cents"),
+        Chain("AVAXC", "Avalanche C-Chain", ("AVAX", "USDC", "USDT"), fee="a few cents"),
+        Chain("SOL", "Solana", ("SOL", "USDC", "USDT"), fee="under a cent"),
+        Chain("TRX", "Tron", ("TRX", "USDT"), fee="about $1 for USDT"),
+        Chain("LTC", "Litecoin", ("LTC",), fee="a few cents"),
+        Chain("DOGE", "Dogecoin", ("DOGE",), fee="a few cents"),
+        Chain("ADA", "Cardano", ("ADA",), fee="about $0.20"),
+        Chain("DOT", "Polkadot", ("DOT",), fee="a few cents"),
+        Chain("ALGO", "Algorand", ("ALGO", "USDC"), fee="under a cent"),
+        Chain("XRP", "XRP Ledger", ("XRP",), TagRule("destination tag", True, 10), fee="under a cent"),
+        Chain("XLM", "Stellar", ("XLM", "USDC"), TagRule("memo", False, 28), fee="under a cent"),
+        Chain("ATOM", "Cosmos", ("ATOM",), MEMO, fee="a few cents"),
+        Chain("HBAR", "Hedera", ("HBAR",), TagRule("memo", False, 100), fee="under a cent"),
+        Chain("EOS", "EOS", ("EOS",), MEMO, fee="free"),
     ]
 }
 
@@ -94,11 +106,14 @@ class Wallet:
     label: str
     deposit_tag: str
     linked_at: float
+    verified: bool = False  # the owner confirmed a test send arrived: full amounts allowed
+    checksum: str = ""  # verified | none (the network has no checksum)
 
     def to_dict(self, cooldown_h: float = 0.0) -> dict[str, Any]:
         d = asdict(self)
         chain = CHAINS[self.chain]
         d["chain_name"] = chain.name
+        d["fee"] = chain.fee
         d["tag_name"] = chain.tag.name if chain.tag else None
         d["assets"] = list(chain.assets)
         d["withdrawals_enabled_at"] = self.linked_at + cooldown_h * 3600
@@ -148,7 +163,7 @@ class WalletService:
         for entry in desk.settings.deposit_addresses:
             chain, _, addr = entry.partition(":")
             chain = chain.strip().upper()
-            if chain not in CHAINS or not re.match(CHAINS[chain].address_re, addr.strip()):
+            if chain not in CHAINS or not check_address(chain, addr.strip()).ok:
                 raise ValueError(f"invalid TZ_DEPOSIT_ADDRESSES entry {entry!r}")
             self.deposit_addresses[chain] = addr.strip()
 
@@ -174,8 +189,9 @@ class WalletService:
             raise WalletError(f"unsupported chain {chain!r}; supported: {', '.join(CHAINS)}")
         c = CHAINS[code]
         address = (address or "").strip()
-        if not re.match(c.address_re, address):
-            raise WalletError(f"{address!r} is not a valid {c.name} address")
+        chk = check_address(code, address)
+        if not chk.ok:
+            raise WalletError(f"That isn't a valid {c.name} address: {chk.note}.")
         tag = validate_tag(c, tag)
         if c.tag and tag is None and not no_tag_confirmed:
             raise WalletError(
@@ -190,10 +206,35 @@ class WalletService:
         while dtag in used:
             dtag = str(secrets.randbelow(4_000_000_000) + 100_000)
         w = Wallet(f"w_{secrets.token_hex(6)}", code, address, tag, label.strip()[:60] or f"{c.name} wallet",
-                   dtag, time.time())
+                   dtag, time.time(), checksum=chk.checksum)
         self.wallets[w.id] = w
         self._save_wallet(w)
         self._event("wallet.linked", {"id": w.id, "chain": code, "address": address, "tag": tag})
+        return w
+
+    @staticmethod
+    def check(address: str) -> dict:
+        """What network(s) an address belongs to, checksum-verified - for the 'add a wallet' screen."""
+        a = (address or "").strip()
+        for prefix in ("bitcoin:", "litecoin:", "dogecoin:", "ethereum:", "solana:"):  # payment links
+            if a.lower().startswith(prefix):
+                a = a[len(prefix):].split("?")[0].split("@")[0]
+        hits = detect(a)
+        return {"address": a, "networks": [
+            {"chain": c, "name": CHAINS[c].name, "fee": CHAINS[c].fee, "assets": list(CHAINS[c].assets),
+             "tag_name": CHAINS[c].tag.name if CHAINS[c].tag else None, **vars(check_address(c, a))}
+            for c in hits if c in CHAINS]}
+
+    def confirm_received(self, wallet_id: str) -> Wallet:
+        """The owner saw the test send arrive: this wallet is proven, full amounts are allowed."""
+        w = self.wallets.get(wallet_id)
+        if w is None:
+            raise WalletError("unknown wallet")
+        if not any(t.wallet_id == w.id and t.kind == "withdrawal" for t in self.transfers):
+            raise WalletError("send a small test amount to this wallet first, then confirm it arrived")
+        w.verified = True
+        self._save_wallet(w)
+        self._event("wallet.verified", {"id": w.id})
         return w
 
     def unlink(self, wallet_id: str) -> None:
@@ -315,6 +356,10 @@ class WalletService:
             hrs = (unlock - time.time()) / 3600
             raise WalletError(f"security cooldown: new wallet can receive withdrawals in {hrs:.1f}h")
         usd = round(amount * self.usd_price(asset), 2)
+        if not w.verified and usd > s.test_send_usd:
+            raise WalletError(f"The first send to a new wallet is a test of up to ${s.test_send_usd:,.0f}, so a wrong "
+                              f"address can never cost much. Send a small amount, check it arrived, tap \"I got it\", "
+                              f"and full amounts unlock.")
         free = self.free_cash()
         if usd > free + 1e-9:
             raise WalletError(f"insufficient free cash ({free:,.2f} USD available)")
@@ -341,10 +386,11 @@ class WalletService:
             "wallets": [w.to_dict(cd) for w in self.wallets.values()],
             "transfers": [t.to_dict() for t in self.transfers[-100:]][::-1],
             "deposit_info": self.deposit_info(),
-            "chains": {k: {"name": c.name, "assets": list(c.assets), "tag": c.tag.name if c.tag else None}
+            "chains": {k: {"name": c.name, "assets": list(c.assets), "tag": c.tag.name if c.tag else None, "fee": c.fee}
                        for k, c in CHAINS.items()},
             "withdrawn_today": self.withdrawn_today(),
             "max_daily_withdrawal": self.desk.settings.max_daily_withdrawal,
             "cooldown_h": cd,
             "free_cash": self.free_cash(),
+            "test_send_usd": self.desk.settings.test_send_usd,
         }
