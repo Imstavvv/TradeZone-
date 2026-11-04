@@ -13,10 +13,18 @@ services:
         value: 0.0.0.0
       - key: TZ_JOURNAL_PATH
         value: /data/tradezone.db
-      # Add these yourself in the Render dashboard (never commit keys):
-      #   TZ_ALPACA_KEY / TZ_ALPACA_SECRET            (optional, Alpaca paper + stock data)
-      #   TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET  (enables the Go LIVE button)
-      #   TZ_LIVE_MAX_CAPITAL                         (recommended when live)
+      # Add these yourself in the Render dashboard (never commit keys).
+      # A real-money account can also be connected in the app instead (Money > Real-money account).
+      # Real money - set ONE of these (TZ_LIVE_VENUE=auto picks Uphold, then Kraken, then Alpaca):
+      #   TZ_UPHOLD_TOKEN                             (Uphold access token: python -m tradezone uphold-token)
+      #   TZ_KRAKEN_KEY / TZ_KRAKEN_SECRET            (Kraken key WITHOUT withdraw permission)
+      #   TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET  (Alpaca live account)
+      #   TZ_LIVE_VENUE                               (optional: uphold | kraken | alpaca)
+      # Recommended when live:
+      #   TZ_LIVE_MAX_CAPITAL                         (most USD the bots may trade with)
+      #   TZ_LIVE_QUICK_FLIPS                         (true = faster real-money trading; false = practice plan)
+      # Optional:
+      #   TZ_ALPACA_KEY / TZ_ALPACA_SECRET            (Alpaca paper + stock data)
       #   TZ_GROK_API_KEY                             (Grok AI analyst)
     disk:
       name: tradezone-data
