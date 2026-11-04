@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import calendar
+import time
 from collections import deque
 
 from ..config import AGGRESSIVE
@@ -187,6 +189,9 @@ class RiskBot(Bot):
         coach = self.desk.bots.get("coach")
         quick = self.quick
         bar = coach.bar() if coach is not None else (s0.flip_min_strength if quick else limits.min_signal_strength)
+        flipper = self.desk.bots.get("flipper")
+        if flipper is not None:  # ⏱️ the hours that have made money get a slightly lower bar, losing hours a higher one
+            bar = max(0.1, bar + flipper.bar_adj())
         if sig.strength < bar:
             return self.reject(sig, f"conviction {sig.strength:.2f} below threshold")
         if coach is not None and (left := coach.benched(sig.symbol)) > 0:
@@ -270,6 +275,10 @@ class RiskBot(Bot):
             risk_budget *= AGGRESSIVE["meme_risk_mult"] if s.aggressive(self.desk.is_live) else s.meme_risk_mult
         if news is not None:  # scary world news: half-size new buys
             risk_budget *= news.size_mult(direction)
+        if flipper is not None:  # ⏱️ bigger in proven good hours, smaller in proven bad ones
+            risk_budget *= flipper.size_mult()
+        if not guard["brake"] and s.reinvest_share > 0:  # 💰 reinvest: today's banked profit works too (house money)
+            risk_budget += s.reinvest_share * max(0.0, self.realized_today())
         if guard["brake"]:  # a losing day: smaller trades until it turns
             risk_budget *= s.losing_day_size
         elif guard["locked"]:  # a good day slipping: keep trading (no cap on the upside), but smaller
@@ -311,6 +320,16 @@ class RiskBot(Bot):
         if len(self.strength_by_signal) > 5000:
             self.strength_by_signal.clear()
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp, price))
+
+    def realized_today(self) -> float:
+        """Profit banked today (closed trades and slices, after fees) in the current book."""
+        start = calendar.timegm(time.strptime(self.desk._day, "%Y-%m-%d")) if self.desk._day else 0.0  # UTC midnight
+        total = 0.0
+        for t in reversed(self.portfolio.closed_trades):
+            if t.ts < start:
+                break
+            total += t.pnl
+        return total
 
     def open_risk(self) -> float:
         """Money that would be lost if every open position hit its stop (locked profits count 0)."""

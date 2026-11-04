@@ -632,7 +632,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
       <div class="logo"></div>
       <div class="ftitle">TradeZone</div>
       <div class="ftag">Your friendly team of trading bots 🤝</div>
-      <div class="parade" aria-hidden="true"><span>🔭</span><span>📰</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>🦉</span><span>🎓</span></div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>📰</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>⏱️</span><span>🦉</span><span>🎓</span></div>
     </div>
     <!-- one simple way in: a code, no password, no Face ID -->
     <div class="pane" id="wLogin">
@@ -1026,9 +1026,9 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {scout: '🔭', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄'};
+const MASCOT = {scout: '🔭', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8'};
+const COLORS = {news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1433,7 +1433,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','news','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','sentinel','coach'];
+const ORDER = ['scout','news','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','flipper','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1743,6 +1743,12 @@ function renderCoach(c){
   if (c.bar < c.bar_base) chips.push('<span class="chip">Looking for more chances 🎯</span>');
   else if (c.bar > c.bar_base) chips.push('<span class="chip bad">Only the best chances</span>');
   for (const b of c.benched || []) chips.push(`<span class="chip bad">${esc(b.symbol)} sitting out ${b.minutes} min</span>`);
+  const F = S.state && S.state.flipper, hh = h => `${String(h).padStart(2, '0')}:00 UTC`;
+  if (F) {
+    chips.push(`<span class="chip ${F.rating === 'good' ? 'good' : F.rating === 'bad' ? 'bad' : ''}">⏱️ Now (${hh(F.hour)}): ${F.rating === 'good' ? 'a good hour to flip' : F.rating === 'bad' ? 'a losing hour - smaller, fewer trades' : 'still learning this hour'}</span>`);
+    for (const b of F.best || []) chips.push(`<span class="chip good">⏱️ Best: ${hh(b.hour)} · ${Math.round(b.win_rate * 100)}% won · ${money(b.avg)} avg</span>`);
+    for (const b of F.worst || []) chips.push(`<span class="chip bad">⏱️ Worst: ${hh(b.hour)} · ${money(b.avg)} avg</span>`);
+  }
   $('sLearnStats').innerHTML = chips.join('');
   $('sLearned').innerHTML = c.lessons.length ? c.lessons.slice(0, 6).map(l => `<div class="happen"><div class="ic" style="background:${l.level === 'warning' ? 'var(--warn)' : '#34d399'}">🎓</div>
       <div>${esc(l.text)}</div><div class="tm">${ago(l.ts)}</div></div>`).join('')

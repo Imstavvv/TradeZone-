@@ -679,6 +679,7 @@ class TradingDesk:
         await self._venue_feed()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
+        self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
@@ -990,6 +991,7 @@ class TradingDesk:
         await self.bots["grok"].close()  # type: ignore[attr-defined]
         await self.bots["news"].close()  # type: ignore[attr-defined]
         self.bots["coach"].save()  # type: ignore[attr-defined]
+        self.bots["flipper"].save()  # type: ignore[attr-defined]
         self.journal.commit()
 
     # -- views -----------------------------------------------------------
@@ -1043,6 +1045,7 @@ class TradingDesk:
             },
             "executive": self.bots["executive"].summary(),  # type: ignore[attr-defined]
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
+            "flipper": self.bots["flipper"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
             "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard(),  # type: ignore[attr-defined]

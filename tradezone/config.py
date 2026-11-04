@@ -148,6 +148,14 @@ class Settings:
     live_risk_per_trade: float = 0.025  # 2.5% of the balance risked to the (wider, patient) stop
     live_max_position_pct: float = 0.35
     live_max_portfolio_heat: float = 0.10
+    # ---- Flipper: flip trades and the best times to flip ----
+    flipper: bool = True
+    flip_volume_ratio: float = 2.0  # a flip needs a move on at least 2x the usual volume
+    flip_min_samples: int = 12  # trades an hour needs before it's rated good or bad
+    flip_good_hour_size: float = 1.25  # trades opened in a proven good hour are this much bigger...
+    flip_bad_hour_size: float = 0.6  # ...and in a proven bad hour this much smaller
+    # ---- reinvest: a share of today's banked profit goes into the next trades (house money) ----
+    reinvest_share: float = 0.25
     # ---- moving take-profit: once a trade is 10% past its buy price, the target moves up instead of selling ----
     tp_step: bool = True
     tp_step_pct: float = 0.10  # every +10% from the buy price: the target moves another 10% out...
