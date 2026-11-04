@@ -125,3 +125,15 @@ def test_realistic_crypto_fees_and_fee_filter(desk):
     desk.bus.publish("signal.proposed", Signal("NVDA", Side.BUY, 0.9, "t", "quant"))
     run(desk.bus.drain())
     assert "doesn't clear fees" in rejected[-1]["reason"]
+
+
+def test_todays_hunt_counts_survive_a_restart(tmp_path):
+    db = tmp_path / "tz.db"
+    d1 = make(db)
+    open_aapl(d1)
+    d1.hunt["checks"] = 120
+    d1.save_state()
+    d2 = make(db)
+    run(d2.start())
+    assert d2.hunt_summary()["checks"] == 120 and d2.hunt_summary()["opened"] == d1.hunt["opened"]
+    run(d2.shutdown())

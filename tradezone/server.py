@@ -386,6 +386,11 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(404, f"unknown bot '{name}'")
         return _clean({**vars(bot.status()), "log": bot.full_log()})
 
+    @app.get("/api/chart", dependencies=[Depends(check_token)])
+    async def chart(mode: str | None = None, hours: float = Query(1.0, ge=0, le=24 * 365)):
+        """Profit/loss over the last ``hours`` (0 = since the start) with the trades on it."""
+        return _clean(desk.chart(mode, hours))
+
     @app.get("/api/trades", dependencies=[Depends(check_token)])
     async def trades(mode: str | None = None, symbol: str | None = None,
                      limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)):

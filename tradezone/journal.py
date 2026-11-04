@@ -27,6 +27,13 @@ class Journal:
         cols = {r[1] for r in self.conn.execute("PRAGMA table_info(events)")}
         if "mode" not in cols:  # migrate older journals
             self.conn.execute("ALTER TABLE events ADD COLUMN mode TEXT")
+        # equity points used to mix practice and real money: keep each book's points (and its P&L) apart
+        ecols = {r[1] for r in self.conn.execute("PRAGMA table_info(equity)")}
+        if "mode" not in ecols:
+            self.conn.execute("ALTER TABLE equity ADD COLUMN mode TEXT")
+        if "pnl" not in ecols:
+            self.conn.execute("ALTER TABLE equity ADD COLUMN pnl REAL")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_equity_mode_ts ON equity(mode, ts)")
 
     # -- small helpers so callers don't repeat lock/execute/commit ---------
     def run(self, sql: str, args: tuple = ()) -> int:
@@ -75,9 +82,30 @@ class Journal:
         return {"total": total, "realized_pnl": pnl, "fees": fees, "closing_fills": closes or 0,
                 "winning_fills": wins or 0, "items": [json.loads(r[0]) for r in rows]}
 
-    def record_equity(self, ts: float, equity: float) -> None:
+    def record_equity(self, ts: float, equity: float, mode: str | None = None, pnl: float | None = None) -> None:
         with self._lock:
-            self.conn.execute("INSERT INTO equity(ts, equity) VALUES (?,?)", (ts, equity))
+            self.conn.execute("INSERT INTO equity(ts, equity, mode, pnl) VALUES (?,?,?,?)", (ts, equity, mode, pnl))
+
+    def last_pnl(self, mode: str) -> float | None:
+        row = self.one("SELECT pnl FROM equity WHERE mode = ? AND pnl IS NOT NULL ORDER BY ts DESC LIMIT 1", (mode,))
+        return row[0] if row else None
+
+    def pnl_series(self, mode: str, since: float, until: float, points: int = 400) -> list[list[float]]:
+        """Profit/loss over time for one book, thinned to about ``points`` points (the last of each slice)."""
+        if since <= 0:
+            row = self.one("SELECT MIN(ts) FROM equity WHERE mode = ? AND pnl IS NOT NULL", (mode,))
+            since = row[0] if row and row[0] is not None else until
+        bucket = max((until - since) / max(points, 1), 1.0)
+        rows = self.all("SELECT MAX(ts), pnl FROM equity WHERE mode = ? AND ts >= ? AND pnl IS NOT NULL "
+                        "GROUP BY CAST(ts / ? AS INTEGER) ORDER BY 1", (mode, since, bucket))
+        return [[ts, pnl] for ts, pnl in rows]
+
+    def trades_since(self, mode: str, since: float, limit: int = 300) -> list[dict[str, Any]]:
+        """Fills of one book since ``since``, oldest first (for the chart's trade markers)."""
+        rows = self.all("SELECT payload FROM events WHERE topic = 'trade.log' AND mode = ? AND ts >= ? "
+                        "ORDER BY id DESC LIMIT ?", (mode, since, limit))
+        keep = ("ts", "symbol", "side", "action", "qty", "price", "pnl", "fee")
+        return [{k: d.get(k) for k in keep} for d in (json.loads(r[0]) for r in reversed(rows))]
 
     def commit(self) -> None:
         with self._lock:

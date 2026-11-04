@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
@@ -194,8 +195,6 @@ class CoinbaseFeed(MarketFeed):
     async def close(self) -> None:
         if self._ws_task:
             self._ws_task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError, Exception):  # it's being shut down either way
                 await self._ws_task
-            except (asyncio.CancelledError, Exception):
-                pass
         await self.client.aclose()

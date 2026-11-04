@@ -149,7 +149,7 @@ class SentinelBot(Bot):
         self.equity_curve.append((t, self.portfolio.equity))
         self._cycles += 1
         if self._cycles % 5 == 0:
-            self.desk.journal.record_equity(t, self.portfolio.equity)
+            self.desk.journal.record_equity(t, self.portfolio.equity, self.desk.mode, self.desk.lifetime_pnl())
             self.desk.journal.commit()
         for name, bot in self.desk.bots.items():
             prev = self._last_errors.get(name, 0)

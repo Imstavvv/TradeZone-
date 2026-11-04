@@ -51,9 +51,9 @@ Safety properties:
 
 | Tab | What's on it |
 | --- | --- |
-| 🏠 **Home** | The bots and all the trading: Kai & Rin, your balance and the trading buttons, Today's hunt, open trades, the bot crew |
+| 🏠 **Home** | The bots and all the trading: starship Nova, your balance and the trading buttons, the live profit & loss chart, Today's hunt, open trades, the bot crew |
 | 📣 **Activity** | What's happening (live), what the world is saying (news), team rules, what the team has learned |
-| 📈 **Trades** | Latest results and the full trade log (filter, export) |
+| 📈 **Trades** | The live profit & loss chart, latest results and the full trade log (filter, export) |
 | 💰 **Money** | Real-money account, Grok AI helper, crypto wallets and sending money |
 | ⚙️ **Settings** | Logging in (another device, log out), your goal, devices logged in |
 
@@ -61,20 +61,20 @@ The **Pro** view keeps everything on one long, detailed page for experts.
 
 **🎯 Today's hunt** (top of the Home screen) shows what the bots did today: chances checked, how many the team liked, trades opened, and wins out of trades closed. It also lists, in plain words, the most common reasons they skipped, so you can tell the bots are working even when they're not buying. If something is stopping them altogether (no live prices, paused, or emergency stop), the card says so.
 
-**⚔️ The arena: Kai & Rin.** Two original anime fighters, created for TradeZone in the style of classic 90s battle anime, stand on a sunset battlefield above your balance and react to how trading is going:
+**📈 Live profit & loss chart** (Home and Trades). A line shows your profit or loss over time, after all fees. It moves with every price update. Every trade is marked on the line: 🔷 a buy, 🟢 a sale at a profit, 🔴 a sale at a loss. Tap or hover anywhere for the time, the P&L at that moment and any trades there. Pick **15m · 1h · 1 day · 1 week · All**, and switch between **Practice** and **Real money**. Each has its own line, which is never mixed with the other, and real money carries on from one session to the next. Above the chart: the change over that period, trades closed and won, and the fees paid.
 
-| What's happening | Kai & Rin |
+**🚀 Starship Nova.** Above your balance, the TradeZone starship flies through space and reacts to how trading is going:
+
+| What's happening | Starship Nova |
 | --- | --- |
-| Quiet market | Ready stance, breathing |
-| Up today | **Powering up:** blue aura, fists clenched, energy ball between them |
-| +1% day, 3+ wins in a row, or the goal reached | **SUPER MODE:** golden hair, sparks, golden energy |
-| A winning trade closes | **BANKED IT!** Jump, fist raised, the profit in a speech bubble |
-| Down day or a losing trade | **Took a hit:** eyes squeezed shut, sweat drop ("the stop kept it small!") |
-| Paused or emergency stop | **On guard:** arms crossed, the scene dims |
+| Quiet market | Cruising past a ringed planet, stars drifting by |
+| Up today | **Thrusters up:** a longer flame, stars stream past faster |
+| +1% day, 3+ wins in a row, or the goal reached | **WARP SPEED:** star streaks, the ship glows gold |
+| A winning trade closes | **BANKED IT!** A shooting star and a victory loop, the profit in the captain's log |
+| Down day or a losing trade | **Took a hit:** an asteroid knocks the ship, red alert ("the stop kept the damage small") |
+| Paused or emergency stop | **Shields up:** the ship holds still in a shield bubble and the stars stop |
 
-They're drawn in code (inline SVG), with no image files, so they load instantly and stay sharp on any screen. They're not characters from any existing series.
-
-**Anime power-up theme:** an original look inspired by classic 90s battle anime. It has a sunset-orange and sky-blue palette, comic-panel cards with ink outlines, and speed lines behind your balance. A **⚡ power level** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Rookie → Fighter → Elite → Champion → Legend). Your win streak shows as glowing energy orbs. A golden aura pulses around the balance card on an up day, bots glow when they act, and winning trades end with a **POWER UP!** burst. It's all CSS, with no outside fonts or images, so the security policy stays strict. Animations switch off if your phone has "Reduce Motion" on.
+**Galaxy theme:** deep space with a slowly drifting, twinkling starfield over violet and teal nebulae, glassy panels, and glowing titles. The balance card is a nebula: violet for practice money, teal for real money. A **✨ star power** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Cadet → Pilot → Captain → Commander → Admiral). Your win streak lights up as stars, and winning trades end with a **SUPERNOVA!** burst. It's all CSS and inline SVG, with no outside fonts or images, so the security policy stays strict. Animations switch off if your phone has "Reduce Motion" on.
 
 TradeZone opens in **Simple view**: a colourful home screen in plain English. The **Pro** switch in the header shows the full trading dashboard.
 
@@ -513,6 +513,7 @@ The dashboard signs in with an HttpOnly session cookie (a year, sliding). Script
 | POST | `/api/bots/{name}` | `{"enabled": false}` disables a bot (safety-critical bots can't be disabled with positions open) |
 | POST | `/api/control/{action}` | `pause`, `resume`, `flatten`, `kill`, `reset` |
 | GET | `/api/trades?mode=&symbol=&limit=&offset=` · `/api/trades.csv` | Permanent trade log with totals / as CSV |
+| GET | `/api/chart?mode=&hours=` | Profit/loss over time for `paper` or `live` (after fees) with every trade on it; `hours=0` = since the start |
 | GET | `/api/journal?topic=order.filled` | Raw audit trail |
 | GET / POST | `/api/mode` | Preview a paper/live switch / switch: `{"mode": "live", "confirm": "LIVE"}` or `{"mode": "paper", "flatten": true}` |
 | POST | `/api/goal` | `{"start": 50, "target": 10000}` |

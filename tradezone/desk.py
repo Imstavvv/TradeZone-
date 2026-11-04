@@ -119,6 +119,8 @@ class TradingDesk:
         for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
             self.bus.subscribe(topic, self._mark_dirty, owner="desk")
         self.hunt = self._new_hunt()
+        self._pnl_key: tuple | None = None  # (mode, book) the chart's P&L offset was worked out for
+        self._pnl_offset = 0.0
         self.floor_ack: dict[str, float] = {}  # mode -> equity the owner restarted from after a capital-floor stop
         self.goal: dict = {}
         for topic in ("market.snapshot", "signal.proposed", "signal.rejected", "order.held", "trade.log"):
@@ -173,6 +175,34 @@ class TradingDesk:
                 fn(ev)
             except Exception:  # never let a UI client break the desk
                 log.exception("listener failed")
+
+    def lifetime_pnl(self) -> float:
+        """Profit/loss of the current mode since it was first used: this book's result plus what earlier
+        books of the same mode made (each real-money session starts a new book). Deposits don't count."""
+        p = self.portfolio
+        session = p.equity - p.starting_cash
+        if self._pnl_key != (self.mode, id(p)):
+            last = self.journal.last_pnl(self.mode)
+            self._pnl_offset = (last - session) if last is not None else 0.0
+            self._pnl_key = (self.mode, id(p))
+        return self._pnl_offset + session
+
+    def chart(self, mode: str | None = None, hours: float = 1.0) -> dict:
+        """The live profit/loss chart: P&L over time plus every trade on it, for practice or real money."""
+        mode = mode if mode in ("paper", "live") else self.mode
+        until = time.time()
+        since = until - hours * 3600 if hours > 0 else 0.0
+        points = self.journal.pnl_series(mode, since, until)
+        start = points[0][0] if points else until
+        now_pnl = self.lifetime_pnl() if mode == self.mode else (points[-1][1] if points else 0.0)
+        if mode == self.mode:
+            points.append([until, now_pnl])
+        trades = self.journal.trades_since(mode, start if hours <= 0 else since)
+        closed = [t for t in trades if t.get("pnl") is not None]
+        return {"mode": mode, "current": mode == self.mode, "hours": hours, "points": points, "trades": trades,
+                "pnl": now_pnl, "change": now_pnl - points[0][1] if points else 0.0,
+                "realized": sum(t["pnl"] for t in closed), "fees": sum(t.get("fee") or 0 for t in trades),
+                "wins": sum(t["pnl"] > 0 for t in closed), "closed": len(closed)}
 
     @property
     def is_live(self) -> bool:
@@ -700,6 +730,9 @@ class TradingDesk:
         self.halt_kind = data.get("halt_kind", "")
         self.floor_ack = data.get("floor_ack", {})
         self.goal = data.get("goal", {})
+        hunt = data.get("hunt")
+        if isinstance(hunt, dict) and hunt.get("day") == self._today():
+            self.hunt = {**self._new_hunt(), **hunt}
         if data.get("day") and data["day"] != self._day and self.halted and self.halt_kind == "daily" \
                 and self.settings.auto_rearm_daily:
             self.halted, self.halt_reason, self.halt_kind = False, "", ""
@@ -811,6 +844,7 @@ class TradingDesk:
             "uptime": time.time() - self.started_at,
             "prices": self.prices,
             "portfolio": self.portfolio.to_dict(),
+            "pnl_point": [time.time(), self.lifetime_pnl()],  # the live chart follows this every update
             "performance": sentinel.performance(),  # type: ignore[attr-defined]
             "bots": [vars(b.status()) for b in self.bots.values()],
             "orders": [o.to_dict() for o in list(execution.orders.values())[-50:]],  # type: ignore[attr-defined]
