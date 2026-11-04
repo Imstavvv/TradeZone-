@@ -246,9 +246,16 @@ class Settings:
         return "kraken" if self.kraken_key else "alpaca"
 
     def apply_venue_costs(self) -> None:
-        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee)."""
+        """Practice with the real venue's costs (Uphold's spread is much wider than Alpaca's fee).
+
+        Re-run whenever the venue changes: switching away from Uphold restores the normal fee."""
+        if not hasattr(self, "_base_crypto_fee_bps"):
+            self._base_crypto_fee_bps = self.crypto_fee_bps
+        base = self._base_crypto_fee_bps
         if self.venue() == "uphold" and "TZ_CRYPTO_FEE_BPS" not in os.environ:
-            self.crypto_fee_bps = max(self.crypto_fee_bps, self.uphold_fee_bps)
+            self.crypto_fee_bps = max(base, self.uphold_fee_bps)
+        else:
+            self.crypto_fee_bps = base
 
     def data_keys(self) -> tuple[str, str] | None:
         if self.alpaca_key and self.alpaca_secret:
