@@ -11,9 +11,10 @@ from .scout import ScoutBot
 from .sentinel import SentinelBot
 from .skimmer import SkimmerBot
 from .strategist import StrategistBot
+from .trends import TrendBot
 
 # Order matters only for on_cycle hooks: data -> analysis -> risk -> execution -> book -> audit
-TEAM = [ScoutBot, NewsBot, StrategistBot, QuantBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot,
+TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot, QuantBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot,
         SentinelBot,
         CoachBot]
 

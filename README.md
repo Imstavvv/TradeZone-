@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Thirteen specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Fourteen specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through **Uphold** or Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -90,7 +90,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 13 bots in the order a trade flows through them (Scout → Reporter → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 14 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -450,6 +450,17 @@ A few things used to stop real-money trading quietly. They're fixed:
 * **No US dollars.** The bots trade USD pairs. If your Kraken account holds only USDC or USDT, *Use real money* now says so and asks you to convert some to USD.
 
 If the bots still aren't trading, the **🎯 Today's hunt** card on Home lists the most common reasons they skipped, in plain words.
+
+### 🔥 The Trend Scout: every meme coin worth trading, and what's trending
+
+The 14th bot plugs the team into the coins where the action is. Every **30 minutes** (`TZ_DISCOVERY_EVERY_MIN`) it reads CoinGecko's free public market data (no account needed):
+
+* **meme coins** with a market cap of at least **$50k** (`TZ_DISCOVERY_MIN_MCAP`) and **promising volume**: at least **$100k** traded in 24 h (`TZ_DISCOVERY_MIN_VOLUME`) and at least **5%** of the market cap changing hands a day (`TZ_DISCOVERY_MIN_TURNOVER`), so dead coins are skipped;
+* the coins **trending** on CoinGecko right now.
+
+Every one of them that the exchange lists against USD (with Kraken prices) is added to what the bots watch and trade, trending coins first, up to 20 (`TZ_MAX_DISCOVERED`), with recent price history loaded so the bots can act at once. Meme coins get the meme rules (smaller bets, wider stops), trending coins a small conviction boost (`TZ_TRENDING_NUDGE`). Coins that stop qualifying are dropped again, never while the bots hold one. **Today's hunt** on Home lists what's trending. `TZ_DISCOVER_COINS=false` turns it off.
+
+Two limits keep this safe: a coin is only **bought** if the "never buy what can't be sold" checks pass (listed for buying and selling, a tight bid/ask gap, enough daily trading for the position), so a thin coin is watched but not bought. And coins that **only trade on decentralised exchanges** (most $50k-$1M meme coins) can't be bought: TradeZone trades through the exchange account, and DEX-only tokens carry a high risk of tokens that can never be sold.
 
 ### Kraken's meme coins
 

@@ -148,6 +148,14 @@ class Settings:
     live_risk_per_trade: float = 0.025  # 2.5% of the balance risked to the (wider, patient) stop
     live_max_position_pct: float = 0.35
     live_max_portfolio_heat: float = 0.10
+    # ---- Trend Scout: meme coins over $50k market cap with promising volume, and trending coins ----
+    discover_coins: bool = True
+    discovery_min_mcap: float = 50_000.0  # meme coins worth at least this much...
+    discovery_min_volume: float = 100_000.0  # ...trading at least this much a day...
+    discovery_min_turnover: float = 0.05  # ...and at least 5% of the market cap changing hands a day
+    max_discovered: int = 20  # coins the Trend Scout may add to the watchlist
+    discovery_every_min: float = 30.0
+    trending_nudge: float = 0.05  # conviction boost for buying a coin that's trending
     # ---- Flipper: flip trades and the best times to flip ----
     flipper: bool = True
     flip_volume_ratio: float = 2.0  # a flip needs a move on at least 2x the usual volume

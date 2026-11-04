@@ -189,6 +189,9 @@ class RiskBot(Bot):
             if (why := news.veto(sig.symbol, sig.side.sign)) is not None:
                 return self.reject(sig, why)
             sig.strength = round(max(0.0, min(1.0, sig.strength + news.conviction_nudge(sig.symbol, sig.side.sign))), 3)
+        trends = self.desk.bots.get("trends")
+        if trends is not None and (boost := trends.nudge(sig.symbol, sig.side.sign)):  # 🔥 trending right now
+            sig.strength = round(min(1.0, sig.strength + boost), 3)
         exe = self.desk.bots.get("execution")
         if exe is not None and (left := exe.cooling(sig.symbol)) > 0:
             return self.reject(sig, f"{sig.symbol} is cooling off after a bad fill ({left / 60:.0f} min left)")

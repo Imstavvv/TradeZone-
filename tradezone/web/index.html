@@ -632,7 +632,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
       <div class="logo"></div>
       <div class="ftitle">TradeZone</div>
       <div class="ftag">Your friendly team of trading bots 🤝</div>
-      <div class="parade" aria-hidden="true"><span>🔭</span><span>📰</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>⏱️</span><span>🦉</span><span>🎓</span></div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>🔥</span><span>📰</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>⏱️</span><span>🦉</span><span>🎓</span></div>
     </div>
     <!-- one simple way in: a code, no password, no Face ID -->
     <div class="pane" id="wLogin">
@@ -1026,9 +1026,9 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {scout: '🔭', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️'};
+const MASCOT = {scout: '🔭', trends: '🔥', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185'};
+const COLORS = {trends:'#f43f5e',news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1433,7 +1433,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','news','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','flipper','sentinel','coach'];
+const ORDER = ['scout','trends','news','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','flipper','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1711,7 +1711,15 @@ function renderHunt(st){
       ${stat(n(h.opened), 'trades opened')}${stat(`${n(h.wins)}/${n(h.closed)}`, 'wins / closed')}</div>
     <div class="muted" style="margin:8px 0 4px;font-size:13px">${esc(note)}</div>
     ${top.length ? `<div class="hwhy"><b>Most often skipped because</b>${top.map(([k, v]) =>
-      `<div><span>${esc(k)}</span><span class="muted">${n(v)}×</span></div>`).join('')}</div>` : ''}`);
+      `<div><span>${esc(k)}</span><span class="muted">${n(v)}×</span></div>`).join('')}</div>` : ''}${trendLine(st.trends)}`);
+}
+function trendLine(t){
+  if (!t) return '';
+  const big = v => v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`;
+  if (!t.trending.length && !t.added.length) return t.error ? `<div class="muted" style="font-size:12px;margin-top:6px">🔥 Trend Scout: ${esc(t.error)}</div>` : '';
+  return `<div class="hwhy"><b>🔥 Trending now</b>${t.trending.slice(0, 6).map(x =>
+      `<div><span>${esc(x.symbol.split('-')[0])} <span class="muted">${esc(x.name || '')}</span></span><span class="muted">${big(x.market_cap)}</span></div>`).join('') || '<div class="muted">nothing tradeable trending right now</div>'}
+    <div class="muted" style="font-size:12px;margin-top:4px">${t.qualified} meme coins over ${big(t.min_market_cap)} with promising volume · ${t.added.length} plugged in by the Trend Scout</div></div>`;
 }
 function renderNews(n){
   if (!n) return;
