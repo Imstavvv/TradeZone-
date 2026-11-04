@@ -1860,6 +1860,15 @@ function renderArena(st){
   $('sayB').textContent = LINES[state][1];
   $('arenaState').textContent = {idle: 'cruising', power: 'thrusters up', super: 'WARP SPEED', hurt: 'took a hit', cheer: 'BANKED IT!', guard: 'shields up'}[state];
 }
+function focusLine(){
+  const f = S.state && S.state.focus;
+  if (!f || !f.on) return '';
+  const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: 0});
+  const txt = f.stage === 1 ? `🪙 Stage 1 of 3: smaller coins only (meme coins & small altcoins), up to 3 trades - mid-size coins join at ${m(f.next_at)}, BTC & ETH at ${m(f.mid_until)}`
+    : f.stage === 2 ? `🪙 Stage 2 of 3: smaller + mid-size coins (SOL, XRP, LINK, ...), up to 5 trades - BTC & ETH join at ${m(f.next_at)}`
+    : '🪙 Stage 3 of 3: every coin, spread across all of them';
+  return `<div class="note">${esc(txt)}</div>`;
+}
 function renderGoal(g){
   if (!g) return;
   const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: v < 1000 ? 2 : 0});
@@ -1875,7 +1884,7 @@ function renderGoal(g){
   setHTML($('sGoal'), `<div class="row1"><span>${agg ? '⚡ Aggressive' : '🚀 Grow fast, lose little'} · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
     <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
     <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>
-    <div class="note">${esc(guard)}</div>`);
+    <div class="note">${esc(guard)}</div>${focusLine()}`);
 }
 
 // ---- confetti for profitable trades ----
@@ -1941,7 +1950,8 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/conviction/, "the signal wasn't strong enough"], [/already positioned/, "it's already being held"],
     [/no short: meme/, 'meme coins are never shorted'], [/no short: crypto/, "crypto can't be shorted on your accounts"],
     [/no short: (your|practice follows)/, "your account can't short it"], [/no short: shorting is off/, 'shorting is switched off'],
-    [/locking in today's gains/, "today's gains are locked in"], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
+    [/locking in today's gains/, "today's gains are locked in"], [/focusing on smaller coins/, 'the bots focus on smaller coins until the balance grows'],
+    [/for this balance/, 'enough trades are open for this balance'], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
     [/is offline/, 'a team member is switched off'], [/meme coins/, 'enough meme coins are already held'],
     [/practice only/, "your real-money account can't trade that coin"], [/holding the runner/, "it's a runner - the trailing stop will sell it"],

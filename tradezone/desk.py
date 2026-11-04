@@ -25,12 +25,13 @@ log = logging.getLogger(__name__)
 
 def build_feed(s: Settings) -> MarketFeed:
     if s.feed == "kraken":
-        from .config import MEME_CANDIDATES
+        from .config import MEME_CANDIDATES, SMALL_CANDIDATES
         from .market.kraken import KrakenFeed
 
         return KrakenFeed(s.symbols, meme_candidates=MEME_CANDIDATES if s.kraken_memes else [],
                           meme_coins=s.meme_coins, min_meme_volume_usd=s.min_meme_volume_usd,
-                          max_memes=s.max_meme_coins)
+                          max_memes=s.max_meme_coins,
+                          small_candidates=SMALL_CANDIDATES if s.focus_small_coins else [], max_small=s.max_small_coins)
     if s.feed == "coinbase":
         from .market.coinbase import CoinbaseFeed
 
@@ -493,6 +494,32 @@ class TradingDesk:
             await self.feed.start()
             await self.backfill()
             self.bus.publish("alert", Alert("info", f"Now using {self.feed.name.title()}'s own prices", "desk"))
+
+    # -- growth ladder: focus on smaller coins until the balance can spread across all of them ------------
+    STAGES = (("small", "smaller coins"), ("mid", "+ mid-size coins"), ("large", "all coins"))
+
+    def focus_status(self) -> dict:
+        s, eq = self.settings, self.portfolio.equity
+        if not s.focus_small_coins:
+            stage = 3
+        else:
+            stage = 1 if eq < s.focus_small_until else 2 if eq < s.focus_mid_until else 3
+        nxt = {1: s.focus_small_until, 2: s.focus_mid_until}.get(stage)
+        allowed = {"small"} | ({"mid"} if stage >= 2 else set()) | ({"large"} if stage >= 3 else set())
+        return {"on": s.focus_small_coins, "stage": stage, "allowed": sorted(allowed), "next_at": nxt,
+                "small_until": s.focus_small_until, "mid_until": s.focus_mid_until,
+                "max_positions": {1: 3, 2: 5}.get(stage), "equity": eq,
+                "coins": [x for x in s.symbols if s.coin_size(x) in allowed]}
+
+    def in_focus(self, symbol: str) -> str | None:
+        """Why a NEW trade in ``symbol`` waits for a bigger balance, or None when it's in focus."""
+        f = self.focus_status()
+        size = self.settings.coin_size(symbol)
+        if size in f["allowed"]:
+            return None
+        need = self.settings.focus_mid_until if size == "large" else self.settings.focus_small_until
+        return (f"focusing on smaller coins to build capital: {symbol} joins when the balance reaches "
+                f"${need:,.0f} (now ${f['equity']:,.2f})")
 
     # -- shorting: only where it really works -----------------------------------------
     def short_block(self, symbol: str) -> str | None:
@@ -971,6 +998,7 @@ class TradingDesk:
             "portfolio": self.portfolio.to_dict(),
             "pnl_point": [time.time(), self.lifetime_pnl()],
             "cashout": self.cashout_summary(),
+            "focus": self.focus_status(),
             "limits": self.risk_info(),
             "live_risk": self.risk_info(live=True),  # the live chart follows this every update
             "performance": sentinel.performance(),  # type: ignore[attr-defined]

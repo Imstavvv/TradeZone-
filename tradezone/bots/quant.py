@@ -145,6 +145,8 @@ class QuantBot(Bot):
         reason = f"{top} lead in {regime.value} regime (score {score:+.2f})"
         votes: dict[str, str] = {}
         if not closing:
+            if self.desk.in_focus(s.symbol):
+                return  # waits for a bigger balance (growth ladder): not proposed yet
             if side is Side.SELL and self.desk.short_block(s.symbol):
                 self.emitted[s.symbol] = new
                 return  # shorting isn't possible here: a bearish view with nothing to sell is a no-op

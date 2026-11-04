@@ -16,6 +16,13 @@ MEME_COINS = ["DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI"]
 MEME_CANDIDATES = ["TRUMP", "PENGU", "FARTCOIN", "POPCAT", "MEW", "BOME", "TURBO", "PNUT", "MOG", "BRETT", "GIGA",
                    "SPX", "MOODENG", "NEIRO", "GOAT", "PONKE", "MYRO", "WEN", "BABYDOGE", "DOG", "TOSHI", "MEME",
                    "CHILLGUY", "AI16Z", "MELANIA", "SUNDOG", "HIPPO", "PUPS", "BAN", "SLERF"]
+#: coin sizes for the growth ladder (by market size; everything not listed is a "smaller coin")
+LARGE_COINS = {"BTC", "ETH"}
+MID_COINS = {"SOL", "XRP", "BNB", "ADA", "AVAX", "LINK", "DOT", "LTC", "BCH", "TRX", "TON", "XLM", "ATOM", "NEAR",
+             "UNI", "ETC", "XMR", "HBAR", "APT", "ICP", "FIL", "AAVE"}
+#: smaller altcoins added (with Kraken prices) when Kraken lists them and they trade enough
+SMALL_CANDIDATES = ["ALGO", "ARB", "OP", "SUI", "SEI", "INJ", "TIA", "RENDER", "FET", "JUP", "PYTH", "ONDO", "STX",
+                    "IMX", "GRT", "MANA", "SAND", "CRV", "LDO", "KAS", "JASMY", "CHZ", "GALA", "ENA", "WLD"]
 #: default list on the free Coinbase feed: majors plus the trusted meme coins
 CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
                   "DOGE-USD", "SHIB-USD", "PEPE-USD", "BONK-USD", "WIF-USD", "FLOKI-USD"]
@@ -142,6 +149,11 @@ class Settings:
     # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
     # Never crypto (Kraken is used spot-only, Alpaca and Uphold can't short it) and never meme coins.
     shorting: str = "auto"  # auto | off
+    # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
+    focus_small_coins: bool = True
+    focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins), 3 trades at once
+    focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...), 5 at once; above: all coins
+    max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
     # ---- the goal: grow the balance rapidly with minimal losses ----
@@ -283,6 +295,13 @@ class Settings:
     def quick(self, live: bool) -> bool:
         """Quick-flip mode: real money with live_quick_flips on."""
         return live and self.live_quick_flips
+
+    def coin_size(self, symbol: str) -> str:
+        """large | mid | small (stocks count as large: they're not part of the ladder)."""
+        if not self.is_crypto(symbol):
+            return "large"
+        coin = symbol.upper().replace("/", "-").split("-")[0]
+        return "large" if coin in LARGE_COINS else "mid" if coin in MID_COINS else "small"
 
     def plan_pcts(self, symbol: str, quick: bool = False) -> tuple[float, float]:
         """(stop-loss %, take-profit %) for a symbol under the percent plan (the target is after fees)."""

@@ -69,7 +69,8 @@ class SkimmerBot(Bot):
         sym = snap.symbol
         if not snap.historical:
             self.bars.setdefault(sym, deque(maxlen=max(2, int(s.spike_bars)))).append(snap.price)
-        if not s.skimmer or snap.historical or s.is_meme(sym) or self.desk.halted or self.desk.paused:
+        if not s.skimmer or snap.historical or s.is_meme(sym) or self.desk.halted or self.desk.paused \
+                or self.desk.in_focus(sym):
             return
         if self.wait_bars.get(sym, 0) > 0:
             self.wait_bars[sym] -= 1

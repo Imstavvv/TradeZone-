@@ -185,8 +185,12 @@ class RiskBot(Bot):
             return self.reject(sig, f"conviction {sig.strength:.2f} below threshold")
         if coach is not None and (left := coach.benched(sig.symbol)) > 0:
             return self.reject(sig, f"{sig.symbol} is benched by the Coach after repeated losses ({left / 60:.0f} min left)")
-        if len(self.portfolio.open_positions) >= limits.max_open_positions:
-            return self.reject(sig, "max open positions reached")
+        if (why := self.desk.in_focus(sig.symbol)):
+            return self.reject(sig, why)
+        focus_max = self.desk.focus_status()["max_positions"]
+        most = min(limits.max_open_positions, focus_max) if focus_max else limits.max_open_positions
+        if len(self.portfolio.open_positions) >= most:
+            return self.reject(sig, "max open positions reached" + (" for this balance (spread wider as it grows)" if focus_max else ""))
         meme = self.settings.is_meme(sig.symbol)
         if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
                 >= self.settings.max_meme_positions + (AGGRESSIVE["extra_memes"] if s0.aggressive(self.desk.is_live) else 0):

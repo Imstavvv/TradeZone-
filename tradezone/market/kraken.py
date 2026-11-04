@@ -104,13 +104,16 @@ class KrakenFeed(MarketFeed):
 
     def __init__(self, symbols: list[str], client: httpx.AsyncClient | None = None,
                  meme_candidates: list[str] | None = None, meme_coins: list[str] | None = None,
-                 min_meme_volume_usd: float = 1_000_000.0, max_memes: int = 12) -> None:
+                 min_meme_volume_usd: float = 1_000_000.0, max_memes: int = 12,
+                 small_candidates: list[str] | None = None, max_small: int = 8) -> None:
         self.symbols = symbols  # the same list object as settings.symbols: added / dropped coins show everywhere
         self.client = client or httpx.AsyncClient(base_url=PUBLIC, timeout=8.0, headers={"User-Agent": "TradeZone/1.0"})
         self.meme_candidates = meme_candidates or []
         self.meme_coins = meme_coins if meme_coins is not None else []
         self.min_meme_volume_usd = min_meme_volume_usd
         self.max_memes = max_memes
+        self.small_candidates = small_candidates or []
+        self.max_small = max_small
         self.pairs: dict[str, dict] = {}
         self.quotes: dict[str, dict] = {}
         self.dropped: list[str] = []
@@ -131,6 +134,24 @@ class KrakenFeed(MarketFeed):
             self.dropped = [s for s in self.symbols if s not in self.pairs]
             self.symbols[:] = listed
         await self.discover_memes()
+        await self.discover_small()
+
+    async def discover_small(self) -> list[str]:
+        """Add smaller altcoins Kraken lists against USD that trade enough to be sold again (busiest first)."""
+        fresh = [f"{c}-USD" for c in self.small_candidates if f"{c}-USD" in self.pairs and f"{c}-USD" not in self.symbols]
+        if not fresh or self.max_small <= 0:
+            return []
+        try:
+            quotes = await fetch_quotes(self.client, self.pairs, fresh)
+        except (httpx.HTTPError, ValueError) as exc:
+            log.warning("kraken small-coin volume check failed: %s", exc)
+            return []
+        ranked = sorted((s for s in fresh if quotes.get(s, {}).get("vol_usd", 0) >= self.min_meme_volume_usd),
+                        key=lambda s: -quotes[s]["vol_usd"])[: self.max_small]
+        self.symbols.extend(ranked)
+        self.added.extend(ranked)
+        self.quotes.update({s: quotes[s] for s in ranked})
+        return ranked
 
     async def discover_memes(self) -> list[str]:
         """Add Kraken-listed meme coins with enough daily trading that a position can be sold again."""

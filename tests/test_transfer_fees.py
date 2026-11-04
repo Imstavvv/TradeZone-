@@ -46,7 +46,7 @@ def test_small_profit_takes_wait_until_they_are_worth_a_transfer():
 
 
 def test_transfer_fees_never_stop_a_small_account_from_trading():
-    desk = make(cashout_fee_usd=5.0, starting_cash=50.0)  # a $5 transfer fee on a $50 account
+    desk = make(cashout_fee_usd=5.0, starting_cash=50.0, focus_small_coins=False)  # a $5 fee on a $50 account
     assert desk.min_take() == pytest.approx(0.05)  # 0.1% of the balance, not $0.50 per profit-take
     prime(desk, "BTC-USD", 50_000.0, atr=250.0)
     desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))

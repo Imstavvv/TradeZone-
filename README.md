@@ -515,6 +515,18 @@ How it works and what to expect:
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
 
+### Growth ladder: smaller coins first
+
+A small balance can't spread across every coin: Kraken's minimum orders and the fees would leave each trade too small to matter. So the bots **focus on smaller coins** (meme coins and small altcoins, which move more in percentage terms) until the balance is built up, then add bigger coins:
+
+| Balance | Coins traded | Trades at once |
+| --- | --- | --- |
+| under **$250** (`TZ_FOCUS_SMALL_UNTIL`) | smaller coins only: meme coins (DOGE, SHIB, PEPE, BONK, WIF, FLOKI, ...) and small altcoins (ARB, OP, SUI, INJ, FET, ...) | 3 |
+| **$250 - $1,000** (`TZ_FOCUS_MID_UNTIL`) | + mid-size coins (SOL, XRP, ADA, AVAX, LINK, DOT, LTC, ...) | 5 |
+| **$1,000+** | every coin, including BTC and ETH | normal limit |
+
+Open trades are never closed because of the ladder; it only decides which *new* trades are taken. With Kraken prices, up to 8 small altcoins that Kraken lists and that trade at least $1M a day are added automatically (`TZ_MAX_SMALL_COINS`). The goal card on Home shows the current stage. `TZ_FOCUS_SMALL_COINS=false` trades every coin from the start. Smaller coins swing harder in both directions: meme coins still trade smaller and with wider stops, and every "can it be sold?" check still applies.
+
 ### Aggressive risk (real money, opt-in)
 
 For faster growth with real money, switch **Settings → Your goal → Real-money risk** to **⚡ Aggressive** (type RISK to confirm; `TZ_RISK_PROFILE=aggressive` on the server does the same). Practice money is never affected.
