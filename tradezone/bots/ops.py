@@ -45,6 +45,25 @@ class FeeAuditorBot(Advisor):
             if abs(seen - self.settings.crypto_fee_bps) >= 5:
                 old, self.settings.crypto_fee_bps = self.settings.crypto_fee_bps, round(seen, 1)
                 self.act(f"fees really paid: {seen:.1f} bps per side (was planning {old:.1f}) - plans updated")
+                self.save()
+
+    def save(self) -> None:
+        store = getattr(self.desk, "store", None)
+        if store is not None and self.paid:
+            store.save("fees", {"paid": list(self.paid), "venue": self.settings.venue()})
+
+    def load(self) -> bool:
+        """Remember the fees really paid (same venue only), so a restart doesn't go back to the guess."""
+        store = getattr(self.desk, "store", None)
+        data = store.load("fees") if store is not None else None
+        if not data or data.get("venue") != self.settings.venue():
+            return False
+        self.paid.extend(float(x) for x in data.get("paid", []))
+        if len(self.paid) >= 10:
+            seen = max(5.0, min(150.0, statistics.quantiles(self.paid, n=4)[2]))
+            self.metrics["paid_bps"] = round(seen, 1)
+            self.settings.crypto_fee_bps = round(seen, 1)
+        return True
 
 
 class SlippageBot(Advisor):
@@ -158,11 +177,30 @@ class AccountantBot(Advisor):
         for day, d in list(self.days.items()):
             if day < today and not d.get("reported"):
                 d["reported"] = True
+                self.save()
                 wr = f"{d['wins']}/{d['closed']} won" if d["closed"] else "no trades closed"
                 best = f", best {d['best'][1]} {d['best'][0]:+,.2f}" if d["best"] else ""
                 worst = f", worst {d['worst'][1]} {d['worst'][0]:+,.2f}" if d["worst"] else ""
                 self.publish("alert", Alert("info", f"Daily report {day}: {d['pnl']:+,.2f} after fees, fees "
                                                     f"{d['fees']:,.2f}, {wr}{best}{worst}", self.name))
+
+    def save(self) -> None:
+        store = getattr(self.desk, "store", None)
+        if store is not None:
+            store.save("accountant", {"days": self.days})
+
+    def load(self) -> bool:
+        """A restart in the middle of a day keeps the day's totals (and the last week's reports)."""
+        store = getattr(self.desk, "store", None)
+        data = store.load("accountant") if store is not None else None
+        if not data:
+            return False
+        for k, d in (data.get("days") or {}).items():
+            for key in ("best", "worst"):
+                if isinstance(d.get(key), list):
+                    d[key] = tuple(d[key])
+            self.days[k] = d
+        return True
 
     def summary(self) -> list[dict]:
         return [self.days[k] for k in sorted(self.days, reverse=True)]

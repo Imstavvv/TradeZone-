@@ -206,3 +206,20 @@ def test_advisors_can_be_switched_off_one_by_one():
         snap(desk, "BTC-USD", 60_000 * (1 - 0.0015 * i), volatility=0.0005)
     desk.set_bot_enabled("weather", False)
     assert buy(desk, "ETH-USD", 3_000.0)[0].qty > 0
+
+
+def test_accountant_and_fee_auditor_remember_across_a_restart(tmp_path):
+    db = str(tmp_path / "tz.db")
+    s = Settings(feed="sim", symbols=list(SYMS))
+    d1 = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    a = d1.bots["accountant"]
+    a.on_trade(type("E", (), {"payload": {"symbol": "SOL-USD", "pnl": 7.0, "fee": 0.2, "ts": time.time()}})())
+    d1.bots["fees"].paid.extend([16.0] * 12)
+    run(d1.shutdown())
+    s2 = Settings(feed="sim", symbols=list(SYMS))
+    d2 = TradingDesk(s2, feed=SimulatedFeed(s2.symbols), journal=Journal(db))
+    run(d2.start())
+    today = d2.bots["accountant"].summary()[0]
+    assert today["pnl"] == pytest.approx(7.0) and today["best"] == (7.0, "SOL-USD")
+    assert d2.settings.crypto_fee_bps == pytest.approx(16.0)  # plans with the fee really paid, not the guess
+    run(d2.shutdown())

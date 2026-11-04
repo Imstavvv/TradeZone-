@@ -681,6 +681,8 @@ class TradingDesk:
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
+        self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
+        self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
@@ -994,6 +996,8 @@ class TradingDesk:
         await self.bots["trends"].close()  # type: ignore[attr-defined]
         self.bots["coach"].save()  # type: ignore[attr-defined]
         self.bots["flipper"].save()  # type: ignore[attr-defined]
+        self.bots["accountant"].save()  # type: ignore[attr-defined]
+        self.bots["fees"].save()  # type: ignore[attr-defined]
         self.journal.commit()
 
     # -- views -----------------------------------------------------------
