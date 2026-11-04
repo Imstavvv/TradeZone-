@@ -256,7 +256,7 @@ class PortfolioBot(Bot):
             if hours <= 0 or t - pos.opened_ts < hours * 3600 or pos.last_price is None:
                 continue
             net = s.net_if_sold(pos, pos.last_price)  # after both fees
-            if net > 0:
+            if net > 0 and net >= self.desk.min_take():  # ...and worth its share of a transfer fee
                 self.bump("stale_flips")
                 self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot")
 

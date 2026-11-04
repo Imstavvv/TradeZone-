@@ -11,7 +11,7 @@ import pytest
 from tests.helpers import capture, prime, run
 from tradezone.brokers.kraken import ALLOWED_PRIVATE, KrakenBroker, KrakenError, sign
 from tradezone.config import Settings
-from tradezone.core.models import Order, OrderStatus, Side, Signal, Tick
+from tradezone.core.models import Order, OrderStatus, Side, Signal, SignalKind, Tick
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
@@ -26,7 +26,9 @@ class FakeKraken:
         self.can_withdraw, self.can_trade = can_withdraw, can_trade
         self.bal = {"ZUSD": usd, **(held or {})}
         self.price = {"XBTUSD": 60_000.0, "XDGUSD": 0.2}
-        self.orders, self.calls = {}, []
+        self.spread = {"XBTUSD": 0.0002, "XDGUSD": 0.001}  # bid/ask gap
+        self.volume = {"XBTUSD": 2_000.0, "XDGUSD": 50_000_000.0}  # coins traded in 24 h
+        self.orders, self.calls, self.oflags = {}, [], []
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         path = req.url.path
@@ -35,6 +37,15 @@ class FakeKraken:
                 "XXBTZUSD": {"altname": "XBTUSD", "wsname": "XBT/USD", "base": "XXBT", "lot_decimals": 8, "ordermin": "0.0001"},
                 "XDGUSD": {"altname": "XDGUSD", "wsname": "XDG/USD", "base": "XXDG", "lot_decimals": 2, "ordermin": "20"},
                 "XXBTZEUR": {"altname": "XBTEUR", "wsname": "XBT/EUR", "base": "XXBT", "lot_decimals": 8, "ordermin": "0.0001"}}})
+        if path == "/0/public/Ticker":
+            keys = {"XBTUSD": "XXBTZUSD", "XDGUSD": "XDGUSD"}
+            out = {}
+            for alt in req.url.params["pair"].split(","):
+                px, gap = self.price[alt], self.spread[alt]
+                out[keys[alt]] = {"c": [str(px), "1"], "b": [str(px * (1 - gap / 2)), "1", "1"],
+                                  "a": [str(px * (1 + gap / 2)), "1", "1"], "v": ["1", str(self.volume[alt])],
+                                  "p": [str(px), str(px)]}
+            return self.ok(out)
         data = dict(urllib.parse.parse_qsl(req.content.decode()))
         method = path.rsplit("/", 1)[-1]
         self.calls.append(method)
@@ -53,6 +64,7 @@ class FakeKraken:
                 return self.err("EGeneral:Permission denied")
             if data.get("validate") == "true":
                 return self.ok({"descr": {"order": "validated"}})
+            self.oflags.append(data.get("oflags"))
             vol, px = float(data["volume"]), self.price[data["pair"]]
             base = "XXBT" if data["pair"] == "XBTUSD" else "XXDG"
             cost, fee = vol * px, vol * px * 0.0026
@@ -142,7 +154,7 @@ def kraken_desk(fk):
 def test_bots_trade_and_take_profit_on_kraken_but_cannot_withdraw():
     fk = FakeKraken(usd=5_000.0, held={"XXBT": 0.2})
     desk = kraken_desk(fk)
-    run(desk.live_broker.load_pairs())
+    run(desk.live_broker.refresh_market())  # pairs + bid / ask / volume for the "can it be sold?" check
     run(desk.switch_mode("live"))
     assert desk.is_live and desk.broker.name == "kraken" and desk.portfolio.cash == 5_000.0
     prime(desk, "BTC-USD", 60_000.0, atr=300.0)
@@ -150,6 +162,7 @@ def test_bots_trade_and_take_profit_on_kraken_but_cannot_withdraw():
     run(desk.bus.drain())
     pos = desk.portfolio.position("BTC-USD")
     assert pos.qty > 0 and "AddOrder" in fk.calls
+    assert fk.oflags[-1] == "fciq"  # fee paid in USD: every coin bought arrives and can be sold again
     # price rises to the +6% target: the bots take profit (half, then the runner rides)
     fk.price["XBTUSD"] = 63_700.0
     trades = capture(desk, "trade.closed")
@@ -160,7 +173,7 @@ def test_bots_trade_and_take_profit_on_kraken_but_cannot_withdraw():
     assert run(desk.bots["portfolio"].reconcile_positions()) == []  # books match Kraken (your 0.2 BTC ignored)
     # withdrawals: never sent from TradeZone
     w = desk.wallets.link("BTC", "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq")
-    assert desk.wallets.withdraw(w.id, "BTC", 0.0001).status == "manual_required"
+    assert desk.wallets.withdraw(w.id, "BTC", 0.0003).status == "manual_required"  # ~$19 (test-send cap $25)
     assert not any(m.startswith("Withdraw") and m != "WithdrawInfo" for m in fk.calls)
     assert desk.broker_info()["can_withdraw"] is False
 
@@ -182,3 +195,101 @@ def test_link_kraken_from_the_app_and_remember_it(monkeypatch, tmp_path):
     assert info["linked"] and info["venue"] == "kraken" and info["label"] == "Kraken" and info["ready"]
     again = TradingDesk(Settings(feed="coinbase"), journal=Journal(db))
     assert again.load_linked_broker() and again.live_broker.name == "kraken"
+
+
+def test_never_buys_a_coin_it_cannot_sell_again():
+    fk = FakeKraken(usd=5_000.0)
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    run(desk.switch_mode("live"))
+    rejected = capture(desk, "signal.rejected")
+
+    def try_buy(sym, price):
+        desk.settings.symbols.append(sym) if sym not in desk.settings.symbols else None
+        prime(desk, sym, price, atr=price * 0.005)
+        desk.bus.publish("signal.proposed", Signal(sym, Side.BUY, 0.9, "t", "quant"))
+        run(desk.bus.drain())
+        return desk.portfolio.position(sym).qty
+
+    assert try_buy("PEPE-USD", 0.00001) == 0  # Kraken doesn't list it here: can't be sold there
+    assert "can't be traded on your real-money Kraken" in rejected[-1]["reason"]
+    assert "can't be bought and sold on Kraken" in desk.live_broker.sell_check("PEPE-USD", 1e7, 0.00001)
+    fk.spread["XDGUSD"] = 0.05  # 5% bid/ask gap: selling would lose 5% straight away
+    run(desk.live_broker.refresh_market())
+    assert try_buy("DOGE-USD", 0.2) == 0 and "too thin to sell" in rejected[-1]["reason"]
+    fk.spread["XDGUSD"], fk.volume["XDGUSD"] = 0.001, 10_000.0  # only $2k traded a day: no one to sell to
+    run(desk.live_broker.refresh_market())
+    assert try_buy("DOGE-USD", 0.2) == 0 and "too little trading" in rejected[-1]["reason"]
+    fk.volume["XDGUSD"] = 50_000_000.0
+    run(desk.live_broker.refresh_market())
+    desk.bots["risk"].last_trade.clear()
+    assert try_buy("DOGE-USD", 0.2) > 0  # liquid, listed, big enough: fine
+    b = desk.live_broker
+    assert b.sell_check("DOGE-USD", 30, 0.2) is not None  # under 2x Kraken's 20 DOGE minimum: halves unsellable
+    b.quotes["BTC-USD"]["ts"] -= 600  # stale market data: real money refuses rather than guesses
+    assert "can't confirm" in b.sell_check("BTC-USD", 0.01, 60_000)
+
+
+def test_partial_profit_takes_never_leave_an_unsellable_remainder():
+    fk = FakeKraken(usd=5_000.0)
+    desk = kraken_desk(fk)
+    run(desk.live_broker.refresh_market())
+    run(desk.switch_mode("live"))
+    desk.portfolio.position("DOGE-USD")
+    prime(desk, "DOGE-USD", 0.2, atr=0.001)
+    pos = desk.portfolio.position("DOGE-USD")
+    pos.qty, pos.avg_price, pos.last_price, pos.opened_ts = 30.0, 0.18, 0.2, 1.0  # 30 DOGE; Kraken's minimum is 20
+    fk.bal["XXDG"] = 30.0
+    approved = capture(desk, "order.approved")
+    desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.SELL, 1.0, "bank half", "skimmer",
+                                               kind=SignalKind.EXIT, fraction=0.5))
+    run(desk.bus.drain())
+    assert approved and approved[-1].qty == pytest.approx(30.0)  # 15 + 15 would both be under 20: sells all 30
+
+
+def test_feed_finds_kraken_meme_coins_that_trade_enough():
+    from tradezone.market.kraken import KrakenFeed
+
+    pairs = {"XXBTZUSD": {"altname": "XBTUSD", "wsname": "XBT/USD", "base": "XXBT"},
+             "XDGUSD": {"altname": "XDGUSD", "wsname": "XDG/USD", "base": "XXDG"},
+             "BONKUSD": {"altname": "BONKUSD", "wsname": "BONK/USD", "base": "BONK"},
+             "PENGUUSD": {"altname": "PENGUUSD", "wsname": "PENGU/USD", "base": "PENGU"},
+             "TINYUSD": {"altname": "TINYUSD", "wsname": "TINY/USD", "base": "TINY"},
+             "HALTUSD": {"altname": "HALTUSD", "wsname": "HALT/USD", "base": "HALT", "status": "cancel_only"}}
+    vol = {"PENGUUSD": 9e9, "TINYUSD": 10.0, "XBTUSD": 1e3, "XDGUSD": 1e9, "BONKUSD": 1e12}
+
+    def handler(req):
+        if req.url.path.endswith("AssetPairs"):
+            return httpx.Response(200, json={"error": [], "result": pairs})
+        if req.url.path.endswith("Ticker"):
+            res = {}
+            for alt in req.url.params["pair"].split(","):
+                res[alt] = {"c": ["0.01", "1"], "b": ["0.00999", "1", "1"], "a": ["0.01", "1", "1"],
+                            "v": ["1", str(vol[alt])], "p": ["0.01", "0.01"]}
+            return httpx.Response(200, json={"error": [], "result": res})
+        rows = [[1700000000 + 60 * i, "1", "2", "0.5", "1.5", "1", "10", 5] for i in range(4)]
+        return httpx.Response(200, json={"error": [], "result": {"XDGUSD": rows, "last": 1}})
+
+    symbols, memes = ["BTC-USD", "DOGE-USD", "PEPE-USD"], ["DOGE", "PEPE"]
+    feed = KrakenFeed(symbols, client=httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(handler)),
+                      meme_candidates=["PENGU", "TINY", "HALT", "NOPE"], meme_coins=memes, min_meme_volume_usd=1e6)
+    run(feed.start())
+    assert feed.dropped == ["PEPE-USD"]  # not on Kraken in this list
+    assert symbols == ["BTC-USD", "DOGE-USD", "PENGU-USD"]  # PENGU trades enough; TINY doesn't; HALT can't be sold
+    assert "PENGU" in memes  # treated as a meme coin (smaller bets, meme stops)
+    feed._last_poll = 0
+    ticks = run(feed.poll())
+    assert {t.symbol for t in ticks} == set(symbols) and feed.quotes["DOGE-USD"]["vol_usd"] > 0
+    candles = run(feed.history("DOGE-USD", 60))
+    assert len(candles) == 3 and candles[0]["close"] == 1.5  # the still-forming candle is left out
+
+
+def test_linking_kraken_in_the_app_switches_to_krakens_prices():
+    desk = TradingDesk(Settings(), journal=Journal(":memory:"))  # feed=auto, nothing linked: Coinbase prices
+    assert desk.feed.name == "coinbase" and desk.settings.feed_choice == "auto"
+    desk.settings.kraken_key, desk.settings.kraken_secret, desk.settings.live_venue = "KEY", SECRET, "kraken"
+    desk.live_broker = KrakenBroker("KEY", SECRET)
+    run(desk._venue_feed())
+    assert desk.feed.name == "kraken" and desk.settings.feed == "kraken"
+    run(desk.feed.close())
+    run(desk.live_broker.close())

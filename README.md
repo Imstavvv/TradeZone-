@@ -420,6 +420,37 @@ Make the key in Kraken → **Settings → API → Create API key**. Turn on **Qu
 
 Orders are market orders on each coin's USD pair, rounded down to Kraken's lot size and checked against its minimum order. Kraken's fee comes back with every fill and is counted in your results. The bots trade with the USD in the account (not USDC or USDT). Server-side alternative to linking in the app: `TZ_LIVE_VENUE=kraken`, `TZ_KRAKEN_KEY`, `TZ_KRAKEN_SECRET`.
 
+### Kraken's meme coins
+
+With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:
+
+* keeps the usual coins (BTC, ETH, SOL, ... and the meme coins DOGE, SHIB, PEPE, BONK, WIF, FLOKI) that Kraken lists, and skips the rest;
+* adds other well-known meme coins **Kraken lists against USD** (TRUMP, PENGU, FARTCOIN, POPCAT, MEW, BOME, TURBO, PNUT, ...) if they trade at least **$1M a day** (`TZ_MIN_MEME_VOLUME_USD`), the busiest first, up to 12 meme coins in all (`TZ_MAX_MEME_COINS`). They get the meme-coin rules: smaller bets and wider stops. `TZ_KRAKEN_MEMES=false` turns this off.
+
+### Never buys a coin it can't sell
+
+Before every real-money buy (and in practice too when a real account is linked), the Risk Manager checks the coin can be **sold again**:
+
+| Check | Refused when |
+| --- | --- |
+| Listed for buying *and* selling | Kraken doesn't offer the USD pair, or it's paused / cancel-only / reduce-only (the pair list is refreshed every 15 min) |
+| Big enough to sell | the amount is under **twice** Kraken's minimum order (size and value), so even half of it (the profit-takers sell in parts) can still be sold |
+| Someone to sell to | the bid/ask gap is over **1.5%** (`TZ_SELL_MAX_SPREAD_PCT`), the coin trades under **$250k a day** (`TZ_SELL_MIN_VOLUME_USD`), or the position would be over **1%** of a day's trading (`TZ_SELL_MAX_VOLUME_SHARE`) |
+| Fresh data | bid/ask is over 3 minutes old (refreshed every 30 s): real money refuses rather than guesses |
+
+Orders also ask Kraken to take its fee in **USD** (`oflags=fciq`), so every coin bought arrives in full and the whole amount can be sold. A partial profit-take that would leave a part or a remainder under Kraken's minimum sells the whole position instead, so no unsellable leftovers are ever left behind.
+
+### Transfer fees and profit-taking
+
+Moving profit out (to a wallet or the bank) costs a transfer fee. TradeZone estimates it from your **cheapest linked wallet's network** (e.g. XRP or Stellar about $0.10-0.20, Solana ~$0.30, Bitcoin ~$5), or uses `TZ_CASHOUT_FEE_USD` if you set it (else $1). Then:
+
+* every **profit-taking sale** (banking a slice, selling into a spike, a quick flip, the clock closing a stale winner, a strategy exit) must make at least **10%** of one transfer fee after trading fees (`TZ_TRANSFER_FEE_SHARE`), so ten wins pay for one transfer out;
+* a **new trade** is skipped if its profit at the target wouldn't cover twice that share;
+* the **Money** page shows *Profit to take home*: what the bots banked, and what you'd keep after one transfer out, and tells you to wait until it's about 10× the fee so the fee stays a small share;
+* sending money out shows the fee and how much arrives, and refuses amounts the fee would mostly eat (under 2× the fee).
+
+Stop-losses never wait for any of this: protection always comes first.
+
 > **Warning.** Live mode places real orders with real money. The bundled strategies have only been tested on synthetic data, which says nothing about real-world profitability. Only trade money you can afford to lose, and use a dedicated account.
 
 **The desk always starts in PAPER.** It stays there until you switch it yourself.

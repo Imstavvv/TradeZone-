@@ -876,6 +876,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         </div>
         <div class="scard" data-page="money" style="grid-column:1/-1"><h4>🔗 Your accounts &amp; wallets</h4>
           <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
+          <div class="srow"><div class="ic">💸</div><div class="tx"><b>Profit to take home</b><span id="accCashTxt">—</span></div><span></span></div>
           <div class="srow"><div class="ic">🤖</div><div class="tx"><b>Grok AI helper</b><span id="accGrokTxt">Optional - double-checks every trade</span></div><button id="accGrokBtn">Connect</button></div>
           <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
           <div id="walletCards"></div>
@@ -2050,6 +2051,11 @@ function coolWait(){
 function setHTML(el, html){ if (el.dataset.html !== html) { el.innerHTML = html; el.dataset.html = html; return true; } return false; }
 function renderSettings(){
   const A = S.accounts, W = S.state && S.state.wallets, SI = S.secInfo, G = S.state && S.state.goal;
+  const C = S.state && S.state.cashout;
+  if (C) $('accCashTxt').textContent = C.banked > 0
+    ? `Banked ${money(C.banked)} · after a ~${money(C.transfer_fee)} transfer out you'd keep ${money(C.take_home)}` +
+      (C.worth_it ? ' · worth moving out' : ` · waiting until it's about ${money(10 * C.transfer_fee)} keeps the fee a small share`)
+    : `Nothing banked yet · moving money out costs about ${money(C.transfer_fee)} a transfer, so the bots skip profits too small to be worth it`;
   if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
@@ -2245,8 +2251,11 @@ function openSend(walletId){
     $('sdAsset').innerHTML = w.assets.map(a => `<option>${esc(a)}</option>`).join(''); hint(); };
   const hint = () => { const a = $('sdAsset').value, amt = +$('sdAmount').value || 0;
     const usd = ['USD', 'USDC', 'USDT'].includes(a) ? 1 : (S.state.prices[a + '-USD'] || 0);
-    $('sdHint').textContent = (usd ? `≈ ${money(amt * usd)}` : `There's no live ${a} price right now, so this coin can't be sent yet`) +
-      (usd ? ` · you have ${money(S.state.portfolio.cash)} free to send` : '');
+    const w = ready.find(x => x.id === $('sdWallet').value) || ready[0], fee = w.fee_usd || 0, val = amt * usd;
+    $('sdHint').textContent = (usd ? `≈ ${money(val)}` : `There's no live ${a} price right now, so this coin can't be sent yet`) +
+      (usd ? ` · you have ${money(S.state.portfolio.cash)} free to send` : '') +
+      (usd && val > 0 ? ` · transfer fee about ${money(fee)}, so about ${money(Math.max(0, val - fee))} arrives` +
+        (val < 2 * fee ? ' - the fee would take over half of this, send more at once' : '') : '');
     $('sdGo').disabled = !usd; };
   $('sdWallet').onchange = fill; $('sdAsset').onchange = hint; $('sdAmount').oninput = hint;
   $('sdAmount').value = ''; $('sdErr').textContent = ''; fill(); $('sendSheet').classList.add('open');

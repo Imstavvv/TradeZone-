@@ -25,6 +25,13 @@ log = logging.getLogger(__name__)
 
 
 def build_feed(s: Settings) -> MarketFeed:
+    if s.feed == "kraken":
+        from .config import MEME_CANDIDATES
+        from .market.kraken import KrakenFeed
+
+        return KrakenFeed(s.symbols, meme_candidates=MEME_CANDIDATES if s.kraken_memes else [],
+                          meme_coins=s.meme_coins, min_meme_volume_usd=s.min_meme_volume_usd,
+                          max_memes=s.max_meme_coins)
     if s.feed == "coinbase":
         from .market.coinbase import CoinbaseFeed
 
@@ -83,11 +90,13 @@ class TradingDesk:
         self.bus = EventBus()
         self.bus.on_error = self._on_bot_error
         self.feed = feed or build_feed(settings)
+        self._feed_given = feed is not None  # a feed passed in (tests, demos) is never swapped
         self.journal = journal or Journal(settings.journal_path or "tradezone.db")
         # Two separate books: paper is always available, live only once switched on.
         self.mode = "paper"
         self.paper_broker: Broker = broker or build_broker(settings)
         self.live_broker: Broker | None = live_broker or build_live_broker(settings)
+        self._tune_live_broker()
         self.paper_portfolio = Portfolio(settings.starting_cash)
         self.live_portfolio: Portfolio | None = None
         self.portfolio = self.paper_portfolio
@@ -452,6 +461,55 @@ class TradingDesk:
         self.broker_source = "app"
         if old is not None and old is not broker:
             await old.close()
+        self._tune_live_broker()
+        if self.running:  # linked while running: switch to the venue's own prices if they differ
+            await self._venue_feed(restart=True)
+
+    def _tune_live_broker(self) -> None:
+        b, s = self.live_broker, self.settings
+        if b is None:
+            return
+        b.symbols = s.symbols  # type: ignore[attr-defined]  # the same list: coins the feed adds are checked too
+        for k, v in (("max_spread_pct", s.sell_max_spread_pct), ("min_volume_usd", s.sell_min_volume_usd),
+                     ("max_volume_share", s.sell_max_volume_share)):
+            if hasattr(b, k):
+                setattr(b, k, v)
+
+    async def _venue_feed(self, restart: bool = False) -> None:
+        """With feed=auto and a Kraken account, use Kraken's own prices (its meme coins have prices then)."""
+        s = self.settings
+        if self._feed_given or s.feed_choice != "auto":
+            return
+        want = "kraken" if s.venue() == "kraken" and self.live_broker is not None else s.feed
+        if want == self.feed.name:
+            return
+        s.feed = want
+        old, self.feed = self.feed, build_feed(s)
+        await old.close()
+        if restart:
+            await self.feed.start()
+            await self.backfill()
+            self.bus.publish("alert", Alert("info", f"Now using {self.feed.name.title()}'s own prices", "desk"))
+
+    # -- transfer fees: what it costs to move profit out ------------------------------
+    def transfer_fee(self) -> float:
+        """Estimated cost of one transfer out (USD): your setting, else the cheapest linked wallet's network."""
+        if self.settings.cashout_fee_usd > 0:
+            return self.settings.cashout_fee_usd
+        fees = [w.fee_usd for w in self.wallets.wallets.values()] if hasattr(self, "wallets") else []
+        return min(fees) if fees else 1.0
+
+    def min_take(self) -> float:
+        """The least a profit-taking sale must make (after trading fees) to be worth its share of a transfer."""
+        return self.transfer_fee() * self.settings.transfer_fee_share
+
+    def cashout_summary(self) -> dict:
+        """Profit the bots have banked, and what's left after one transfer fee to move it out."""
+        p = self.portfolio
+        banked = sum(t.pnl for t in p.closed_trades)
+        fee = self.transfer_fee()
+        return {"banked": banked, "transfer_fee": fee, "take_home": max(0.0, banked - fee),
+                "worth_it": banked >= 10 * fee, "min_take": self.min_take()}
 
     def load_linked_broker(self) -> bool:
         s = self.settings
@@ -559,6 +617,8 @@ class TradingDesk:
 
     async def start(self) -> None:
         self.load_linked_broker()
+        self._tune_live_broker()
+        await self._venue_feed()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
@@ -568,6 +628,9 @@ class TradingDesk:
             await self.live_broker.prepare()  # which coins the venue can trade (others stay practice-only)
         if dropped := getattr(self.feed, "dropped", None):
             self.bus.publish("alert", Alert("warning", f"Not listed on {self.feed.name}, skipped: {', '.join(dropped)}", "desk"))
+        if added := getattr(self.feed, "added", None):
+            self.bus.publish("alert", Alert("info", f"Meme coins on {self.feed.name.title()} the bots can trade: "
+                                            + ", ".join(added), "desk"))
         await self.backfill()
         if restored:
             self.bus.publish("alert", Alert("info", f"Resumed after restart: {restored}", "desk"))
@@ -622,6 +685,8 @@ class TradingDesk:
                 log.exception("bot %s cycle failed", bot.name)
             await self.bus.drain()
         self.cycles += 1
+        if self.live_broker is not None and self.cycles % 30 == 1:  # bid / ask / volume for the "can it be sold?" check
+            await self.live_broker.refresh_market()
         if self.cycles == 1 or self.cycles % 30 == 0:  # keep the status page fresh
             self.bots["scout"].metrics["feed_mode"] = getattr(self.feed, "mode", "poll")
         if self._dirty or self.cycles % 10 == 0:
@@ -844,7 +909,8 @@ class TradingDesk:
             "uptime": time.time() - self.started_at,
             "prices": self.prices,
             "portfolio": self.portfolio.to_dict(),
-            "pnl_point": [time.time(), self.lifetime_pnl()],  # the live chart follows this every update
+            "pnl_point": [time.time(), self.lifetime_pnl()],
+            "cashout": self.cashout_summary(),  # the live chart follows this every update
             "performance": sentinel.performance(),  # type: ignore[attr-defined]
             "bots": [vars(b.status()) for b in self.bots.values()],
             "orders": [o.to_dict() for o in list(execution.orders.values())[-50:]],  # type: ignore[attr-defined]

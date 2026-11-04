@@ -115,10 +115,14 @@ class RiskBot(Bot):
                 net = self.settings.net_if_sold(pos, price)  # both fees counted
                 if net <= 0:
                     return self.reject(sig, f"strategy exit skipped: not in profit ({net:+,.2f}); stop-loss still protects")
+                if net < self.desk.min_take():
+                    return self.reject(sig, f"strategy exit skipped: +{net:,.2f} isn't worth its share of the "
+                                            f"~${self.desk.transfer_fee():,.2f} transfer fee yet")
             qty = abs(pos.qty)
             if sig.fraction < 1.0:
                 part = self._round_qty(qty * sig.fraction, price)
-                if part > 0 and (qty - part) * price >= 1.0:  # keep a meaningful remainder
+                least = max(self.desk.broker.min_qty(sig.symbol, price), 1.0 / price)  # the venue's smallest sale
+                if part >= least and qty - part >= least:  # both the part and what's left can still be sold
                     qty = part
             # reduce-only exits are always allowed: they lower risk
             return self.approve(
@@ -233,6 +237,19 @@ class RiskBot(Bot):
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 
+        # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
+        checker = self.desk.live_broker
+        if checker is not None and s.is_crypto(sig.symbol):
+            why = checker.sell_check(sig.symbol, qty, price, strict=self.desk.is_live)
+            if why:
+                self.bump("rejected_unsellable")
+                return self.reject(sig, f"won't buy what it can't sell: {why}")
+        # profit-taking keeps transfer fees in mind: a trade too small to pay its share isn't worth taking
+        take = qty * (reward - cost)
+        if take < 2 * self.desk.min_take():
+            self.bump("rejected_fees")
+            return self.reject(sig, f"too small: +{take:,.2f} at the target wouldn't cover its share of the "
+                                    f"~${self.desk.transfer_fee():,.2f} transfer fee")
         risk_amt = qty * (stop_dist + cost)
         sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
         self.strength_by_signal[sig.id] = sig.strength

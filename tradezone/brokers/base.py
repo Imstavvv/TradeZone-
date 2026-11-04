@@ -19,6 +19,17 @@ class Broker(abc.ABC):
     async def prepare(self) -> None:
         """Load what this venue can trade (called at start-up, so ``supports`` knows)."""
 
+    async def refresh_market(self) -> None:
+        """Refresh what's needed for ``sell_check`` (called every half minute)."""
+
+    def min_qty(self, symbol: str, price: float) -> float:
+        """The smallest amount this venue lets you sell (0 = no known minimum)."""
+        return 0.0
+
+    def sell_check(self, symbol: str, qty: float, price: float, strict: bool = True) -> str | None:
+        """Why buying could leave coins that can't be sold again, or None when it's fine."""
+        return None
+
     def on_prices(self, ticks: list[Tick]) -> None:
         """Receive the latest prices (used by simulated brokers)."""
 

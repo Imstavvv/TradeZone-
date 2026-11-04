@@ -46,32 +46,33 @@ class Chain:
     assets: tuple[str, ...]
     tag: TagRule | None = None
     fee: str = ""  # typical network fee, so you can pick a cheap way to move money
+    fee_usd: float = 1.0  # rough upper estimate of what one transfer out costs (exchange withdrawal fee), in USD
 
 
 MEMO = TagRule("memo", False, 256)
 CHAINS: dict[str, Chain] = {
     c.code: c
     for c in [
-        Chain("BTC", "Bitcoin", ("BTC",), fee="about $1-5"),
-        Chain("ETH", "Ethereum", ("ETH", "USDC", "USDT"), fee="about $0.50-5"),
-        Chain("BASE", "Base (Ethereum L2)", ("ETH", "USDC"), fee="a few cents"),
-        Chain("ARB", "Arbitrum (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents"),
-        Chain("OP", "Optimism (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents"),
-        Chain("POLYGON", "Polygon", ("POL", "USDC", "USDT"), fee="a few cents"),
-        Chain("BSC", "BNB Smart Chain", ("BNB", "USDC", "USDT"), fee="a few cents"),
-        Chain("AVAXC", "Avalanche C-Chain", ("AVAX", "USDC", "USDT"), fee="a few cents"),
-        Chain("SOL", "Solana", ("SOL", "USDC", "USDT"), fee="under a cent"),
-        Chain("TRX", "Tron", ("TRX", "USDT"), fee="about $1 for USDT"),
-        Chain("LTC", "Litecoin", ("LTC",), fee="a few cents"),
-        Chain("DOGE", "Dogecoin", ("DOGE",), fee="a few cents"),
-        Chain("ADA", "Cardano", ("ADA",), fee="about $0.20"),
-        Chain("DOT", "Polkadot", ("DOT",), fee="a few cents"),
-        Chain("ALGO", "Algorand", ("ALGO", "USDC"), fee="under a cent"),
-        Chain("XRP", "XRP Ledger", ("XRP",), TagRule("destination tag", True, 10), fee="under a cent"),
-        Chain("XLM", "Stellar", ("XLM", "USDC"), TagRule("memo", False, 28), fee="under a cent"),
-        Chain("ATOM", "Cosmos", ("ATOM",), MEMO, fee="a few cents"),
-        Chain("HBAR", "Hedera", ("HBAR",), TagRule("memo", False, 100), fee="under a cent"),
-        Chain("EOS", "EOS", ("EOS",), MEMO, fee="free"),
+        Chain("BTC", "Bitcoin", ("BTC",), fee="about $1-5", fee_usd=5.0),
+        Chain("ETH", "Ethereum", ("ETH", "USDC", "USDT"), fee="about $0.50-5", fee_usd=5.0),
+        Chain("BASE", "Base (Ethereum L2)", ("ETH", "USDC"), fee="a few cents", fee_usd=0.5),
+        Chain("ARB", "Arbitrum (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents", fee_usd=0.5),
+        Chain("OP", "Optimism (Ethereum L2)", ("ETH", "USDC", "USDT"), fee="a few cents", fee_usd=0.5),
+        Chain("POLYGON", "Polygon", ("POL", "USDC", "USDT"), fee="a few cents", fee_usd=0.3),
+        Chain("BSC", "BNB Smart Chain", ("BNB", "USDC", "USDT"), fee="a few cents", fee_usd=0.3),
+        Chain("AVAXC", "Avalanche C-Chain", ("AVAX", "USDC", "USDT"), fee="a few cents", fee_usd=0.5),
+        Chain("SOL", "Solana", ("SOL", "USDC", "USDT"), fee="under a cent", fee_usd=0.3),
+        Chain("TRX", "Tron", ("TRX", "USDT"), fee="about $1 for USDT", fee_usd=1.5),
+        Chain("LTC", "Litecoin", ("LTC",), fee="a few cents", fee_usd=0.2),
+        Chain("DOGE", "Dogecoin", ("DOGE",), fee="a few cents", fee_usd=0.5),
+        Chain("ADA", "Cardano", ("ADA",), fee="about $0.20", fee_usd=0.5),
+        Chain("DOT", "Polkadot", ("DOT",), fee="a few cents", fee_usd=0.3),
+        Chain("ALGO", "Algorand", ("ALGO", "USDC"), fee="under a cent", fee_usd=0.1),
+        Chain("XRP", "XRP Ledger", ("XRP",), TagRule("destination tag", True, 10), fee="under a cent", fee_usd=0.2),
+        Chain("XLM", "Stellar", ("XLM", "USDC"), TagRule("memo", False, 28), fee="under a cent", fee_usd=0.1),
+        Chain("ATOM", "Cosmos", ("ATOM",), MEMO, fee="a few cents", fee_usd=0.2),
+        Chain("HBAR", "Hedera", ("HBAR",), TagRule("memo", False, 100), fee="under a cent", fee_usd=0.1),
+        Chain("EOS", "EOS", ("EOS",), MEMO, fee="free", fee_usd=0.1),
     ]
 }
 
@@ -109,11 +110,16 @@ class Wallet:
     verified: bool = False  # the owner confirmed a test send arrived: full amounts allowed
     checksum: str = ""  # verified | none (the network has no checksum)
 
+    @property
+    def fee_usd(self) -> float:
+        return CHAINS[self.chain].fee_usd
+
     def to_dict(self, cooldown_h: float = 0.0) -> dict[str, Any]:
         d = asdict(self)
         chain = CHAINS[self.chain]
         d["chain_name"] = chain.name
         d["fee"] = chain.fee
+        d["fee_usd"] = chain.fee_usd
         d["tag_name"] = chain.tag.name if chain.tag else None
         d["assets"] = list(chain.assets)
         d["withdrawals_enabled_at"] = self.linked_at + cooldown_h * 3600
@@ -354,6 +360,10 @@ class WalletService:
             raise WalletError(f"The first send to a new wallet is a test of up to ${s.test_send_usd:,.0f}, so a wrong "
                               f"address can never cost much. Send a small amount, check it arrived, tap \"I got it\", "
                               f"and full amounts unlock.")
+        fee = c.fee_usd
+        if usd < 2 * fee:
+            raise WalletError(f"too small to be worth sending: the transfer fee (about ${fee:,.2f}) would take over half "
+                              "of it - send more at once")
         free = self.desk.portfolio.cash
         if usd > free + 1e-9:
             raise WalletError(f"insufficient free cash ({free:,.2f} USD available)")
@@ -365,7 +375,8 @@ class WalletService:
                      w.id, w.address, w.tag)
         if self.desk.is_live:
             t.status = "manual_required"
-            t.note = "funds are held at your broker - complete this withdrawal there (not debited here)"
+            t.note = (f"funds are held at your broker - complete this withdrawal there (not debited here); "
+                      f"its transfer fee is about ${fee:,.2f}, so about ${max(0.0, usd - fee):,.2f} arrives")
         else:
             t.tx_hash = f"paper-{secrets.token_hex(8)}"
             t.note = f"paper withdrawal{f' with {c.tag.name} {w.tag}' if w.tag else ''}"

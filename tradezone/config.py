@@ -11,6 +11,11 @@ LIVE_SWITCH_WORD = "LIVE"
 
 #: "trusted" meme coins: the large, long-listed ones on major US exchanges (quick flips happen here)
 MEME_COINS = ["DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI"]
+#: other well-known meme coins: added automatically when Kraken lists them against USD AND they trade
+#: enough every day that a position can be sold again (see TZ_MIN_MEME_VOLUME_USD)
+MEME_CANDIDATES = ["TRUMP", "PENGU", "FARTCOIN", "POPCAT", "MEW", "BOME", "TURBO", "PNUT", "MOG", "BRETT", "GIGA",
+                   "SPX", "MOODENG", "NEIRO", "GOAT", "PONKE", "MYRO", "WEN", "BABYDOGE", "DOG", "TOSHI", "MEME",
+                   "CHILLGUY", "AI16Z", "MELANIA", "SUNDOG", "HIPPO", "PUPS", "BAN", "SLERF"]
 #: default list on the free Coinbase feed: majors plus the trusted meme coins
 CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
                   "DOGE-USD", "SHIB-USD", "PEPE-USD", "BONK-USD", "WIF-USD", "FLOKI-USD"]
@@ -67,7 +72,8 @@ class Settings:
     mode: str = "paper"  # paper | live
     # Price feed. "auto" = real market data: Alpaca if keys are set, else Coinbase (crypto, no key).
     # "sim" (synthetic prices) is only for offline demos and tests.
-    feed: str = "auto"  # auto | coinbase | alpaca | sim
+    feed: str = "auto"  # auto | coinbase | kraken | alpaca | sim (auto + a Kraken account = Kraken's own prices)
+    feed_choice: str = ""  # what was asked for before "auto" was resolved (set by validate)
     broker: str = "paper"  # broker used in PAPER mode: paper (internal simulator) | alpaca (Alpaca paper account)
     symbols: list[str] = field(default_factory=list)  # empty = sensible default for the feed
     # Indicators are computed on bars of this many seconds when trading off real data (ticks still
@@ -103,6 +109,16 @@ class Settings:
     kraken_key: str = ""
     kraken_secret: str = ""
     kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
+    kraken_memes: bool = True  # with Kraken prices: add the meme coins Kraken lists (if they trade enough)
+    min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added
+    max_meme_coins: int = 12  # watch at most this many meme coins
+    # ---- "never buy a coin that can't be sold" (real money; practice too when a real account is linked) ----
+    sell_max_spread_pct: float = 0.015  # the bid/ask gap must be under 1.5%...
+    sell_min_volume_usd: float = 250_000.0  # ...the coin must trade at least this much a day...
+    sell_max_volume_share: float = 0.01  # ...and a position may be at most 1% of a day's trading
+    # ---- transfer fees: moving profit out costs a fee, so profit-taking keeps it in mind ----
+    cashout_fee_usd: float = 0.0  # what one transfer out costs you (0 = estimate from your linked wallets, else $1)
+    transfer_fee_share: float = 0.10  # every profit-taking sale must make at least 10% of one transfer fee
     # ---- Uphold (real money): one bearer token (Personal Access Token or OAuth token) ----
     uphold_token: str = ""
     # Uphold's cost is its spread (built into the rate). Practice trades charge this much per side
@@ -331,16 +347,19 @@ class Settings:
                 else "tradezone.db"
         if self.mode not in ("paper", "live"):
             raise ValueError("TZ_MODE must be 'paper' or 'live'")
-        if self.feed not in ("auto", "sim", "coinbase", "alpaca"):
-            raise ValueError("TZ_FEED must be auto, coinbase, alpaca or sim")
+        if self.feed not in ("auto", "sim", "coinbase", "kraken", "alpaca"):
+            raise ValueError("TZ_FEED must be auto, coinbase, kraken, alpaca or sim")
+        if not self.feed_choice:
+            self.feed_choice = self.feed
         if self.feed == "auto":
-            self.feed = "alpaca" if self.data_keys() else "coinbase"
+            self.feed = "kraken" if self.venue() == "kraken" else "alpaca" if self.data_keys() else "coinbase"
         if not self.symbols:
-            self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "alpaca": ALPACA_SYMBOLS}.get(self.feed, MIXED_SYMBOLS))
-        if self.feed == "coinbase":
+            self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "kraken": CRYPTO_SYMBOLS,
+                                 "alpaca": ALPACA_SYMBOLS}.get(self.feed, MIXED_SYMBOLS))
+        if self.feed in ("coinbase", "kraken"):
             bad = [s for s in self.symbols if not s.endswith("-USD")]
             if bad:
-                raise ValueError(f"Coinbase only quotes crypto pairs like BTC-USD; not: {', '.join(bad)}")
+                raise ValueError(f"{self.feed.title()} only quotes crypto pairs like BTC-USD; not: {', '.join(bad)}")
         if self.live_venue not in ("auto", *VENUES):
             raise ValueError("TZ_LIVE_VENUE must be auto, uphold, kraken or alpaca")
         self.uphold_token = self.uphold_token.strip()

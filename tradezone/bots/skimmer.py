@@ -162,6 +162,7 @@ class SkimmerBot(Bot):
         net_pct = net / (entry * abs(pos.qty)) if entry > 0 else 0.0
         if net_pct <= s.round_trip_cost(t.symbol, price) / price:
             return  # only ever bank real profit: after fees, and at least as much again as the fees
+        least = self.desk.min_take()  # ...and worth its share of the transfer fee to move it out
         sym = t.symbol
         # large: a sharp spike over the last few bars (5 minutes on 1-minute bars) -> sell half into it
         recent = self.bars.get(sym)
@@ -169,7 +170,7 @@ class SkimmerBot(Bot):
         spike = price / low - 1 if low > 0 else 0.0
         need = s.meme_spike_pct if s.is_meme(sym) else s.spike_pct
         last = self.spiked.get(sym)
-        if spike >= need and (last is None or last[0] != pos.opened_ts or ts - last[1] > self.SPIKE_REPEAT_S):
+        if spike >= need and net * s.spike_fraction >= least and (last is None or last[0] != pos.opened_ts or ts - last[1] > self.SPIKE_REPEAT_S):
             self.spiked[sym] = (pos.opened_ts, ts)
             self.bump("banked_spikes")
             self.act(f"SPIKE {sym} +{spike:.1%} in {len(recent or ())} bars - banking "
@@ -183,13 +184,13 @@ class SkimmerBot(Bot):
             target = abs(pos.take_profit / entry - 1)
         else:
             target = s.plan_pcts(sym)[1]
-        if self.quick and net_pct >= s.flip_net_pct:  # quick flip: bank half as soon as it's a real win
+        if self.quick and net_pct >= s.flip_net_pct and net * 0.5 >= least:  # quick flip: bank half as soon as it's a real win
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")
             self.bump("quick_flips")
             self.act(f"QUICK FLIP {sym}: banking half at +{net_pct:.1%} after fees")
             return self._sell(sym, 0.5, f"skimmer: quick flip, banked half at +{net_pct:.1%} after fees (+{net:,.2f})")
-        if gain >= s.bank_at_share * target:
+        if gain >= s.bank_at_share * target and net * s.bank_fraction >= least:
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")
             self.act(f"BANKED {s.bank_fraction:.0%} of {sym} at +{gain:.1%} (halfway to target)")
@@ -207,7 +208,7 @@ class SkimmerBot(Bot):
             if now() - opened < self.max_minutes() * 60 or (pm and sym in pm.exiting) or pos.last_price is None:
                 continue
             net = s.net_if_sold(pos, pos.last_price)  # after both fees
-            if net > 0:
+            if net > 0 and net >= self.desk.min_take():
                 self.bump("time_exits")
                 self.act(f"SKIM time's up on {sym}: banking +{net:,.2f}")
                 self._sell(sym, 1.0, f"skimmer: day-trade time limit, banking +{net:,.2f}")
