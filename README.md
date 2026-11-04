@@ -564,6 +564,29 @@ Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at 
 
 This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. Shorts work the same way, mirrored. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
 
+### Everything on with real money
+
+Every feature runs with real money. Each can be switched off on its own:
+
+| Feature | Real money | Switch |
+| --- | --- | --- |
+| Quick flips (more trades, smaller targets after fees) | on | `TZ_LIVE_QUICK_FLIPS` |
+| Stop-loss 33% from the buy price | on | `TZ_WIDE_STOP` |
+| Patient exits (cut early only when momentum and volume say no comeback) | on | `TZ_PATIENT_EXITS` |
+| Moving take-profit past +10% | on | `TZ_TP_STEP` |
+| Quick-flip slice (a quarter banked at +1.2% after fees) | on | `TZ_FLIP_BANK_FRACTION` (0 = off) |
+| Skims (small dip-buy day trades) | on, 4 at once | `TZ_FLIP_MAX_SKIMS` (0 = off) |
+| Flipper: best hours to flip, volume flips, accumulating coins | on | `TZ_FLIPPER`, `TZ_ACCUMULATE` |
+| Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
+| Growth ladder (smaller coins first) | on | `TZ_FOCUS_SMALL_COINS` |
+| Kraken meme coins and small altcoins | on (with Kraken prices) | `TZ_KRAKEN_MEMES`, `TZ_MAX_SMALL_COINS` |
+| Daily goal ($1,000, a floor not a ceiling) | on | `TZ_DAILY_GOAL_USD` |
+| Shorting | only where the account can (Alpaca margin, stocks) | `TZ_SHORTING` |
+| "Never buy what can't be sold" checks | on | (always) |
+| Aggressive risk level | opt-in | Settings → Your goal |
+
+Patient exits, skims and the quick-flip slice had been switched off after the losing-trades review below. They're back on by request. With the -33% stop, patient exits are what cuts a falling trade early (when momentum and heavy volume both point down) instead of riding it to -33%. In simulated real-money trading (random prices, Kraken fees), switching all three back on made more trades and left almost no money stuck in losing positions, and ended about 1% lower over four $500 runs (the extra fees). That's within the noise of random prices; real markets will tell.
+
 ### Stop-loss at -33% from the buy price
 
 Every trade's stop-loss sits **33% below the buy price** (`TZ_WIDE_STOP_PCT`; 33% above for a short), so ordinary dips, even a 20-30% drop, never stop a trade out. Three things keep this from risking more money:

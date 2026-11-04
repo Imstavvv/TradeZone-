@@ -174,7 +174,7 @@ class Settings:
     wide_stop_pct: float = 0.33
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
-    patient_exits: bool = False  # off: holding losers made the losses ~2x bigger than the wins (see README)
+    patient_exits: bool = True  # with the -33% stop: cut early when momentum AND volume say no comeback
     patient_stop_pct: float = 0.05  # the safety stop for bigger coins (and stocks)...
     patient_meme_stop_pct: float = 0.12  # ...and for meme coins
     no_return_momentum: float = -0.5  # momentum this strongly against the trade...
@@ -216,13 +216,13 @@ class Settings:
     flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...
     flip_meme_target_pct: float = 0.10  # ...and +10% profit after fees
     flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
-    flip_bank_fraction: float = 0.0  # ...0 = off: slicing winners early at +1.2% paid fees and shrank them (see README)
+    flip_bank_fraction: float = 0.25  # ...a quarter (0 = off); the rest keeps running
     flip_min_edge: float = 3.0  # the target must pay at least 3x the fees (you keep at least twice the fees)
     strategy_exit_min_cost: float = 2.0  # a "change of mind" exit only sells a winner once it's made 2x the fees
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
     flip_meme_max_hold_hours: float = 1.5
     flip_breakeven_r: float = 1.0  # lock in break-even + fees once up 1R (sooner shook winners out on noise)
-    flip_max_skims: int = 0  # real-money skims off: with ~0.9% round-trip fees their small target lost money (README)
+    flip_max_skims: int = 4  # real-money skims (0 = off)
     flip_skim_max_minutes: float = 120.0
     flip_skim_target_pct: float = 0.015  # real-money skims aim for +1.5% after fees (practice: skim_target_pct)
     flip_skim_cooldown_min: float = 5.0
