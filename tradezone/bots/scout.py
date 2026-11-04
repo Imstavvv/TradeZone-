@@ -31,6 +31,8 @@ class _Book:
         self.bar_close = 0.0
         self.bar_low = math.inf
         self.bar_high = -math.inf
+        self.bar_volume = 0.0
+        self.volumes = RollingWindow(20)  # traded volume of recent bars (for "is this move on heavy volume?")
 
 
 class ScoutBot(Bot):
@@ -72,17 +74,18 @@ class ScoutBot(Bot):
             bucket = int(t.ts // self.bar_seconds)
             if b.bar_bucket is not None and bucket != b.bar_bucket:
                 self.bump("bars")
-                self._on_close(t.symbol, b, b.bar_close, t.ts, b.bar_low, b.bar_high)
+                self._on_close(t.symbol, b, b.bar_close, t.ts, b.bar_low, b.bar_high, b.bar_volume)
                 b.bar_bucket = None
             if b.bar_bucket is None:
-                b.bar_bucket, b.bar_low, b.bar_high = bucket, t.price, t.price
+                b.bar_bucket, b.bar_low, b.bar_high, b.bar_volume = bucket, t.price, t.price, 0.0
+            b.bar_volume += max(t.volume, 0.0)
             b.bar_close = t.price
             b.bar_low, b.bar_high = min(b.bar_low, t.price), max(b.bar_high, t.price)
             return
-        self._on_close(t.symbol, b, t.price, t.ts, t.price, t.price)
+        self._on_close(t.symbol, b, t.price, t.ts, t.price, t.price, max(t.volume, 0.0))
 
     def _on_close(self, symbol: str, b: _Book, price: float, ts: float,
-                  low: float, high: float) -> None:
+                  low: float, high: float, volume: float = 0.0) -> None:
         """Update indicators with one bar (a single tick in sim mode)."""
         t = Tick(symbol, price, 0.0, ts)
         prev_high = b.donchian.max() if b.donchian.full else None
@@ -108,6 +111,8 @@ class ScoutBot(Bot):
         b.donchian.push(t.price)
         b.lows.push(low)
         b.highs.push(high)
+        avg_vol = b.volumes.mean() if b.volumes.full else 0.0  # the 20 bars BEFORE this one
+        b.volumes.push(volume)
         b.count += 1
 
         if b.count < WARMUP:
@@ -125,6 +130,8 @@ class ScoutBot(Bot):
             "donchian_low": prev_low if prev_low is not None else t.price,
             "swing_low": swing_low if swing_low is not None else min(low, t.price),
             "swing_high": swing_high if swing_high is not None else max(high, t.price),
+            # this bar's traded volume vs the recent average (None when the feed doesn't report volume)
+            "volume_ratio": volume / avg_vol if avg_vol > 0 else None,
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
         self.bump("snapshots")
@@ -136,7 +143,7 @@ class ScoutBot(Bot):
         self._historical = True
         try:
             for c in candles:
-                self._on_close(symbol, b, c["close"], c["ts"], c["low"], c["high"])
+                self._on_close(symbol, b, c["close"], c["ts"], c["low"], c["high"], float(c.get("volume") or 0.0))
         finally:
             self._historical = False
         if candles:

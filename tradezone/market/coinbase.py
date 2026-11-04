@@ -140,7 +140,7 @@ class CoinbaseFeed(MarketFeed):
                 return None
             r.raise_for_status()
             data = r.json()
-            return Tick(sym, float(data["price"]), float(data.get("volume", 0.0)), now())
+            return Tick(sym, float(data["price"]), 0.0, now())  # its "volume" is a 24 h total, not this trade
         except Exception as exc:
             self.last_error = f"{sym}: {type(exc).__name__}: {exc}"[:200]
             log.warning("coinbase ticker %s failed: %s", sym, exc)

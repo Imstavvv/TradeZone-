@@ -59,9 +59,10 @@ def parse_ticker(result: dict, by_key: dict[str, str]) -> dict[str, dict]:
         try:
             last, bid, ask = float(t["c"][0]), float(t["b"][0]), float(t["a"][0])
             vol_usd = float(t["v"][1]) * float(t["p"][1])
+            vol_today = float(t["v"][0])
         except (KeyError, IndexError, TypeError, ValueError):
             continue
-        out[sym] = {"last": last, "bid": bid, "ask": ask, "vol_usd": vol_usd, "ts": time.time()}
+        out[sym] = {"last": last, "bid": bid, "ask": ask, "vol_usd": vol_usd, "vol_today": vol_today, "ts": time.time()}
     return out
 
 
@@ -121,6 +122,7 @@ class KrakenFeed(MarketFeed):
         self.last_error = ""
         self.mode = "poll"
         self._last_poll = 0.0
+        self._vol_today: dict[str, float] = {}
 
     async def start(self) -> None:
         try:
@@ -194,7 +196,15 @@ class KrakenFeed(MarketFeed):
             return []
         self.quotes.update(quotes)
         self.last_error = ""
-        return [Tick(s, q["last"], 0.0, q["ts"]) for s, q in quotes.items() if q["last"] > 0]
+        ticks = []
+        for s, q in quotes.items():
+            if q["last"] <= 0:
+                continue
+            today, prev = q.get("vol_today", 0.0), self._vol_today.get(s)
+            self._vol_today[s] = today
+            traded = today - prev if prev is not None and today >= prev else 0.0  # resets at the UTC day: skip
+            ticks.append(Tick(s, q["last"], traded, q["ts"]))
+        return ticks
 
     async def history(self, symbol: str, granularity: int, limit: int = 300) -> list[dict] | None:
         minutes = OHLC_MINUTES.get(granularity)

@@ -46,7 +46,7 @@ def buy(desk, sym="BTC-USD", price=50_000.0, strength=0.9):
 
 
 def test_live_uses_the_quick_flip_plan_with_targets_after_fees():
-    desk = make()
+    desk = make(patient_exits=False)  # (patient exits widen the stop: tested in test_patient.py)
     pos = buy(desk)
     fees = desk.settings.round_trip_cost("BTC-USD", 50_000.0)
     assert pos.qty > 0 and desk.bots["risk"].quick
@@ -106,7 +106,7 @@ def test_fees_are_always_counted_and_hard_limits_unchanged():
     assert rest.pnl == pytest.approx(5 * 1.0 - 0.22 - 0.2)
     assert half.pnl + rest.pnl == pytest.approx(p.cash - 1_000)  # the trades add up to the cash, to the cent
     s = Settings()
-    assert (s.live_max_daily_loss_pct, s.live_max_drawdown_pct, s.live_capital_floor_pct) == (0.03, 0.10, 0.10)
+    assert (s.live_max_daily_loss_pct, s.live_max_drawdown_pct, s.live_capital_floor_pct) == (0.05, 0.15, 0.15)
     s2 = Settings(kraken_key="k", kraken_secret="s", feed="coinbase")
     s2.apply_venue_costs()
     assert s2.venue() == "kraken" and s2.crypto_fee_bps == 40  # practice charges Kraken's real fee

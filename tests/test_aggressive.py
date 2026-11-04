@@ -37,8 +37,8 @@ def test_aggressive_bets_bigger_with_real_money():
         prime(d, "BTC-USD", 50_000.0, atr=250.0)
         run(d.switch_mode("live"))
     n, a = at_risk(buy(normal)), at_risk(buy(agg))
-    assert 1.5 * n <= a <= 2.05 * n  # 2x the risk, or 1.6x when the (bigger) position cap is what binds
-    assert a <= 10_000 * 0.03 * 1.01  # ...never more than 3% of the account to the stop
+    assert 1.3 * n <= a <= 1.65 * n  # 4% vs 2.5% risk, or 50% vs 35% positions when the cap is what binds
+    assert a <= 10_000 * 0.04 * 1.01  # ...never more than 4% of the account to the stop
     assert buy(agg).stop_price is not None  # every trade still has a stop
 
 
@@ -51,13 +51,13 @@ def test_aggressive_has_wider_real_money_loss_limits():
         d = make(profile)
         prime(d, "BTC-USD", 50_000.0, atr=250.0)
         run(d.switch_mode("live"))
-        d.portfolio.cash -= 500.0  # -5% today
+        d.portfolio.cash -= 600.0  # -6% today
         run(d.bots["risk"].on_cycle())
         assert d.halted is halted
     d = make("aggressive")
     prime(d, "BTC-USD", 50_000.0, atr=250.0)
     run(d.switch_mode("live"))
-    d.portfolio.cash -= 900.0  # -9%: past even Aggressive's 8% daily limit
+    d.portfolio.cash -= 1_100.0  # -11%: past even Aggressive's 10% daily limit
     run(d.bots["risk"].on_cycle())
     assert d.halted
 
@@ -72,7 +72,7 @@ def test_turning_aggressive_on_needs_the_word_risk_and_is_remembered(tmp_path):
     d2 = make(journal=Journal(db))
     run(d2.restore_state())
     assert d2.settings.risk_profile == "aggressive"
-    assert d2.set_risk_profile("normal")["risk_per_trade"] == pytest.approx(0.015)  # back to Normal: no word needed
+    assert d2.set_risk_profile("normal")["risk_per_trade"] == pytest.approx(0.025)  # back to Normal: no word needed
 
 
 def test_risk_level_api():
@@ -80,5 +80,5 @@ def test_risk_level_api():
     c = TestClient(create_app(desk))
     assert c.post("/api/risk-profile", json={"profile": "aggressive"}).status_code == 400
     r = c.post("/api/risk-profile", json={"profile": "aggressive", "confirm": "RISK"})
-    assert r.status_code == 200 and r.json()["risk_per_trade"] == 0.03
+    assert r.status_code == 200 and r.json()["risk_per_trade"] == 0.04
     assert desk.state()["live_risk"]["active"] and not desk.state()["limits"]["active"]  # practice unaffected

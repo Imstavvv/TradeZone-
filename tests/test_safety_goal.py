@@ -14,10 +14,10 @@ def live_desk():
     return desk
 
 
-def test_real_money_stops_at_minus_3_percent_a_day():
+def test_real_money_stops_at_minus_5_percent_a_day():
     desk = live_desk()
     p = desk.portfolio
-    p.cash -= p.equity * 0.031  # a -3.1% day (practice would allow -5%)
+    p.cash -= p.equity * 0.051  # a -5.1% day
     run(desk.bots["risk"].on_cycle())
     assert desk.halted and desk.halt_kind == "daily"
 
@@ -25,8 +25,8 @@ def test_real_money_stops_at_minus_3_percent_a_day():
 def test_capital_floor_stops_everything_until_the_owner_restarts():
     desk = live_desk()
     p = desk.portfolio
-    p.day_start_equity = p.peak_equity = p.equity * 0.89  # not a daily or drawdown loss...
-    p.cash -= p.equity * 0.11  # ...but 11% below what was put in
+    p.day_start_equity = p.peak_equity = p.equity * 0.84  # not a daily or drawdown loss...
+    p.cash -= p.equity * 0.16  # ...but 16% below what was put in
     run(desk.bots["risk"].on_cycle())
     assert desk.halted and desk.halt_kind == "floor" and "below what you put in" in desk.halt_reason
     desk.reset_halt()  # the owner decides to carry on

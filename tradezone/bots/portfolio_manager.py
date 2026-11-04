@@ -41,11 +41,15 @@ class PortfolioBot(Bot):
         self._noted: dict[str, int] = {}
         self._fixes: deque[float] = deque()
         self.last_fill_ts = 0.0
+        self.patient: set[str] = set()  # real-money trades with patient exits
+        self.watch: dict[str, float] = {}  # symbol -> since when it's been down past its usual stop
+        self._held_note: dict[str, float] = {}
         self._retry_at: dict[str, float] = {}  # symbol -> don't resend a refused exit before
 
     def subscriptions(self):
         return {
             "market.tick": self.on_tick,
+            "market.snapshot": self.on_snapshot,
             "order.filled": self.on_fill,
             "order.update": self.on_order_update,
         }
@@ -60,7 +64,11 @@ class PortfolioBot(Bot):
         exe = self.desk.bots.get("execution")
         order = exe.orders.get(f.order_id) if exe else None
         was_protected = f.symbol in self.protected
+        if was_flat and not pos.is_flat and self.settings.patient(self.desk.is_live) and not self._is_skim(f.symbol):
+            self.patient.add(f.symbol)
         if pos.is_flat:
+            self.patient.discard(f.symbol)
+            self.watch.pop(f.symbol, None)
             self.exiting.discard(f.symbol)
             self.trail_dist.pop(f.symbol, None)
             self.protected.discard(f.symbol)
@@ -205,6 +213,52 @@ class PortfolioBot(Bot):
                  f"now {pos.stop_price:,.6g} (locks +{lock:.1%})")
         self._exit(sym, f"take-profit +{tp_pct:.0%} at {price:,.6g} - letting the rest run",
                    s.runner_sell_fraction)
+
+    def on_snapshot(self, ev: Event) -> None:
+        """Patient exits, once per bar: a trade that's down past its usual stop is held for a comeback -
+        unless momentum and volume both say it isn't coming back. It's closed as soon as it's back in profit."""
+        snap = ev.payload
+        sym = snap.symbol
+        if snap.historical or sym not in self.patient or sym in self.exiting:
+            return
+        pos = self.portfolio.position(sym)
+        if pos.is_flat:
+            self.patient.discard(sym)
+            self.watch.pop(sym, None)
+            return
+        s, price, ind = self.settings, snap.price, snap.indicators
+        d = 1 if pos.qty > 0 else -1
+        loss = (pos.avg_price - price) / pos.avg_price * d  # > 0: losing
+        usual = s.plan_pcts(sym, quick=True)[0]  # where the tight stop would have been
+        if loss >= usual and sym not in self.watch:
+            self.watch[sym] = now()
+            self.act(f"{sym} is down {loss:.1%}: holding for a comeback (cut only if momentum and volume say it won't)")
+        if sym not in self.watch:
+            return
+        from .quant import momentum_score
+        mom = momentum_score(snap) * d  # < 0: momentum against the trade
+        vr = ind.get("volume_ratio")
+        if vr is not None:
+            heavy, vol_txt = vr >= s.no_return_volume, f"volume {vr:.1f}x usual"
+        else:  # the feed doesn't report volume: a break of the recent swing level stands in for it
+            heavy = price < ind.get("swing_low", 0) if d > 0 else price > ind.get("swing_high", float("inf"))
+            vol_txt = "breaking the recent low" if d > 0 else "breaking the recent high"
+        net = s.net_if_sold(pos, price)
+        net_pct = net / (pos.avg_price * abs(pos.qty))
+        if net_pct >= s.patient_rescue_pct:
+            self.watch.pop(sym, None)
+            self.bump("patient_rescues")
+            return self._exit(sym, f"came back: closed at +{net:,.2f} after fees after being down")
+        if mom <= s.no_return_momentum and heavy:
+            self.bump("patient_cuts")
+            return self._exit(sym, f"no comeback in sight: momentum {mom:+.2f} against it, {vol_txt} - cutting at -{loss:.1%}")
+        waited = now() - self.watch[sym]
+        if waited > s.patient_max_hours * 3600 and mom <= 0:
+            self.bump("patient_cuts")
+            return self._exit(sym, f"waited {waited / 3600:.0f} h without a comeback - letting it go at -{loss:.1%}")
+        if now() - self._held_note.get(sym, 0) > 3600:
+            self._held_note[sym] = now()
+            self.act(f"holding {sym} at -{loss:.1%}: momentum {mom:+.2f}, {vol_txt} - no sign it won't come back")
 
     def round_trip_cost(self, price: float, symbol: str = "") -> float:
         """Per-unit cost of getting in and out (fees + slippage both ways), with a small margin."""

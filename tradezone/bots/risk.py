@@ -220,10 +220,13 @@ class RiskBot(Bot):
             how = f"skim -{s.skim_stop_pct:.1%} / +{skim:.1%} after fees"
         elif s.stop_method == "percent":
             sl_pct, tp_pct = s.plan_pcts(sig.symbol, quick)
+            if s.patient(self.desk.is_live):  # a wider safety stop: losing trades get room to come back
+                sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
             tp = price * (1 + tp_pct * direction) + cost * direction  # the target is after fees
-            how = f"-{sl_pct:.0%} / +{tp_pct:.0%} after fees" + (" (quick flip)" if quick else "")
+            how = f"-{sl_pct:.0%} / +{tp_pct:.0%} after fees" + (" (quick flip)" if quick else "") \
+                + (", patient" if s.patient(self.desk.is_live) else "")
         elif s.stop_method == "structure" and "swing_low" in ind:
             try:
                 plan = plan_stop(

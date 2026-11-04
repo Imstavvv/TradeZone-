@@ -52,8 +52,8 @@ def _env(name: str, default):
 
 
 #: the Aggressive risk level (real money only). Every trade still has a stop; nothing is borrowed.
-AGGRESSIVE = {"risk_per_trade": 0.03, "max_position_pct": 0.40, "max_portfolio_heat": 0.15, "meme_risk_mult": 0.75,
-              "daily_loss": 0.08, "drawdown": 0.25, "floor": 0.30, "max_open_positions": 8, "extra_memes": 1,
+AGGRESSIVE = {"risk_per_trade": 0.04, "max_position_pct": 0.50, "max_portfolio_heat": 0.20, "meme_risk_mult": 0.75,
+              "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 8, "extra_memes": 1,
               "bar_cut": 0.03, "day_lock_trigger": 0.04, "day_giveback": 0.6}
 
 # real-money venues -> how the app names them
@@ -141,9 +141,22 @@ class Settings:
     live_venue: str = "auto"
     live_max_capital: float = 0.0  # if > 0, live mode trades at most this much USD of the account
     # ---- "don't lose my money": stricter limits whenever real money is trading ----
-    live_max_daily_loss_pct: float = 0.03  # real money: stop for the day after -3% (practice: -5%)
-    live_max_drawdown_pct: float = 0.10  # real money: stop after -10% from the peak (practice: -15%)
-    live_capital_floor_pct: float = 0.10  # real money: stop if the account falls 10% below what you put in
+    live_max_daily_loss_pct: float = 0.05  # real money: stop for the day after -5%
+    live_max_drawdown_pct: float = 0.15  # real money: stop after -15% from the peak
+    live_capital_floor_pct: float = 0.15  # real money: stop if the account falls 15% below what you put in
+    # real money (Normal): more capital per trade than practice
+    live_risk_per_trade: float = 0.025  # 2.5% of the balance risked to the (wider, patient) stop
+    live_max_position_pct: float = 0.35
+    live_max_portfolio_heat: float = 0.10
+    # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
+    #      cut early when momentum AND volume say it isn't coming back ----
+    patient_exits: bool = True
+    patient_stop_pct: float = 0.05  # the safety stop for bigger coins (and stocks)...
+    patient_meme_stop_pct: float = 0.12  # ...and for meme coins
+    no_return_momentum: float = -0.5  # momentum this strongly against the trade...
+    no_return_volume: float = 1.5  # ...on at least 1.5x the usual volume = no comeback: cut it
+    patient_rescue_pct: float = 0.003  # a trade that was down and comes back to +0.3% after fees is closed
+    patient_max_hours: float = 48.0  # down this long and momentum still not turning: let it go
     # ---- shorting: profit from falling prices, same stops / targets / fees, mirrored ----
     # auto = only where it really works: stocks on an Alpaca margin account that are easy to borrow
     # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
@@ -278,8 +291,13 @@ class Settings:
     def limits(self, live: bool) -> RiskLimits:
         """The risk limits in force: Aggressive (real money only) roughly doubles what a trade may risk and
         widens the loss limits. Stops stay on every trade, and nothing is ever borrowed (no leverage)."""
-        if not self.aggressive(live):
+        if not live:
             return self.risk
+        if not self.aggressive(live):
+            return replace(self.risk, risk_per_trade=self.live_risk_per_trade, max_position_pct=self.live_max_position_pct,
+                           max_portfolio_heat=self.live_max_portfolio_heat,
+                           max_daily_loss_pct=max(self.risk.max_daily_loss_pct, self.live_max_daily_loss_pct),
+                           max_drawdown_pct=max(self.risk.max_drawdown_pct, self.live_max_drawdown_pct))
         return replace(self.risk, risk_per_trade=AGGRESSIVE["risk_per_trade"], max_position_pct=AGGRESSIVE["max_position_pct"],
                        max_open_positions=max(self.risk.max_open_positions, AGGRESSIVE["max_open_positions"]),
                        max_portfolio_heat=AGGRESSIVE["max_portfolio_heat"],
@@ -291,6 +309,10 @@ class Settings:
         if self.risk_profile == "aggressive":
             return AGGRESSIVE["daily_loss"], AGGRESSIVE["drawdown"], AGGRESSIVE["floor"]
         return self.live_max_daily_loss_pct, self.live_max_drawdown_pct, self.live_capital_floor_pct
+
+    def patient(self, live: bool) -> bool:
+        """Patient exits: real money with patient_exits on."""
+        return live and self.patient_exits
 
     def quick(self, live: bool) -> bool:
         """Quick-flip mode: real money with live_quick_flips on."""

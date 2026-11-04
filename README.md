@@ -193,14 +193,14 @@ News can only make the team more careful or slightly more confident. It never op
 
 The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, change it in **Settings → Your goal**), the pace so far, and which guard is active. Growing fast never means bigger bets than the limits allow: compounding makes each trade a little bigger as the balance grows, and the Coach sizes up slowly after good results and down after bad ones. Be realistic: $50 → $10,000 is a 200× increase, about 530 days at a steady +1% a day or 270 at +2%.
 
-**🛡️ Don't lose the money** is the 6th team rule, and with real money the limits get stricter:
+**🛡️ Don't lose the money** is the 6th team rule. Real money risks more per trade (with patient exits), so its loss limits are set to match:
 
 | Protection | Practice | Real money |
 | --- | --- | --- |
-| Stop for the day after a loss of | 5% | **3%** (`TZ_LIVE_MAX_DAILY_LOSS_PCT`) |
-| Stop everything after a drop from the peak of | 15% | **10%** (`TZ_LIVE_MAX_DRAWDOWN_PCT`) |
-| Stop everything if the account falls below what you put in by | – | **10%** (`TZ_LIVE_CAPITAL_FLOOR_PCT`); only you can restart it |
-| Stop-loss on every trade, ≤1.5% of the account at risk per trade, ≤7% across all trades | ✓ | ✓ |
+| Stop for the day after a loss of | 5% | **5%** (`TZ_LIVE_MAX_DAILY_LOSS_PCT`; Aggressive 10%) |
+| Stop everything after a drop from the peak of | 15% | **15%** (`TZ_LIVE_MAX_DRAWDOWN_PCT`; Aggressive 30%) |
+| Stop everything if the account falls below what you put in by | – | **15%** (`TZ_LIVE_CAPITAL_FLOOR_PCT`; Aggressive 35%); only you can restart it |
+| Stop-loss on every trade; at risk per trade ≤1.5% practice / 2.5% real money (4% Aggressive); ≤7% / 10% across all trades | ✓ | ✓ |
 | Optional cap on how much of the account the bots may use | – | `TZ_LIVE_MAX_CAPITAL` |
 
 **No trading system can promise you won't lose money.** Prices can jump straight through a stop, and a run of losing trades is normal. These rules keep losses small and stop the bots before a bad stretch becomes a big one. Only trade money you can afford to lose.
@@ -515,6 +515,20 @@ How it works and what to expect:
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
 
+### Patient exits (real money)
+
+With real money, a losing trade isn't cut at the first dip. Each trade gets a wider **safety stop** (**-5%** for bigger coins and stocks, **-12%** for meme coins; `TZ_PATIENT_STOP_PCT`, `TZ_PATIENT_MEME_STOP_PCT`), and once it's down past where the usual tight stop would be (-2% / -5%), the Portfolio Manager checks it at every bar close:
+
+| What it sees | What it does |
+| --- | --- |
+| The trade comes back to **+0.3% after fees** | closes it: a loss turned into a small win (`TZ_PATIENT_RESCUE_PCT`) |
+| Momentum strongly against it (`TZ_NO_RETURN_MOMENTUM`, -0.5) **and** the move is on **1.5×** the usual volume (`TZ_NO_RETURN_VOLUME`) | no comeback in sight: cuts it early |
+| Momentum against it but on light volume, or heavy volume without the momentum | holds: waits for a comeback |
+| Still down after **48 h** with momentum not turning up (`TZ_PATIENT_MAX_HOURS`) | lets it go |
+| The safety stop is hit | sells, always |
+
+Volume is each bar's traded amount compared with the average of the last 20 bars. With Kraken prices it comes from Kraken's running daily total; if a feed doesn't report volume, a break below the recent swing low (above the recent high for a short) stands in for "heavy volume". Because the safety stop is wider, each real-money trade risks more (**2.5%** of the balance on Normal, **4%** on Aggressive) and the daily, drawdown and floor limits are wider to match (5% / 15% / 15% on Normal). Profit-taking (quick flips, banking slices, runners) works as before. Skims keep their own tight stop and time limit. Practice keeps the usual tight stops. `TZ_PATIENT_EXITS=false` turns this off.
+
 ### Growth ladder: smaller coins first
 
 A small balance can't spread across every coin: Kraken's minimum orders and the fees would leave each trade too small to matter. So the bots **focus on smaller coins** (meme coins and small altcoins, which move more in percentage terms) until the balance is built up, then add bigger coins:
@@ -533,17 +547,17 @@ For faster growth with real money, switch **Settings → Your goal → Real-mone
 
 | | Normal | Aggressive |
 | --- | --- | --- |
-| Risked per trade (to its stop) | 1.5% | **3%** |
-| Biggest single position | 25% | **40%** |
-| All open stops together | 7% | **15%** |
+| Risked per trade (to its stop) | 2.5% | **4%** |
+| Biggest single position | 35% | **50%** |
+| All open stops together | 10% | **20%** |
 | Open trades / meme coins at once | 6 / 3 | **8 / 4** |
 | Conviction needed | 0.30 | **0.27** |
-| Stop for the day after a loss of | 3% | **8%** |
-| Stop everything after a drop of | 10% | **25%** |
-| Stop if below what you put in by | 10% | **30%** |
+| Stop for the day after a loss of | 5% | **10%** |
+| Stop everything after a drop of | 15% | **30%** |
+| Stop if below what you put in by | 15% | **35%** |
 | Day lock | up 2%, half given back | **up 4%, 60% given back** |
 
-Positions are about **1.6–2×** bigger (with the tight quick-flip stops, the position cap is usually what binds), so good runs grow faster and bad runs cost more. It doesn't make the bots better at picking trades. Some things don't change: a stop-loss on every trade, the losing-day brake, fees and "never buy what can't be sold" checks, and **no borrowing / leverage** (Kraken is used spot-only).
+Positions are about **1.4–1.6×** bigger than Normal (the position cap is often what binds), so good runs grow faster and bad runs cost more. It doesn't make the bots better at picking trades. Some things don't change: a stop-loss on every trade, the losing-day brake, fees and "never buy what can't be sold" checks, and **no borrowing / leverage** (Kraken is used spot-only).
 
 ### Shorting (only where it really works)
 
@@ -567,8 +581,8 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 | | Practice | Real money (quick flips) |
 |---|---|---|
 | Conviction needed for a trade | 0.35 | 0.30 |
-| Majors / stocks stop · target | -3% · +6% | -2% · +4% |
-| Meme coins stop · target | -8% · +15% | -5% · +10% |
+| Majors / stocks stop · target | -3% · +6% | -5% safety stop (cut early from -2% only if momentum and volume say so) · +4% |
+| Meme coins stop · target | -8% · +15% | -12% safety stop (watch from -5%) · +10% |
 | Bank half of a trade | halfway to target (25%) | as soon as it's +1.2% after fees |
 | Close a winner that's going nowhere | after 24 h (meme 6 h) | after 3 h (meme 1.5 h) |
 | Skims at once · target · time limit · cooldown | 2 · +2.5% · 120 min · 15 min | 4 · +1.5% · 120 min · 5 min |
@@ -576,7 +590,7 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 
 **Fees are counted in every trade.** Every target is profit *after* the buy and the sell fee (and slippage), each trade's result includes both fees, and the clock or a profit-taker only ever sells when the sale makes money after fees. Practice charges your real-money venue's fee: Alpaca 0.25%, Kraken 0.40% (`TZ_KRAKEN_FEE_BPS`), Uphold about 1% (`TZ_UPHOLD_FEE_BPS`). With Uphold's spread a round trip costs about 2%, so quick flips are rare there; Kraken or Alpaca suit them best.
 
-Nothing about the hard limits changes: every trade still has a stop, and the 3% daily loss, 10% drawdown and 10% capital floor still stop everything.
+Every trade still has a stop, and the daily loss, drawdown and capital-floor limits still stop everything (5% / 15% / 15% with real money on Normal).
 
 ### Switching
 
