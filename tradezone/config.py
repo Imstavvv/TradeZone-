@@ -175,7 +175,11 @@ class Settings:
     risk_profile: str = "normal"
     # ---- the daily goal: a $1,000+ day with the money on hand (never by betting bigger) ----
     daily_goal_usd: float = 1_000.0
-    daily_goal_giveback: float = 0.25  # once reached, giving back 25% of the day's best stops new trades
+    daily_goal_giveback: float = 0.25  # once reached, giving back 25% of the day's best makes new trades smaller
+    # No profit cap: a good day never stops trading. If too much of a good day slips away, new trades are this
+    # size until it recovers (day_lock_stops=true brings back "no new trades until tomorrow").
+    day_lock_size: float = 0.5
+    day_lock_stops: bool = False
     # ---- the goal: grow the balance rapidly with minimal losses ----
     day_lock_trigger_pct: float = 0.02  # once the day is up 2%...
     day_giveback_pct: float = 0.5  # ...giving back half of the day's best gain stops new trades until tomorrow
@@ -188,7 +192,8 @@ class Settings:
     flip_major_target_pct: float = 0.04  # ...and +4% profit after fees
     flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...
     flip_meme_target_pct: float = 0.10  # ...and +10% profit after fees
-    flip_net_pct: float = 0.012  # bank half of a trade as soon as it is up this much after fees
+    flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
+    flip_bank_fraction: float = 0.25  # ...a quarter: the rest keeps running (no ceiling on the upside)
     flip_min_edge: float = 2.0  # the target must pay at least this many times the fees (you keep >= the fees)
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
     flip_meme_max_hold_hours: float = 1.5
@@ -244,7 +249,7 @@ class Settings:
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
     # into profit (at least runner_lock_share of the target) and then trails the peak.
     runners: bool = True
-    runner_sell_fraction: float = 0.5
+    runner_sell_fraction: float = 0.33  # at the target bank a third; two thirds ride with no ceiling
     runner_lock_share: float = 0.5
     # Quick flips: a trade that went nowhere for this long, but is in profit after fees, is closed
     # to free the slot for a better chance (losers are still left to their stop).

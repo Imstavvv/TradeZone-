@@ -25,19 +25,31 @@ def buy(desk, sym="BTC-USD"):
     return desk.portfolio.position(sym), rejected
 
 
-def test_a_good_day_is_locked_in_once_half_its_gain_slips_away():
+def test_a_slipping_good_day_keeps_trading_but_smaller():
+    normal = buy(make(), "ETH-USD")[0].qty
     desk = make()
     risk = desk.bots["risk"]
     desk.portfolio.cash += 300.0  # +3% today
     risk._track_day_peak()
-    desk.portfolio.cash -= 100.0  # gave back a third: still trading
+    desk.portfolio.cash -= 100.0  # gave back a third: full size
     assert not risk.day_guard()["locked"] and buy(desk)[0].qty > 0
     desk.portfolio.cash -= 80.0  # now over half of the +$300 given back
     g = risk.day_guard()
     assert g["locked"] and g["best_today_pct"] == pytest.approx(0.03)
+    pos, _ = buy(desk, "ETH-USD")
+    assert 0 < pos.qty < normal * 0.6  # no cap on the day: still trading, at half size
+    assert desk.state()["goal"]["guard"]["locked"]
+
+
+def test_the_old_stop_for_the_day_can_be_switched_back_on():
+    desk = make()
+    desk.settings.day_lock_stops = True
+    risk = desk.bots["risk"]
+    desk.portfolio.cash += 300.0
+    risk._track_day_peak()
+    desk.portfolio.cash -= 180.0
     pos, rejected = buy(desk, "ETH-USD")
     assert pos.is_flat and "locking in today's gains" in rejected[-1]["reason"]
-    assert desk.state()["goal"]["guard"]["locked"]
 
 
 def test_small_gains_never_trigger_the_lock():

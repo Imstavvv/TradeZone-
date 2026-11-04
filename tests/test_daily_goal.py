@@ -48,19 +48,21 @@ def test_a_small_balance_is_told_plainly_and_risk_is_never_raised_for_it():
     assert a.qty > 0 and a.qty == pytest.approx(b.qty)  # the goal never makes a trade bigger
 
 
-def test_a_goal_day_is_protected():
+def test_a_goal_day_is_protected_without_capping_it():
     desk = make()
+    desk.settings.risk.max_position_pct = desk.settings.risk.max_gross_exposure = 5.0  # size from risk, not caps
     risk = desk.bots["risk"]
     desk.portfolio.cash += 1_200.0  # a $1,200 day (only +1.2%: below the usual 2% day-lock trigger)
     risk._track_day_peak()
     assert risk.day_guard()["goal_day"] and not risk.day_guard()["locked"]
-    assert buy(desk, "ETH-USD")[0].qty > 0  # still trading while it holds
+    full = buy(desk, "ETH-USD")[0].qty
+    assert full > 0  # still trading while it holds
     desk.portfolio.positions.pop("ETH-USD")
     desk.portfolio.cash -= 350.0  # gave back over a quarter of it
     g = risk.day_guard()
     assert g["locked"]
-    pos, rejected = buy(desk)
-    assert pos.is_flat and "locking in today's gains" in rejected[-1]["reason"]
+    pos, _ = buy(desk)
+    assert 0 < pos.qty <= full * 0.55  # never stops on a good day - just trades smaller while it's slipping
 
 
 def test_the_daily_goal_can_be_changed_and_is_remembered(tmp_path):

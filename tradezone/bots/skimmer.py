@@ -190,12 +190,13 @@ class SkimmerBot(Bot):
             target = abs(pos.take_profit / entry - 1)
         else:
             target = s.plan_pcts(sym)[1]
-        if self.quick and net_pct >= s.flip_net_pct and net * 0.5 >= least:  # quick flip: bank half as soon as it's a real win
+        if self.quick and net_pct >= s.flip_net_pct and net * s.flip_bank_fraction >= least:  # quick flip: bank a slice
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")
             self.bump("quick_flips")
-            self.act(f"QUICK FLIP {sym}: banking half at +{net_pct:.1%} after fees")
-            return self._sell(sym, 0.5, f"skimmer: quick flip, banked half at +{net_pct:.1%} after fees (+{net:,.2f})")
+            self.act(f"QUICK FLIP {sym}: banking {s.flip_bank_fraction:.0%} at +{net_pct:.1%} after fees - the rest keeps running")
+            return self._sell(sym, s.flip_bank_fraction, f"skimmer: quick flip, banked {s.flip_bank_fraction:.0%} at "
+                                                         f"+{net_pct:.1%} after fees (+{net:,.2f})")
         if gain >= s.bank_at_share * target and net * s.bank_fraction >= least:
             self.banked[sym] = pos.opened_ts
             self.bump("banked_small")

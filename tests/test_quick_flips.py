@@ -72,7 +72,7 @@ def test_quick_flip_banks_half_once_the_profit_after_fees_is_real():
     assert pos.qty == q0
     trades = capture(desk, "trade.closed")
     tick(desk, "BTC-USD", 51_100.0)  # +2.2% move = about +1.3% after both fees: bank half
-    assert pos.qty == pytest.approx(q0 / 2, rel=0.01)
+    assert pos.qty == pytest.approx(q0 * (1 - desk.settings.flip_bank_fraction), rel=0.01)  # a quarter banked, the rest runs
     assert desk.bots["skimmer"].metrics["quick_flips"] == 1
     t = trades[-1]
     sold = t.qty

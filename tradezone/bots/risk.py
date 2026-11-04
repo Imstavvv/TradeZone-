@@ -168,7 +168,7 @@ class RiskBot(Bot):
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
         guard = self.day_guard()
-        if guard["locked"]:  # minimal losses: a good day isn't handed back
+        if guard["locked"] and self.settings.day_lock_stops:  # (optional) a good day isn't handed back
             return self.reject(sig, f"locking in today's gains: up {guard['best_today_pct']:.1%} at best and too much "
                                     "of it given back - no new trades until tomorrow")
         if sig.side is Side.SELL and (why := self.desk.short_block(sig.symbol)):
@@ -270,6 +270,8 @@ class RiskBot(Bot):
             risk_budget *= news.size_mult(direction)
         if guard["brake"]:  # a losing day: smaller trades until it turns
             risk_budget *= s.losing_day_size
+        elif guard["locked"]:  # a good day slipping: keep trading (no cap on the upside), but smaller
+            risk_budget *= s.day_lock_size
         qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure

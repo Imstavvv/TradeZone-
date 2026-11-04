@@ -189,9 +189,9 @@ News can only make the team more careful or slightly more confident. It never op
 | --- | --- |
 | A small stop on every trade | each trade risks about 1.5% of the balance (less for meme coins), longs and shorts alike |
 | Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
-| Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) stops new trades until tomorrow; open trades keep their stops and targets, so a good day stays a good day |
+| Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) makes new trades **half size** (`TZ_DAY_LOCK_SIZE`) until it recovers. A good day never stops the bots: there's no ceiling on the upside. (`TZ_DAY_LOCK_STOPS=true` brings back "no new trades until tomorrow".) |
 
-**💵 The daily goal: a $1,000+ day with the money on hand** (`TZ_DAILY_GOAL_USD`, or **Settings → Your goal**; 0 turns it off). The goal card shows today's profit against it. Once a day reaches it, the day is **protected**: giving back a quarter of the day's best (`TZ_DAILY_GOAL_GIVEBACK`) stops new trades until tomorrow, so a $1,000 day stays at least a $750 day. The bots never bet bigger to force it. The card also says plainly how big the goal is for your balance: $1,000 is 1% of $100,000, but 2,000% of $50 in a single day, which no amount of risk can make reliable (at about 1% a day, a $1,000 day needs roughly a $100,000 balance).
+**💵 The daily goal: a $1,000+ day with the money on hand** (`TZ_DAILY_GOAL_USD`, or **Settings → Your goal**; 0 turns it off). The goal card shows today's profit against it. It's a floor, not a ceiling: reaching it never stops the bots. If a goal day starts slipping (a quarter of the day's best given back, `TZ_DAILY_GOAL_GIVEBACK`), new trades are half size until it recovers. The bots never bet bigger to force it. The card also says plainly how big the goal is for your balance: $1,000 is 1% of $100,000, but 2,000% of $50 in a single day, which no amount of risk can make reliable (at about 1% a day, a $1,000 day needs roughly a $100,000 balance).
 
 The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, change it in **Settings → Your goal**), the pace so far, and which guard is active. Growing fast never means bigger bets than the limits allow: compounding makes each trade a little bigger as the balance grows, and the Coach sizes up slowly after good results and down after bad ones. Be realistic: $50 → $10,000 is a 200× increase, about 530 days at a steady +1% a day or 270 at +2%.
 
@@ -516,6 +516,17 @@ How it works and what to expect:
 * **Coins Uphold doesn't list** stay practice-only; the Connect screen lists them, and the Risk Manager explains instead of sending an order that would fail.
 * **Your other coins are left alone.** Only coins in the bots' list count as "already holding positions"; everything else in your Uphold account is ignored. Trading capital is your USD balance (capped by `TZ_LIVE_MAX_CAPITAL` if set).
 * `TZ_LIVE_VENUE=auto` (default) uses Uphold when an Uphold token is set, otherwise Kraken when a Kraken key is set, otherwise Alpaca.
+
+### No ceiling on profits
+
+Nothing caps how much the bots can make in a day or on a trade:
+
+* winners keep running: the **moving take-profit** (below) has no top, and a runner has no target at all;
+* only a **slice** is banked early: a quarter at a quick flip (`TZ_FLIP_BANK_FRACTION`), a third at the target (`TZ_RUNNER_SELL_FRACTION`); the rest keeps going;
+* a great day **never stops trading**, not at +2%, not at the daily goal, not at +1,000%; if a good day starts slipping, new trades just get smaller;
+* trade sizes **compound**: each trade is a share of the current balance, so they grow as it grows.
+
+What stays capped is the *downside*: a stop on every trade, the risk per trade, and the daily-loss, drawdown and capital-floor limits. No code can make 1,000% days happen. How much is made depends on the market. This only makes sure that when the market gives a big move, the bots don't cut it short.
 
 ### Moving take-profit: past +10%, the target moves out
 

@@ -51,7 +51,7 @@ def test_runner_banks_half_at_target_then_trails_in_profit(desk):
     pos = buy(desk, "ETH-USD", 1000.0)
     q0, entry = pos.qty, pos.avg_price
     tick(desk, "ETH-USD", 1155.0)  # +15%: target
-    assert pos.qty == pytest.approx(q0 * 0.5, rel=0.01)  # half banked
+    assert pos.qty == pytest.approx(q0 * (1 - desk.settings.runner_sell_fraction), rel=0.01)  # a third banked
     assert pos.take_profit is None  # no ceiling on the runner
     assert pos.stop_price >= entry * 1.075  # stop moved into profit
     assert "ETH-USD" in desk.bots["portfolio"].scaled_out
