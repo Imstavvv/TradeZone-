@@ -273,7 +273,11 @@ class TradingDesk:
             if capital <= 0:
                 raise ModeSwitchError("live account has no cash to trade")
             if hasattr(self.live_broker, "capture_baseline"):  # Kraken: never touch the coins you already had
-                self._save_account_row("kraken_baseline", await self.live_broker.capture_baseline())  # type: ignore[union-attr]
+                try:
+                    baseline = await self.live_broker.capture_baseline()  # type: ignore[union-attr]
+                except Exception as exc:
+                    raise ModeSwitchError(f"couldn't read your {self.live_broker.label} balances: {exc}") from None
+                self._save_account_row("kraken_baseline", baseline)
             book = Portfolio(capital)
             self.live_portfolio = book
             self.portfolio = book
@@ -399,7 +403,7 @@ class TradingDesk:
             self._save_account_row(kind, None)
         self._save_account_row(f"{venue}_live", data)
         s = self.settings
-        s.alpaca_live_key = s.alpaca_live_secret = s.kraken_key = s.kraken_secret = s.uphold_token = ""
+        self._clear_live_credentials()
         if venue == "uphold":
             s.uphold_token = data["token"]
         elif venue == "kraken":
@@ -409,8 +413,19 @@ class TradingDesk:
         s.live_venue = venue
         s.apply_venue_costs()
 
+    def _clear_live_credentials(self) -> None:
+        s = self.settings
+        s.alpaca_live_key = s.alpaca_live_secret = s.kraken_key = s.kraken_secret = s.uphold_token = ""
+
+    async def _adopt_live_broker(self, broker: Broker) -> None:
+        old, self.live_broker = self.live_broker, broker
+        self.broker_source = "app"
+        if old is not None and old is not broker:
+            await old.close()
+
     def load_linked_broker(self) -> bool:
         s = self.settings
+        linked = True
         if (d := self._account_row("uphold_live")) is not None:
             s.uphold_token, s.live_venue = d["token"], "uphold"
         elif (d := self._account_row("kraken_live")) is not None:
@@ -418,14 +433,16 @@ class TradingDesk:
         elif (d := self._account_row("alpaca_live")) is not None:
             s.alpaca_live_key, s.alpaca_live_secret, s.live_venue = d["key"], d["secret"], "alpaca"
         else:
-            return False
-        s.apply_venue_costs()
-        self.broker_source = "app"
-        if not s.live_blockers():
-            self.live_broker = build_live_broker(s)
-            if s.venue() == "kraken" and (b := self._account_row("kraken_baseline")) is not None:
-                self.live_broker.baseline = b  # type: ignore[union-attr]
-        return True
+            linked = False
+        if linked:
+            s.apply_venue_costs()
+            self.broker_source = "app"
+            if not s.live_blockers():
+                self.live_broker = build_live_broker(s)
+        # Kraken (linked in the app or set on the server): the coins you held before going live stay yours
+        if hasattr(self.live_broker, "capture_baseline") and (b := self._account_row("kraken_baseline")) is not None:
+            self.live_broker.baseline = b  # type: ignore[union-attr]
+        return linked
 
     async def _link_uphold(self, token: str) -> dict:
         from .brokers.uphold import UpholdBroker
@@ -437,12 +454,9 @@ class TradingDesk:
         if acct is None:
             await broker.close()
             raise ValueError("Uphold didn't accept this token. Make a new one and copy it completely.")
-        await broker.load_assets()
+        await broker.prepare()
         self._use_venue("uphold", {"token": token})
-        old, self.live_broker = self.live_broker, broker
-        self.broker_source = "app"
-        if old is not None and old is not broker:
-            await old.close()
+        await self._adopt_live_broker(broker)
         unsupported = [s for s in self.settings.symbols if broker.supports(s) is False]
         if unsupported:
             self.bus.publish("alert", Alert("warning", "Uphold can't trade " + ", ".join(unsupported)
@@ -465,7 +479,7 @@ class TradingDesk:
             broker: Broker = KrakenBroker(key, secret)
             try:
                 acct = await broker.verify()  # type: ignore[attr-defined]  # refuses keys that can withdraw
-            except ValueError:
+            except Exception:
                 await broker.close()
                 raise
         else:
@@ -479,10 +493,7 @@ class TradingDesk:
                 await broker.close()
                 raise ValueError("Alpaca didn't accept these keys. Check you copied both parts completely.")
         self._use_venue(venue, {"key": key, "secret": secret})  # Kraken's baseline is recorded when live starts
-        old, self.live_broker = self.live_broker, broker
-        self.broker_source = "app"
-        if old is not None and old is not broker:
-            await old.close()
+        await self._adopt_live_broker(broker)
         return acct
 
     async def unlink_broker(self) -> None:
@@ -493,8 +504,9 @@ class TradingDesk:
         if self.live_broker is not None:
             await self.live_broker.close()
         self.live_broker = None
-        s = self.settings
-        s.alpaca_live_key = s.alpaca_live_secret = s.kraken_key = s.kraken_secret = s.uphold_token = ""
+        self._clear_live_credentials()
+        self.settings.live_venue = "auto"
+        self.settings.apply_venue_costs()  # practice goes back to the normal fee
         self.broker_source = ""
 
     def owner_protected(self) -> bool:
@@ -522,8 +534,8 @@ class TradingDesk:
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         await self.feed.start()
-        if self.live_broker is not None and hasattr(self.live_broker, "load_assets"):
-            await self.live_broker.load_assets()  # which coins Uphold can trade (others stay practice-only)
+        if self.live_broker is not None:
+            await self.live_broker.prepare()  # which coins the venue can trade (others stay practice-only)
         if dropped := getattr(self.feed, "dropped", None):
             self.bus.publish("alert", Alert("warning", f"Not listed on {self.feed.name}, skipped: {', '.join(dropped)}", "desk"))
         await self.backfill()

@@ -114,6 +114,9 @@ class UpholdBroker(Broker):
                        and a.get("status", "open") == "open"}
         return self.assets
 
+    async def prepare(self) -> None:
+        await self.load_assets()
+
     async def _get_cards(self) -> list[dict] | None:
         try:
             r = await self.client.get("/v0/me/cards")

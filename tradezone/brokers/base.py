@@ -16,6 +16,9 @@ class Broker(abc.ABC):
         """Whether this venue can trade ``symbol`` (None = unknown, let the order decide)."""
         return None
 
+    async def prepare(self) -> None:
+        """Load what this venue can trade (called at start-up, so ``supports`` knows)."""
+
     def on_prices(self, ticks: list[Tick]) -> None:
         """Receive the latest prices (used by simulated brokers)."""
 

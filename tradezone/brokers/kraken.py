@@ -99,6 +99,12 @@ class KrakenBroker(Broker):
             self.pairs[f"{ours}-USD"] = {"pair": p.get("altname") or key, "base": p["base"],
                                          "lot": int(p.get("lot_decimals", 8)), "ordermin": float(p.get("ordermin") or 0)}
 
+    async def prepare(self) -> None:
+        try:
+            await self.load_pairs()
+        except (httpx.HTTPError, KeyError, ValueError) as exc:
+            log.warning("kraken pairs fetch failed: %s", exc)
+
     def supports(self, symbol: str) -> bool | None:
         return (symbol in self.pairs) if self.pairs else None  # None = unknown until the pair list loads
 
@@ -123,12 +129,16 @@ class KrakenBroker(Broker):
             can_withdraw = True
         except KrakenError as exc:
             can_withdraw = "Permission denied" not in str(exc)
+        except httpx.HTTPError:
+            raise ValueError("Couldn't reach Kraken right now. Try again in a minute.") from None
         if can_withdraw:
             raise ValueError('For your safety this key is refused: it has the "Withdraw Funds" permission. '
                              'Make a new key in Kraken with withdrawals turned OFF (see the steps), then paste that one.')
         try:  # can it place orders? (validate=true: Kraken checks the order but never places it)
             await self._private("AddOrder", pair="XBTUSD", type="buy", ordertype="market", volume="0.0001",
                                 validate="true")
+        except httpx.HTTPError:
+            raise ValueError("Couldn't reach Kraken right now. Try again in a minute.") from None
         except KrakenError as exc:
             if "Permission denied" in str(exc):
                 raise ValueError('This key can\'t trade. Turn on "Create & Modify Orders" and "Cancel/Close Orders" '
