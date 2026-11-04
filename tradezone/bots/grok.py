@@ -30,6 +30,7 @@ SYSTEM_PROMPT = """You are the senior risk-aware trading analyst on an automated
 A quantitative model has proposed opening a new position. Review the data and decide whether
 the trade has a favourable risk/reward right now. Be skeptical: reject trades with weak or
 conflicting evidence, trades against the prevailing regime, or chasing over-extended moves.
+Weigh the recent news headlines provided (hacks, lawsuits, regulation, macro shocks, approvals).
 Respond ONLY with a JSON object of the form:
 {"decision": "approve" | "reject", "confidence": <number 0..1>, "rationale": "<max 30 words>"}"""
 
@@ -262,6 +263,8 @@ class GrokBot(Bot):
             "regime": regime.to_dict() if regime else None,
             "strategy_scores": quant.scores.get(sig.symbol) if quant else None,
             "recent_prices_oldest_first": [round(x, 6) for x in hist],
+            "recent_headlines": news.context_for(sig.symbol) if (news := self.desk.bots.get("news")) else [],
+            "market_mood": news.mood_word() if news else None,
             "portfolio": {"equity": round(p.equity, 2), "cash": round(p.cash, 2),
                           "open_positions": [x.symbol for x in p.open_positions],
                           "drawdown": round(p.drawdown, 4)},

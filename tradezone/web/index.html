@@ -105,7 +105,7 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .wgrid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr))}
 /* ---- live bot floor ---- */
 .floor{grid-column:1/-1}
-.pipeline{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:8px;position:relative}
+.pipeline{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:8px;position:relative}
 .node.exec{background:linear-gradient(180deg,#2a2208,var(--panel2));border-color:#713f12}
 .node .crown{position:absolute;top:-9px;right:8px;font-size:10px;font-weight:800;letter-spacing:.6px;background:#eab308;color:#0b0f17;border-radius:6px;padding:1px 6px}
 .node{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;cursor:pointer;transition:border-color .3s,box-shadow .3s,transform .3s}
@@ -554,7 +554,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
       <div class="logo"></div>
       <div class="ftitle">TradeZone</div>
       <div class="ftag">Your friendly team of trading bots 🤝</div>
-      <div class="parade" aria-hidden="true"><span>🔭</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>🦉</span><span>🎓</span></div>
+      <div class="parade" aria-hidden="true"><span>🔭</span><span>📰</span><span>🧭</span><span>🧮</span><span>🤖</span><span>🛡️</span><span>👑</span><span>⚡</span><span>💼</span><span>🏄</span><span>🦉</span><span>🎓</span></div>
     </div>
     <!-- one simple way in: a code, no password, no Face ID -->
     <div class="pane" id="wLogin">
@@ -719,6 +719,7 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
     </div>
     <div class="sgrid">
       <div class="scard" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
+      <div class="scard" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
       <div class="scard"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
       <div class="scard" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Everything ›</a></h4><div id="sHappen"></div></div>
       <div class="scard"><h4>Latest results <a data-jump="tradelog">Full log ›</a></h4><div id="sResults"></div></div>
@@ -866,9 +867,9 @@ body.is-live .hero{background:repeating-conic-gradient(from 0deg at 72% 40%,rgba
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {scout: '🔭', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄'};
+const MASCOT = {scout: '🔭', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8'};
+const COLORS = {news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1272,7 +1273,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','sentinel','coach'];
+const ORDER = ['scout','news','strategist','quant','grok','risk','executive','execution','portfolio','skimmer','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1552,6 +1553,23 @@ function renderHunt(st){
     ${top.length ? `<div class="hwhy"><b>Most often skipped because</b>${top.map(([k, v]) =>
       `<div><span>${esc(k)}</span><span class="muted">${n(v)}×</span></div>`).join('')}</div>` : ''}`);
 }
+function renderNews(n){
+  if (!n) return;
+  if (!n.active) return setHTML($('sNews'), '<div class="emptyhint">News is read when the bots trade real market prices.</div>');
+  const fg = n.fear_greed, mood = {scary: '😱 Scary', nervous: '😬 Nervous', calm: '😌 Calm', upbeat: '😄 Upbeat'}[n.mood_word] || n.mood_word;
+  const items = (n.headlines || []).slice(0, 6).map(h => {
+    const ic = h.score >= 0.3 ? '👍' : h.score <= -0.3 ? '👎' : '•';
+    const tags = (h.coins || []).map(c => `<span class="tagchip">${esc(c)}</span>`).join(' ');
+    const safe = /^https:\/\//.test(h.link) ? h.link : '';
+    return `<div class="happen"><div class="ic" style="background:${h.score >= 0.3 ? 'var(--up)' : h.score <= -0.3 ? 'var(--down)' : 'var(--panel2)'}">${ic}</div>
+      <div>${safe ? `<a href="${esc(safe)}" target="_blank" rel="noopener noreferrer">${esc(h.title)}</a>` : esc(h.title)} ${tags}
+      <div class="muted" style="font-size:11px">${esc(h.source)}</div></div><div class="tm">${ago(h.ts)}</div></div>`;
+  }).join('');
+  setHTML($('sNews'), `<div class="learnstats"><span class="chip ${n.mood <= -0.15 ? 'bad' : n.mood >= 0.3 ? 'good' : ''}">Market mood: ${esc(mood)}</span>
+      ${fg ? `<span class="chip">Fear & Greed: ${fg.value} (${esc(fg.label)})</span>` : ''}</div>
+    ${items || '<div class="emptyhint">Reading the news… headlines appear here in a few minutes.</div>'}
+    <div class="muted" style="font-size:11px;margin-top:6px">Bad news on a coin stops new buys of it; scary world news makes new trades smaller.</div>`);
+}
 function renderCoach(c){
   if (!c) return;
   $('sRules').innerHTML = c.rules.map(r => `<div class="rule"><div class="ic">${r.icon}</div><div class="tx"><b>${esc(r.rule)}</b><span>${esc(r.detail)}</span></div></div>`).join('');
@@ -1578,6 +1596,8 @@ function crewSay(b){  // a bot's latest action, as something it might actually s
   if (b.name === 'scout' && (m = a.match(/^(\S+) ([\d,.]+) rsi=/))) return `Keeping an eye on ${m[1]} at ${px(+m[2].replace(/,/g, ''))} 👀`;
   if ((m = a.match(/regime -> (\w+)/))) return `${a.split(' ')[0]} looks ${({trending: 'like it\'s trending 📈', ranging: 'calm and range-bound 🌊', volatile: 'wild right now 🌪️'})[m[1]] || m[1]}`;
   if ((m = a.match(/^no consensus to (\w+) (\S+): (.*)/))) return `Wanted to ${m[1]} ${m[2]}, but the team wasn't sure 🤔`;
+  if ((m = a.match(/^read (\d+) new headlines? - market mood (\w+)/))) return `Read ${m[1]} new headline${m[1] === '1' ? '' : 's'} - the market feels ${m[2]} 📰`;
+  if ((m = a.match(/^BAD NEWS for ([^:]+):/))) return `Bad news for ${m[1]} - no buying it for now 🚫`;
   if ((m = a.match(/^SKIM BUY (\S+)/))) return `Skimming ${m[1]} - quick in, quick out 🏄`;
   if ((m = a.match(/^SKIM idea (\S+)/))) return `${m[1]} dipped - a quick skim? Asking the team 🏄`;
   if ((m = a.match(/^BANKED (\d+%) of (\S+) at ([+\d.%]+)/))) return `Banked ${m[1]} of ${m[2]} at ${m[3]} 💰`;
@@ -1704,7 +1724,7 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],
     [/is offline/, 'a team member is switched off'], [/meme coins/, 'enough meme coins are already held'],
     [/practice only/, "your real-money account can't trade that coin"], [/holding the runner/, "it's a runner - the trailing stop will sell it"],
-    [/benched/, 'it kept losing, so it is sitting out for a while'], [/can't short crypto/, "real-money crypto can't be shorted (practice only)"], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
+    [/benched/, 'it kept losing, so it is sitting out for a while'], [/bad news on/, 'there was bad news about it'], [/good news on/, 'there was good news about it (no shorting into that)'], [/can't short crypto/, "real-money crypto can't be shorted (practice only)"], [/out of balance/, 'the books need checking'], [/duplicate/, 'it was a repeat']];
   for (const [re, t] of rules) if (re.test(r)) return t;
   return r.length > 60 ? r.slice(0, 60) + '…' : r;
 }
@@ -1813,6 +1833,7 @@ function renderSimple(st){
   if (crewChanged) document.querySelectorAll('[data-mate]').forEach(m => m.onclick = () => openBot(m.dataset.mate));
   renderCoach(st.coach);
   renderHunt(st);
+  renderNews(st.news);
   renderSettings();
 }
 $('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();

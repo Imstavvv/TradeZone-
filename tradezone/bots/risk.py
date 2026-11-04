@@ -135,6 +135,11 @@ class RiskBot(Bot):
             return self.reject(sig, "already positioned in this direction")
         if sig.side is Side.SELL and not limits.allow_short:
             return self.reject(sig, "short selling disabled")
+        news = self.desk.bots.get("news")
+        if news is not None:  # 📰 breaking news: don't buy into a hack, don't short into an ETF approval
+            if (why := news.veto(sig.symbol, sig.side.sign)) is not None:
+                return self.reject(sig, why)
+            sig.strength = round(max(0.0, min(1.0, sig.strength + news.conviction_nudge(sig.symbol, sig.side.sign))), 3)
         coach = self.desk.bots.get("coach")
         bar = coach.bar() if coach is not None else limits.min_signal_strength
         if sig.strength < bar:
@@ -211,6 +216,8 @@ class RiskBot(Bot):
             risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
         if meme:  # meme coins swing hard: smaller bets
             risk_budget *= s.meme_risk_mult
+        if news is not None:  # scary world news: half-size new buys
+            risk_budget *= news.size_mult(direction)
         qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure

@@ -147,6 +147,9 @@ class Settings:
     # to free the slot for a better chance (losers are still left to their stop).
     max_hold_hours: float = 24.0
     meme_max_hold_hours: float = 6.0
+    # ---- Reporter: world & crypto news (public RSS feeds + Fear & Greed index, no account) ----
+    news: bool = True
+    news_feeds: list[str] = field(default_factory=list)  # empty = built-in list (CoinDesk, Cointelegraph, BBC, ...)
     # ---- Skimmer: quick day-trade skims + profit-taking on every open trade ----
     skimmer: bool = True
     skim_target_pct: float = 0.025  # skims aim for +2.5% (after ~0.6% fees a win still beats a loss)...

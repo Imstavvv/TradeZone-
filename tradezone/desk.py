@@ -640,6 +640,7 @@ class TradingDesk:
         if self.live_broker is not None:
             await self.live_broker.close()
         await self.bots["grok"].close()  # type: ignore[attr-defined]
+        await self.bots["news"].close()  # type: ignore[attr-defined]
         self.bots["coach"].save()  # type: ignore[attr-defined]
         self.journal.commit()
 
@@ -690,6 +691,7 @@ class TradingDesk:
             "executive": self.bots["executive"].summary(),  # type: ignore[attr-defined]
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
+            "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
             "accuracy": {
                 "execution": self.bots["execution"].accuracy,  # type: ignore[attr-defined]
                 "fills_verified": self.bots["execution"].metrics.get("fills_verified", 0),
