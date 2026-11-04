@@ -338,6 +338,13 @@ class RiskBot(Bot):
         least = self.desk.broker.min_qty(sig.symbol, price)
         if qty <= 0 or qty < least:
             return self.reject(sig, "buy-back too small for the venue's minimum order")
+        pos = self.portfolio.position(sig.symbol)
+        if pos.stop_price is not None:  # the added coins sit above the same stop: they count toward portfolio heat
+            limits = self.settings.limits(self.desk.is_live)
+            room = self.portfolio.equity * limits.max_portfolio_heat - self.open_risk()
+            per = max(price - pos.stop_price, 0.0) + self.settings.round_trip_cost(sig.symbol, price)
+            if per > 0 and qty * per > room:  # (a partial buy-back would end with fewer coins: wait instead)
+                return self.reject(sig, "buy-back waits: portfolio heat at its limit")
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, None, None, price))
 
     def realized_today(self) -> float:

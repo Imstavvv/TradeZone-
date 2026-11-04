@@ -47,7 +47,7 @@ class ExecutionBot(Bot):
         self._submitted_at: dict[str, float] = {}
         self.ref_price: dict[str, float] = {}
         self._cum_filled: dict[str, float] = {}
-        self._processed_requests: set[str] = set()
+        self._processed_requests: dict[str, bool] = {}  # (ordered, so the oldest can be pruned)
         # fills emitted but not yet booked by the ledger (they sit in the event queue)
         self.unbooked: dict[str, float] = {}
         self.cool_until: dict[str, float] = {}  # symbol -> no new trades before (after a bad fill)
@@ -136,7 +136,7 @@ class ExecutionBot(Bot):
             self.act(f"blocked {req.side.value} {req.symbol}: {why}", "warning")
             self.publish("alert", Alert("warning", f"pre-trade check blocked {req.symbol}: {why}", self.name))
             return
-        self._processed_requests.add(req.id)
+        self._processed_requests[req.id] = True
         if (w := self.working_for(req.symbol)) is not None:
             self.bump("duplicates_blocked")
             self.act(f"blocked {req.side.value} {req.symbol}: order {w.id} still working", "warning")
@@ -210,3 +210,19 @@ class ExecutionBot(Bot):
                 self.act(f"{'filled late' if late else 'canceled stale'} order {oid}", "warning")
         self.metrics["working"] = len(self.working)
         self.metrics["accuracy"] = round(self.accuracy, 6)
+        self._prune()
+
+    KEEP_ORDERS = 3000
+
+    def _prune(self) -> None:
+        """Keep memory flat on a desk that runs for weeks: forget the oldest finished orders
+        (the journal keeps every fill permanently)."""
+        if len(self.orders) > self.KEEP_ORDERS:
+            for oid in list(self.orders)[: len(self.orders) - self.KEEP_ORDERS + 500]:
+                if oid not in self.working:
+                    self.orders.pop(oid, None)
+                    self.ref_price.pop(oid, None)
+                    self._cum_filled.pop(oid, None)
+        if len(self._processed_requests) > self.KEEP_ORDERS:
+            for rid in list(self._processed_requests)[:500]:
+                self._processed_requests.pop(rid, None)

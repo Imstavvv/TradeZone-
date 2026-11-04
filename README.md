@@ -572,7 +572,7 @@ Every feature runs with real money. Each can be switched off on its own:
 | --- | --- | --- |
 | Quick flips (more trades, smaller targets after fees) | on | `TZ_LIVE_QUICK_FLIPS` |
 | Stop-loss 33% from the buy price | on | `TZ_WIDE_STOP` |
-| Patient exits (cut early only when momentum and volume say no comeback) | on | `TZ_PATIENT_EXITS` |
+| Patient exits (cut early only when momentum and volume say no comeback) | on (and in practice whenever the -33% stop is on) | `TZ_PATIENT_EXITS` |
 | Moving take-profit past +10% | on | `TZ_TP_STEP` |
 | Quick-flip slice (a quarter banked at +1.2% after fees) | on | `TZ_FLIP_BANK_FRACTION` (0 = off) |
 | Skims (small dip-buy day trades) | on, 4 at once | `TZ_FLIP_MAX_SKIMS` (0 = off) |

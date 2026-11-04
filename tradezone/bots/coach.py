@@ -115,6 +115,9 @@ class CoachBot(Bot):
         req = ev.payload
         if not req.reduce_only and req.signal_id in self.signals:
             self.requests[req.id] = req.signal_id
+            if len(self.requests) > 2000:  # keep memory flat
+                for k in list(self.requests)[:1000]:
+                    self.requests.pop(k, None)
             if len(self.requests) > 2000:
                 for k in list(self.requests)[:1000]:
                     self.requests.pop(k, None)

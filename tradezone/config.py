@@ -347,8 +347,9 @@ class Settings:
         return self.live_max_daily_loss_pct, self.live_max_drawdown_pct, self.live_capital_floor_pct
 
     def patient(self, live: bool) -> bool:
-        """Patient exits: real money with patient_exits on."""
-        return live and self.patient_exits
+        """Patient exits: real money with patient_exits on - and practice too when the -33% stop is on, so a falling
+        trade there is also cut early (on momentum + volume) instead of riding to -33%: practice previews real money."""
+        return self.patient_exits and (live or self.wide_stop)
 
     def quick(self, live: bool) -> bool:
         """Quick-flip mode: real money with live_quick_flips on."""

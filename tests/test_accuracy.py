@@ -137,3 +137,24 @@ def test_unexpected_short_pauses_trading(desk):
     run(desk.bus.drain())
     run(desk.bots["sentinel"].on_cycle())
     assert desk.paused and "short" in desk.pause_reason
+
+
+def test_memory_stays_flat_on_a_desk_that_runs_for_weeks(desk):
+    from tradezone.core.models import Order
+    from tradezone.core.portfolio import ClosedTrade, Portfolio
+    exe = desk.bots["execution"]
+    exe.KEEP_ORDERS = 100
+    for i in range(400):
+        o = Order("AAPL", Side.BUY, 1, request_id=f"r{i}")
+        exe.orders[o.id] = o
+        exe.ref_price[o.id] = 100.0
+        exe._processed_requests[f"r{i}"] = True
+    run(exe.on_cycle())
+    assert len(exe.orders) <= 100 and len(exe.ref_price) <= 100 and len(exe._processed_requests) <= 400 - 500 + 400
+    p = Portfolio(1_000)
+    p.KEEP_TRADES = 50
+    from tradezone.core.models import Fill
+    for i in range(80):
+        p.apply_fill(Fill(f"b{i}", "X", Side.BUY, 1, 10.0))
+        p.apply_fill(Fill(f"s{i}", "X", Side.SELL, 1, 11.0))
+    assert len(p.closed_trades) == 50 and isinstance(p.closed_trades[-1], ClosedTrade)

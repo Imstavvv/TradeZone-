@@ -53,6 +53,7 @@ class ClosedTrade(Model):
 
 
 class Portfolio:
+    KEEP_TRADES = 10_000  # closed trades kept in memory for the stats
     def __init__(self, starting_cash: float) -> None:
         self.starting_cash = starting_cash
         self.cash = starting_cash
@@ -115,6 +116,8 @@ class Portfolio:
                 pnl,
             )
             self.closed_trades.append(closed)
+            if len(self.closed_trades) > self.KEEP_TRADES:  # memory stays flat (the journal keeps every trade)
+                del self.closed_trades[: len(self.closed_trades) - self.KEEP_TRADES]
             remainder = abs(signed) - close_qty
             if remainder > EPS:  # flipped through zero
                 pos.qty = remainder * (1 if signed > 0 else -1)

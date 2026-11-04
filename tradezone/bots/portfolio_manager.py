@@ -261,7 +261,7 @@ class PortfolioBot(Bot):
         s, price, ind = self.settings, snap.price, snap.indicators
         d = 1 if pos.qty > 0 else -1
         loss = (pos.avg_price - price) / pos.avg_price * d  # > 0: losing
-        usual = s.plan_pcts(sym, quick=True)[0]  # where the tight stop would have been
+        usual = s.plan_pcts(sym, self.quick)[0]  # where the usual tight stop would have been
         if loss >= usual and sym not in self.watch:
             self.watch[sym] = now()
             self.act(f"{sym} is down {loss:.1%}: holding for a comeback (cut only if momentum and volume say it won't)")

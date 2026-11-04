@@ -141,8 +141,16 @@ class FlipperBot(Bot):
             self._requests.add(req.id)
         if req.signal_id in self._acc_sell_sigs:
             self._acc_reqs[req.id] = "sell"
+            self._acc_sell_sigs.discard(req.signal_id)
         elif req.signal_id in self._acc_buy_sigs:
             self._acc_reqs[req.id] = "buy"
+            self._acc_buy_sigs.discard(req.signal_id)
+        if len(self._acc_reqs) > 2000:  # keep memory flat
+            for k in list(self._acc_reqs)[:1000]:
+                self._acc_reqs.pop(k, None)
+        for pending in (self._acc_sell_sigs, self._acc_buy_sigs):
+            if len(pending) > 2000:  # ideas Risk turned down never get a request
+                pending.clear()
 
     def on_snapshot(self, ev: Event) -> None:
         snap: Snapshot = ev.payload
