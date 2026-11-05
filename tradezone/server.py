@@ -707,10 +707,8 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             await socket.send_text(json.dumps(_clean({"type": "snapshot", "data": desk.state()}), default=str))
             last_check = time.monotonic()
             while True:
-                try:
+                with contextlib.suppress(asyncio.TimeoutError):
                     await socket.send_text(await asyncio.wait_for(q.get(), 5))
-                except asyncio.TimeoutError:
-                    pass
                 if ws_sid and time.monotonic() - last_check > 30:  # stop streaming once signed out
                     last_check = time.monotonic()
                     if not sec.session_valid(socket.cookies.get(SESSION_COOKIE)):

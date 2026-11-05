@@ -260,7 +260,13 @@ class Settings:
     # never sell at a loss: no stop-loss or cut sells a trade below break-even after fees (it's held until it
     # recovers); the automatic loss limits stop new trades but don't sell. Your own Close all / Emergency stop still sell
     never_sell_at_loss: bool = True
-    never_sell_meme_size: float = 0.5  # ...and then a meme coin position is at most this share of the usual biggest
+    never_sell_meme_size: float = 0.5
+    # Dip Buyer: buy more of a coin held at a loss once it has dipped further and turns up (lower average price)
+    dip_buy: bool = True
+    dip_step_pct: float = 0.06  # at least this far below the average price paid (meme coins: twice as far)...
+    dip_add_fraction: float = 0.5  # ...buy this share of what's held...
+    dip_max_adds: int = 2  # ...at most this many times per trade...
+    dip_keep_cash: float = 0.25  # ...always leaving this share of the balance in cash  # ...and then a meme coin position is at most this share of the usual biggest
     profit_over_fees: float = 1.0  # a profit-taking sale keeps at least this many times the fees (after them)
     fee_rule_rescue: bool = True  # ...also for a losing trade that came back (closed only once it beats the fees)
     # ...and a stop already in profit is raised to where it would keep more than the fees. Off: on real price

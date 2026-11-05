@@ -515,8 +515,6 @@ class TradingDesk:
             self.bus.publish("alert", Alert("info", f"Now using {self.feed.name.title()}'s own prices", "desk"))
 
     # -- growth ladder: focus on smaller coins until the balance can spread across all of them ------------
-    STAGES = (("small", "smaller coins"), ("mid", "+ mid-size coins"), ("large", "all coins"))
-
     def focus_status(self) -> dict:
         s, eq = self.settings, self.portfolio.equity
         key = (self.cycles, eq, s.focus_small_coins, s.focus_small_until, s.focus_mid_until, len(s.symbols))

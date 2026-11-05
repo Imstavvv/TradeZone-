@@ -90,7 +90,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 32 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Stacker → Speed Monitor → Housekeeper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 33 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Dip Buyer → Stacker → Speed Monitor → Housekeeper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -504,6 +504,20 @@ Besides the main account (Settings → Linked accounts), you can link up to **5 
 - Each account keeps its keys and records in its own database file next to the main one (`tradezone-account-<id>.db`). The main database only lists which accounts exist. Everything comes back after a restart, and an account that was live resumes live only after its exchange account checks out.
 
 **TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
+
+### 🔁 The Dip Buyer: cycling held losers back to profit
+
+While losing trades are held (**never sell at a loss**), the Dip Buyer buys more of one once it has dipped further and starts to turn up, so its average price comes down and it gets back to profit sooner. The comeback sale then takes it out once it beats its fees.
+
+It buys when all of these hold:
+- the coin is **6% or more below its average price** (meme coins 12%, `TZ_DIP_STEP_PCT`);
+- the price turns up on this bar, with an oversold RSI (15-45);
+- no advisor objects (a flash crash, Bitcoin falling hard, a dead market);
+- trading isn't paused or stopped for the day.
+
+It buys **half as much again** (`TZ_DIP_ADD_FRACTION`), **at most twice per trade** (`TZ_DIP_MAX_ADDS`), never past the normal biggest position, and always leaves **a quarter of the balance in cash** (`TZ_DIP_KEEP_CASH`). It only runs while never-sell is on (otherwise losing trades are cut). `TZ_DIP_BUY=false` turns it off.
+
+Tested (runs of $500): on real price history it rarely triggered: no change on the first half, +$12 on the second (+$509 vs +$496). On random prices, where coins keep falling, it made the worst run deeper (-$97 vs -$78; total $2,855 vs $2,865). Buying more of a falling coin lowers the price you need to get back to, but puts more money into the coin. If the coin keeps falling, the loss grows.
 
 ### ⚙️ Processing helpers: the Speed Monitor and the Housekeeper
 

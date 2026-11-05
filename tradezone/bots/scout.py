@@ -166,7 +166,7 @@ class ScoutBot(Bot):
         lo, hi = b.stoch_lows.min(), b.stoch_highs.max()
         vol_sum = sum(v for _, v in b.pv)
         avg_vol = vol_sum / len(b.pv) if b.pv else 0.0
-        out = {
+        return {
             "macd_hist": macd - (b.macd_signal.value or macd),
             "bb_mid": mid, "bb_upper": mid + 2 * sd, "bb_lower": mid - 2 * sd,
             "stoch_k": 100 * (price - lo) / (hi - lo) if hi > lo else 50.0,
@@ -175,7 +175,6 @@ class ScoutBot(Bot):
             # OBV's change over 10 bars, in units of an average bar's volume (None without volume data)
             "obv_slope": (b.obv_hist[-1] - b.obv_hist[0]) / (10 * avg_vol) if avg_vol > 0 and len(b.obv_hist) > 10 else None,
         }
-        return out
 
     def backfill(self, symbol: str, candles: list[dict]) -> int:
         """Feed historical candles through the indicators (no trading on them)."""

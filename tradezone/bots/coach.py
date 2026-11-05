@@ -123,9 +123,6 @@ class CoachBot(Bot):
             if len(self.requests) > 2000:  # keep memory flat
                 for k in list(self.requests)[:1000]:
                     self.requests.pop(k, None)
-            if len(self.requests) > 2000:
-                for k in list(self.requests)[:1000]:
-                    self.requests.pop(k, None)
 
     def _context_for_fill(self, t: dict) -> dict | None:
         exe = self.desk.bots.get("execution")

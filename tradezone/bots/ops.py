@@ -300,5 +300,3 @@ class HousekeeperBot(Advisor):
             self.bump("compactions")
         return {"removed": removed, "thinned": thinned}
 
-
-OPS = [FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot]

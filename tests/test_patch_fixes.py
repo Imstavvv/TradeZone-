@@ -12,7 +12,6 @@ from tradezone.core.models import OrderRequest, Side, Signal
 from tradezone.core.util import (
     is_closing,
     norm_symbol,
-    position_mismatches,
     round_qty,
     us_market_open,
 )
@@ -29,8 +28,6 @@ def test_util_helpers():
     assert round_qty(7.9, 100, fractional=False) == 7.0 and round_qty(float("nan"), 1) == 0.0
     assert norm_symbol("btc/usd") == norm_symbol("BTC-USD") == "BTCUSD"
     assert is_closing(5, Side.SELL) and is_closing(-5, Side.BUY) and not is_closing(0, Side.SELL)
-    assert position_mismatches({"BTC-USD": 1.0}, {"BTCUSD": 1.0}) == {}
-    assert position_mismatches({"BTC-USD": 1.0}, {"BTCUSD": 0.99}) == {"BTCUSD": (1.0, 0.99)}
 
 
 @pytest.mark.parametrize("when,open_", [

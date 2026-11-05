@@ -17,7 +17,7 @@ def test_state_controls_and_bots():
     with c:
         assert c.get("/api/health").json()["ok"]
         st = c.get("/api/state").json()
-        assert len(st["bots"]) == 32 and st["mode"] == "paper"
+        assert len(st["bots"]) == 33 and st["mode"] == "paper"
         assert c.post("/api/control/pause").json()["paused"] is True
         assert c.post("/api/control/resume").json()["paused"] is False
         assert c.post("/api/control/kill", json={"reason": "test"}).json()["halted"] is True

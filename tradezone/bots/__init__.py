@@ -1,5 +1,6 @@
 from .advisors import (
     CorrelationBot,
+    DipBuyerBot,
     HTFBot,
     LevelsBot,
     LiquidityBot,
@@ -40,7 +41,7 @@ TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot,
         # advisors the Risk Manager consults before every new trade
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, LiquidityBot,
         ShockGuardBot, HTFBot,
-        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot, StackerBot,
+        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
         FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot]
 
 __all__ = [c.__name__ for c in TEAM] + ["TEAM", "TEAM_RULES"]

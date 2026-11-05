@@ -419,5 +419,49 @@ class PullbackBot(Bot):
         self.act(f"RETEST {sym} @ {px:,.6g}: back at the breakout level {level:,.6g} and holding")
 
 
-ADVISORS = [WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, LiquidityBot,
-            ShockGuardBot, HTFBot]
+
+
+class DipBuyerBot(Bot):
+    """Buys more of a coin held at a loss once it has dipped further and starts to turn up, so its average price
+    drops and it gets back to profit sooner (while "never sell at a loss" holds it)."""
+
+    name = "dipbuyer"
+    title = "Dip Buyer"
+    role = "Averaging Down Held Losers"
+    mission = "🔁 Cycle held losers back to profit - buy the dip so the average price comes down"
+    description = ("While losing trades are held (never sold at a loss): when one is 6%+ below its average price "
+                   "(meme coins 12%+) and the price turns up, buy half as much again - at most twice per trade, never "
+                   "past the normal biggest position, always leaving a quarter of the balance in cash.")
+
+    def __init__(self, desk) -> None:
+        super().__init__(desk)
+        self.adds: dict[str, tuple[float, int]] = {}  # symbol -> (the trade's opening time, adds so far)
+        self.prev: dict[str, float] = {}
+
+    def subscriptions(self):
+        return {"market.snapshot": self.on_snapshot}
+
+    def on_snapshot(self, ev: Event) -> None:
+        snap = ev.payload
+        s, sym, px = self.settings, snap.symbol, snap.price
+        before, self.prev[sym] = self.prev.get(sym), px
+        if snap.historical or not (s.dip_buy and s.never_sell_at_loss) or self.desk.halted or self.desk.paused:
+            return
+        pos = self.portfolio.position(sym)
+        if pos.qty <= 0 or not pos.avg_price or before is None:
+            return
+        opened, n = self.adds.get(sym, (pos.opened_ts, 0))
+        if opened != pos.opened_ts:  # a new trade in this coin: count again
+            opened, n = pos.opened_ts, 0
+        step = s.dip_step_pct * (2 if s.is_meme(sym) else 1)
+        rsi = snap.indicators.get("rsi", 50)
+        if n >= s.dip_max_adds or px > pos.avg_price * (1 - step) or px <= before or not 15 <= rsi <= 45:
+            return  # not far enough down, still falling, or not oversold
+        self.adds[sym] = (opened, n + 1)
+        qty = abs(pos.qty) * s.dip_add_fraction
+        self.bump("dip_ideas")
+        self.act(f"DIP BUY {sym}: {1 - px / pos.avg_price:.1%} below the average price and turning up - "
+                 f"buying {s.dip_add_fraction:.0%} more (add {n + 1} of {s.dip_max_adds})")
+        self.publish("signal.proposed", Signal(sym, Side.BUY, 1.0, f"dip buy: {sym} {1 - px / pos.avg_price:.1%} below "
+                                               f"its average price, turning up - lowering the average", self.name,
+                                               qty=qty))

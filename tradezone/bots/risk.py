@@ -182,6 +182,8 @@ class RiskBot(Bot):
             return self.reject(sig, "trading paused")
         if sig.qty and sig.source == "flipper" and sig.side is Side.BUY and pos.qty > 0:
             return self._buy_back(sig, price)  # the Flipper buying back a slice it sold higher
+        if sig.qty and sig.source == "dipbuyer" and sig.side is Side.BUY and pos.qty > 0:
+            return self._dip_add(sig, pos, price)  # buying more of a held loser on a further dip
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
         guard = self.day_guard()
@@ -377,6 +379,29 @@ class RiskBot(Bot):
             per = max(price - pos.stop_price, 0.0) + self.settings.round_trip_cost(sig.symbol, price)
             if per > 0 and qty * per > room:  # (a partial buy-back would end with fewer coins: wait instead)
                 return self.reject(sig, "buy-back waits: portfolio heat at its limit")
+        self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, None, None, price))
+
+    def _dip_add(self, sig: Signal, pos, price: float) -> None:
+        """Buy more of a coin held at a loss, lower down: within the normal biggest position, leaving cash free,
+        and only if no advisor objects (a flash crash, a falling market, a dead market)."""
+        s = self.settings
+        snap = self.snapshots.get(sig.symbol)
+        for adv in self.desk.advisors:
+            if adv.enabled:
+                veto, _, _ = adv.advise(sig, snap)
+                if veto:
+                    self.bump("rejected_by_advisors")
+                    return self.reject(sig, f"{adv.title}: {veto}")
+        equity = self.portfolio.equity
+        cap = s.limits(self.desk.is_live).max_position_pct
+        if s.is_meme(sig.symbol) and s.never_sell_at_loss:
+            cap *= s.never_sell_meme_size
+        room = equity * cap - abs(pos.qty) * price  # the trade never grows past the normal biggest position
+        spare = self.desk.free_cash() - s.dip_keep_cash * equity  # and a share of the balance stays in cash
+        qty = self._round_qty(min(sig.qty or 0.0, max(room, 0.0) / price, max(spare, 0.0) * 0.995 / price), price)
+        least = self.desk.broker.min_qty(sig.symbol, price)
+        if qty <= 0 or qty < least:
+            return self.reject(sig, "dip buy skipped: no room (biggest position reached, or cash kept free)")
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, None, None, price))
 
     def realized_today(self) -> float:
