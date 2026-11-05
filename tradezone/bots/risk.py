@@ -163,6 +163,8 @@ class RiskBot(Bot):
                                             "keeps running (its stop protects it)")
                 qty = part
             # reduce-only exits are always allowed: they lower risk
+            if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0:
+                return self.reject(sig, "held: it's below break-even after fees, and the bots never sell at a loss")
             # profit-taking (and a winner's change-of-mind exit) may wait at the ask for the maker fee
             calm = sig.calm or sig.kind is SignalKind.ENTRY
             if sig.calm and not self.settings.beats_fees(pos, price):  # stops and cuts are never held back
@@ -321,7 +323,10 @@ class RiskBot(Bot):
         if (sp := s.sizing_stop_pct(sig.symbol, self.desk.is_live)) is not None:
             size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the -33% stop
         qty = risk_budget / (size_dist + cost)  # a stopped-out trade also pays fees
-        qty = min(qty, equity * limits.max_position_pct / price)
+        cap = limits.max_position_pct
+        if meme and s.never_sell_at_loss:  # held without a cut, a meme coin can fall a long way: half the size
+            cap *= s.never_sell_meme_size
+        qty = min(qty, equity * cap / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
         # buys need cash; a short needs the same amount set aside (no borrowing to make bets bigger)
@@ -430,4 +435,5 @@ class RiskBot(Bot):
         if reason:
             self.act(f"KILL SWITCH: {reason}", "critical")
             self.publish("alert", Alert("critical", f"Kill switch tripped: {reason}", self.name))
-            self.desk.halt(reason, flatten=True, kind=kind)
+            # never sell at a loss: the limit stops new trades, but open ones are held rather than sold at the low
+            self.desk.halt(reason, flatten=not self.settings.never_sell_at_loss, kind=kind)

@@ -170,10 +170,12 @@ class PortfolioBot(Bot):
         self.publish("position.adjusted", {"symbol": symbol, "delta": -qty, "reason": "dust below the venue's minimum"})
         self.act(f"{symbol}: {qty:.8g} left over is below the venue's minimum sale - taken off the books (it's yours)")
 
-    def _exit(self, symbol: str, reason: str, fraction: float = 1.0, calm: bool = False) -> None:
+    def _exit(self, symbol: str, reason: str, fraction: float = 1.0, calm: bool = False, force: bool = False) -> None:
         pos = self.portfolio.position(symbol)
         if pos.is_flat or now() < self._retry_at.get(symbol, 0.0):
             return
+        if not force and self.holding_loser(pos):
+            return  # never sell at a loss: held until it recovers
         if symbol in self.exiting and (calm or symbol not in self.calm_exits):
             return  # already on its way out (an urgent exit may still replace one that's only taking profit)
         if fraction >= 1.0:
@@ -181,7 +183,8 @@ class PortfolioBot(Bot):
             (self.calm_exits.add if calm else self.calm_exits.discard)(symbol)
         side = Side.SELL if pos.qty > 0 else Side.BUY
         self.publish("signal.proposed",
-                     Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction, calm=calm))
+                     Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction, calm=calm,
+                            force=force))
         self.bump("exits_triggered")
         self.act(f"EXIT {symbol}: {reason}", "warning")
 
@@ -317,6 +320,8 @@ class PortfolioBot(Bot):
             return self._exit(sym, f"came back: closed at +{net:,.2f} after fees after being down")
         if net > 0:  # back in profit after fees, just not beating them yet: never cut - wait for it (its stop protects it)
             return
+        if self.holding_loser(pos):
+            return  # never sell at a loss: held until it comes back, whatever momentum says
         if mom <= s.no_return_momentum and heavy:
             self.bump("patient_cuts")
             return self._exit(sym, f"no comeback in sight: momentum {mom:+.2f} against it, {vol_txt} - cutting at -{loss:.1%}")
@@ -364,11 +369,23 @@ class PortfolioBot(Bot):
             self.bump("partial_profits")
             self._exit(sym, f"partial take-profit +{s.scale_out_r:g}R at {price:,.4g}", s.scale_out_fraction, calm=True)
 
-    def flatten_all(self, reason: str) -> int:
+    def holding_loser(self, pos) -> bool:
+        """Never sell at a loss (when on): a trade below break-even after fees is held, and said so once an hour."""
+        s = self.settings
+        price = self.desk.prices.get(pos.symbol) or pos.last_price
+        if not s.never_sell_at_loss or not price or s.net_if_sold(pos, price) >= 0:
+            return False
+        if now() - self._held_note.get(f"loss|{pos.symbol}", 0) > 3600:
+            self._held_note[f"loss|{pos.symbol}"] = now()
+            self.act(f"holding {pos.symbol}: it's below break-even after fees, and the bots never sell at a loss")
+        self.bump("held_not_sold")
+        return True
+
+    def flatten_all(self, reason: str, force: bool = True) -> int:
         n = 0
         for pos in list(self.portfolio.open_positions):
             self.exiting.discard(pos.symbol)
-            self._exit(pos.symbol, reason)
+            self._exit(pos.symbol, reason, force=force)
             n += 1
         return n
 

@@ -15,7 +15,7 @@ from tradezone.market.simulated import SimulatedFeed
 def make(**kw):
     kw.setdefault("symbols", ["AAPL", "TSLA", "BTC-USD", "DOGE-USD"])
     kw.setdefault("wide_stop", False)
-    s = Settings(feed="sim", **kw)
+    s = Settings(never_sell_at_loss=False, feed="sim", **kw)
     s.risk.symbol_cooldown_s = 0
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
 

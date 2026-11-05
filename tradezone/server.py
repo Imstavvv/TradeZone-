@@ -470,6 +470,14 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         audit(request, f"real-money risk level set to {body.profile}", "warning")
         return info
 
+    @app.post("/api/never-sell", dependencies=[Depends(check_token)])
+    async def never_sell(body: StrategyBody, request: Request):
+        out = desk.set_never_sell(body.on)
+        for d in desk.fleet.desks.values():
+            d.set_never_sell(body.on)
+        audit(request, f"never sell at a loss: {'on' if body.on else 'off'}", "warning")
+        return out
+
     @app.post("/api/strategies/{key}", dependencies=[Depends(check_token)])
     async def set_strategy(key: str, body: StrategyBody, request: Request):
         try:

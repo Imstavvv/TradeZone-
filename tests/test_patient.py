@@ -10,6 +10,7 @@ from tests.test_quick_flips import make as _make
 
 def make(**kw):
     kw.setdefault("patient_exits", True)  # (off by default now; these tests cover the feature itself)
+    kw.setdefault("never_sell_at_loss", False)  # (these cover the cuts, which run when that mode is off)
     return _make(**kw)
 from tradezone.core.models import Snapshot, Tick
 

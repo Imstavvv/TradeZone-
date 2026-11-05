@@ -128,7 +128,7 @@ def test_operator_flatten_ignores_profit_rule(desk):
 
 # ------------------------------------------------------------- bar building
 def test_scout_builds_bars_from_live_ticks():
-    s = Settings(feed="coinbase", bar_seconds=10)
+    s = Settings(never_sell_at_loss=False, feed="coinbase", bar_seconds=10)
     desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
     scout = desk.bots["scout"]
     snaps = capture(desk, "market.snapshot")

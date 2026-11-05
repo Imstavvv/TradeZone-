@@ -157,7 +157,7 @@ def test_coins_you_already_hold_are_never_counted_or_sold():
 
 
 def kraken_desk(fk):
-    s = Settings(feed="coinbase", live_venue="kraken", kraken_key="KEY", kraken_secret=SECRET,
+    s = Settings(never_sell_at_loss=False, feed="coinbase", live_venue="kraken", kraken_key="KEY", kraken_secret=SECRET,
                  symbols=["BTC-USD", "DOGE-USD"], withdrawal_cooldown_h=0)
     s.risk.symbol_cooldown_s = 0
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"), live_broker=broker(fk))
@@ -197,7 +197,7 @@ def test_link_kraken_from_the_app_and_remember_it(monkeypatch, tmp_path):
     monkeypatch.setattr(kmod.httpx, "AsyncClient",
                         lambda **kw: real(base_url="https://api.kraken.com", transport=httpx.MockTransport(fk.handler)))
     db = str(tmp_path / "tz.db")
-    desk = TradingDesk(Settings(feed="coinbase"), journal=Journal(db))
+    desk = TradingDesk(Settings(never_sell_at_loss=False, feed="coinbase"), journal=Journal(db))
     with pytest.raises(ValueError, match="Withdraw Funds"):
         fk.can_withdraw = True
         run(desk.link_broker("KEY", SECRET, venue="kraken"))
@@ -205,7 +205,7 @@ def test_link_kraken_from_the_app_and_remember_it(monkeypatch, tmp_path):
     assert run(desk.link_broker("KEY", SECRET, venue="kraken"))["cash"] == 500.0
     info = desk.broker_info()
     assert info["linked"] and info["venue"] == "kraken" and info["label"] == "Kraken" and info["ready"]
-    again = TradingDesk(Settings(feed="coinbase"), journal=Journal(db))
+    again = TradingDesk(Settings(never_sell_at_loss=False, feed="coinbase"), journal=Journal(db))
     assert again.load_linked_broker() and again.live_broker.name == "kraken"
 
 
@@ -304,7 +304,7 @@ def test_feed_finds_kraken_meme_coins_that_trade_enough():
 
 
 def test_linking_kraken_in_the_app_switches_to_krakens_prices():
-    desk = TradingDesk(Settings(), journal=Journal(":memory:"))  # feed=auto, nothing linked: Coinbase prices
+    desk = TradingDesk(Settings(never_sell_at_loss=False), journal=Journal(":memory:"))  # feed=auto, nothing linked: Coinbase prices
     assert desk.feed.name == "coinbase" and desk.settings.feed_choice == "auto"
     desk.settings.kraken_key, desk.settings.kraken_secret, desk.settings.live_venue = "KEY", SECRET, "kraken"
     desk.live_broker = KrakenBroker("KEY", SECRET)

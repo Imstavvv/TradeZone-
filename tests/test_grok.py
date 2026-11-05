@@ -23,7 +23,7 @@ def grok_desk(reply=None, status=200, fail_open=False):
             return httpx.Response(status)
         return httpx.Response(200, json={"choices": [{"message": {"content": reply}}]})
 
-    s = Settings(grok_api_key="xai-test", grok_fail_open=fail_open, feed="sim")
+    s = Settings(never_sell_at_loss=False, grok_api_key="xai-test", grok_fail_open=fail_open, feed="sim")
     s.risk.symbol_cooldown_s = 0
     desk = TradingDesk(s, journal=Journal(":memory:"))
     grok = desk.bots["grok"]
@@ -51,10 +51,10 @@ def test_parse_verdict():
 
 
 def test_settings_auto_mode():
-    s = Settings()
+    s = Settings(never_sell_at_loss=False)
     s.validate()
     assert s.grok_mode == "off"
-    s = Settings(grok_api_key="k")
+    s = Settings(never_sell_at_loss=False, grok_api_key="k")
     s.validate()
     assert s.grok_mode == "veto"
 

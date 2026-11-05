@@ -12,7 +12,7 @@ from tradezone.market.simulated import SimulatedFeed
 
 def live_settings(**kw):
     kw.setdefault("symbols", ["BTC-USD", "AAPL", "NVDA"])
-    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", **kw)
+    s = Settings(never_sell_at_loss=False, feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", **kw)
     s.risk.symbol_cooldown_s = 0
     return s
 

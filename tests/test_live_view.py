@@ -58,7 +58,7 @@ def test_bot_actions_reach_ui_listeners_with_throttle(desk):
 
 
 def test_api_trades_csv_and_bot_log():
-    desk = TradingDesk(Settings(feed="sim", api_token="tok"), journal=Journal(":memory:"))
+    desk = TradingDesk(Settings(never_sell_at_loss=False, feed="sim", api_token="tok"), journal=Journal(":memory:"))
     desk.settings.risk.symbol_cooldown_s = 0
     round_trip(desk)
     hdr = {"Authorization": "Bearer tok"}
@@ -77,7 +77,7 @@ def test_api_trades_csv_and_bot_log():
 
 
 def test_websocket_pushes_events_and_actions_live():
-    desk = TradingDesk(Settings(feed="sim"), journal=Journal(":memory:"))
+    desk = TradingDesk(Settings(never_sell_at_loss=False, feed="sim"), journal=Journal(":memory:"))
     with TestClient(create_app(desk, run_desk=False)) as c:
         with c.websocket_connect("/ws") as ws:
             snap = ws.receive_json()

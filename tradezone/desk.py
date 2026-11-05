@@ -707,6 +707,8 @@ class TradingDesk:
         if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
             from .bots.quant import STRATEGIES
             self.settings.strategies = [k for k in saved["on"] if k in STRATEGIES]
+        if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
+            self.settings.never_sell_at_loss = bool(ns.get("on"))
         for k, on in (self.store.load("finders") or {}).items():
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
@@ -863,6 +865,16 @@ class TradingDesk:
         self.store.save("strategies", {"on": self.settings.strategies})
         self.bus.publish("alert", Alert("info", f"Strategy {key} {'on' if on else 'off'}", "operator"))
         return self.strategy_info()
+
+    def set_never_sell(self, on: bool) -> dict:
+        """Never sell at a loss (on) or cut losing trades with stops and early cuts (off)."""
+        self.settings.never_sell_at_loss = bool(on)
+        self.store.save("never_sell", {"on": bool(on)})
+        self.bus.publish("alert", Alert("warning" if on else "info",
+                                        "Never sell at a loss: " + ("ON - losing trades are held until they recover"
+                                                                     if on else "OFF - stops and early cuts sell losers"),
+                                        "operator"))
+        return {"never_sell_at_loss": self.settings.never_sell_at_loss}
 
     def set_risk_profile(self, profile: str, confirm: str = "") -> dict:
         """Normal or Aggressive (real money only). Turning Aggressive on needs the word RISK typed."""
@@ -1127,6 +1139,11 @@ class TradingDesk:
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
             "stack": self.bots["stacker"].summary(),  # type: ignore[attr-defined]
             "strategies": self.strategy_info(),
+            "never_sell_at_loss": self.settings.never_sell_at_loss,
+            "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
+                             "pct": ((p.last_price or p.avg_price) / p.avg_price - 1) * (1 if p.qty > 0 else -1)}
+                            for p in self.portfolio.open_positions
+                            if self.settings.net_if_sold(p, p.last_price or p.avg_price) < 0],
             "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "accounts": self.fleet.summary() if not hasattr(self, "account_id") else [],

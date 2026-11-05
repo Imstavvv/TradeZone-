@@ -121,6 +121,7 @@ class Signal(Model):
     kind: SignalKind = SignalKind.ENTRY
     fraction: float = 1.0  # exits: share of the position to close (partial take-profit)
     calm: bool = False  # exits: taking profit, no hurry - may wait at the ask for the lower maker fee
+    force: bool = False  # exits you asked for (Close all trades / Emergency stop): always sold, even at a loss
     votes: dict[str, str] = field(default_factory=dict)  # bot/strategy -> yes | no | abstain
     qty: float | None = None  # an exact amount (the Flipper's buy-backs add this many coins to a held position)
     id: str = field(default_factory=lambda: new_id("sig"))

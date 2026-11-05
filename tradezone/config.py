@@ -256,6 +256,10 @@ class Settings:
     flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
     flip_bank_fraction: float = 0.0  # ...this share (0 = off: on real price history early slices shrank the winners)
     flip_min_edge: float = 3.0  # the target must pay at least 3x the fees (you keep at least twice the fees)
+    # never sell at a loss: no stop-loss or cut sells a trade below break-even after fees (it's held until it
+    # recovers); the automatic loss limits stop new trades but don't sell. Your own Close all / Emergency stop still sell
+    never_sell_at_loss: bool = True
+    never_sell_meme_size: float = 0.5  # ...and then a meme coin position is at most this share of the usual biggest
     profit_over_fees: float = 1.0  # a profit-taking sale keeps at least this many times the fees (after them)
     fee_rule_rescue: bool = True  # ...also for a losing trade that came back (closed only once it beats the fees)
     # ...and a stop already in profit is raised to where it would keep more than the fees. Off: on real price

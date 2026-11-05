@@ -505,6 +505,25 @@ Besides the main account (Settings → Linked accounts), you can link up to **5 
 
 **TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
 
+### 🛑 Never sell at a loss
+
+**On by default** (`TZ_NEVER_SELL_AT_LOSS`; **Settings → Your goal → Never sell at a loss**). A trade below break-even after fees is **held until it recovers**:
+- no stop-loss, early cut or bot ever sells it, and the Risk Manager turns down any sale at a loss as a safety net;
+- the automatic daily-loss, drawdown and floor limits **stop new trades**, but don't sell open ones;
+- **your own Close all trades and Emergency stop still sell** (you chose to);
+- meme coins trade at half the usual biggest size (`TZ_NEVER_SELL_MEME_SIZE`), because held without a cut they can fall a long way.
+
+The Settings row lists the losing trades being held and how far down each is.
+
+Tested both ways (runs of $500, real-money Kraken fees):
+
+| | Real price history (20 runs, first / second half) | Random prices (6 runs) | Worst random run |
+| --- | --- | --- | --- |
+| Cutting losers (stops + early cuts) | +$398 / +$295 | $2,848 | -$36 |
+| **Never selling at a loss** | **+$537 / +$496**, every closed trade a win | $2,865 | **-$78** |
+
+Real prices (the S&P 500, Google, EUR/USD) tend to come back after a dip, so holding paid off. Random prices don't, and there the losses didn't disappear: they sat in unsold trades. Coins were still down 9-56% at the end of several runs, and the money in them couldn't trade. **"Every closed trade a win" doesn't mean nothing was lost.** A coin that never recovers, like many meme coins, keeps its loss and ties up the money. The balance shown always counts these held trades at today's price. Turn it off to cut losing trades again.
+
 ### 🚀 pump.fun coins
 
 The Trend Scout watches **coins launched on pump.fun** (CoinGecko's pump.fun category, free public data, no account) with the same bar as every meme coin:
