@@ -165,7 +165,7 @@ class Settings:
     flip_good_hour_size: float = 1.25  # trades opened in a proven good hour are this much bigger...
     flip_bad_hour_size: float = 0.6  # ...and in a proven bad hour this much smaller
     # ---- accumulating: the Flipper sells a slice of a held coin into a rise and buys it back cheaper ----
-    accumulate: bool = True
+    accumulate: bool = False  # off: on real price history it capped winners and paid two extra fees per round
     acc_slice: float = 0.20  # sell this share of the position...
     acc_rise_pct: float = 0.03  # ...once the price is this far above what the bots paid (and the sale is a profit)
     acc_dip_pct: float = 0.025  # buy it back once the price is this far below the sale price...
@@ -226,7 +226,7 @@ class Settings:
     flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...
     flip_meme_target_pct: float = 0.10  # ...and +10% profit after fees
     flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
-    flip_bank_fraction: float = 0.25  # ...a quarter (0 = off); the rest keeps running
+    flip_bank_fraction: float = 0.0  # ...this share (0 = off: on real price history early slices shrank the winners)
     flip_min_edge: float = 3.0  # the target must pay at least 3x the fees (you keep at least twice the fees)
     strategy_exit_min_cost: float = 2.0  # a "change of mind" exit only sells a winner once it's made 2x the fees
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this

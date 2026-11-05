@@ -590,7 +590,7 @@ On a coin the bots hold, the Flipper also works to **own more of it**:
 2. When the price dips **2.5% below that sale** (`TZ_ACC_DIP_PCT`), it buys the slice back, **only if that gets at least 0.5% more coins than were sold** after both fees (`TZ_ACC_MIN_GAIN`). The coins go back into the same position, which keeps its stop and target.
 3. If no dip comes within **48 h** (`TZ_ACC_TIMEOUT_H`), or the trade closes first, the slice simply stays sold, as **profit in dollars**. It never buys back at a higher price, because that would end with fewer coins.
 
-So every *completed* round ends with more coins. Not every round completes, though: when a coin keeps rising, the slice was sold early (as profit). The **What the team has learned** card shows the coins gained and any slice waiting to be bought back. `TZ_ACCUMULATE=false` turns it off.
+So every *completed* round ends with more coins. Not every round completes, though: when a coin keeps rising, the slice was sold early (as profit). The **What the team has learned** card shows the coins gained and any slice waiting to be bought back. **It is off by default now** (`TZ_ACCUMULATE=true` turns it on): on real price history it cost money (see *Tested on real price history* below).
 
 In simulated real-money trading (random prices, Kraken fees), 2-6 rounds per run completed (for example +8.5 DOGE), 5-9 stayed as dollar profit, and the account ended about where it would have without it (about -$11 across four $500 runs, the extra fees). Real markets that swing back and forth suit it best.
 
@@ -628,9 +628,10 @@ Every feature runs with real money. Each can be switched off on its own:
 | Stop-loss 33% from the buy price | on | `TZ_WIDE_STOP` |
 | Patient exits (cut early only when momentum and volume say no comeback) | on (and in practice whenever the -33% stop is on) | `TZ_PATIENT_EXITS` |
 | Moving take-profit past +10% | on | `TZ_TP_STEP` |
-| Quick-flip slice (a quarter banked at +1.2% after fees) | on | `TZ_FLIP_BANK_FRACTION` (0 = off) |
+| Quick-flip slice (part of a trade banked at +1.2% after fees) | **off**: it shrank the winners on real price history (see below) | `TZ_FLIP_BANK_FRACTION` (0.25 to turn on) |
 | Skims (small dip-buy day trades) | **off**: they lost money in every simulated run (see below) | `TZ_FLIP_MAX_SKIMS` (4 to turn on) |
-| Flipper: best hours to flip, volume flips, accumulating coins | on | `TZ_FLIPPER`, `TZ_ACCUMULATE` |
+| Flipper: best hours to flip, volume flips | on | `TZ_FLIPPER` |
+| Flipper: accumulating coins (sell a slice high, buy back lower) | **off**: it capped winners on real price history (see below) | `TZ_ACCUMULATE=true` to turn on |
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
 | Growth ladder (smaller coins first) | on | `TZ_FOCUS_SMALL_COINS` |
 | Kraken meme coins and small altcoins | on (with Kraken prices) | `TZ_KRAKEN_MEMES`, `TZ_MAX_SMALL_COINS` |
@@ -640,6 +641,20 @@ Every feature runs with real money. Each can be switched off on its own:
 | Aggressive risk level | opt-in | Settings → Your goal |
 
 Patient exits, skims and the quick-flip slice had been switched off after the losing-trades review below. They're back on by request. With the -33% stop, patient exits are what cuts a falling trade early (when momentum and heavy volume both point down) instead of riding it to -33%. In simulated real-money trading (random prices, Kraken fees), switching all three back on made more trades and left almost no money stuck in losing positions, and ended about 1% lower over four $500 runs (the extra fees). That's within the noise of random prices; real markets will tell.
+
+### Tested on real price history: accumulating and the quick-flip slice are off
+
+Random prices can't show whether a strategy has an edge, so the whole real-money team (Kraken fees, every bot) was replayed on **real price history**: S&P 500 daily bars 1993-2021, Google daily bars 2004-2013 and EUR/USD hourly bars, with each real move scaled to the size of a crypto minute. That's real trends, quiet spells, shocks and volume, though not real crypto. Each change had to win on **both** halves of the data: tuned on the first half and checked on the second, which it had never seen.
+
+| 10 runs of $500 per half | First half | Second half |
+| --- | --- | --- |
+| As it was | +$22.75 (8 of 10 runs up) | +$16.90 (6 of 10 up) |
+| Accumulating off | +$36.62 (10 of 10) | +$28.92 (8 of 10) |
+| **Accumulating off + no quick-flip slice** | **+$39.90 (10 of 10)** | **+$34.80 (8 of 10)** |
+
+With $2,000 the same change went from +$171 to +$246 on the first half and from +$70 to +$84 on the second, with 7 of 10 runs up instead of 5. At $100 nothing changed: those slices are below Kraken's minimum order anyway. Both features sell part of a winner early. Real prices trend, so a coin that keeps rising doesn't dip back to the buy-back price, and the slice is simply gone, plus two extra fees. A higher conviction bar, waiting longer before trading a coin again, stricter or looser patient exits, a 4x-fees minimum target and a 3x-fees minimum for strategy exits were also tried. None helped on both halves, so they stay as they are.
+
+Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
 ### Cheaper buys: waiting at the bid (maker orders)
 

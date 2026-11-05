@@ -11,7 +11,7 @@ from tradezone.market.simulated import SimulatedFeed
 
 
 def make(**kw):
-    s = Settings(feed="sim", symbols=["DOGE-USD", "BTC-USD"], skimmer=False, **{"wide_stop": True, **kw})
+    s = Settings(feed="sim", symbols=["DOGE-USD", "BTC-USD"], skimmer=False, **{"wide_stop": True, "accumulate": True, **kw})
     s.risk.symbol_cooldown_s = 0
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
 
@@ -88,3 +88,8 @@ def test_what_it_holds_out_and_gained_survives_a_restart(tmp_path):
     d2 = TradingDesk(Settings(feed="sim", symbols=["DOGE-USD"]), journal=Journal(db))
     assert d2.bots["flipper"].load() and d2.bots["flipper"].coins_gained["DOGE-USD"] == 3.5
     assert d2.state()["flipper"]["slices_out"]["DOGE-USD"]["qty"] == 10.0
+
+
+def test_accumulating_is_off_unless_turned_on():
+    """It capped winners on real price history, so it's opt-in (TZ_ACCUMULATE=true)."""
+    assert Settings().accumulate is False and Settings().flip_bank_fraction == 0.0
