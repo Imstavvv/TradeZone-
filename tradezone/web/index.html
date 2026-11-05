@@ -195,6 +195,11 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
+.stackhead{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin:4px 0 10px}
+.stackhead .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stackrows{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.stackrows .coin{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
+.stackrows .coin b{font-size:15px}.stackrows .coin .q{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .acclist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px}
 .acc{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.03);min-width:0}
 .acc.live{border-color:rgba(74,222,128,.55);box-shadow:0 0 0 1px rgba(74,222,128,.2) inset}
@@ -877,6 +882,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
       <div class="bal" id="sBal">—</div>
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
+      <div class="since" id="sStack" style="display:none"></div>
       <div class="badges" id="sBadges"></div>
       <div class="power" id="sPower"></div>
       <div class="goal" id="sGoal"></div>
@@ -903,6 +909,12 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <div id="accList" class="acclist"></div>
         <div class="row" style="margin-top:12px;justify-content:flex-start;flex-wrap:wrap;gap:8px"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
         <div class="muted" style="font-size:12px;margin-top:8px">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
+      <div class="scard" data-page="home money" id="sec-stack" style="grid-column:1/-1"><h4>🪙 Hold stack <span class="muted" id="stackSub" style="font-size:12px">on the side · never sold by the bots · no stop-loss</span></h4>
+        <div class="stackhead"><div><div class="muted" style="font-size:12px">Worth now</div><div class="big" id="stackVal">—</div></div>
+          <div><div class="muted" style="font-size:12px">Paid</div><b id="stackCost">—</b></div><div><div class="muted" style="font-size:12px">Change</div><b id="stackPnl">—</b></div></div>
+        <div id="stackRows" class="stackrows"></div>
+        <div class="muted" id="stackNext" style="font-size:12px;margin-top:8px"></div>
+        <div class="row" style="margin-top:10px;justify-content:flex-start"><button id="stackToggle">Pause stacking</button></div></div>
       <div class="scard" data-page="home" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
       <div class="scard" data-page="home"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
       <div class="scard" data-page="activity" id="sec-happening" style="grid-column:1/-1"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
@@ -1056,9 +1068,9 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {weather: '🌦️', volsizer: '📏', ranker: '🏅', stretch: '🪢', levels: '🧱', correlation: '🧩', whales: '🐋', liquidity: '💧', shockguard: '🧯', htf: '🔭', pullback: '🎣', fees: '🧾', slippage: '🎯', uptime: '📡', accountant: '📒', scout: '🔭', trends: '🔥', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️'};
+const MASCOT = {weather: '🌦️', volsizer: '📏', ranker: '🏅', stretch: '🪢', levels: '🧱', correlation: '🧩', whales: '🐋', liquidity: '💧', shockguard: '🧯', htf: '🔭', pullback: '🎣', fees: '🧾', slippage: '🎯', uptime: '📡', accountant: '📒', scout: '🔭', trends: '🔥', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️', stacker: '🪙'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {weather:'#60a5fa',volsizer:'#a3e635',ranker:'#fbbf24',stretch:'#fb923c',levels:'#a8a29e',correlation:'#c084fc',whales:'#38bdf8',liquidity:'#22d3ee',shockguard:'#ef4444',htf:'#818cf8',pullback:'#2dd4bf',fees:'#facc15',slippage:'#f472b6',uptime:'#4ade80',accountant:'#e879f9',trends:'#f43f5e',news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185'};
+const COLORS = {weather:'#60a5fa',volsizer:'#a3e635',ranker:'#fbbf24',stretch:'#fb923c',levels:'#a8a29e',correlation:'#c084fc',whales:'#38bdf8',liquidity:'#22d3ee',shockguard:'#ef4444',htf:'#818cf8',pullback:'#2dd4bf',fees:'#facc15',slippage:'#f472b6',uptime:'#4ade80',accountant:'#e879f9',trends:'#f43f5e',news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185',stacker:'#f59e0b'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1484,7 +1496,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','trends','news','strategist','weather','volsizer','ranker','stretch','levels','correlation','whales','liquidity','shockguard','htf','quant','pullback','grok','risk','executive','execution','portfolio','skimmer','flipper','fees','slippage','uptime','accountant','sentinel','coach'];
+const ORDER = ['scout','trends','news','strategist','weather','volsizer','ranker','stretch','levels','correlation','whales','liquidity','shockguard','htf','quant','pullback','grok','risk','executive','execution','portfolio','skimmer','flipper','stacker','fees','slippage','uptime','accountant','sentinel','coach'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -2145,7 +2157,30 @@ function renderSimple(st){
   renderNews(st.news);
   renderSettings();
   renderAccounts(st);
+  renderStack(st.stack);
 }
+function renderStack(k){
+  if (!k) return;
+  const up = v => `<span style="color:var(${v >= 0 ? '--up' : '--down'})">${v >= 0 ? '+' : ''}${money(v)}</span>`;
+  $('stackVal').textContent = money(k.value); $('stackCost').textContent = money(k.cost); $('stackPnl').innerHTML = k.cost ? up(k.pnl) : '—';
+  const want = (k.coins || []).map(c => c + '-USD');
+  const rows = want.map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
+  setHTML($('stackRows'), rows.map(h => `<div class="coin"><b>${esc(h.symbol.split('-')[0])}</b> <span class="muted" style="font-size:12px">${h.value != null ? money(h.value) : '—'}</span>
+    <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) : 'none yet'}${h.buys ? ` · ${h.buys} buy${h.buys > 1 ? 's' : ''} · avg ${money(h.avg, h.avg < 1 ? 4 : 2)}` : ''}</div>
+    ${h.cost ? `<div class="q">${up(h.pnl || 0)}</div>` : ''}</div>`).join(''));
+  $('stackNext').textContent = !k.on ? 'Stacking is paused - what you hold stays held.'
+    : k.blocked ? `Waiting: ${k.blocked}.`
+    : `Saving ${money(k.daily)} a day plus ${Math.round(k.profit_share * 100)}% of each winning trade · ${money(k.budget)} saved so far` +
+      (k.next ? ` · next: ${k.next.symbol.split('-')[0]} once it reaches ${money(k.next.at)}` : '');
+  $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
+  const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';
+  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack`;
+}
+$('stackToggle').onclick = async () => {
+  const on = S.state && S.state.stack && S.state.stack.on;
+  if (on && !await ask('Pause stacking?', 'No new coins are added to the hold stack. What you hold stays held - the bots never sell it.', {ok: 'Pause'})) return;
+  try { await api('/api/bots/stacker', {enabled: !on}); toast(on ? 'Stacking paused' : 'Stacking resumed'); } catch {}
+};
 $('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();
 $('sClose').onclick = closeAll;
 $('sStop').onclick = emergencyStop;

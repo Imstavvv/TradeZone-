@@ -18,6 +18,7 @@ from .config import VENUES, Settings
 from .core.bus import Event, EventBus
 from .core.models import Alert
 from .core.portfolio import Portfolio
+from .core.util import norm_symbol
 from .journal import Journal
 from .market.base import MarketFeed
 
@@ -263,6 +264,10 @@ class TradingDesk:
             kraken = hasattr(self.live_broker, "capture_baseline")
             # Kraken: coins you already hold are noted and left alone, so they don't block anything
             positions = {} if kraken else await self.live_broker.positions()
+            if positions:  # coins in your hold stack are yours: they don't block anything
+                stack = self.bots["stacker"].held("live")  # type: ignore[attr-defined]
+                positions = {k: v for k, v in positions.items()
+                             if abs(v - stack.get(norm_symbol(k), 0.0)) > 1e-9 * max(1.0, abs(v))}
             if acct is not None and acct.get("cash", 0) < 1 and acct.get("stablecoins"):
                 coins = ", ".join(f"{v:,.2f} {k}" for k, v in acct["stablecoins"].items())
                 blockers.append(f"your {self.live_broker.label} account has no US dollars to trade with (it holds {coins}) - "
@@ -329,6 +334,8 @@ class TradingDesk:
             self.live_portfolio = book
             self.portfolio = book
             self.bots["portfolio"].outside.clear()  # type: ignore[attr-defined]  # a fresh live book: recount
+            if not hasattr(self.live_broker, "capture_baseline"):  # (Kraken's baseline already holds them)
+                self.bots["portfolio"].outside.update(self.bots["stacker"].held("live"))  # type: ignore[attr-defined]
         else:
             self.portfolio = self.paper_portfolio
         self.mode = target
@@ -390,7 +397,11 @@ class TradingDesk:
 
     def set_bot_enabled(self, name: str, enabled: bool) -> None:
         bot = self.bots[name]
-        bot.enabled = enabled
+        if name == "stacker":  # pausing stops new purchases only: an order in flight is still followed to the end
+            self.settings.stack = enabled
+            bot.save()  # type: ignore[attr-defined]
+        else:
+            bot.enabled = enabled
         bot.act("enabled by operator" if enabled else "disabled by operator", "warning")
         self.bus.publish("alert", Alert("warning" if not enabled else "info",
                                         f"{bot.title} {'enabled' if enabled else 'disabled'}", "operator"))
@@ -688,6 +699,7 @@ class TradingDesk:
         restored = await self.restore_state()
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
+        self.bots["stacker"].load()  # type: ignore[attr-defined]  # the hold stack
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
@@ -1006,6 +1018,7 @@ class TradingDesk:
         self.bots["coach"].save()  # type: ignore[attr-defined]
         self.bots["flipper"].save()  # type: ignore[attr-defined]
         self.bots["accountant"].save()  # type: ignore[attr-defined]
+        self.bots["stacker"].save()  # type: ignore[attr-defined]
         self.bots["fees"].save()  # type: ignore[attr-defined]
         self.journal.commit()
 
@@ -1062,6 +1075,7 @@ class TradingDesk:
             "coach": self.bots["coach"].summary(),  # type: ignore[attr-defined]
             "flipper": self.bots["flipper"].summary(),  # type: ignore[attr-defined]
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
+            "stack": self.bots["stacker"].summary(),  # type: ignore[attr-defined]
             "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "accounts": self.fleet.summary() if not hasattr(self, "account_id") else [],

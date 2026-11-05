@@ -346,6 +346,8 @@ class PortfolioBot(Bot):
         exe = self.desk.bots.get("execution")
         if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())):
             return []  # in-flight orders legitimately cause temporary differences
+        if getattr(self.desk.bots.get("stacker"), "pending", None) is not None:
+            return []  # a hold-stack purchase is in flight
         if now() - self.last_fill_ts < self.SETTLE_S:
             return []  # let the broker's balances catch up with the latest fill
         broker_pos = await self.desk.broker.positions()
@@ -417,7 +419,8 @@ class PortfolioBot(Bot):
         (the bots must never count on cash that's gone). Returns the amount applied."""
         p = self.portfolio
         exe = self.desk.bots.get("execution")
-        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())):
+        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())) \
+                or getattr(self.desk.bots.get("stacker"), "pending", None) is not None:
             self._cash_seen = None
             return 0.0
         if now() - self.last_fill_ts < self.SETTLE_S or acct.get("cash") is None:

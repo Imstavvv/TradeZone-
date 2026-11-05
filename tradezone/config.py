@@ -160,6 +160,17 @@ class Settings:
     trending_nudge: float = 0.05  # conviction boost for buying a coin that's trending
     # ---- Flipper: flip trades and the best times to flip ----
     flipper: bool = True
+    # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
+    stack: bool = True
+    stack_coins: list[str] = field(default_factory=lambda: ["SOL", "XRP", "DOGE", "ETH"])
+    stack_daily_pct: float = 0.01  # budget: 1% of the trading balance a day...
+    stack_daily_usd: float = 0.0  # ...or exactly this many dollars a day (0 = use the percentage)
+    stack_profit_share: float = 0.25  # ...plus this share of every winning trade's profit
+    stack_min_buy_usd: float = 5.0  # smallest purchase (or the venue's minimum order, if bigger)
+    stack_max_buy_usd: float = 25.0  # largest single purchase
+    stack_max_rsi: float = 55.0  # prefer buying a coin that isn't running hot
+    stack_keep_cash: float = 0.25  # always leave at least this share of the trading balance free
+    stack_max_share: float = 0.5  # the stack never grows past this share of everything
     flip_volume_ratio: float = 2.0  # a flip needs a move on at least 2x the usual volume
     flip_min_samples: int = 12  # trades an hour needs before it's rated good or bad
     flip_good_hour_size: float = 1.25  # trades opened in a proven good hour are this much bigger...

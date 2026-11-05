@@ -90,7 +90,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 29 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 30 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Stacker → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -655,6 +655,18 @@ Random prices can't show whether a strategy has an edge, so the whole real-money
 With $2,000 the same change went from +$171 to +$246 on the first half and from +$70 to +$84 on the second, with 7 of 10 runs up instead of 5. At $100 nothing changed: those slices are below Kraken's minimum order anyway. Both features sell part of a winner early. Real prices trend, so a coin that keeps rising doesn't dip back to the buy-back price, and the slice is simply gone, plus two extra fees. A higher conviction bar, waiting longer before trading a coin again, stricter or looser patient exits, a 4x-fees minimum target and a 3x-fees minimum for strategy exits were also tried. None helped on both halves, so they stay as they are.
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
+
+### 🪙 The Stacker: a hold stack on the side (never sold, no stop-loss)
+
+The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE and ETH** (`TZ_STACK_COINS`), separate from the trading:
+
+- **Funding:** a small budget builds up over time: **1% of the trading balance a day** (`TZ_STACK_DAILY_PCT`, or a fixed `TZ_STACK_DAILY_USD`) plus **a quarter of every winning trade's profit** (`TZ_STACK_PROFIT_SHARE`).
+- **Buying:** once the budget covers the exchange's smallest order (at least $5, `TZ_STACK_MIN_BUY_USD`; up to $25 a buy, `TZ_STACK_MAX_BUY_USD`), it buys one coin: whichever is furthest below its share of the stack. It prefers a coin that isn't running hot (RSI under 55); if every coin has been hot for 6 hours, it buys anyway, because the point is buying slowly, not timing.
+- **Never sold, no stop-loss.** Held coins are not part of the trading book: no bot ever sells them, and Close all trades and Emergency stop leave them alone. On a real-money account they sit in your exchange account like coins you bought yourself, and the records' check leaves them alone. They're yours to keep, or to sell yourself.
+- **Not at the trading team's expense.** It only spends free cash, always leaves at least a quarter of the trading balance free (`TZ_STACK_KEEP_CASH`), stops growing past half of everything (`TZ_STACK_MAX_SHARE`), and waits while trading is paused or stopped. Money moved into the stack is shown as moved, not as a trading loss, so the trading balance, its profit and its loss limits stay honest.
+- **Seeing it:** the **Hold stack** card shows each coin's amount, what it cost and what it's worth now; the home screen adds "plus $X in your hold stack" under the balance. **Pause stacking** stops new purchases (what you hold stays held), and stays paused after a restart. Practice money and real money keep separate stacks.
+
+Coins held without a stop can fall a long way. Buying slowly over time spreads that risk out but doesn't remove it.
 
 ### The real-money balance follows your account
 
