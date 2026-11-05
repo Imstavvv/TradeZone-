@@ -103,6 +103,13 @@ class KrakenFeed(MarketFeed):
     name = "kraken"
     POLL_EVERY_S = 2.0
 
+    async def last_prices(self, symbols: list[str]) -> dict[str, float]:
+        """Kraken's last price for each symbol it lists (to check a discovered coin is really the same coin)."""
+        if not self.pairs:
+            return {}
+        quotes = await fetch_quotes(self.client, self.pairs, [s for s in symbols if s in self.pairs])
+        return {s: q["last"] for s, q in quotes.items() if q.get("last")}
+
     def __init__(self, symbols: list[str], client: httpx.AsyncClient | None = None,
                  meme_candidates: list[str] | None = None, meme_coins: list[str] | None = None,
                  min_meme_volume_usd: float = 1_000_000.0, max_memes: int = 12,

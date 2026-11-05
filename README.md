@@ -505,6 +505,20 @@ Besides the main account (Settings → Linked accounts), you can link up to **5 
 
 **TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
 
+### 🚀 pump.fun coins
+
+The Trend Scout watches **coins launched on pump.fun** (CoinGecko's pump.fun category, free public data, no account) with the same bar as every meme coin:
+- popular: **over $50k market cap** (`TZ_DISCOVERY_MIN_MCAP`);
+- **plenty of volume**: at least $100k traded a day, and at least 5% of the market cap changing hands.
+
+The busiest that **your exchange lists** are plugged into the watchlist with their price history, so the volume snipes and breakout snipes can act on big moves at once. They get the meme-coin rules: smaller bets, wider stops, the early cut when momentum and volume turn, and no more than 5 meme coins at once. The home screen shows which ones came from pump.fun. `TZ_DISCOVER_PUMP=false` turns it off.
+
+**There's no pump.fun wallet link, on purpose.** pump.fun has no trade-only API key. Trading there directly needs a Solana wallet's private key, and that key can also send every coin in the wallet anywhere, which breaks the rule that the bots can never withdraw. Most pump.fun coins also collapse or can't be sold again. Buying them only once an exchange lists them keeps the rules: listed for buying and selling, a real bid/ask market, and no withdrawals.
+
+**Copycats are skipped.** pump.fun is full of coins that reuse a famous ticker (a "PEPE" that isn't PEPE). A discovered coin is only plugged in when its CoinGecko price matches your exchange's price for that ticker within 5% (`TZ_SAME_COIN_TOLERANCE`). This now applies to every discovered coin, not only pump.fun ones. A pump.fun coin whose price can't be checked is skipped.
+
+"Always sell before the price drops" isn't something any bot can promise: no one knows the next move. What the bots do is cut a meme coin early when momentum turns down on heavy volume, lock in profit once a trade is up, and stop for the day after a bad one.
+
 ### Kraken's meme coins
 
 With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:

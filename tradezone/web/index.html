@@ -1792,6 +1792,7 @@ function trendLine(t){
   if (!t.trending.length && !t.added.length) return t.error ? `<div class="muted" style="font-size:12px;margin-top:6px">🔥 Trend Scout: ${esc(t.error)}</div>` : '';
   return `<div class="hwhy"><b>🔥 Trending now</b>${t.trending.slice(0, 6).map(x =>
       `<div><span>${esc(x.symbol.split('-')[0])} <span class="muted">${esc(x.name || '')}</span></span><span class="muted">${big(x.market_cap)}</span></div>`).join('') || '<div class="muted">nothing tradeable trending right now</div>'}
+    ${(t.pump || []).length ? `<div class="muted" style="font-size:12px;margin-top:4px">🚀 Launched on pump.fun, now on your exchange: ${t.pump.map(x => esc(x.split('-')[0])).join(', ')}</div>` : ''}
     <div class="muted" style="font-size:12px;margin-top:4px">${t.qualified} meme coins over ${big(t.min_market_cap)} with promising volume · ${t.added.length} plugged in by the Trend Scout</div></div>`;
 }
 function renderNews(n){

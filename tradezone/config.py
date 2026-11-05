@@ -162,6 +162,10 @@ class Settings:
     live_max_portfolio_heat: float = 0.10
     # ---- Trend Scout: meme coins over $50k market cap with promising volume, and trending coins ----
     discover_coins: bool = True
+    # coins launched on pump.fun (CoinGecko's pump.fun category), same bar: $50k+ market cap, plenty of volume.
+    # They're traded only once the exchange lists them (never through a wallet key: nothing can be withdrawn)
+    discover_pump: bool = True
+    same_coin_tolerance: float = 0.05  # a discovered coin's price must match the exchange's within 5% (same coin)
     discovery_min_mcap: float = 50_000.0  # meme coins worth at least this much...
     discovery_min_volume: float = 100_000.0  # ...trading at least this much a day...
     discovery_min_turnover: float = 0.05  # ...and at least 5% of the market cap changing hands a day
