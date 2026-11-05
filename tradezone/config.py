@@ -129,6 +129,9 @@ class Settings:
     kraken_secret: str = ""
     maker_entries: bool = True  # real-money buys wait at the bid as a post-only limit (maker fee) before going market
     maker_wait_s: float = 20.0  # ...this long; what isn't filled by then is bought at market
+    # real-money profit-taking sells wait at the ask the same way (stops and cuts never do). Off: on real price history
+    # the lower fee was outweighed by sells that missed their price and then went at market lower
+    maker_exits: bool = False
     kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
     kraken_memes: bool = True  # with Kraken prices: add the meme coins Kraken lists (if they trade enough)
     min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added

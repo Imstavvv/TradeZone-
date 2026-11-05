@@ -137,7 +137,10 @@ class ExecutionBot(Bot):
             self.publish("alert", Alert("warning", f"pre-trade check blocked {req.symbol}: {why}", self.name))
             return
         self._processed_requests[req.id] = True
-        if (w := self.working_for(req.symbol)) is not None:
+        if (w := self.working_for(req.symbol)) is not None and w.maker and req.reduce_only and not req.calm:
+            await self._cancel_for_urgent(w)  # a stop / cut / flatten never waits behind an order resting on the book
+            w = self.working_for(req.symbol)
+        if w is not None:
             self.bump("duplicates_blocked")
             self.act(f"blocked {req.side.value} {req.symbol}: order {w.id} still working", "warning")
             return
@@ -160,9 +163,12 @@ class ExecutionBot(Bot):
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
         )
         self.orders[order.id] = order
-        if self.desk.is_live and not req.reduce_only and self.settings.maker_entries \
-                and getattr(self.desk.broker, "name", "") == "kraken":
-            order.maker = True  # a limit at the bid first (maker fee); the rest at market after maker_wait_s
+        if self.desk.is_live and getattr(self.desk.broker, "name", "") == "kraken" and (
+                (not req.reduce_only and self.settings.maker_entries)
+                or (req.reduce_only and req.calm and self.settings.maker_exits)):
+            # a limit at the bid (a profit-taking sell: at the ask) first, for the maker fee; the rest at market
+            # after maker_wait_s. Stops and cuts are never calm: they always go straight to market.
+            order.maker = True
         if self.desk.is_live:
             await self.desk.broker.fresh_quote(req.symbol)  # the venue's bid/ask right now, for the fill check
         self.ref_price[order.id] = self.reference_price(req.symbol, req.side)
@@ -229,13 +235,29 @@ class ExecutionBot(Bot):
         self.metrics["accuracy"] = round(self.accuracy, 6)
         self._prune()
 
+    async def _cancel_for_urgent(self, order: Order) -> None:
+        """Take a resting maker order off the book now (keeping anything it already filled) - no market fallback:
+        the urgent exit that replaces it sells whatever is held."""
+        await self.desk.broker.cancel(order)
+        late = await self.desk.broker.poll(order)
+        self._emit(order, late)
+        self.working.pop(order.id, None)
+        self._submitted_at.pop(order.id, None)
+        if order.status is not OrderStatus.FILLED:
+            order.status = OrderStatus.CANCELED
+        self.publish("order.update", order)
+        self.bump("maker_cancelled_for_urgent")
+        self.act(f"took the resting {order.side.value} {order.symbol} off the book: an urgent exit goes first")
+
     async def _maker_fallback(self, order: Order) -> None:
-        """Buy whatever the bid-side limit didn't get, at market (the trade is never missed)."""
+        """Buy (or, for a profit-taking exit, sell) whatever the limit didn't get, at market (never missed)."""
         rest = order.qty - order.filled_qty
+        if order.reduce_only:  # never sell more than is still held
+            rest = min(rest, abs(self.effective_qty(order.symbol)))
         if rest <= max(self.desk.broker.min_qty(order.symbol, self.desk.prices.get(order.symbol, 0) or 1), 1e-12):
             return
         child = Order(order.symbol, order.side, rest, order.request_id, reason=order.reason,
-                      reduce_only=False, stop_price=order.stop_price, take_profit=order.take_profit)
+                      reduce_only=order.reduce_only, stop_price=order.stop_price, take_profit=order.take_profit)
         self.orders[child.id] = child
         self.ref_price[child.id] = self.reference_price(order.symbol, order.side)
         fills = await self.desk.broker.submit(child)

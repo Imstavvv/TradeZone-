@@ -656,6 +656,23 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### ⚡ Faster skimming and flipping: tested, and why it's not on
+
+Replayed on real price history (ten $500 runs per half, real-money Kraken fees), trading faster made **less** money every time:
+
+| | First half | Second half |
+| --- | --- | --- |
+| **The team as it is** | **+$206** | **+$85** |
+| + skims (4 at once) | +$160 | +$76 |
+| + skims + quick-flip slices | +$123 | +$65 |
+| Turbo: all of that, banking at +0.6%, re-entering after 2 bars, 1-hour holds | +$112 | +$53 |
+
+Each flip pays about 0.4% to buy and 0.4% to sell on Kraken's starting tier, so a quick +1% flip keeps only about 0.2%, and the losing flips still cost their full loss plus fees. At Kraken's lower high-volume rate (0.24% a side) the team as it is made +$359 / +$227, and turbo still made less (+$215 / +$133). **Fees, not speed, are the biggest lever.** The fee really paid is measured on every fill and plans adjust (Fee Auditor), so as your monthly volume lowers the rate, every trade benefits.
+
+**Profit-taking sells at the ask (maker fee)** were tried as well (`TZ_MAKER_EXITS`, off). The test exchange fills a resting order only when the price trades through it: some sales filled at the lower fee, others missed and went at market after the wait. The result was better on one half (+$198 vs +$141) and worse on the other (+$112 vs +$132), so it stays off. Stops, cuts, Close all trades and Emergency stop always go to market. They now also take any resting order for that coin off the book first. Before, a flatten could wait behind a resting buy, and that buy could still complete afterwards.
+
+No setting turns $500 into 1,000 times its value. Compounding works on whatever the bots really make after fees: about +3% to +17% per $500 run in these tests (and some runs lost). Bigger risk levels raise both the gains and the losses (see *More risk, more reward*).
+
 ### Up to 20 trades at a time
 
 The bots can hold up to **20 trades at once** (`TZ_MAX_OPEN_POSITIONS`), on every risk level and at every balance. It used to be 6 (8 on Aggressive / Bold), small balances were held to 4-6, and at most 4 crypto trades could point the same way. Still in place:

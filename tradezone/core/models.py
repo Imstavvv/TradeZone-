@@ -120,6 +120,7 @@ class Signal(Model):
     source: str
     kind: SignalKind = SignalKind.ENTRY
     fraction: float = 1.0  # exits: share of the position to close (partial take-profit)
+    calm: bool = False  # exits: taking profit, no hurry - may wait at the ask for the lower maker fee
     votes: dict[str, str] = field(default_factory=dict)  # bot/strategy -> yes | no | abstain
     qty: float | None = None  # an exact amount (the Flipper's buy-backs add this many coins to a held position)
     id: str = field(default_factory=lambda: new_id("sig"))
@@ -137,6 +138,7 @@ class OrderRequest(Model):
     stop_price: float | None = None
     take_profit: float | None = None
     ref_price: float | None = None  # market price when Risk approved (for the no-chase check)
+    calm: bool = False  # a profit-taking exit that may wait at the ask (maker fee); stops never do
     id: str = field(default_factory=lambda: new_id("req"))
     ts: float = field(default_factory=now)
 

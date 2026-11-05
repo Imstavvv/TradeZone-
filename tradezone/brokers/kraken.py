@@ -278,7 +278,7 @@ class KrakenBroker(Broker):
                                 else f"kraken: below Kraken's minimum order for {order.symbol}")
                 return []
             p = self.pairs[order.symbol]
-            if order.maker and not order.reduce_only:  # wait at the bid (ask for a sell) for the lower maker fee
+            if order.maker:  # wait at the bid (ask for a sell) for the lower maker fee
                 q = await self.fresh_quote(order.symbol)
                 px = (q or {}).get("bid" if order.side.sign > 0 else "ask")
                 if px:

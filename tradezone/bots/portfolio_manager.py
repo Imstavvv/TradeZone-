@@ -31,6 +31,7 @@ class PortfolioBot(Bot):
         super().__init__(desk)
         self.trail_dist: dict[str, float] = {}  # initial risk distance (1R) per symbol
         self.exiting: set[str] = set()
+        self.calm_exits: set[str] = set()  # full exits that are only taking profit (an urgent one may replace them)
         self.protected: set[str] = set()  # profit protection armed (stop at/above break-even)
         self.scaled_out: set[str] = set()
         self.tick_move: dict[str, float] = {}  # EWMA of absolute tick-to-tick price change
@@ -75,6 +76,7 @@ class PortfolioBot(Bot):
             self.patient.discard(f.symbol)
             self.watch.pop(f.symbol, None)
             self.exiting.discard(f.symbol)
+            self.calm_exits.discard(f.symbol)
             self.trail_dist.pop(f.symbol, None)
             self.protected.discard(f.symbol)
             self.scaled_out.discard(f.symbol)
@@ -128,6 +130,8 @@ class PortfolioBot(Bot):
 
     def on_order_update(self, ev: Event) -> None:
         o = ev.payload
+        if o.reduce_only and o.maker and o.status is OrderStatus.CANCELED:
+            return  # a profit-taking sell that waited at the ask: the rest is sold at market (or an urgent exit took over)
         if o.reduce_only and o.status in (OrderStatus.REJECTED, OrderStatus.CANCELED):
             self.exiting.discard(o.symbol)  # allow the exit to be retried...
             self._retry_at[o.symbol] = now() + self.EXIT_RETRY_S  # ...but not on every single tick
@@ -153,15 +157,18 @@ class PortfolioBot(Bot):
         self.publish("position.adjusted", {"symbol": symbol, "delta": -qty, "reason": "dust below the venue's minimum"})
         self.act(f"{symbol}: {qty:.8g} left over is below the venue's minimum sale - taken off the books (it's yours)")
 
-    def _exit(self, symbol: str, reason: str, fraction: float = 1.0) -> None:
+    def _exit(self, symbol: str, reason: str, fraction: float = 1.0, calm: bool = False) -> None:
         pos = self.portfolio.position(symbol)
-        if pos.is_flat or symbol in self.exiting or now() < self._retry_at.get(symbol, 0.0):
+        if pos.is_flat or now() < self._retry_at.get(symbol, 0.0):
             return
+        if symbol in self.exiting and (calm or symbol not in self.calm_exits):
+            return  # already on its way out (an urgent exit may still replace one that's only taking profit)
         if fraction >= 1.0:
             self.exiting.add(symbol)
+            (self.calm_exits.add if calm else self.calm_exits.discard)(symbol)
         side = Side.SELL if pos.qty > 0 else Side.BUY
         self.publish("signal.proposed",
-                     Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction))
+                     Signal(symbol, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction, calm=calm))
         self.bump("exits_triggered")
         self.act(f"EXIT {symbol}: {reason}", "warning")
 
@@ -197,7 +204,7 @@ class PortfolioBot(Bot):
             if self._runner_mode(t.symbol) and t.symbol not in self.scaled_out:
                 self._start_runner(t.symbol, pos, t.price, d, tighten)
             else:
-                self._exit(t.symbol, f"take-profit hit at {t.price:,.6g}")
+                self._exit(t.symbol, f"take-profit hit at {t.price:,.6g}", calm=True)
 
     def _step_take_profit(self, sym, pos, price, d, tighten) -> None:
         """Past +10% from the buy price (and every further 10%), move the take-profit another step out and
@@ -246,7 +253,7 @@ class PortfolioBot(Bot):
         self.act(f"{sym} hit +{tp_pct:.0%}: banking {s.runner_sell_fraction:.0%}, runner stop "
                  f"now {pos.stop_price:,.6g} (locks +{lock:.1%})")
         self._exit(sym, f"take-profit +{tp_pct:.0%} at {price:,.6g} - letting the rest run",
-                   s.runner_sell_fraction)
+                   s.runner_sell_fraction, calm=True)
 
     def on_snapshot(self, ev: Event) -> None:
         """Patient exits, once per bar: a trade that's down past its usual stop is held for a comeback -
@@ -322,7 +329,7 @@ class PortfolioBot(Bot):
                 and (price - entry) * d >= s.scale_out_r * r + cost):
             self.scaled_out.add(sym)
             self.bump("partial_profits")
-            self._exit(sym, f"partial take-profit +{s.scale_out_r:g}R at {price:,.4g}", s.scale_out_fraction)
+            self._exit(sym, f"partial take-profit +{s.scale_out_r:g}R at {price:,.4g}", s.scale_out_fraction, calm=True)
 
     def flatten_all(self, reason: str) -> int:
         n = 0
@@ -494,7 +501,8 @@ class PortfolioBot(Bot):
             net = s.net_if_sold(pos, pos.last_price)  # after both fees
             if net > 0 and net >= self.desk.min_take():  # ...and worth its share of a transfer fee
                 self.bump("stale_flips")
-                self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot")
+                self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot",
+                           calm=True)
 
     async def on_cycle(self) -> None:
         p = self.portfolio

@@ -163,8 +163,10 @@ class RiskBot(Bot):
                                             "keeps running (its stop protects it)")
                 qty = part
             # reduce-only exits are always allowed: they lower risk
+            # profit-taking (and a winner's change-of-mind exit) may wait at the ask for the maker fee
+            calm = sig.calm or sig.kind is SignalKind.ENTRY
             return self.approve(
-                OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, reduce_only=True)
+                OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, reduce_only=True, calm=calm)
             )
 
         # ---- new risk from here on ----

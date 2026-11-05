@@ -232,7 +232,7 @@ class FlipperBot(Bot):
             self._acc_next[sym] = clock + 600
             sig = Signal(sym, Side.SELL, 1.0, f"flipper: accumulate - sold {s.acc_slice:.0%} into a "
                          f"+{price / pos.avg_price - 1:.1%} rise, to buy it back cheaper", self.name,
-                         SignalKind.EXIT, fraction=s.acc_slice)
+                         SignalKind.EXIT, fraction=s.acc_slice, calm=True)
             self._acc_sell_sigs.add(sig.id)
             self.publish("signal.proposed", sig)
             return
