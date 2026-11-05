@@ -54,10 +54,11 @@ def test_the_risk_level_and_cap_stay_yours_and_the_cap_is_remembered(tmp_path):
 
 
 def test_the_cap_applies_to_every_linked_account(monkeypatch):
+    import httpx
+
+    import tradezone.brokers.kraken as kmod
     from tests.test_fleet import SECRET, main_desk
     from tests.test_kraken import FakeKraken
-    import httpx
-    import tradezone.brokers.kraken as kmod
     fk = FakeKraken(usd=900.0)
     real = httpx.AsyncClient
     monkeypatch.setattr(kmod.httpx, "AsyncClient",
