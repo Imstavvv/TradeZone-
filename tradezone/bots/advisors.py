@@ -388,7 +388,7 @@ class PullbackBot(Bot):
     def on_snapshot(self, ev: Event) -> None:
         snap: Snapshot = ev.payload
         sym, ind, px = snap.symbol, snap.indicators, snap.price
-        if snap.historical or self.desk.halted or self.desk.paused:
+        if snap.historical or self.desk.halted or self.desk.paused or not self.settings.pullback:
             return
         level = ind.get("donchian_high")
         if level and px > level * 1.002 and sym not in self.breaks:

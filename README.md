@@ -678,6 +678,34 @@ Real price history (20 runs of $500 per half):
 
 Adding all ten made less: the extra trend models crowded the score and dulled the clear signals. MACD and on-balance volume looked even better on the first 10 runs than on the next 10, so the gain is real but modest.
 
+### 🤝 The best combination: what's on works best together
+
+Every strategy and trade finder was tested both ways against the whole team, on real price history (20 runs of $500 per half). Today's team made **+$398 / +$295**.
+
+| Switching **off** one that's on | First half | Second half |
+| --- | --- | --- |
+| Pullback Hunter | +$350 | +$115 |
+| Flipper (volume flips, best hours) | +$390 | +$260 |
+| MACD (OBV only) | +$375 | +$270 |
+| On-balance volume (MACD only) | +$350 | +$211 |
+| Meme breakout snipes | +$393 | +$292 |
+| Volume snipes | +$397 | +$290 |
+
+| Switching **on** one that's off | First half | Second half |
+| --- | --- | --- |
+| VWAP | +$367 | +$289 |
+| 50-bar trend | +$396 | +$223 |
+| Rate of change | +$348 | +$224 |
+| Bollinger Bands | +$313 | +$243 |
+| Stochastic | +$303 | +$251 |
+| Skims | +$351 | +$237 |
+| Quick-flip slices | +$294 | +$167 |
+| Accumulating | +$300 | +$274 |
+| Profit sales at the ask (maker exits) | +$427 | +$263 |
+| Fee rule on locked stops | +$308 | +$242 |
+
+Everything that's on helps: switching any of it off made less on both halves. Everything that's off hurts: switching any of it on made less on the half the settings were never tuned on. So the defaults are the best combination found. The trade finders (snipes, volume snipes, Pullback Hunter, Flipper) can be switched in **Settings → Trading strategies** too (`TZ_SNIPE`, `TZ_SURGE_SNIPE`, `TZ_PULLBACK`, `TZ_FLIPPER`). These are tests on past prices, not a promise about future ones.
+
 ### 🎯 Volume snipes: every crypto and meme coin
 
 Any crypto or meme coin whose 1-minute bar trades **4 times its usual volume** (`TZ_SURGE_VOLUME_RATIO`) while the price jumps **+0.3% or more** (`TZ_SURGE_MIN_MOVE`) is bought on that bar. Conditions:

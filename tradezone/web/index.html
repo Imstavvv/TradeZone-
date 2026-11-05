@@ -954,7 +954,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         </div>
         <div class="scard" data-page="settings" id="sec-strategies" style="grid-column:1/-1"><h4>🧠 Trading strategies <span class="muted" id="stratN" style="font-size:12px"></span></h4>
           <div id="stratList" class="stratlist"></div>
-          <div class="muted" style="font-size:12px;margin-top:8px">The Quant blends every strategy that's on into three votes (trend-following, buying dips, breakouts), and the Coach trusts the ones whose trades have been winning. Tested on real price history, the five that are off made less money when added, which is why they're off; turn any on to try it. The snipes, pullbacks, flips and the Stacker run alongside.</div></div>
+          <div class="muted" style="font-size:12px;margin-top:8px">The Quant blends every strategy that's on into three votes (trend-following, buying dips, breakouts), and the Coach trusts the ones whose trades have been winning. Tested on real price history, everything that's on works best together: switching any of it off made less, and adding any of the five that are off made less too. Turn any on to try it.</div></div>
         <div class="scard" data-page="settings"><h4>📱 Devices logged in</h4>
           <div id="devList" class="emptyhint">Loading…</div>
           <button id="devOutAll" class="danger" style="margin-top:12px;width:100%">Log out everywhere</button>
@@ -2172,7 +2172,7 @@ function renderSimple(st){
 }
 function renderStrategies(list){
   if (!list) return;
-  $('stratN').textContent = `· ${list.filter(x => x.on).length} of ${list.length} on`;
+  $('stratN').textContent = `· ${list.filter(x => x.on).length} of ${list.length} on`;  // strategies + trade finders
   setHTML($('stratList'), list.map(x => `<div class="strat ${x.on ? 'on' : ''}"><div><b>${esc(x.name)}</b>
       <div class="q">${esc(x.family)}${x.trades >= 1 ? ` · ${x.trades} trades · ${x.trust > 1.05 ? 'trusted more' : x.trust < 0.95 ? 'trusted less' : 'normal trust'}` : ''}</div></div>
       ${x.core ? '<span class="q">always on</span>' : `<button data-strat="${esc(x.key)}" data-on="${x.on ? 0 : 1}" class="${x.on ? '' : 'gopaper'}">${x.on ? 'Turn off' : 'Turn on'}</button>`}</div>`).join(''));

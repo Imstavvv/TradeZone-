@@ -345,6 +345,7 @@ class Settings:
     # strategies the Quant runs beyond momentum / mean reversion / breakout. All ten exist (Settings -> Trading
     # strategies); on by default are the two that didn't cost profit on real price history
     strategies: list[str] = field(default_factory=lambda: ["macd", "obv"])
+    pullback: bool = True  # the Pullback Hunter: buy the retest of a breakout
     snipe: bool = True
     # volume snipes: any crypto or meme coin whose bar trades several times its usual volume while the price
     # jumps up is bought on that bar (then the usual checks: Risk, the advisors, fees, the stop)

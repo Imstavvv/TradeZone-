@@ -86,7 +86,8 @@ def test_all_ten_strategies_are_available_and_can_be_switched():
     desk = make()
     assert len(STRATEGIES) == 10
     info = {x["key"]: x for x in desk.strategy_info()}
-    assert {k for k, x in info.items() if x["on"]} == {"momentum", "mean_reversion", "breakout", "macd", "obv"}
+    assert {k for k, x in info.items() if x["on"] and k in STRATEGIES} == {"momentum", "mean_reversion", "breakout",
+                                                                           "macd", "obv"}
     with TestClient(create_app(desk, run_desk=False)) as c:
         r = c.post("/api/strategies/bollinger", json={"on": True})
         assert r.status_code == 200 and next(x for x in r.json() if x["key"] == "bollinger")["on"]
@@ -106,3 +107,18 @@ def test_every_strategy_scores_a_real_bar():
     sc = desk.bots["quant"].scores["SOL-USD"]
     assert all(k in sc for k in ("macd", "vwap", "trend", "roc", "obv", "bollinger", "stochastic"))
     assert sc["macd"] > 0 and sc["trend"] > 0 and sc["roc"] > 0 and sc["obv"] > 0  # a steady rise on rising volume
+
+
+def test_the_trade_finders_can_be_switched_too_and_are_remembered(tmp_path):
+    db = str(tmp_path / "tz.db")
+    s = Settings(feed="sim", symbols=["BTC-USD", "SOL-USD"])
+    desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    keys = {x["key"]: x for x in desk.strategy_info()}
+    assert all(keys[k]["on"] for k in ("snipe", "surge_snipe", "pullback", "flipper"))
+    desk.set_strategy("pullback", False)
+    assert desk.settings.pullback is False
+    s2 = Settings(feed="sim", symbols=["BTC-USD", "SOL-USD"])
+    d2 = TradingDesk(s2, feed=SimulatedFeed(s2.symbols), journal=Journal(db))
+    run(d2.start())
+    assert d2.settings.pullback is False
+    run(d2.shutdown())

@@ -10,6 +10,7 @@ import re
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
+from typing import ClassVar
 
 from .bots import TEAM
 from .bots.base import Bot
@@ -706,6 +707,9 @@ class TradingDesk:
         if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
             from .bots.quant import STRATEGIES
             self.settings.strategies = [k for k in saved["on"] if k in STRATEGIES]
+        for k, on in (self.store.load("finders") or {}).items():
+            if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
+                setattr(self.settings, self.FINDERS[k][0], bool(on))
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
@@ -820,7 +824,12 @@ class TradingDesk:
     # -- the goal: e.g. $50 -> $10,000, reached by compounding (never by taking more risk) ------
     RISK_WORD = "RISK"
 
-    # -- which trading strategies the Quant runs -------------------------------------------------
+    # -- which trading strategies the Quant runs (and the trade finders beside it) ----------------------
+    FINDERS: ClassVar[dict[str, tuple[str, str, str]]] = {"snipe": ("snipe", "Meme breakout snipes", "trade finders"),
+               "surge_snipe": ("surge_snipe", "Volume snipes", "trade finders"),
+               "pullback": ("pullback", "Pullback Hunter", "trade finders"),
+               "flipper": ("flipper", "Flipper (volume flips, best hours)", "trade finders")}
+
     def strategy_info(self) -> list[dict]:
         from .bots.coach import CORE, FAMILY_OF, NICE
         from .bots.quant import STRATEGIES
@@ -832,11 +841,19 @@ class TradingDesk:
             out.append({"key": k, "name": NICE[k], "core": k in CORE, "on": k in CORE or k in self.settings.strategies,
                         "family": fam[FAMILY_OF[k]], "trades": round(st["n"], 1), "pnl": round(st["pnl"], 2),
                         "trust": round(coach.strategy_mult(k), 2)})  # type: ignore[attr-defined]
+        for k, (attr, name, family) in self.FINDERS.items():
+            out.append({"key": k, "name": name, "core": False, "on": bool(getattr(self.settings, attr)),
+                        "family": family, "trades": 0, "pnl": 0.0, "trust": 1.0})
         return out
 
     def set_strategy(self, key: str, on: bool) -> list[dict]:
         from .bots.coach import CORE
         from .bots.quant import STRATEGIES
+        if key in self.FINDERS:
+            setattr(self.settings, self.FINDERS[key][0], bool(on))
+            self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
+            self.bus.publish("alert", Alert("info", f"{self.FINDERS[key][1]} {'on' if on else 'off'}", "operator"))
+            return self.strategy_info()
         if key not in STRATEGIES:
             raise ValueError("unknown strategy")
         if key in CORE:
