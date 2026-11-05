@@ -87,11 +87,11 @@ def test_meme_coins_trade_smaller_and_are_capped(desk):
     # money at risk to the -8% stop is half a normal trade's risk (1.5%) x conviction (0.5 + 0.5 x 0.9)
     at_risk = meme.qty * 0.00001 * (0.08 + desk.settings.round_trip_cost("PEPE-USD", 1.0))
     assert at_risk == pytest.approx(eq * desk.settings.risk.risk_per_trade * 0.95 * desk.settings.meme_risk_mult, rel=0.05)
-    buy(desk, "DOGE-USD", 0.2)
-    buy(desk, "SHIB-USD", 0.00002)
+    for sym, px in (("DOGE-USD", 0.2), ("SHIB-USD", 0.00002), ("BONK-USD", 0.00003), ("WIF-USD", 2.0)):
+        assert buy(desk, sym, px).qty > 0  # up to five meme coins at once
     rejected = capture(desk, "signal.rejected")
-    fourth = buy(desk, "BONK-USD", 0.00003)
-    assert fourth.is_flat and "meme coins" in rejected[-1]["reason"]
+    sixth = buy(desk, "FLOKI-USD", 0.0002)
+    assert sixth.is_flat and "meme coins" in rejected[-1]["reason"]
 
 
 def test_coins_the_real_money_broker_cant_trade_are_practice_only():
