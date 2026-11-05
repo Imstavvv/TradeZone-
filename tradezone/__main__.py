@@ -40,6 +40,8 @@ def main() -> None:
                    help="make an Uphold access token for real-money trading (asks for your login)")
     args = ap.parse_args()
     logging.basicConfig(level=args.log_level, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    from .logs import install
+    install()  # the same warning repeating (a price source that's down) is shown once a minute, with a count
 
     load_dotenv()
     if args.cmd == "uphold-token":
