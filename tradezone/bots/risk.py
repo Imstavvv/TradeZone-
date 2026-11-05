@@ -433,6 +433,8 @@ class RiskBot(Bot):
         elif p.drawdown >= dd_lim:
             reason, kind = f"drawdown {p.drawdown:.2%} breached limit", "drawdown"
         if reason:
+            if self.settings.never_sell_at_loss and p.open_positions:
+                reason += " - new trades stopped; open trades are held, never sold at a loss"
             self.act(f"KILL SWITCH: {reason}", "critical")
             self.publish("alert", Alert("critical", f"Kill switch tripped: {reason}", self.name))
             # never sell at a loss: the limit stops new trades, but open ones are held rather than sold at the low

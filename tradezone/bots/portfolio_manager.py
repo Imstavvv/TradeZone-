@@ -375,10 +375,10 @@ class PortfolioBot(Bot):
         price = self.desk.prices.get(pos.symbol) or pos.last_price
         if not s.never_sell_at_loss or not price or s.net_if_sold(pos, price) >= 0:
             return False
-        if now() - self._held_note.get(f"loss|{pos.symbol}", 0) > 3600:
+        if now() - self._held_note.get(f"loss|{pos.symbol}", 0) > 3600:  # (said - and counted - once an hour)
             self._held_note[f"loss|{pos.symbol}"] = now()
             self.act(f"holding {pos.symbol}: it's below break-even after fees, and the bots never sell at a loss")
-        self.bump("held_not_sold")
+            self.bump("held_not_sold")
         return True
 
     def flatten_all(self, reason: str, force: bool = True) -> int:

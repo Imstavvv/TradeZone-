@@ -106,3 +106,12 @@ def test_switch_from_the_dashboard_and_it_is_remembered(tmp_path):
     run(d2.start())
     assert d2.settings.never_sell_at_loss is False
     run(d2.shutdown())
+
+
+def test_the_stop_message_says_trades_are_held_not_sold():
+    desk = make()
+    pos = buy(desk)
+    tick(desk, "BTC-USD", pos.avg_price * 0.70)
+    desk.portfolio.cash -= 0.06 * desk.portfolio.equity
+    run(desk.bots["risk"].on_cycle())
+    assert "held, never sold at a loss" in desk.halt_reason

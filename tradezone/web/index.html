@@ -694,7 +694,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     <tr><td>Tested on real price history*</td><td>+$85</td><td>+$170</td><td>+$176</td></tr>
     <tr><td>…its worst run*</td><td>-$16</td><td>-$30</td><td>-$45</td></tr>
   </tbody></table>
-  <div class="muted" style="font-size:13px;margin-top:8px">Bigger levels make good runs grow faster - and bad runs hurt more. They don't make the bots better at picking trades. *Ten $500 runs on real price history the settings were never tuned on: Bold made only a little more than Aggressive, with a clearly bigger worst run. Every trade still has its stop and early cut, nothing is ever borrowed, your hold stack is never traded, and practice money is unaffected.</div>
+  <div class="muted" style="font-size:13px;margin-top:8px">Bigger levels make good runs grow faster - and bad runs hurt more. They don't make the bots better at picking trades. *Ten $500 runs on real price history the settings were never tuned on: Bold made only a little more than Aggressive, with a clearly bigger worst run. Losing trades follow your "Never sell at a loss" setting (held until they recover, or cut by their stop), nothing is ever borrowed, your hold stack is never traded, and practice money is unaffected.</div>
   <div id="riskConfirm" style="display:none"><label class="fl">To confirm bigger bets with real money, type <b>RISK</b></label><input id="riskWord" class="txt" autocomplete="off" placeholder="RISK"></div>
   <div class="lockerr" id="riskErr"></div>
   <div class="row"><button id="riskCancel">Cancel</button><button id="riskSave" class="gopaper">Save</button></div>
