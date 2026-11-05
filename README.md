@@ -656,6 +656,27 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### 💵 The whole cash balance trades (your hold stack excepted)
+
+With the -33% stop, trades used to be sized as if every one would fall all the way to -33%. That made each trade about 7% of the balance, and the 10% cap on money at risk kept about two thirds of the cash idle. Now (`TZ_FULL_CASH`, on) a trade is sized for the **patient cut**: -5% (meme coins -12%), where a falling trade is closed early when momentum and volume say it isn't coming back. The risk cap is counted the same way. So the whole cash balance can be at work: a Normal real-money trade is up to 35% of the balance (Aggressive 50%), and a few trades together can use all of it.
+
+What stays the same:
+- the -33% stop on every trade, as the last-resort backstop;
+- never more than the cash on hand, and never borrowing;
+- the coins in your hold stack (and coins you held before) are never traded;
+- the daily-loss, drawdown and capital-floor stops.
+
+The Stacker only spends cash that trading isn't using, so trading comes first.
+
+Replayed on real price history (same test as above, ten $500 runs per half, stacking off so only sizing differs):
+
+| | First half | Second half |
+| --- | --- | --- |
+| Sized by the -33% stop (as it was) | +$39.90 (10 of 10 up) | +$34.80 (8 of 10 up) |
+| **Sized by the patient cut** | **+$206.16 (10 of 10 up)** | **+$85.48 (7 of 10 up)** |
+
+About five times as much money is working, so the swings are bigger too: the worst run went from -$2.20 to -$16.40 (-3.3%). With most of the cash in coins, a sharp market-wide drop costs more before the daily-loss stop (-5% Normal) closes everything. `TZ_FULL_CASH=false` goes back to sizing by the -33% stop.
+
 ### 🪙 The Stacker: a hold stack on the side (never sold, no stop-loss)
 
 The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE and ETH** (`TZ_STACK_COINS`), separate from the trading:

@@ -50,12 +50,33 @@ def test_small_and_medium_dips_dont_stop_the_trade_out():
     assert pos.is_flat and trades[-1].pnl < 0
 
 
-def test_a_full_stop_out_still_costs_only_about_one_trades_risk():
-    desk = make()
+def test_sized_by_the_stop_a_full_stop_out_costs_only_one_trades_risk():
+    desk = make(full_cash=False)
     eq = desk.portfolio.equity
     pos = buy(desk)
     at_risk = (pos.avg_price - pos.stop_price) * pos.qty
     assert at_risk <= eq * desk.settings.risk.risk_per_trade * 1.01  # a smaller position, the same money at risk
+
+
+def test_full_cash_sizes_for_the_patient_cut_so_the_whole_balance_can_trade():
+    desk = make()
+    eq = desk.portfolio.equity
+    pos = buy(desk)
+    assert pos.stop_price == pytest.approx(pos.avg_price * 0.67, rel=1e-3)  # the -33% stop is still there
+    lost_at_cut = pos.qty * pos.avg_price * desk.settings.patient_stop_pct
+    assert lost_at_cut <= eq * desk.settings.risk.risk_per_trade * 1.01  # one trade's risk at the patient cut...
+    old = make(full_cash=False)
+    assert pos.qty > 3 * buy(old).qty  # ...so far more of the cash is at work
+    assert pos.qty * pos.avg_price <= eq * desk.settings.risk.max_position_pct * 1.001  # still within the position cap
+
+
+def test_full_cash_never_spends_more_than_the_cash_and_never_borrows():
+    desk = make()
+    desk.settings.risk.max_position_pct = 1.0
+    desk.settings.risk.max_portfolio_heat = 1.0
+    desk.settings.risk.risk_per_trade = 0.5
+    pos = buy(desk)
+    assert desk.portfolio.cash >= 0 and pos.qty * pos.avg_price <= desk.settings.starting_cash
 
 
 def test_winners_are_still_protected_from_the_normal_plan():

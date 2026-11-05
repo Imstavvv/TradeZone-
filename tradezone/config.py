@@ -192,6 +192,9 @@ class Settings:
     # Positions are sized so hitting it still costs about risk_per_trade of the account. The trailing stop and
     # the break-even lock still work from the normal plan's stop (-2% / -5%), so winners stay protected.
     wide_stop: bool = True
+    # full cash: with the -33% stop and patient exits, trades are sized (and the risk cap counted) by the patient
+    # cut (-5%, meme -12%) instead of -33% - so the whole cash balance can be at work, not about a third of it
+    full_cash: bool = True
     wide_stop_pct: float = 0.33
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
@@ -372,6 +375,12 @@ class Settings:
         """Patient exits: real money with patient_exits on - and practice too when the -33% stop is on, so a falling
         trade there is also cut early (on momentum + volume) instead of riding to -33%: practice previews real money."""
         return self.patient_exits and (live or self.wide_stop)
+
+    def sizing_stop_pct(self, symbol: str, live: bool) -> float | None:
+        """The loss a trade is sized for when the whole cash balance may trade (None = size by the stop itself)."""
+        if not (self.full_cash and self.wide_stop and self.patient(live)):
+            return None
+        return self.patient_meme_stop_pct if self.is_meme(symbol) else self.patient_stop_pct
 
     def quick(self, live: bool) -> bool:
         """Quick-flip mode: real money with live_quick_flips on."""

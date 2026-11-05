@@ -311,7 +311,10 @@ class RiskBot(Bot):
             risk_budget *= s.losing_day_size
         elif guard["locked"]:  # a good day slipping: keep trading (no cap on the upside), but smaller
             risk_budget *= s.day_lock_size
-        qty = risk_budget / (stop_dist + cost)  # a stopped-out trade also pays fees
+        size_dist = stop_dist
+        if (sp := s.sizing_stop_pct(sig.symbol, self.desk.is_live)) is not None:
+            size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the -33% stop
+        qty = risk_budget / (size_dist + cost)  # a stopped-out trade also pays fees
         qty = min(qty, equity * limits.max_position_pct / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
@@ -321,7 +324,7 @@ class RiskBot(Bot):
         heat_room = equity * limits.max_portfolio_heat - self.open_risk()
         if heat_room <= 0:
             return self.reject(sig, f"portfolio heat at limit ({limits.max_portfolio_heat:.0%} of equity at risk)")
-        qty = min(qty, heat_room / (stop_dist + cost))
+        qty = min(qty, heat_room / (size_dist + cost))
         qty = self._round_qty(qty, price)
         if sig.side is Side.SELL and not s.is_crypto(sig.symbol):
             qty = float(int(qty))  # shares can only be shorted whole
@@ -334,7 +337,7 @@ class RiskBot(Bot):
         if checker is not None and sig.side is Side.BUY:
             least = checker.min_qty(sig.symbol, price) * 1.02
             if 0 < qty < least and least * price <= min(equity * limits.max_position_pct, self.desk.free_cash() * 0.995) \
-                    and least * (stop_dist + cost) <= 1.5 * equity * limits.risk_per_trade:
+                    and least * (size_dist + cost) <= 1.5 * equity * limits.risk_per_trade:
                 qty = least
         # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
         if checker is not None and s.is_crypto(sig.symbol) and sig.side is Side.BUY:
@@ -342,7 +345,7 @@ class RiskBot(Bot):
             if why:
                 self.bump("rejected_unsellable")
                 return self.reject(sig, f"won't buy what it can't sell: {why}")
-        risk_amt = qty * (stop_dist + cost)
+        risk_amt = qty * (size_dist + cost)
         sig.reason += f" | stop {stop:,.6g} ({how}), target {tp:,.6g}, risk {risk_amt:,.2f}"
         self.strength_by_signal[sig.id] = sig.strength
         if len(self.strength_by_signal) > 5000:
@@ -382,7 +385,10 @@ class RiskBot(Bot):
             if p.stop_price is None:
                 total += abs(p.market_value)  # unprotected position: whole value at risk
                 continue
-            total += max(0.0, (p.avg_price - p.stop_price) * p.qty)
+            risk = max(0.0, (p.avg_price - p.stop_price) * p.qty)
+            if (sp := self.settings.sizing_stop_pct(p.symbol, self.desk.is_live)) is not None:
+                risk = min(risk, abs(p.qty) * p.avg_price * sp)  # (counted the way it was sized)
+            total += risk
         return total
 
     # ------------------------------------------------------------------

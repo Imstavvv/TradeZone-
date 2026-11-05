@@ -28,7 +28,8 @@ def buy(desk, strength=0.9):
 
 
 def at_risk(pos):
-    return (pos.avg_price - pos.stop_price) * pos.qty
+    """Money lost at the patient cut (-5%) the trade is sized for (its -33% stop is the last-resort backstop)."""
+    return pos.qty * pos.avg_price * 0.05
 
 
 def test_aggressive_bets_bigger_with_real_money():
