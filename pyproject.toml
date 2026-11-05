@@ -24,7 +24,7 @@ tradezone = ["web/*.html", "web/*.svg", "web/*.png", "web/*.webmanifest"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]  # so `pytest` (not only `python -m pytest`) finds the app and the tests' shared helpers
 
 [tool.ruff]
 line-length = 120
