@@ -301,6 +301,14 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(404)
         return FileResponse(WEB / f"icon-{size}.png", media_type="image/png")
 
+    @app.get("/fonts/{name}.woff2", include_in_schema=False)
+    async def font(name: str):
+        # the two bundled typefaces (SIL Open Font License, see web/fonts/); nothing else is served from here
+        if name not in ("orbitron", "exo2"):
+            raise HTTPException(404)
+        return FileResponse(WEB / "fonts" / f"{name}.woff2", media_type="font/woff2",
+                            headers={"cache-control": "public, max-age=31536000, immutable"})
+
     @app.get("/api/health")
     async def health():
         return {"ok": True}  # deliberately reveals nothing about the desk
