@@ -331,7 +331,7 @@ class Settings:
     # ---- crypto focus / meme coins ----
     meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
     meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)
-    max_meme_positions: int = 3
+    max_meme_positions: int = 5  # meme coins held at once (+1 Aggressive, +2 Bold)
     # Sniping: on a trusted meme coin, a live price breaking this far above its recent high is
     # acted on at once (not at the bar close), if momentum agrees.
     snipe: bool = True

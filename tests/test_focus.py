@@ -94,3 +94,15 @@ def test_the_ladder_can_be_switched_off():
     desk.settings.focus_small_coins = False
     assert desk.focus_status()["stage"] == 3 and desk.in_focus("BTC-USD") is None
     assert buy(desk, "BTC-USD")[0] > 0
+
+
+def test_up_to_five_meme_coins_at_once():
+    from tradezone.core.portfolio import Position
+    desk = make(100_000.0)
+    held = ["WIF-USD", "BONK-USD", "FLOKI-USD", "SHIB-USD"]
+    assert all(desk.settings.is_meme(m) for m in held) and desk.settings.max_meme_positions == 5
+    for m in held:
+        desk.portfolio.positions[m] = Position(m, qty=1.0, avg_price=1.0, last_price=1.0)
+    assert buy(desk, "DOGE-USD")[0] > 0  # the fifth meme coin is fine
+    qty, rej = buy(desk, "PEPE-USD")
+    assert qty == 0 and "most meme coins" in rej[-1]["reason"]  # a sixth waits

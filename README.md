@@ -165,7 +165,7 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 * **Sniping meme coins:** when a trusted meme coin breaks more than 1% above its recent high, the Quant acts on that tick instead of waiting for the minute to close. Its momentum must agree, and the rest of the team (Risk Manager, Executive, and Grok if connected) still has to say yes. A breakout against a falling trend is skipped. One shot per breakout.
 * **Runners:** at the target the bots bank half the position. The stop on the other half moves **into profit** (at least half the target: +7.5% for meme coins, +3% for others), the ceiling is removed, and the stop then trails under the highest price by the stop distance. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
 * **Profit protection** still applies before the target: once a trade is about +4% up, its stop moves above break-even, so a trade that went green doesn't end red.
-* **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 3 are held at once (`TZ_MAX_MEME_POSITIONS`).
+* **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 5 are held at once (`TZ_MAX_MEME_POSITIONS`; 6 on Aggressive, 7 on Bold).
 * **Real money:** Alpaca can trade DOGE, SHIB and PEPE (plus the majors) but not BONK, WIF or FLOKI. Those stay practice-only, and the Risk Manager says so instead of sending an order that would fail.
 
 Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
@@ -659,7 +659,7 @@ Both switched back on by request earlier; they're off again because the evidence
 ### Up to 20 trades at a time
 
 The bots can hold up to **20 trades at once** (`TZ_MAX_OPEN_POSITIONS`), on every risk level and at every balance. It used to be 6 (8 on Aggressive / Bold), small balances were held to 4-6, and at most 4 crypto trades could point the same way. Still in place:
-- at most 3 meme coins at once (`TZ_MAX_MEME_POSITIONS`; +1 Aggressive, +2 Bold);
+- at most 5 meme coins at once (`TZ_MAX_MEME_POSITIONS`; 6 on Aggressive, 7 on Bold);
 - the Correlation Officer still blocks a third trade that moves exactly like two already held;
 - the total-risk cap and the cash on hand still decide how big each trade can be, so more trades means more, smaller trades, never borrowed money.
 
