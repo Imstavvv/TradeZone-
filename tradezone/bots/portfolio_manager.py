@@ -56,7 +56,20 @@ class PortfolioBot(Bot):
             "market.snapshot": self.on_snapshot,
             "order.filled": self.on_fill,
             "order.update": self.on_order_update,
+            "signal.rejected": self.on_rejected,
         }
+
+    def on_rejected(self, ev: Event) -> None:
+        """One of our exits was turned down (e.g. its profit doesn't beat the fees yet): it may be tried again
+        later - the trade isn't left marked as 'on its way out', which would hold back its other exits."""
+        d = ev.payload
+        sig = d.get("signal") if isinstance(d, dict) else None
+        if not isinstance(sig, dict) or sig.get("source") != self.name or sig.get("kind") != SignalKind.EXIT.value:
+            return
+        sym = sig.get("symbol")
+        self.exiting.discard(sym)
+        self.calm_exits.discard(sym)
+        self._retry_at[sym] = now() + self.EXIT_RETRY_S
 
     def on_fill(self, ev: Event) -> None:
         f: Fill = ev.payload
@@ -195,6 +208,11 @@ class PortfolioBot(Bot):
         if self.settings.trailing_stop and pos.stop_price is not None and r \
                 and (not self.settings.wide_stop or (hw - pos.avg_price) * d >= r):  # wide stop: trail once up 1R
             pos.stop_price = tighten(pos.stop_price, hw - d * r)
+        if self.settings.fee_rule_stops and pos.stop_price is not None and (pos.stop_price - pos.avg_price) * d > 0:
+            # a stop already in profit never sits where selling would keep less than the fees: up to the fee floor
+            floor = self.fee_floor(t.symbol, pos.avg_price, d)
+            if (floor - pos.stop_price) * d > 0 and (t.price - floor) * d > 0:
+                pos.stop_price = floor
         if r and pos.stop_price is not None:
             self._protect_profit(t.symbol, pos, t.price, hw, r, d, tighten)
         self._step_take_profit(t.symbol, pos, t.price, d, tighten)
@@ -219,6 +237,9 @@ class PortfolioBot(Bot):
         self.tp_steps[sym] = n
         entry, cost = pos.avg_price, self.round_trip_cost(pos.avg_price, sym)
         lock = entry * (1 + d * s.tp_step_pct * n * s.tp_step_lock)
+        floor = self.fee_floor(sym, entry, d)
+        if (floor - lock) * d > 0 and (price - floor) * d > 0:  # (never at or past the current price)
+            lock = floor
         pos.stop_price = lock if pos.stop_price is None else tighten(pos.stop_price, lock)
         self.protected.add(sym)
         moved = ""
@@ -247,7 +268,11 @@ class PortfolioBot(Bot):
         self.scaled_out.add(sym)
         self.protected.add(sym)
         pos.take_profit = None  # the rest has no ceiling: the trailing stop decides
-        pos.stop_price = tighten(pos.stop_price, pos.avg_price * (1 + d * lock))
+        lock_px = pos.avg_price * (1 + d * lock)
+        floor = self.fee_floor(sym, pos.avg_price, d)  # the runner's stop keeps more profit than the fees
+        lock_px = max(lock_px, floor) if d > 0 else min(lock_px, floor)
+        if (price - lock_px) * d > 0:  # (never at or past the current price)
+            pos.stop_price = tighten(pos.stop_price, lock_px)
         self.bump("runners")
         self.bump("partial_profits")
         self.act(f"{sym} hit +{tp_pct:.0%}: banking {s.runner_sell_fraction:.0%}, runner stop "
@@ -286,7 +311,7 @@ class PortfolioBot(Bot):
             vol_txt = "breaking the recent low" if d > 0 else "breaking the recent high"
         net = s.net_if_sold(pos, price)
         net_pct = net / (pos.avg_price * abs(pos.qty))
-        if net_pct >= s.patient_rescue_pct:
+        if net_pct >= s.patient_rescue_pct and (not s.fee_rule_rescue or s.beats_fees(pos, price)):  # beats its fees
             self.watch.pop(sym, None)
             self.bump("patient_rescues")
             return self._exit(sym, f"came back: closed at +{net:,.2f} after fees after being down")
@@ -301,6 +326,11 @@ class PortfolioBot(Bot):
             self._held_note[sym] = now()
             self.act(f"holding {sym} at -{loss:.1%}: momentum {mom:+.2f}, {vol_txt} - no sign it won't come back")
 
+    def fee_floor(self, sym: str, entry: float, d: int) -> float:
+        """The lowest a profit-locking stop may sit: selling there still keeps more profit than the fees."""
+        keep = 1.0 + (max(0.0, self.settings.profit_over_fees) if self.settings.fee_rule_stops else 0.0)
+        return entry + d * (keep * self.round_trip_cost(entry, sym) + 2.0 * self.tick_move.get(sym, 0.0))
+
     def round_trip_cost(self, price: float, symbol: str = "") -> float:
         """Per-unit cost of getting in and out (fees + slippage both ways), with a small margin."""
         return self.settings.round_trip_cost(symbol, price)
@@ -310,7 +340,8 @@ class PortfolioBot(Bot):
         entry = pos.avg_price
         cost = self.round_trip_cost(entry, sym)
         # cushion so one ordinary tick can't jump from above the stop to below break-even
-        cushion = cost + 2.0 * self.tick_move.get(sym, 0.0)
+        # the locked stop keeps more profit than the fees: break-even + both fees, and the fees again on top
+        cushion = abs(self.fee_floor(sym, entry, d) - entry)
         peak_gain = (hw - entry) * d
         # 1) once comfortably green, the stop can never again sit below break-even + costs
         trigger_r = s.flip_breakeven_r if self.quick else s.breakeven_trigger_r
@@ -326,7 +357,7 @@ class PortfolioBot(Bot):
                 self.metrics["last_lock"] = sym
         # 2) bank part of the winner at +scale_out_r (in runner mode this happens at the target)
         if (s.scale_out_fraction > 0 and not self._runner_mode() and not self._is_skim(sym) and sym not in self.scaled_out
-                and (price - entry) * d >= s.scale_out_r * r + cost):
+                and (price - entry) * d >= s.scale_out_r * r + cost and s.beats_fees(pos, price)):
             self.scaled_out.add(sym)
             self.bump("partial_profits")
             self._exit(sym, f"partial take-profit +{s.scale_out_r:g}R at {price:,.4g}", s.scale_out_fraction, calm=True)
@@ -499,7 +530,8 @@ class PortfolioBot(Bot):
             if hours <= 0 or t - pos.opened_ts < hours * 3600 or pos.last_price is None:
                 continue
             net = s.net_if_sold(pos, pos.last_price)  # after both fees
-            if net > 0 and net >= self.desk.min_take():  # ...and worth its share of a transfer fee
+            # more profit than the fees it cost, and worth its share of a transfer fee
+            if s.beats_fees(pos, pos.last_price) and net >= self.desk.min_take():
                 self.bump("stale_flips")
                 self._exit(sym, f"quick flip: +{net:,.2f} after {hours:g} h without reaching the target - freeing the slot",
                            calm=True)

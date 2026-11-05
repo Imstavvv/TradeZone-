@@ -91,7 +91,11 @@ def test_a_stale_trade_is_closed_sooner_but_only_in_profit_after_fees():
     pm._free_stale_slots()
     run(desk.bus.drain())
     assert pos.qty > 0  # never closed at a loss by the clock
-    tick(desk, "BTC-USD", 50_700.0)  # +1.4%: a small real profit after fees
+    tick(desk, "BTC-USD", 50_700.0)  # +1.4%: a profit after fees, but smaller than the fees
+    pm._free_stale_slots()
+    run(desk.bus.drain())
+    assert pos.qty > 0  # never sold for less profit than it paid in fees
+    tick(desk, "BTC-USD", 51_200.0)  # +2.4%: the profit kept beats the fees
     pm._free_stale_slots()
     run(desk.bus.drain())
     assert pos.is_flat and pm.metrics["stale_flips"] == 1

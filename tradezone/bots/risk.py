@@ -165,6 +165,10 @@ class RiskBot(Bot):
             # reduce-only exits are always allowed: they lower risk
             # profit-taking (and a winner's change-of-mind exit) may wait at the ask for the maker fee
             calm = sig.calm or sig.kind is SignalKind.ENTRY
+            if sig.calm and not self.settings.beats_fees(pos, price):  # stops and cuts are never held back
+                net, fees = self.settings.net_if_sold(pos, price), self.settings.fees_if_sold(pos, price)
+                return self.reject(sig, f"profit sale skipped: +{net:,.2f} after fees doesn't beat the "
+                                        f"{fees:,.2f} the trade pays in fees yet - it keeps running (its stop protects it)")
             return self.approve(
                 OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, reduce_only=True, calm=calm)
             )

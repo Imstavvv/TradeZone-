@@ -656,6 +656,29 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### 💰 Every profit sale keeps more than its fees
+
+A trade that's sold to take profit must keep **more profit, after both fees, than the fees it paid** (`TZ_PROFIT_OVER_FEES=1`; 2 would mean twice the fees). Example: a $500 trade on Kraken pays about $2 to buy and $2 to sell, so it's only sold for profit once it would keep more than $4 after those fees (about +1.6% on the price). That covers every sale made for profit:
+- take-profits, profit slices, the runner's first sale;
+- freeing a slot from a trade that's gone nowhere;
+- the Skimmer's banking and its day-trade time limit;
+- changes of mind on a winner (these need twice the fees);
+- **a losing trade that came back** (`TZ_FEE_RULE_RESCUE`): it's closed once it beats its fees, not at +0.3%.
+
+The Risk Manager checks this rule again on every profit sale and turns down any that don't pass. The trade keeps running with its stop.
+
+**Stop-losses are never held back.** Stops, early cuts, Close all trades and Emergency stop always sell. A stop that has locked in profit sits at break-even plus both fees, so it never turns a winner into a loss after fees. Raising those stops to "the fees again" as well was tested (`TZ_FEE_RULE_STOPS`, off): the tighter stops were hit more often.
+
+Real price history (ten $500 runs per half):
+
+| | First half | Second half | Both |
+| --- | --- | --- | --- |
+| Before (a profit sale only had to beat $0) | +$170 | +$120 | +$290 |
+| The rule on profit sales + comebacks (on) | +$160 | +$150 | **+$310** |
+| ...and on locked stops too | +$166 | +$84 | +$250 |
+
+A price that jumps straight through a stop, or a fill worse than expected, can still close a trade for less, so this is a rule for every planned sale, not a guarantee on every fill.
+
 ### ⚡ Faster skimming and flipping: tested, and why it's not on
 
 Replayed on real price history (ten $500 runs per half, real-money Kraken fees), trading faster made **less** money every time:

@@ -61,7 +61,12 @@ def test_no_skim_without_trend_and_dip_or_on_meme_coins(desk):
 def test_skim_time_limit_banks_profit_but_never_sells_a_loser(desk):
     sk = desk.bots["skimmer"]
     pos = skim(desk)
-    tick(desk, "SOL-USD", 101.0)  # in profit after fees, target not reached
+    tick(desk, "SOL-USD", 101.0)  # in profit after fees, but less than the fees: kept running
+    sk.owned["SOL-USD"] = time.time() - 3 * 3600
+    run(sk.on_cycle())
+    run(desk.bus.drain())
+    assert pos.qty > 0
+    tick(desk, "SOL-USD", 101.8)  # the profit beats the fees, target not reached
     sk.owned["SOL-USD"] = time.time() - 3 * 3600  # time's up
     run(sk.on_cycle())
     run(desk.bus.drain())

@@ -61,8 +61,13 @@ def test_a_trade_that_comes_back_is_closed_in_profit():
     pos = buy(desk)
     bar(desk, "BTC-USD", 48_600.0, mom=-0.3)  # down: held
     trades = capture(desk, "trade.closed")
-    bar(desk, "BTC-USD", 50_700.0, mom=0.2)  # back above entry + fees
-    assert pos.is_flat and trades[-1].pnl > 0
+    bar(desk, "BTC-USD", 50_700.0, mom=0.2)  # back above entry + fees, but the profit doesn't beat the fees yet
+    assert not pos.is_flat
+    bar(desk, "BTC-USD", 51_000.0, mom=0.2)  # now it keeps more than the fees it paid
+    assert trades and all(t.pnl > 0 for t in trades)
+    sold = sum(t.qty for t in trades)
+    fees = sold * 50_500 * 2 * 0.0040  # both fees on what was sold (~0.40% a side)
+    assert sum(t.pnl for t in trades) >= fees  # kept more than the fees
     assert desk.bots["portfolio"].metrics["patient_rescues"] == 1
 
 
@@ -102,3 +107,44 @@ def test_scout_measures_volume_against_the_recent_average():
     desk.bus.publish("market.tick", Tick("ETH-USD", 3_100.0, 1.0, 1_000_000 + 60 * 60))
     run(desk.bus.drain())
     assert scout.bar_seconds == 60 and snaps[-1].indicators["volume_ratio"] == pytest.approx(3.0, rel=0.01)
+
+
+def test_every_profit_sale_keeps_more_than_its_fees():
+    """A profit-taking sale that wouldn't beat the trade's fees is turned down (stops and cuts never are)."""
+    from tradezone.core.models import Side, Signal, SignalKind
+    desk = make()
+    pos = buy(desk)
+    rejected = capture(desk, "signal.rejected")
+    desk.prices["BTC-USD"] = 50_500.0
+    pos.last_price = 50_500.0
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 1.0, "bank it", "skimmer", SignalKind.EXIT,
+                                               fraction=0.5, calm=True))
+    run(desk.bus.drain())
+    assert pos.qty == 0.035 and "doesn't beat" in rejected[-1]["reason"]
+    pm = desk.bots["portfolio"]
+    assert "BTC-USD" not in pm.exiting  # nothing left stuck 'on its way out'
+    pos.stop_price = 50_400.0  # a stop is never held back by the rule
+    desk.bus.publish("market.tick", __import__("tradezone.core.models", fromlist=["Tick"]).Tick("BTC-USD", 50_390.0))
+    run(desk.bus.drain())
+    assert pos.is_flat
+
+
+def test_the_locked_profit_stop_keeps_more_than_the_fees_when_turned_on():
+    desk = make()
+    desk.settings.fee_rule_stops = True  # (opt-in: TZ_FEE_RULE_STOPS=true)
+    pos = buy(desk)
+    s = desk.settings
+    pos.take_profit = None  # (let it run past +1R, where the lock starts)
+    for px in (50_500.0, 51_500.0, 53_000.0):  # a winner: the stop is raised to lock profit in
+        bar(desk, "BTC-USD", px, mom=0.5)
+    assert pos.stop_price > pos.avg_price
+    assert s.net_if_sold(pos, pos.stop_price) >= s.fees_if_sold(pos, pos.stop_price)  # stopped there, it still beats the fees
+
+
+def test_by_default_a_locked_stop_still_covers_break_even_and_the_fees():
+    desk = make()
+    pos = buy(desk)
+    pos.take_profit = None
+    for px in (50_500.0, 51_500.0, 53_000.0):
+        bar(desk, "BTC-USD", px, mom=0.5)
+    assert desk.settings.net_if_sold(pos, pos.stop_price) > 0  # a stop in profit never turns into a loss after fees

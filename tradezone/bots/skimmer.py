@@ -216,7 +216,7 @@ class SkimmerBot(Bot):
             if now() - opened < self.max_minutes() * 60 or (pm and sym in pm.exiting) or pos.last_price is None:
                 continue
             net = s.net_if_sold(pos, pos.last_price)  # after both fees
-            if net > 0 and net >= self.desk.min_take():
+            if s.beats_fees(pos, pos.last_price) and net >= self.desk.min_take():  # more profit than its fees
                 self.bump("time_exits")
                 self.act(f"SKIM time's up on {sym}: banking +{net:,.2f}")
                 self._sell(sym, 1.0, f"skimmer: day-trade time limit, banking +{net:,.2f}")

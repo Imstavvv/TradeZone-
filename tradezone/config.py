@@ -252,6 +252,11 @@ class Settings:
     flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
     flip_bank_fraction: float = 0.0  # ...this share (0 = off: on real price history early slices shrank the winners)
     flip_min_edge: float = 3.0  # the target must pay at least 3x the fees (you keep at least twice the fees)
+    profit_over_fees: float = 1.0  # a profit-taking sale keeps at least this many times the fees (after them)
+    fee_rule_rescue: bool = True  # ...also for a losing trade that came back (closed only once it beats the fees)
+    # ...and a stop already in profit is raised to where it would keep more than the fees. Off: on real price
+    # history the tighter stops were hit more often and cost more than they kept (stops still lock break-even + fees)
+    fee_rule_stops: bool = False
     strategy_exit_min_cost: float = 2.0  # a "change of mind" exit only sells a winner once it's made 2x the fees
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
     flip_meme_max_hold_hours: float = 1.5
@@ -447,6 +452,16 @@ class Settings:
         paid = pos.entry_fees if getattr(pos, "entry_fees", 0.0) > 0 else qty * pos.avg_price * self.fee_bps(pos.symbol) / 10_000
         exit_cost = qty * price * (self.fee_bps(pos.symbol) + self.slippage_bps + 1) / 10_000
         return (price - pos.avg_price) * pos.qty - paid - exit_cost
+
+    def fees_if_sold(self, pos, price: float) -> float:
+        """The fees one round trip of this position costs: the buy fee paid plus the sell fee to come."""
+        qty = abs(pos.qty)
+        paid = pos.entry_fees if getattr(pos, "entry_fees", 0.0) > 0 else qty * pos.avg_price * self.fee_bps(pos.symbol) / 10_000
+        return paid + qty * price * self.fee_bps(pos.symbol) / 10_000
+
+    def beats_fees(self, pos, price: float) -> bool:
+        """Selling now keeps more profit than the trade paid in fees (the rule for every profit-taking sale)."""
+        return self.net_if_sold(pos, price) >= self.profit_over_fees * self.fees_if_sold(pos, price)
 
     def venue(self) -> str:
         """The real-money venue in use: uphold, kraken or alpaca."""
