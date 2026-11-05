@@ -656,6 +656,12 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### The real-money balance follows your account
+
+Every half minute the bots compare their cash with what the exchange reports. Money you **add** or **take out** at the exchange is picked up as a deposit or withdrawal, so it's never counted as profit or loss, and today's loss limits move with it. The difference must show up on two checks in a row with no order in flight, and differences under $1 (or 0.5% of the balance) are treated as rounding. With a capital cap (`TZ_LIVE_MAX_CAPITAL`) only money taken out is followed, so the bots never count on cash that's gone. On Kraken, the account total includes coins you hold yourself, so it is no longer compared with the bots' balance (that comparison used to raise a warning every half minute).
+
+The dashboard also reconnects by itself when a phone wakes up, changes network or goes offline for a while: if no update arrives for 20 seconds it opens a fresh connection, so the balance never sits frozen.
+
 ### Cheaper buys: waiting at the bid (maker orders)
 
 Fees were the biggest cost in every review of the bots' trades. So with real money on Kraken, a buy is first placed as a **post-only limit order at the bid** (`TZ_MAKER_ENTRIES`): it pays Kraken's **maker** fee (0.25% at the starting tier instead of the 0.40% taker fee) and buys at the bid instead of the ask, saving about half the bid/ask gap too. If it isn't filled within **20 seconds** (`TZ_MAKER_WAIT_S`), or Kraken refuses it because it would have bought straight away, the rest is bought at market, so no trade is missed. Exits, stop-losses and profit-taking always sell at market, so they are never delayed.

@@ -46,6 +46,8 @@ class PortfolioBot(Bot):
         self.watch: dict[str, float] = {}  # symbol -> since when it's been down past its usual stop
         self._held_note: dict[str, float] = {}
         self._retry_at: dict[str, float] = {}  # symbol -> don't resend a refused exit before
+        self._cash_seen: float | None = None  # a cash difference seen on the last check (must repeat to count)
+        self._equity_note = 0.0
 
     def subscriptions(self):
         return {
@@ -406,6 +408,45 @@ class PortfolioBot(Bot):
             self.act("positions match the broker again - trading resumed")
         return fixed
 
+    CASH_TOLERANCE_USD = 1.0  # cash differences smaller than this (and 0.5% of the balance) are rounding
+
+    def sync_cash(self, acct: dict) -> float:
+        """Keep the bots' real-money balance in step with the account: money you add or take out at the exchange
+        is picked up (as a deposit / withdrawal, so it isn't counted as profit or loss). The difference must show
+        up on two checks in a row with nothing in flight. With a capital cap, only money taken out is followed
+        (the bots must never count on cash that's gone). Returns the amount applied."""
+        p = self.portfolio
+        exe = self.desk.bots.get("execution")
+        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())):
+            self._cash_seen = None
+            return 0.0
+        if now() - self.last_fill_ts < self.SETTLE_S or acct.get("cash") is None:
+            return 0.0
+        cash = float(acct["cash"])
+        gap = cash - p.cash
+        if self.settings.live_max_capital > 0:
+            gap = min(gap, 0.0)  # capped: deposits beyond the cap aren't the bots' to use
+        if abs(gap) < max(self.CASH_TOLERANCE_USD, 0.005 * max(p.equity, 0.0)):
+            self._cash_seen = None
+            return 0.0
+        if self._cash_seen is None or abs(gap - self._cash_seen) > max(self.CASH_TOLERANCE_USD, 0.005 * abs(gap)):
+            self._cash_seen = gap  # seen once (or still moving): wait for the next check
+            return 0.0
+        self._cash_seen = None
+        p.apply_flow(gap)
+        topic = "funds.deposit" if gap > 0 else "funds.withdrawal"
+        self.publish(topic, {"usd_value": abs(gap), "source": "exchange", "asset": "USD",
+                             "note": "seen in your exchange account"})
+        venue = getattr(self.desk.broker, "label", "exchange")
+        what = (f"${gap:,.2f} added to your {venue} account" if gap > 0
+                else f"${-gap:,.2f} taken out of your {venue} account")
+        self.publish("alert", Alert("info" if gap > 0 else "warning",
+                                    f"{what} - the bots' balance is now ${p.cash:,.2f} cash "
+                                    "(not counted as profit or loss)", self.name))
+        self.act(f"cash synced with the account: {gap:+,.2f}")
+        self.bump("cash_syncs")
+        return gap
+
     def _external_change(self, pos, a: float, b: float) -> str:
         """The account holds less than the bots' records: book the difference as a trade at the market price."""
         sym = pos.symbol
@@ -459,11 +500,15 @@ class PortfolioBot(Bot):
         if self._cycles % self.RECONCILE_EVERY == 0:
             await self.reconcile_positions()
             acct = await self.desk.broker.account()
+            if acct and self.desk.is_live:
+                self.sync_cash(acct)
             capped = self.desk.is_live and self.settings.live_max_capital > 0
-            if acct and acct.get("equity") and not capped:  # a capital cap makes equities differ by design
+            kraken = hasattr(self.desk.broker, "capture_baseline")  # its total includes your own coins, by design
+            if acct and acct.get("equity") and not capped and not kraken:
                 diff = abs(acct["equity"] - p.equity) / max(acct["equity"], 1)
                 self.metrics["broker_equity"] = acct["equity"]
-                if diff > 0.02:
+                if diff > 0.02 and now() - self._equity_note > 6 * 3600:  # a note, not an alarm every half minute
+                    self._equity_note = now()
                     self.publish(
                         "alert",
                         Alert("warning", f"ledger equity differs from broker by {diff:.1%}", self.name),

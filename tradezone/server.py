@@ -235,7 +235,10 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             await asyncio.sleep(desk.settings.cycle_seconds)
             if not clients:
                 continue
-            push({"type": "state", "data": light_state(desk)})
+            try:
+                push({"type": "state", "data": light_state(desk)})
+            except Exception:  # one bad update must never stop every screen from updating
+                log.exception("live update failed")
 
     @contextlib.asynccontextmanager
     async def lifespan(app: FastAPI):

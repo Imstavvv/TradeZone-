@@ -1290,6 +1290,7 @@ function connect(){
   const ws = S.ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://') + location.host + '/ws');
   ws.onopen = () => $('conn').textContent = '● live';
   ws.onclose = async (e) => {
+    if (S.ws && ws !== S.ws) return;  // an old connection the watchdog already replaced
     $('conn').textContent = '○ reconnecting…';
     if (e.code === 4401) return showWelcome('auto', 'Your session ended - please sign in again');
     if (e.code === 4403) { $('conn').textContent = '○ ' + (e.reason || 'connection refused'); return setTimeout(connect, 15000); }
@@ -1298,7 +1299,9 @@ function connect(){
           if (r.status === 401) return showWelcome(); } catch {}
     setTimeout(connect, 2000);
   };
+  S.lastMsg = Date.now();
   ws.onmessage = (m) => {
+    S.lastMsg = Date.now();
     const msg = JSON.parse(m.data);
     if (msg.type === 'action') return onAction(msg);
     if (msg.type === 'event') return onEvent(msg.data);
@@ -1320,6 +1323,21 @@ function connect(){
     render();
   };
 }
+
+// A phone that slept or changed networks can leave the live connection dead without ever saying so: the
+// balance would freeze. The server sends an update every second or two, so silence means reconnect.
+function liveWatchdog(maxQuietMs = 20000){
+  if (S.locked || !S.ws) return;
+  if (S.ws.readyState === 1 && Date.now() - (S.lastMsg || 0) > maxQuietMs) {
+    $('conn').textContent = '○ reconnecting…';
+    try { S.ws.close(); } catch {}
+    S.ws = null; connect();
+  } else if (S.ws.readyState > 1) connect();
+}
+setInterval(() => liveWatchdog(), 5000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) liveWatchdog(6000); });
+window.addEventListener('online', () => liveWatchdog(0));
+window.addEventListener('pageshow', e => { if (e.persisted) liveWatchdog(0); });
 
 function render(){
   const st = S.state, p = st.portfolio, perf = st.performance;
