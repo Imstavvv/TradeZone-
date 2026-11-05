@@ -570,7 +570,7 @@ Tested both ways (runs of $500, real-money Kraken fees):
 | Cutting losers (stops + early cuts) | +$398 / +$295 | $2,848 | -$36 |
 | **Never selling at a loss** | **+$537 / +$496**, every closed trade a win | $2,865 | **-$78** |
 
-Real prices (the S&P 500, Google, EUR/USD) tend to come back after a dip, so holding paid off. Random prices don't, and there the losses didn't disappear: they sat in unsold trades. Coins were still down 9-56% at the end of several runs, and the money in them couldn't trade. **"Every closed trade a win" doesn't mean nothing was lost.** A coin that never recovers, like many meme coins, keeps its loss and ties up the money. The balance shown always counts these held trades at today's price. Turn it off to cut losing trades again.
+Re-checked after a flaw in the replay tool was fixed: the earlier "20 runs" re-used only about 5 distinct mixes of history. On 20 genuinely distinct runs per half: cutting losers +$515 / +$152, never selling at a loss +$582 / +$401. Real prices (the S&P 500, Google, EUR/USD) tend to come back after a dip, so holding paid off. Random prices don't, and there the losses didn't disappear: they sat in unsold trades. Coins were still down 9-56% at the end of several runs, and the money in them couldn't trade. **"Every closed trade a win" doesn't mean nothing was lost.** A coin that never recovers, like many meme coins, keeps its loss and ties up the money. The balance shown always counts these held trades at today's price. Turn it off to cut losing trades again.
 
 ### 🚀 pump.fun coins
 

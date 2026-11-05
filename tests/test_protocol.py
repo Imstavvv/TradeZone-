@@ -51,3 +51,19 @@ def test_the_risk_level_and_cap_stay_yours_and_the_cap_is_remembered(tmp_path):
     run(d2.start())
     assert d2.settings.live_max_capital == 50
     run(d2.shutdown())
+
+
+def test_the_cap_applies_to_every_linked_account(monkeypatch):
+    from tests.test_fleet import SECRET, main_desk
+    from tests.test_kraken import FakeKraken
+    import httpx
+    import tradezone.brokers.kraken as kmod
+    fk = FakeKraken(usd=900.0)
+    real = httpx.AsyncClient
+    monkeypatch.setattr(kmod.httpx, "AsyncClient",
+                        lambda **kw: real(base_url="https://api.kraken.com", transport=httpx.MockTransport(fk.handler)))
+    desk = main_desk()
+    acct = run(desk.fleet.add("kraken", "KEY-X", SECRET))["id"]
+    with TestClient(create_app(desk, run_desk=False)) as c:
+        c.post("/api/protocol", json={"action": "cap", "amount": 75})
+    assert desk.settings.live_max_capital == desk.fleet.desk(acct).settings.live_max_capital == 75

@@ -509,6 +509,8 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
                     d.apply_best()
             elif body.action == "cap":
                 out = desk.set_live_cap(body.amount)
+                for d in desk.fleet.desks.values():  # the same cap on every linked account
+                    d.set_live_cap(body.amount)
             else:
                 raise ValueError("action must be best or cap")
         except ValueError as exc:
