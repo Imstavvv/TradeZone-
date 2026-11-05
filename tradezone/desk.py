@@ -678,7 +678,10 @@ class TradingDesk:
                                   if self.live_broker is not None and self.live_broker.supports(s) is False]}
 
     async def start(self) -> None:
+        before = self.live_broker
         self.load_linked_broker()
+        if before is not None and before is not self.live_broker:
+            await before.close()  # replaced by the account saved in the app: don't leave its connection open
         self._tune_live_broker()
         await self._venue_feed()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
@@ -757,10 +760,8 @@ class TradingDesk:
         if self._dirty or self.cycles % 10 == 0:
             self.save_state()
         if not hasattr(self, "account_id") and (self.fleet.desks or self.live_broker is not None):
-            try:  # each exchange's own balance, once a minute (shown next to what the bots count)
-                await self.fleet.refresh_balances()
-            except Exception:
-                log.exception("account balances")
+            self.fleet.refresh_soon()  # each exchange's own balance, once a minute (in the background: a slow
+            # exchange must never hold up the trading cycle)
 
     # -- "today's hunt": what the bots looked at and why they did or didn't trade --------
     def _new_hunt(self) -> dict:

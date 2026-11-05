@@ -17,6 +17,7 @@ checked against its minimum order size. Fees come back from Kraken with each fil
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -70,6 +71,7 @@ class KrakenBroker(Broker):
         self.max_spread_pct, self.min_volume_usd, self.max_volume_share = 0.015, 250_000.0, 0.01
         self.baseline: dict[str, float] = {}  # asset -> what the owner already held (never traded)
         self._nonce = 0
+        self._locks: dict[int, asyncio.Lock] = {}  # one per event loop (tests run several)
         self._reported: dict[str, tuple[float, float, float]] = {}  # order id -> (vol, cost, fee)
 
     # ------------------------------------------------------------------ API
@@ -81,10 +83,14 @@ class KrakenBroker(Broker):
         if method not in ALLOWED_PRIVATE:  # layer 1: this adapter can never move money off Kraken
             raise KrakenError(f"refused: TradeZone never calls Kraken '{method}'")
         path = f"/0/private/{method}"
-        data = {"nonce": self._next_nonce(), **params}
-        headers = {"API-Key": self.key, "API-Sign": sign(path, data, self.secret),
-                   "Content-Type": "application/x-www-form-urlencoded"}
-        r = await self.client.post(path, content=urllib.parse.urlencode(data), headers=headers)
+        # One private call at a time: Kraken rejects a nonce lower than the last one it saw, so two calls
+        # overlapping (the bots' order + the balance check) could arrive out of order and lose an order.
+        lock = self._locks.setdefault(id(asyncio.get_running_loop()), asyncio.Lock())
+        async with lock:
+            data = {"nonce": self._next_nonce(), **params}
+            headers = {"API-Key": self.key, "API-Sign": sign(path, data, self.secret),
+                       "Content-Type": "application/x-www-form-urlencoded"}
+            r = await self.client.post(path, content=urllib.parse.urlencode(data), headers=headers)
         r.raise_for_status()
         body = r.json()
         if body.get("error"):

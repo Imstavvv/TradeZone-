@@ -50,6 +50,7 @@ class AccountFleet:
         self.balances: dict[str, dict | None] = {}  # id -> the exchange's own balance (refreshed each minute)
         self.balance_at: dict[str, float] = {}
         self.loaded = False
+        self._refresh: asyncio.Task | None = None
 
     # -- storage: the main database lists the accounts; each account's keys live in its own database ------
     def _rows(self) -> list[dict]:
@@ -103,7 +104,16 @@ class AccountFleet:
         d = self.make_desk(self._settings(meta["venue"], creds), journal)
         d.account_id = meta["id"]  # type: ignore[attr-defined]
         d.account_label = meta["label"]  # type: ignore[attr-defined]
+        self._forward_alerts(d)
         return d
+
+    def _forward_alerts(self, d: TradingDesk) -> None:
+        """An account's warnings (a stop, a pause, couldn't resume LIVE) show up in the main alerts too."""
+        def fwd(ev) -> None:
+            a = ev.payload
+            if getattr(a, "level", "") in ("warning", "critical"):
+                self.main.bus.publish("alert", Alert(a.level, f"[{getattr(d, 'account_label', '?')}] {a.message}", "fleet"))
+        d.bus.subscribe("alert", fwd, owner="fleet")
 
     # -- lifecycle ------------------------------------------------------------------
     def load(self) -> None:
@@ -131,6 +141,10 @@ class AccountFleet:
         self.tasks[acct_id] = asyncio.create_task(self.desks[acct_id].run_forever(), name=f"account-{acct_id}")
 
     async def stop(self) -> None:
+        if self._refresh is not None and not self._refresh.done():
+            self._refresh.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self._refresh
         for d in self.desks.values():
             d.stop()
         for t in self.tasks.values():
@@ -168,6 +182,7 @@ class AccountFleet:
         creds = {"token": k} if venue == "uphold" else {"key": k, "secret": (secret or "").strip()}
         d = self.make_desk(self._settings(venue, creds), journal)  # (checked properly just below)
         d.account_id, d.account_label = acct_id, meta["label"]  # type: ignore[attr-defined]
+        self._forward_alerts(d)
         try:
             acct = await d.link_broker(key, secret, venue=venue)  # the main account's own checks
         except Exception:
@@ -241,6 +256,21 @@ class AccountFleet:
                 self.balances[acct_id] = await asyncio.wait_for(d.live_broker.account(), 15)
             except Exception as exc:
                 log.warning("balance of %s: %s", acct_id, exc)
+
+    def refresh_soon(self) -> None:
+        """Refresh the balances in the background (at most one refresh at a time)."""
+        if self._refresh is not None and not self._refresh.done():
+            return
+        if not any(time.time() - self.balance_at.get(i, 0) >= BALANCE_EVERY_S
+                   for i, d in [("main", self.main), *self.desks.items()] if d.live_broker is not None):
+            return
+        self._refresh = asyncio.create_task(self._safe_refresh())
+
+    async def _safe_refresh(self) -> None:
+        try:
+            await self.refresh_balances()
+        except Exception:
+            log.exception("account balances")
 
     def row(self, acct_id: str) -> dict:
         d = self._get(acct_id)

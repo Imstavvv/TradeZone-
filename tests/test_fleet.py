@@ -128,3 +128,64 @@ def test_accounts_api(exchange):
         assert c.post("/api/fleet/all/control/kill").json()["accounts"] == 2 and desk.halted
         assert c.delete("/api/fleet/main").status_code == 400
         assert c.delete(f"/api/fleet/{acct_id}").json()["ok"] and len(c.get("/api/fleet").json()["accounts"]) == 1
+
+
+def test_overlapping_kraken_calls_never_send_nonces_out_of_order():
+    """The balance check and the bots' orders can overlap: Kraken must see the nonces in order."""
+    import asyncio
+
+    from tradezone.brokers.kraken import KrakenBroker
+    seen, sent = [], []
+    fk = FakeKraken()
+
+    async def slow(req):
+        import urllib.parse
+        if "/private/" not in req.url.path:
+            return fk.handler(req)
+        n = int(dict(urllib.parse.parse_qsl(req.content.decode()))["nonce"])
+        sent.append(n)
+        await asyncio.sleep(0.02 if len(sent) == 1 else 0)  # the first call is slow to arrive
+        seen.append(n)
+        return fk.handler(req)
+
+    class T(httpx.AsyncBaseTransport):
+        async def handle_async_request(self, req):
+            await req.aread()
+            return await slow(req)
+
+    b = KrakenBroker("KEY-A", SECRET, client=httpx.AsyncClient(base_url="https://api.kraken.com", transport=T()))
+
+    async def both():
+        await asyncio.gather(b.account(), b.account(), b.positions())
+    run(both())
+    assert seen == sorted(seen) and len(seen) >= 3
+
+
+def test_an_accounts_warnings_show_in_the_main_alerts(exchange):
+    from tradezone.core.models import Alert
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-B", SECRET, "Two"))["id"]
+    d = desk.fleet.desk(acct_id)
+    d.bus.publish("alert", Alert("critical", "daily loss limit hit", "risk"))
+    d.bus.publish("alert", Alert("info", "just chatter", "desk"))
+    run(d.bus.drain())
+    run(desk.bus.drain())
+    msgs = [a["payload"]["message"] for a in desk.bots["sentinel"].alerts]
+    assert "[Two] daily loss limit hit" in msgs and not any("chatter" in m for m in msgs)
+    assert not desk.halted and not desk.paused  # only reported: the main account isn't affected
+
+
+def test_balance_checks_run_in_the_background(exchange):
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-B", SECRET))["id"]
+    desk.fleet.balance_at.clear()
+
+    async def go():
+        desk.fleet.refresh_soon()
+        task = desk.fleet._refresh
+        assert task is not None and not task.done()  # (the cycle carries on meanwhile)
+        desk.fleet.refresh_soon()
+        assert desk.fleet._refresh is task  # never two at once
+        await task
+    run(go())
+    assert desk.fleet.balances[acct_id]["cash"] == 1_200.0
