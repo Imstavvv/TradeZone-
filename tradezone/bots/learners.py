@@ -60,6 +60,8 @@ class TargetLearnerBot(Bot):
     def on_trade(self, ev: Event) -> None:
         t = ev.payload
         sym = t["symbol"]
+        if "hold stack" in (t.get("reason") or ""):
+            return  # moved by hand, not traded: nothing to learn
         if t.get("action") == "open" and t.get("side") == "buy":
             self.open[sym] = [t["price"], t["price"]]
         elif abs(t.get("position_after") or 0.0) < 1e-12 and sym in self.open:
@@ -126,6 +128,8 @@ class TradeReviewerBot(Bot):
     def on_trade(self, ev: Event) -> None:
         t = ev.payload
         sym = t["symbol"]
+        if "hold stack" in (t.get("reason") or ""):
+            return  # moved by hand, not traded: nothing to learn
         if t.get("action") == "open":
             self.opened_by[sym] = source_of(t.get("reason", ""))
             self.pnl[sym] = 0.0

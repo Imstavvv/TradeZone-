@@ -203,6 +203,8 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .stackhead .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .stackrows{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .stackrows .coin{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
+.stackrows .coin .mv{display:flex;gap:6px;margin-top:8px}.stackrows .coin .mv button,.mvrow button{padding:4px 8px;font-size:11px}
+.mvrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.mvrow span:last-child{display:flex;gap:6px}
 .stackrows .coin b{font-size:15px}.stackrows .coin .q{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .acclist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px}
 .acc{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.03);min-width:0}
@@ -920,6 +922,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <div class="stackhead"><div><div class="muted" style="font-size:12px">Worth now</div><div class="big" id="stackVal">—</div></div>
           <div><div class="muted" style="font-size:12px">Paid</div><b id="stackCost">—</b></div><div><div class="muted" style="font-size:12px">Change</div><b id="stackPnl">—</b></div></div>
         <div id="stackRows" class="stackrows"></div>
+        <div id="stackIn"></div>
         <div class="muted" id="stackNext" style="font-size:12px;margin-top:8px"></div>
         <div class="row" style="margin-top:10px;justify-content:flex-start"><button id="stackToggle">Pause stacking</button></div></div>
       <div class="scard" data-page="home" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
@@ -2214,7 +2217,12 @@ function renderStack(k){
   const rows = want.map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
   setHTML($('stackRows'), rows.map(h => `<div class="coin"><b>${esc(h.symbol.split('-')[0])}</b> <span class="muted" style="font-size:12px">${h.value != null ? money(h.value) : '—'}</span>
     <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) : 'none yet'}${h.buys ? ` · ${h.buys} buy${h.buys > 1 ? 's' : ''} · avg ${money(h.avg, h.avg < 1 ? 4 : 2)}` : ''}</div>
-    ${h.cost ? `<div class="q">${up(h.pnl || 0)}</div>` : ''}</div>`).join(''));
+    ${h.cost ? `<div class="q">${up(h.pnl || 0)}</div>` : ''}
+    ${h.qty ? `<div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>` : ''}</div>`).join(''));
+  const pos = ((S.state && S.state.portfolio && S.state.portfolio.positions) || []).filter(p => p.qty > 0);
+  setHTML($('stackIn'), pos.length ? `<div class="muted" style="font-size:12px;margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +
+    pos.map(p => `<div class="mvrow"><span><b>${esc(p.symbol.split('-')[0])}</b> <span class="muted">${Number(p.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} · ${money(p.market_value)}</span></span>
+      <span><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="1">Hold it</button><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="0.5">Hold half</button></span></div>`).join('') : '');
   $('stackNext').textContent = !k.on ? 'Stacking is paused - what you hold stays held.'
     : k.blocked ? `Waiting: ${k.blocked}.`
     : `Saving ${money(k.daily)} a day plus ${Math.round(k.profit_share * 100)}% of each winning trade · ${money(k.budget)} saved so far` +
@@ -2223,6 +2231,18 @@ function renderStack(k){
   const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';
   if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack`;
 }
+document.getElementById('sec-stack').addEventListener('click', async e => {
+  const b = e.target.closest('[data-mv]'); if (!b) return;
+  const coin = b.dataset.sym.split('-')[0], half = b.dataset.f !== '1', out = b.dataset.mv === 'out';
+  const title = out ? `Trade ${half ? 'half your' : 'your'} ${coin} again?` : `Move ${half ? 'half the' : 'the'} ${coin} into the hold stack?`;
+  const body = out ? "It becomes a normal trade the bots manage from today's price: a stop, a target and every usual rule. The coins don't leave your account."
+                   : "It's booked at today's price (the trade's gain or loss so far is settled) and then never sold by the bots. The coins don't leave your account.";
+  if (!await ask(title, body, {ok: out ? 'Trade it' : 'Hold it'})) return;
+  b.disabled = true;
+  try { const r = await api('/api/stack/move', {symbol: b.dataset.sym, direction: b.dataset.mv, fraction: half ? 0.5 : 1});
+        toast(`Moved ${Number(r.moved).toLocaleString(undefined, {maximumFractionDigits: 6})} ${coin} to the ${r.to}`, 'ok'); }
+  catch {} finally { b.disabled = false; }
+});
 $('stackToggle').onclick = async () => {
   const on = S.state && S.state.stack && S.state.stack.on;
   if (on && !await ask('Pause stacking?', 'No new coins are added to the hold stack. What you hold stays held - the bots never sell it.', {ok: 'Pause'})) return;

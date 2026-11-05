@@ -132,6 +132,8 @@ class CoachBot(Bot):
 
     def on_trade(self, ev: Event) -> None:
         t = ev.payload
+        if "hold stack" in (t.get("reason") or ""):
+            return  # a coin moved by hand to / from the hold stack: not a trade to learn from
         sym = t["symbol"]
         key = f"{t.get('mode', 'paper')}|{sym}"  # paper and live keep separate books
         if t["action"] == "flip" and (old := self.open.pop(key, None)) is not None and t.get("pnl") is not None:

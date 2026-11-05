@@ -35,7 +35,7 @@ class FeeAuditorBot(Advisor):
 
     def on_fill(self, ev: Event) -> None:
         f: Fill = ev.payload
-        if not self.desk.is_live or not self.settings.is_crypto(f.symbol) or f.order_id == "external" or f.price <= 0:
+        if not self.desk.is_live or not self.settings.is_crypto(f.symbol) or f.order_id.startswith("external") or f.price <= 0:
             return
         self.paid.append(f.commission / (f.qty * f.price) * 10_000)
         if len(self.paid) >= 10:
@@ -265,7 +265,7 @@ class HousekeeperBot(Advisor):
     EVERY_S = 3600
     COMPACT_EVERY_S = 86_400
     KEEP_FOREVER = ("trade.log", "stack.buy", "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed",
-                    "desk.control", "position.adjusted", "cash.adjusted")
+                    "desk.control", "position.adjusted", "cash.adjusted", "stack.move")
     KEEP_30_DAYS = ("order.filled", "order.update", "alert")
 
     def __init__(self, desk) -> None:

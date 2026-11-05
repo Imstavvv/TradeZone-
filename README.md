@@ -905,6 +905,12 @@ The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE and ETH** (`TZ_ST
 
 Coins held without a stop can fall a long way. Buying slowly over time spreads that risk out but doesn't remove it.
 
+**Moving coins by hand.** On the Hold stack card:
+- **Trade it / Trade half** moves stacked coins to the bots. They become a normal trade from today's price, with a stop, a target and every usual rule, and the bots trade that coin again.
+- **Hold it / Hold half** (under "Move coins from the bots' trades") moves coins from an open trade into the stack. They're booked at today's price, so that part of the trade's gain or loss is settled; you choose this, so it's allowed even under never-sell. From then on the bots never sell those coins.
+
+The coins never leave your exchange account and nothing is bought or sold there. Your cash doesn't change, a move isn't counted as profit or loss, and on a real-money account the records and the cash check stay matched to the exchange. A move waits while an order for that coin is still working, and coins can't be moved out while the bots already have a trade open in that coin. Every move is kept in the records forever. The learning bots ignore moves, since they aren't trades.
+
 ### The real-money balance follows your account
 
 Every half minute the bots compare their cash with what the exchange reports. Money you **add** or **take out** at the exchange is picked up as a deposit or withdrawal, so it's never counted as profit or loss, and today's loss limits move with it. The difference must show up on two checks in a row with no order in flight, and differences under $1 (or 0.5% of the balance) are treated as rounding. With a capital cap (`TZ_LIVE_MAX_CAPITAL`) only money taken out is followed, so the bots never count on cash that's gone. On Kraken, the account total includes coins you hold yourself, so it is no longer compared with the bots' balance (that comparison used to raise a warning every half minute).

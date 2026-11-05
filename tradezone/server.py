@@ -82,6 +82,12 @@ class AccountBody(BaseModel):
     label: str = ""
 
 
+class StackMoveBody(BaseModel):
+    symbol: str
+    direction: str  # "in" (trading -> hold stack) | "out" (hold stack -> trading)
+    fraction: float = 1.0  # share of what's there to move
+
+
 class StrategyBody(BaseModel):
     on: bool
 
@@ -469,6 +475,25 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             d.set_risk_profile(body.profile, body.confirm)
         audit(request, f"real-money risk level set to {body.profile}", "warning")
         return info
+
+    @app.post("/api/stack/move", dependencies=[Depends(check_token)])
+    async def stack_move(body: StackMoveBody, request: Request):
+        st = desk.bots["stacker"]
+        sym = body.symbol.strip().upper()
+        frac = max(0.0, min(1.0, body.fraction))
+        if frac <= 0 or body.direction not in ("in", "out"):
+            raise HTTPException(400, "choose in or out, and how much to move")
+        try:
+            if body.direction == "out":
+                held = st.book.get(sym, {}).get("qty", 0.0)  # type: ignore[attr-defined]
+                res = st.move_out(sym, held * frac)  # type: ignore[attr-defined]
+            else:
+                res = st.move_in(sym, desk.portfolio.position(sym).qty * frac)  # type: ignore[attr-defined]
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        await desk.bus.drain()  # book it now, so the reply shows the new balances
+        audit(request, f"moved {res['moved']:g} {sym} to the {res['to']}", "warning")
+        return _clean({**res, "stack": st.summary()})  # type: ignore[attr-defined]
 
     @app.post("/api/never-sell", dependencies=[Depends(check_token)])
     async def never_sell(body: StrategyBody, request: Request):
