@@ -19,6 +19,7 @@ a new wallet is a small test amount until you confirm it arrived.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import re
 from dataclasses import dataclass
@@ -147,7 +148,7 @@ def _crc16_xmodem(data: bytes) -> int:
 def _stellar_ok(a: str) -> bool:
     try:
         raw = base64.b32decode(a)
-    except (ValueError, base64.binascii.Error):
+    except (ValueError, binascii.Error):
         return False
     if len(raw) != 35 or raw[0] != 6 << 3:  # account id (G...)
         return False
@@ -164,7 +165,7 @@ def _ss58_ok(a: str) -> bool:
 def _algorand_ok(a: str) -> bool:
     try:
         raw = base64.b32decode(a + "======")
-    except (ValueError, base64.binascii.Error):
+    except (ValueError, binascii.Error):
         return False
     if len(raw) != 36:
         return False

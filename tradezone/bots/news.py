@@ -158,7 +158,7 @@ class NewsBot(Bot):
             r = await self.client.get(url)
             r.raise_for_status()
             return r.text[: self.MAX_BYTES]
-        except Exception as exc:  # noqa: BLE001 - one bad feed must not stop the others
+        except Exception as exc:  # one bad feed must not stop the others
             self.last_error = f"{url.split('/')[2]}: {type(exc).__name__}"
             return None
 

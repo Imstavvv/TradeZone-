@@ -136,7 +136,8 @@ class ExecutiveBot(Bot):
     def on_approved(self, ev: Event) -> None:
         req: OrderRequest = ev.payload
         started = req.ts or now()
-        latency = lambda: max(0.0, (now() - started) * 1000)
+        def latency() -> float:
+            return max(0.0, (now() - started) * 1000)
 
         # exits lower risk: always authorised immediately
         if req.reduce_only:

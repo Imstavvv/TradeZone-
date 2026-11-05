@@ -1,6 +1,6 @@
 # TradeZone
 
-A multi-bot trading platform. Twenty-nine specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
+A multi-bot trading platform. Thirty-five specialised bots, including an AI analyst powered by xAI's Grok and a Coach that learns from every trade, each with its own role, work as a desk. They talk over an async event bus, and you supervise them from a real-time web dashboard with pause, flatten and kill-switch controls.
 
 It trades **mainly crypto**, including quick flips on trusted meme coins. It runs in **paper mode by default**, trading **live market prices** with simulated fills and no money at risk. The bots learn on the same data they'll later trade live. Live trading through **Uphold** or Alpaca is supported, but you have to opt in explicitly (see [Live trading](#live-trading)).
 
@@ -10,7 +10,7 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | --- | --- | --- |
 | **Scout** | Market data and signal prep | Ingests every tick, rejects bad data, detects shock moves and stale feeds, and computes EMA, RSI, volatility, ATR and Donchian channels |
 | **Strategist** | Market regime analysis | Classifies each symbol as *trending*, *ranging* or *volatile* (Kaufman efficiency ratio and volatility ratio, with hysteresis) |
-| **Quant** | Strategy and signal generation | Runs momentum, mean-reversion and breakout models, weights them by the Strategist's regime call, and only proposes a buy when the team reaches consensus (see below) |
+| **Quant** | Strategy and signal generation | Runs up to ten strategies (momentum, buying dips, breakouts, MACD and on-balance volume on; VWAP, trend, rate of change, Bollinger and Stochastic available) in three voting families, weights them by the Strategist's regime call, and only proposes a buy when the team reaches consensus. It also fires the meme breakout snipes and volume snipes |
 | **Grok** | AI analyst (xAI Grok) | Sends every proposed new position, with indicators, regime, recent prices and portfolio context, to Grok for an independent second opinion. In `veto` mode, trades Grok doesn't approve are never placed |
 | **Risk Manager** | Risk control and position sizing | Gates every signal: kill switch, pause, exposure, concentration, max positions, cooldowns, order-rate limit. Sizes positions by volatility (risk to stop) and halves size in volatile regimes. Trips the kill switch on daily-loss or drawdown limits |
 | **Executive** ★ | Head trader: final decisions | Takes the final real-time decision on every trade. Nothing reaches the broker without its authorisation. Checks team health (live prices, safety bots on duty, books balanced), re-checks the live price so it never chases a move that already happened, caps correlated crypto bets, and switches to a defensive stance (half size, higher conviction) after a losing streak or deep drawdown. Exits are always authorised instantly. Decision time is measured and shown, typically well under 1 ms. |
@@ -20,6 +20,14 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | **Reporter** 📰 | World and market news | Reads crypto, world and business news and the Fear & Greed index; bad news on a coin blocks buying it, scary world news makes trades smaller (see [News](#news-what-the-world-is-saying)) |
 | **Skimmer** 🏄 | Profit taking and day-trade skims | Takes profits of every size (see [The Skimmer](#the-skimmer-profits-big-and-small)) |
 | **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
+| **Trend Scout** 🔥 | Discovery | Meme coins and pump.fun coins over $50k market cap with plenty of volume, and trending coins, that your exchange lists (same coin checked by price) |
+| **Pullback Hunter** 🎣 | Entries | Buys the retest of a breakout |
+| **Flipper** ⏱️ | Flips and timing | Volume flips, and learns the best and worst hours to trade |
+| **Dip Buyer** 🔁 | Held losers | While never-sell holds a losing trade, buys more on a further dip that turns up, so it gets back to profit sooner |
+| **Stacker** 🪙 | Hold stack | Slowly buys SOL, XRP, DOGE and ETH on the side; never sold by the bots; coins can be moved to and from trading by hand |
+| **10 advisors** | Second opinions | Market Weather, Volatility Sizer, Momentum Ranker, Overextension Guard, Resistance Mapper, Correlation Officer, Whale Watcher, Liquidity Guard, Flash-Crash Guard, Big-Picture Trend: each can veto, nudge or resize a new trade |
+| **Operations** | Upkeep | Fee Auditor (the fee really paid), Slippage Tracker, Exchange Health, Accountant (daily report), Speed Monitor (cycle times), Housekeeper (keeps the records lean) |
+| **Target Learner** 🎯 · **Trade Reviewer** 📋 | Learning | Raise each coin's target to where its winners really run; size each trade finder by its record |
 
 ### How a trade flows
 
@@ -701,27 +709,34 @@ This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a stron
 
 ### Everything on with real money
 
-Every feature runs with real money. Each can be switched off on its own:
+How the bots run today, with real money, and the switch for each. Every "off" was tested and made less on real price history; the sections below give the numbers. **Settings → Make-me-money protocol → Use the tested-best settings** puts all of these back in one tap.
 
 | Feature | Real money | Switch |
 | --- | --- | --- |
-| Quick flips (more trades, smaller targets after fees) | on | `TZ_LIVE_QUICK_FLIPS` |
-| Stop-loss 33% from the buy price | on | `TZ_WIDE_STOP` |
-| Patient exits (cut early only when momentum and volume say no comeback) | on (and in practice whenever the -33% stop is on) | `TZ_PATIENT_EXITS` |
+| **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) | **on** | Settings → Your goal, `TZ_NEVER_SELL_AT_LOSS` |
+| Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
+| Stop-loss 33% from the buy price | on, but with never-sell on it only sells once the trade is back above break-even | `TZ_WIDE_STOP` |
+| Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
+| Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
+| Every profit sale keeps more than its fees (and comebacks) | on | `TZ_PROFIT_OVER_FEES`, `TZ_FEE_RULE_RESCUE` |
+| Quick flips (closer targets after fees) | on | `TZ_LIVE_QUICK_FLIPS` |
 | Moving take-profit past +10% | on | `TZ_TP_STEP` |
-| Quick-flip slice (part of a trade banked at +1.2% after fees) | **off**: it shrank the winners on real price history (see below) | `TZ_FLIP_BANK_FRACTION` (0.25 to turn on) |
-| Skims (small dip-buy day trades) | **off**: they lost money in every simulated run (see below) | `TZ_FLIP_MAX_SKIMS` (4 to turn on) |
-| Flipper: best hours to flip, volume flips | on | `TZ_FLIPPER` |
-| Flipper: accumulating coins (sell a slice high, buy back lower) | **off**: it capped winners on real price history (see below) | `TZ_ACCUMULATE=true` to turn on |
+| Strategies: momentum, buying dips, breakouts, **MACD**, **on-balance volume** | on (5 of 10; the other 5 tested worse) | Settings → Trading strategies, `TZ_STRATEGIES` |
+| Meme breakout snipes, volume snipes (4× volume), Pullback Hunter, Flipper | on | Settings → Trading strategies |
+| Trend Scout: meme coins and **pump.fun** coins over $50k with plenty of volume, trending coins | on (only coins your exchange lists, same coin checked) | `TZ_DISCOVER_COINS`, `TZ_DISCOVER_PUMP` |
+| Up to 20 trades at once, up to 5 meme coins | on | `TZ_MAX_OPEN_POSITIONS`, `TZ_MAX_MEME_POSITIONS` |
+| Hold stack (SOL, XRP, DOGE, ETH bought slowly on the side, never sold) | on | `TZ_STACK` |
+| Learning: Coach, Flipper hours, Fee Auditor, Target Learner, Trade Reviewer | on | `TZ_COACH_LEARNING`, `TZ_LEARN_TARGETS`, `TZ_LEARN_SOURCES` |
+| Speed Monitor, Housekeeper (records kept lean) | on | `TZ_JOURNAL_KEEP_DAYS` |
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
-| Growth ladder (smaller coins first) | on | `TZ_FOCUS_SMALL_COINS` |
-| Kraken meme coins and small altcoins | on (with Kraken prices) | `TZ_KRAKEN_MEMES`, `TZ_MAX_SMALL_COINS` |
+| Growth ladder (smaller coins first on small balances) | on | `TZ_FOCUS_SMALL_COINS` |
 | Daily goal ($1,000, a floor not a ceiling) | on | `TZ_DAILY_GOAL_USD` |
-| Shorting | only where the account can (Alpaca margin, stocks) | `TZ_SHORTING` |
 | "Never buy what can't be sold" checks | on | (always) |
+| Shorting | only where the account can (Alpaca margin, stocks) | `TZ_SHORTING` |
+| Quick-flip slices, skims, accumulating, profit sales at the ask, the fee rule on locked stops | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS`, `TZ_FEE_RULE_STOPS` |
 | Aggressive / Bold risk levels | opt-in | Settings → Your goal |
 
-Patient exits, skims and the quick-flip slice had been switched off after the losing-trades review below. They're back on by request. With the -33% stop, patient exits are what cuts a falling trade early (when momentum and heavy volume both point down) instead of riding it to -33%. In simulated real-money trading (random prices, Kraken fees), switching all three back on made more trades and left almost no money stuck in losing positions, and ended about 1% lower over four $500 runs (the extra fees). That's within the noise of random prices; real markets will tell.
+The full list of settings, with every default, is in `.env.example`.
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
 

@@ -206,3 +206,78 @@ def test_no_mode_switch_while_a_hold_stack_purchase_is_filling(exchange):
     desk = main_desk()
     desk.bots["stacker"].pending = {"order": None}
     assert any("hold-stack purchase" in b for b in desk._switch_blockers("live"))
+
+
+def test_settings_for_each_venue_point_at_its_own_prices_and_keys():
+    from tradezone.desk import TradingDesk as TD
+    main = TD(Settings(feed="coinbase", symbols=list(SYMS)), feed=SimulatedFeed(SYMS), journal=Journal(":memory:"))
+    f = main.fleet
+    k = f._settings("kraken", {"key": "K", "secret": "S"})
+    a = f._settings("alpaca", {"key": "AK1", "secret": "S"})
+    u = f._settings("uphold", {"token": "t" * 30})
+    assert (k.feed, k.kraken_key, k.live_venue) == ("kraken", "K", "kraken")
+    assert (a.feed, a.alpaca_live_key, a.alpaca_key) == ("alpaca", "AK1", "")  # never the main practice keys
+    assert (u.feed, u.uphold_token) == ("coinbase", "t" * 30)
+    assert k.symbols == [] and k.journal_path == ""  # its own coin list and its own database
+
+
+def test_unknown_venues_and_too_many_accounts_are_refused(exchange):
+    desk = main_desk()
+    with pytest.raises(FleetError, match="Choose Kraken, Alpaca or Uphold"):
+        run(desk.fleet.add("tastyfx", "x", "y"))
+    import tradezone.fleet as fleet_mod
+    old = fleet_mod.MAX_EXTRA
+    fleet_mod.MAX_EXTRA = 1
+    try:
+        run(desk.fleet.add("kraken", "KEY-A", SECRET))
+        with pytest.raises(FleetError, match="Up to 1 extra"):
+            run(desk.fleet.add("kraken", "KEY-B", SECRET))
+    finally:
+        fleet_mod.MAX_EXTRA = old
+
+
+def test_extra_accounts_run_their_own_teams_and_stop_cleanly(exchange):
+    import asyncio
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-A", SECRET))["id"]
+    d = desk.fleet.desk(acct_id)
+    d.settings.cycle_seconds = 0.01
+
+    async def go():
+        await desk.fleet.start()
+        await asyncio.sleep(0.3)
+        running = d.running and d.cycles > 0
+        await desk.fleet.stop()
+        return running
+    assert run(go()) and not d.running and desk.fleet.tasks == {}
+
+
+def test_pause_and_resume_every_account_at_once(exchange):
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-A", SECRET))["id"]
+    assert desk.fleet.control_all("pause") == 2 and desk.paused and desk.fleet.desk(acct_id).paused
+    desk.fleet.control_all("resume")
+    assert not desk.paused and not desk.fleet.desk(acct_id).paused
+    with pytest.raises(FleetError):
+        desk.fleet.control_all("dance")
+
+
+def test_an_exchange_failing_during_the_balance_check_is_only_logged(exchange):
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-A", SECRET))["id"]
+
+    async def boom():
+        raise RuntimeError("exchange down")
+    desk.fleet.desk(acct_id).live_broker.account = boom
+    run(desk.fleet.refresh_balances(force=True))  # no exception
+    assert desk.fleet.row(acct_id)["exchange"]["cash"] == 500.0  # the last good figure stays
+
+
+def test_a_damaged_saved_account_is_reported_not_fatal(exchange):
+    desk = main_desk()
+    desk._save_account_row("extra:bad", {"id": "bad", "venue": "nope", "label": "Broken"})
+    alerts = []
+    desk.bus.subscribe("alert", lambda e: alerts.append(e.payload), owner="t")
+    desk.fleet.load()
+    run(desk.bus.drain())
+    assert "bad" not in desk.fleet.desks and any("Broken" in a.message for a in alerts)

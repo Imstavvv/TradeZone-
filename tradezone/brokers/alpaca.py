@@ -106,7 +106,10 @@ class AlpacaBroker(Broker):
 
     async def cancel(self, order: Order) -> None:
         if order.broker_id:
-            await self.client.delete(f"/v2/orders/{order.broker_id}")
+            try:
+                await self.client.delete(f"/v2/orders/{order.broker_id}")
+            except httpx.HTTPError as exc:  # a network blip must not become a bot error (the next poll settles it)
+                log.warning("alpaca cancel %s failed: %s", order.id, exc)
 
     async def refresh_market(self) -> None:
         """Which stocks can be shorted (every 10 min): a margin account and easy-to-borrow shares only."""

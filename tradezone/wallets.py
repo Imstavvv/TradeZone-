@@ -379,7 +379,7 @@ class WalletService:
                       f"its transfer fee is about ${fee:,.2f}, so about ${max(0.0, usd - fee):,.2f} arrives")
         else:
             t.tx_hash = f"paper-{secrets.token_hex(8)}"
-            t.note = f"paper withdrawal{f' with {c.tag.name} {w.tag}' if w.tag else ''}"
+            t.note = f"paper withdrawal{f' with {c.tag.name} {w.tag}' if w.tag and c.tag else ''}"
             self.desk.portfolio.apply_flow(-usd)
             self._event("funds.withdrawal", t.to_dict())
         self._save_transfer(t)

@@ -96,7 +96,7 @@ class SecurityManager:
         if not self._owner:  # sites set up before simple sign-in had a password / Face ID table
             try:
                 self._owner = bool(journal.one("SELECT 1 FROM app_lock LIMIT 1") or journal.one("SELECT 1 FROM passkeys LIMIT 1"))
-            except Exception:  # noqa: BLE001 - tables simply don't exist on a new site
+            except Exception:  # tables simply don't exist on a new site
                 self._owner = False
             if self._owner:
                 self.claim_owner()

@@ -65,7 +65,7 @@ def test_in_its_full_mode_targets_can_come_down_but_stay_well_above_the_fees():
 def test_trade_reviewer_sizes_finders_by_their_record():
     desk = make()
     rv = desk.bots["reviewer"]
-    for i in range(8):
+    for _ in range(8):
         trade(desk, "SOL-USD", 100.0, 103.0, 102.5, reason="volume snipe: SOL-USD trading 5x")
         trade(desk, "BTC-USD", 100.0, 100.5, 98.0, reason="pullback: BTC-USD retested")
     assert rv.size_mult("volume snipe: X") > 1.0 and rv.size_mult("pullback: Y") <= 0.85

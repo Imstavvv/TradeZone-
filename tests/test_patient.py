@@ -6,13 +6,13 @@ import pytest
 from tests.helpers import capture, prime, run
 from tests.test_quick_flips import buy, tick
 from tests.test_quick_flips import make as _make
+from tradezone.core.models import Snapshot, Tick
 
 
 def make(**kw):
     kw.setdefault("patient_exits", True)  # (off by default now; these tests cover the feature itself)
     kw.setdefault("never_sell_at_loss", False)  # (these cover the cuts, which run when that mode is off)
     return _make(**kw)
-from tradezone.core.models import Snapshot, Tick
 
 
 def bar(desk, sym, price, mom=0.0, vr=1.0, swing_low=None):

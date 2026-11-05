@@ -21,8 +21,10 @@ services:
       #   TZ_ALPACA_LIVE_KEY / TZ_ALPACA_LIVE_SECRET  (Alpaca live account)
       #   TZ_LIVE_VENUE                               (optional: uphold | kraken | alpaca)
       # Recommended when live:
-      #   TZ_LIVE_MAX_CAPITAL                         (most USD the bots may trade with)
-      #   TZ_LIVE_QUICK_FLIPS                         (true = faster real-money trading; false = practice plan)
+      #   TZ_LIVE_MAX_CAPITAL                         (most USD the bots may trade with - or set it on the home
+      #                                                screen: Make-me-money protocol -> Real-money cap)
+      # Every other setting and its default: .env.example. Most can also be switched in the app
+      # (Settings -> Trading strategies, Never sell at a loss, Real-money risk).
       # Optional:
       #   TZ_ALPACA_KEY / TZ_ALPACA_SECRET            (Alpaca paper + stock data)
       #   TZ_GROK_API_KEY                             (Grok AI analyst)

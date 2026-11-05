@@ -215,7 +215,7 @@ class TrendBot(Bot):
         for sym in symbols:
             try:
                 candles = await self.desk.feed.history(sym, gran, 300)
-            except Exception as exc:  # noqa: BLE001 - one coin's history must not stop the scan
+            except Exception as exc:  # one coin's history must not stop the scan
                 log.warning("history %s failed: %s", sym, exc)
                 continue
             if candles:

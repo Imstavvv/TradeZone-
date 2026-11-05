@@ -476,7 +476,7 @@ class PortfolioBot(Bot):
         (the bots must never count on cash that's gone). Returns the amount applied."""
         p = self.portfolio
         exe = self.desk.bots.get("execution")
-        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())) \
+        if (exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values()))) \
                 or getattr(self.desk.bots.get("stacker"), "pending", None) is not None:
             self._cash_seen = None
             return 0.0

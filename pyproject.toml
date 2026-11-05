@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradezone"
-version = "1.0.0"
-description = "Multi-bot live trading desk with a 7-bot team, risk controls and a real-time dashboard"
+version = "2.0.0"
+description = "A 35-bot crypto trading desk with risk controls, learning bots and a real-time dashboard"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "httpx>=0.27", "websockets>=13"]
+dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "httpx>=0.28", "websockets>=14"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "ruff>=0.15"]
 
 [project.scripts]
 tradezone = "tradezone.__main__:main"
@@ -25,3 +25,16 @@ tradezone = ["web/*.html", "web/*.svg", "web/*.png", "web/*.webmanifest"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+# the rules the code is kept clean against (CI runs them on every push)
+select = ["E", "F", "W", "I", "B", "UP", "ASYNC", "RUF"]
+ignore = [
+    "E501",     # long lines: readability first, the formatter isn't used
+    "B027",     # empty hook methods on the base classes are deliberate (overridden where needed)
+    "ASYNC250", # the command-line token helper asks for input on purpose
+]

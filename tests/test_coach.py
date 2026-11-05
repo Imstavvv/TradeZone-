@@ -176,8 +176,9 @@ def test_trade_open_across_restart_is_still_learned(tmp_path, settings):
 
 def test_paper_and_live_trades_are_tracked_separately(desk):
     coach = desk.bots["coach"]
-    pub = lambda **t: (desk.bus.publish("trade.log", {"symbol": "BTC-USD", "pnl": None, "position_after": 1.0, **t}),
-                       run(desk.bus.drain()))
+    def pub(**t):
+        desk.bus.publish("trade.log", {"symbol": "BTC-USD", "pnl": None, "position_after": 1.0, **t})
+        run(desk.bus.drain())
     pub(action="open", mode="paper")
     pub(action="open", mode="live")
     pub(action="close", mode="live", pnl=-5.0, position_after=0.0)
