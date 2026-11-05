@@ -13,15 +13,11 @@
 <link rel="apple-touch-icon" href="/icon-180.png">
 <title>TradeZone Desk</title>
 <style>
-:root{
-  --bg:#0b0f17; --panel:#121826; --panel2:#182033; --line:#232c40; --text:#e6ebf5; --muted:#8892a8;
-  --up:#22c55e; --down:#ef4444; --warn:#f59e0b; --accent:#6366f1; --accent2:#22d3ee;
-}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--panel)}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:.3px}
-.brand .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+body{margin:0;color:var(--text);font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px}
+.brand{display:flex;align-items:center;gap:10px;font-size:17px}
+.brand .logo{width:28px;height:28px}
 .badge{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.5px;border:1px solid var(--line);color:var(--muted)}
 .badge.live{background:#3b0d0d;color:#fca5a5;border-color:#7f1d1d}
 .badge.paper{background:#0d2a3b;color:#7dd3fc;border-color:#164e63}
@@ -30,34 +26,37 @@ header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:s
 .badge.run{background:#0d3b1e;color:#86efac;border-color:#14532d}
 @keyframes pulse{50%{opacity:.55}}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
-button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer}
-button:hover{border-color:var(--accent)}
-button.danger{background:#450a0a;border-color:#7f1d1d;color:#fecaca}
+button{background:var(--panel2);color:var(--text);padding:6px 12px;font:inherit;cursor:pointer}
+button.danger{border-color:#7f1d1d}
 button.danger:hover{border-color:var(--down)}
 main{padding:16px;display:grid;gap:16px;grid-template-columns:minmax(0,1fr) 380px}
-@media (max-width:1100px){main{grid-template-columns:minmax(0,1fr)}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
-.panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);display:flex;justify-content:space-between;align-items:center}
+@media (max-width:1100px){
+  main{grid-template-columns:minmax(0,1fr)}
+}
+.panel{background:var(--panel);padding:14px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:12px;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
 .kpis{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi{background:var(--panel);padding:12px 14px}
 .kpi .l{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.8px}
 .kpi .v{font-size:20px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
-.up{color:var(--up)} .down{color:var(--down)} .muted{color:var(--muted)}
+.up{color:var(--up)}
+.down{color:var(--down)}
+.muted{color:var(--muted)}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .tab{padding:4px 10px;border-radius:999px;border:1px solid var(--line);cursor:pointer;font-weight:600;font-size:12px;background:var(--panel2);font-variant-numeric:tabular-nums}
-.tab.on{border-color:var(--accent);background:#1e1b4b}
 canvas{width:100%;display:block}
 .col{display:grid;gap:16px;align-content:start;min-width:0}
-.team{display:grid;gap:10px;grid-template-columns:minmax(0,1fr)}
+.team{grid-template-columns:minmax(0,1fr)}
 .bot{min-width:0}
 .bot{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .bot.off{opacity:.55}
 .bot .top{display:flex;align-items:center;gap:10px}
-.avatar{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;font-size:14px;flex:none;color:#0b0f17}
+.avatar{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:800;flex:none;color:#0b0f17}
 .bot .name{font-weight:700}
 .bot .role{color:var(--muted);font-size:11px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--up);box-shadow:0 0 8px var(--up);margin-left:auto;flex:none}
-.dot.disabled{background:#475569;box-shadow:none}.dot.error{background:var(--down);box-shadow:0 0 8px var(--down)}
+.dot.disabled{background:#475569;box-shadow:none}
+.dot.error{background:var(--down);box-shadow:0 0 8px var(--down)}
 .bot .act{margin-top:6px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,Menlo,monospace;color:#cbd5e1}
 .bot .mets{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px;font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
 .bot .mets b{color:var(--text);font-weight:600}
@@ -69,18 +68,23 @@ td.r,th.r{text-align:right}
 .scroll{max-height:300px;overflow:auto}
 .feed{font-family:ui-monospace,Menlo,monospace;font-size:12px;max-height:340px;overflow:auto}
 .feed div{padding:3px 0;border-bottom:1px dashed #1c2436;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.feed .t{color:var(--muted)} .feed .src{color:var(--accent2)}
-.lvl-critical{color:#fca5a5} .lvl-warning{color:#fcd34d}
+.feed .t{color:var(--muted)}
+.feed .src{color:var(--accent2)}
+.lvl-critical{color:#fca5a5}
+.lvl-warning{color:#fcd34d}
 .pill{padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600}
-.pill.trending{background:#14532d;color:#86efac}.pill.ranging{background:#1e3a8a;color:#93c5fd}.pill.volatile{background:#78350f;color:#fcd34d}.pill.unknown{background:#334155;color:#cbd5e1}
+.pill.trending{background:#14532d;color:#86efac}
+.pill.ranging{background:#1e3a8a;color:#93c5fd}
+.pill.volatile{background:#78350f;color:#fcd34d}
+.pill.unknown{background:#334155;color:#cbd5e1}
 .grid2{grid-column:1/-1;display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr))}
 .empty{color:var(--muted);padding:10px 0;text-align:center}
 #conn{font-size:11px}
 body.is-live{box-shadow:inset 0 0 0 4px var(--down)}
 body.is-live header{background:linear-gradient(90deg,#2a0b0b,var(--panel) 40%)}
-button.golive{background:#7f1d1d;border-color:#ef4444;color:#fff}
+button.golive{border-color:#ef4444}
 button.golive:hover{background:#991b1b}
-button.gopaper{background:#0d2a3b;border-color:#0e7490;color:#a5f3fc}
+button.gopaper{border-color:#0e7490}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
 .modal.open{display:flex}
 .modal .box{background:var(--panel);border:1px solid var(--down);border-radius:14px;max-width:520px;width:100%;padding:20px;max-height:90vh;overflow:auto}
@@ -94,7 +98,8 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .banner{grid-column:1/-1;background:#3b2a0d;border:1px solid #78350f;color:#fcd34d;border-radius:10px;padding:10px 14px;font-weight:600;display:none}
 .banner.info{background:#0d2a3b;border-color:#164e63;color:#a5f3fc}
 .banner.crit{background:#450a0a;border-color:#7f1d1d;color:#fecaca}
-.badge.grok-on{background:#1f1f1f;color:#f5f5f5;border-color:#525252}.badge.grok-err{background:#450a0a;color:#fecaca;border-color:#7f1d1d}
+.badge.grok-on{background:#1f1f1f;color:#f5f5f5;border-color:#525252}
+.badge.grok-err{background:#450a0a;color:#fecaca;border-color:#7f1d1d}
 form.row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 form.row input,form.row select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;min-width:0;flex:1 1 120px}
 form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;flex:1 1 100%}
@@ -119,26 +124,36 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .node .bar{height:3px;border-radius:2px;background:#1c2436;margin-top:6px;overflow:hidden}
 .node .bar i{display:block;height:100%;background:var(--c,#6366f1);width:0;transition:width .6s}
 .node.off{opacity:.45}
-.node.flash{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 0 18px -2px var(--c);transform:translateY(-2px)}
+.node.flash{border-color:var(--c);transform:translateY(-2px)}
 .node.flash:not(:last-child)::after{background:var(--c)}
 .node.warn{border-color:var(--warn)}
 .node.crit{border-color:var(--down)}
-@media (max-width:1300px){.pipeline{grid-template-columns:repeat(5,minmax(0,1fr))}.node:nth-child(5n)::after{display:none}}
-@media (max-width:1100px){.pipeline{grid-template-columns:repeat(3,minmax(0,1fr))}.node:nth-child(3n)::after{display:none}}
+@media (max-width:1300px){
+  .pipeline{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .node:nth-child(5n)::after{display:none}
+}
+@media (max-width:1100px){
+  .pipeline{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .node:nth-child(3n)::after{display:none}
+}
 /* ---- activity stream ---- */
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .chip{padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);font-size:11px;font-weight:600;cursor:pointer;color:var(--muted)}
 .chip.on{color:var(--text);border-color:var(--accent);background:#1e1b4b}
 .stream{font-family:ui-monospace,Menlo,monospace;font-size:12px;height:420px;overflow:auto}
 #sec-activity{grid-column:span 2}
-@media (max-width:1100px){#sec-activity{grid-column:auto}}
+@media (max-width:1100px){
+  #sec-activity{grid-column:auto}
+}
 .stream .it{display:grid;grid-template-columns:62px 110px 1fr;gap:6px;padding:4px 2px;border-bottom:1px dashed #1c2436;align-items:baseline}
 .stream .it.new{animation:fadein .8s}
 @keyframes fadein{from{background:#1e1b4b}to{background:transparent}}
 .stream .who{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stream .tag{font-size:10px;padding:0 5px;border-radius:4px;background:#1c2436;color:var(--muted);margin-right:4px}
-.stream .tag.trade{background:#14532d;color:#86efac}.stream .tag.signal{background:#1e1b4b;color:#c7d2fe}
-.stream .tag.risk{background:#3b2a0d;color:#fcd34d}.stream .tag.alert{background:#450a0a;color:#fecaca}
+.stream .tag.trade{background:#14532d;color:#86efac}
+.stream .tag.signal{background:#1e1b4b;color:#c7d2fe}
+.stream .tag.risk{background:#3b2a0d;color:#fcd34d}
+.stream .tag.alert{background:#450a0a;color:#fecaca}
 .stream .tag.thought{background:#1c2436;color:#94a3b8}
 .counter{font-size:11px;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:500}
 .livedot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--up);margin-right:4px;animation:pulse 1.2s infinite}
@@ -148,7 +163,9 @@ form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-s
 .tl-bar select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit}
 .tl-sum{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-left:auto}
 .tl-sum b{color:var(--text)}
-.act-open{color:#93c5fd}.act-close,.act-partial{color:#c4b5fd}.act-add,.act-reduce,.act-flip{color:#fcd34d}
+.act-open{color:#93c5fd}
+.act-close,.act-partial{color:#c4b5fd}
+.act-add,.act-reduce,.act-flip{color:#fcd34d}
 tr.flashrow td{animation:fadein 1.5s}
 .tcard{border-bottom:1px solid var(--line);padding:9px 2px;font-variant-numeric:tabular-nums}
 .tcard.flashrow{animation:fadein 1.5s}
@@ -160,15 +177,17 @@ tr.flashrow td{animation:fadein 1.5s}
 .botlog div{padding:4px 0;border-bottom:1px dashed #1c2436}
 /* ---- app lock ---- */
 body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:hidden}
-.lockscreen{position:fixed;inset:0;z-index:30;background:radial-gradient(circle at 50% 0%,#1e1b4b,var(--bg) 60%);display:none;
-  flex-direction:column;align-items:center;justify-content:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom));gap:14px;text-align:center}
+.lockscreen{position:fixed;inset:0;z-index:30;display:none;flex-direction:column;align-items:center;padding:24px 16px calc(24px + env(safe-area-inset-bottom));gap:14px;text-align:center}
 .lockscreen.open{display:flex}
 .lockscreen{overflow-y:auto;justify-content:safe center}
 .lockscreen > *{flex:none}
-@media (max-height:700px){.lockscreen{gap:8px}.lockscreen .logo{display:none}.lockscreen h3{font-size:18px}}
+@media (max-height:700px){
+  .lockscreen{gap:8px}
+  .lockscreen .logo{display:none}
+  .lockscreen h3{font-size:18px}
+}
 .lockscreen .logo{width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--accent),var(--accent2))}
 .lockscreen h3{margin:4px 0 0;font-size:20px}
-@keyframes shake{20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
 .lockerr{min-height:20px;color:#fca5a5;font-size:13px}
 .faceid{display:flex;align-items:center;gap:8px;padding:10px 18px;border-radius:999px;font-size:15px}
 .linkbtn{background:none;border:none;color:var(--muted);text-decoration:underline;font-size:12px;min-height:auto}
@@ -183,31 +202,42 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .srow{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
 .srow:last-of-type{border-bottom:none}
 .srow .ic{width:36px;height:36px;border-radius:12px;background:var(--panel2);display:grid;place-items:center;font-size:18px}
-.srow .tx{display:flex;flex-direction:column;min-width:0}.srow .tx span{color:var(--muted);font-size:13px}
+.srow .tx{display:flex;flex-direction:column;min-width:0}
+.srow .tx span{color:var(--muted);font-size:13px}
 .srow button{min-height:40px;padding:6px 14px;white-space:nowrap}
 .wcard{display:grid;grid-template-columns:36px 1fr;gap:4px 10px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px}
 .wcard .ic{font-size:22px;grid-row:span 2;display:grid;place-items:center}
 .wcard .sub2{color:var(--muted);font-size:12px;word-break:break-all}
-.wcard .btns{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}.wcard .btns button{flex:1;min-height:38px}
+.wcard .btns{grid-column:1/-1;display:flex;gap:8px;margin-top:6px}
+.wcard .btns button{flex:1;min-height:38px}
 .howto{margin:8px 0 4px;padding-left:20px;font-size:14px;line-height:1.55}
 .fl{font-size:13px;font-weight:700;margin-top:10px;display:block}
 .pastebox{display:flex;gap:8px;margin-top:4px}
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
-.protosteps{display:grid;gap:6px}.pstep{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
-.pstep .ok{font-size:16px}.pstep b{font-size:14px}.pstep .q{font-size:12px;color:var(--muted)}.pstep.done{border-color:rgba(74,222,128,.4)}
+.protosteps{display:grid;gap:6px}
+.pstep{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
+.pstep .ok{font-size:16px}
+.pstep b{font-size:14px}
+.pstep .q{font-size:12px;color:var(--muted)}
+.pstep.done{border-color:rgba(74,222,128,.4)}
 .stratlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .strat{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
-.strat b{font-size:14px}.strat .q{font-size:11px;color:var(--muted)}.strat button{padding:5px 10px;font-size:12px;white-space:nowrap}
+.strat b{font-size:14px}
+.strat .q{font-size:11px;color:var(--muted)}
+.strat button{padding:5px 10px;font-size:12px;white-space:nowrap}
 .strat.on{border-color:rgba(139,92,246,.55)}
 .stackhead{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin:4px 0 10px}
 .stackhead .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .stackrows{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .stackrows .coin{border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
-.stackrows .coin .mv{display:flex;gap:6px;margin-top:8px}.stackrows .coin .mv button,.mvrow button{padding:4px 8px;font-size:11px}
-.mvrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}.mvrow span:last-child{display:flex;gap:6px}
-.stackrows .coin b{font-size:15px}.stackrows .coin .q{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.stackrows .coin .mv{display:flex;gap:6px;margin-top:8px}
+.stackrows .coin .mv button,.mvrow button{padding:4px 8px;font-size:11px}
+.mvrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px}
+.mvrow span:last-child{display:flex;gap:6px}
+.stackrows .coin b{font-size:15px}
+.stackrows .coin .q{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .acclist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px}
 .acc{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.03);min-width:0}
 .acc.live{border-color:rgba(74,222,128,.55);box-shadow:0 0 0 1px rgba(74,222,128,.2) inset}
@@ -230,41 +260,48 @@ body.simple #mode,body.simple #grokBadge,body.simple #conn{display:none}
 /* ---- front page ---- */
 .fronthead{display:flex;flex-direction:column;align-items:center;gap:4px;margin-bottom:6px}
 .fronthead .logo{width:64px;height:64px;border-radius:20px}
-.ftitle{font-size:30px;font-weight:900;letter-spacing:-.5px;background:linear-gradient(90deg,#22d3ee,#a78bfa,#f472b6,#fb923c);
-  -webkit-background-clip:text;background-clip:text;color:transparent}
 .ftag{color:var(--muted);font-size:14px}
 .parade{display:flex;gap:6px;margin-top:6px;font-size:22px}
-.parade span{animation:bob 1.6s ease-in-out infinite}.parade span:nth-child(2n){animation-delay:.3s}.parade span:nth-child(3n){animation-delay:.6s}
-@media (max-height:720px){.fronthead .logo{display:none}.ftitle{font-size:24px}.parade{font-size:18px}}
+.parade span{animation:bob 1.6s ease-in-out infinite}
+.parade span:nth-child(2n){animation-delay:.3s}
+.parade span:nth-child(3n){animation-delay:.6s}
+@media (max-height:720px){
+  .fronthead .logo{display:none}
+  .ftitle{font-size:24px}
+  .parade{font-size:18px}
+}
 /* ---- welcome / sign-in ---- */
 .welcome .card{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:12px}
 .welcome .pane{display:none;width:100%;flex-direction:column;align-items:center;gap:12px}
 .welcome .pane.on{display:flex}
-.welcome input.code{width:100%;max-width:280px;text-align:center;font-size:24px;letter-spacing:4px;background:var(--bg);color:var(--text);
-  border:1px solid var(--line);border-radius:12px;padding:12px;font-variant-numeric:tabular-nums}
+.welcome input.code{width:100%;max-width:280px;text-align:center;font-size:24px;letter-spacing:4px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-variant-numeric:tabular-nums}
 .welcome .big{width:100%;max-width:300px;min-height:48px;font-size:16px;border-radius:12px}
-.welcome .steps{display:flex;gap:6px}.welcome .steps i{width:28px;height:4px;border-radius:2px;background:#334155}.welcome .steps i.on{background:var(--accent2)}
+.welcome .steps{display:flex;gap:6px}
+.welcome .steps i{width:28px;height:4px;border-radius:2px;background:#334155}
+.welcome .steps i.on{background:var(--accent2)}
 .welcome p{margin:0;max-width:340px}
 /* ---- confirm sheet / ask sheet / toasts ---- */
 .sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
 .sheet.open{display:flex}
-#askSheet{z-index:44}  /* confirmations always sit on top of the sheet that asked */
-.sheet .panel2{background:var(--panel);border:1px solid var(--line);border-bottom:none;border-radius:18px 18px 0 0;width:100%;max-width:440px;
-  padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
-  animation:rise .2s ease-out}
+#askSheet{z-index:44}
+/* confirmations always sit on top of the sheet that asked */
+.sheet .panel2{border:1px solid var(--line);border-bottom:none;border-radius:18px 18px 0 0;width:100%;max-width:440px;padding:18px 16px calc(18px + env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;animation:rise .2s ease-out}
 @keyframes rise{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
-@media (min-width:701px){.sheet{align-items:center}.sheet .panel2{border-radius:18px;border-bottom:1px solid var(--line)}}
+@media (min-width:701px){
+  .sheet{align-items:center}
+  .sheet .panel2{border-radius:18px;border-bottom:1px solid var(--line)}
+}
 .sheet h3{margin:0;font-size:18px}
-.sheet .row{display:flex;gap:10px;width:100%}.sheet .row button{flex:1;min-height:46px;font-size:15px;border-radius:12px}
-.toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:50;display:flex;flex-direction:column;gap:8px;
-  width:min(440px,calc(100% - 24px));pointer-events:none}
-.toast{background:#1e293b;border:1px solid var(--line);border-left:4px solid var(--accent2);border-radius:12px;padding:10px 14px;font-size:14px;
-  box-shadow:0 8px 30px rgba(0,0,0,.4);animation:rise .2s ease-out;pointer-events:auto}
-.toast.ok{border-left-color:var(--up)}.toast.err{border-left-color:var(--down)}.toast.warn{border-left-color:var(--warn)}
+.sheet .row{display:flex;gap:10px;width:100%}
+.sheet .row button{flex:1;min-height:46px;font-size:15px;border-radius:12px}
+.toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:50;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100% - 24px));pointer-events:none}
+.toast{border-left:4px solid var(--accent2);padding:10px 14px;font-size:14px;animation:rise .2s ease-out;pointer-events:auto}
+.toast.ok{border-left-color:var(--up)}
+.toast.err{border-left-color:var(--down)}
+.toast.warn{border-left-color:var(--warn)}
 /* ---- simple view ---- */
 .viewtoggle{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:2px}
 .viewtoggle button{border:none;background:none;border-radius:999px;padding:4px 12px;font-size:12px;min-height:auto;color:var(--muted)}
-.viewtoggle button.on{background:var(--accent);color:#fff}
 #simple{grid-column:1/-1;display:none;gap:14px}
 body.simple #simple{display:grid}
 body.simple .pro{display:none !important}
@@ -273,27 +310,29 @@ body.simple .pro{display:none !important}
 .pagehead h2{margin:0;font-family:var(--anime,inherit);font-weight:900;font-size:28px;color:var(--gold,#fde047);text-shadow:0 0 18px rgba(165,243,252,.45)}
 .pagehead p{margin:4px 0 0;color:var(--muted);font-size:14px}
 body.simple header .controls{display:none}
-.hero{background:linear-gradient(135deg,#1e1b4b,#0f172a 60%);border:1px solid #312e81;border-radius:18px;padding:20px}
-body.is-live .hero{background:linear-gradient(135deg,#3b0d0d,#0f172a 60%);border-color:#7f1d1d}
-.hero .lbl{color:#a5b4fc;font-size:13px;display:flex;align-items:center;gap:8px}
-.hero .bal{font-size:40px;font-weight:800;letter-spacing:-1px;margin:4px 0;font-variant-numeric:tabular-nums}
+body.is-live .hero{border-color:#7f1d1d}
+.hero .lbl{font-size:13px;display:flex;align-items:center;gap:8px}
+.hero .bal{margin:4px 0;font-variant-numeric:tabular-nums}
 .hero .chg{font-size:15px;font-weight:600}
-.hero .since{color:var(--muted);font-size:13px;margin-top:2px}
+.hero .since{font-size:13px;margin-top:2px}
 .statusline{display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;border-radius:12px;background:rgba(15,23,42,.6);font-size:14px}
 .statusline .led{width:10px;height:10px;border-radius:50%;flex:none;background:var(--up);box-shadow:0 0 10px var(--up);animation:pulse 2s infinite}
-.statusline.warn .led{background:var(--warn);box-shadow:0 0 10px var(--warn)}.statusline.stop .led{background:var(--down);box-shadow:0 0 10px var(--down);animation:none}
+.statusline.warn .led{background:var(--warn);box-shadow:0 0 10px var(--warn)}
+.statusline.stop .led{background:var(--down);box-shadow:0 0 10px var(--down);animation:none}
 .actions2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px}
 .actions2 button{min-height:48px;border-radius:12px;font-size:14px}
 .sgrid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(360px,100%),1fr))}
-.scard{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
-.scard h4{margin:0 0 10px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.scard{background:var(--panel);padding:16px}
+.scard h4{margin:0 0 10px;display:flex;justify-content:space-between;align-items:center}
 .scard h4 a{font-size:12px;color:var(--accent2);text-decoration:none;font-weight:600;cursor:pointer}
 .ptrade{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .ptrade:last-child{border-bottom:none}
-.ptrade .s{font-weight:700;font-size:15px}.ptrade .d{color:var(--muted);font-size:12px}
+.ptrade .s{font-weight:700;font-size:15px}
+.ptrade .d{color:var(--muted);font-size:12px}
 .ptrade .v{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .happen{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:14px;align-items:flex-start}
-.happen:last-child{border-bottom:none}.happen .ic{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:13px;flex:none;color:#0b0f17;font-weight:800}
+.happen:last-child{border-bottom:none}
+.happen .ic{width:26px;height:26px;display:grid;place-items:center;flex:none;color:#0b0f17;font-weight:800}
 .happen .tm{color:var(--muted);font-size:11px;margin-left:auto;white-space:nowrap}
 .team{display:flex;flex-wrap:wrap;gap:8px}
 .mate{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;cursor:pointer;font-size:12px}
@@ -330,7 +369,7 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   .node::after{display:none}
   .node .now{height:auto;max-height:44px}
   .stream{height:360px;font-size:11.5px}
-  .stream .it{grid-template-columns:54px 1fr;}
+  .stream .it{grid-template-columns:54px 1fr}
   .stream .it .who{grid-column:2}
   .stream .it .msg{grid-column:1/-1}
   .tl-sum{margin-left:0}
@@ -346,69 +385,48 @@ section[id^="sec-"],div[id^="sec-"]{scroll-margin-top:12px}
   .modal .actions{flex-direction:column-reverse}
   .modal .actions button{width:100%;min-height:44px}
   .modal input{font-size:18px}
-  .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(18,24,38,.96);backdrop-filter:blur(8px);
-    border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .bottomnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(18,24,38,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
   .bottomnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;color:var(--muted);text-decoration:none;font-size:10px;font-weight:600;border-radius:8px}
   .bottomnav a svg{width:20px;height:20px}
   .bottomnav a.on{color:var(--text);background:var(--panel2)}
   body.is-live .bottomnav{border-top-color:var(--down)}
 }
-
 /* =================== FUN THEME: vibrant, textured, playful (but money-safe) =================== */
-:root{
-  --bg:#0d0a1f; --panel:rgba(26,20,56,.72); --panel2:rgba(40,32,82,.72); --line:rgba(167,139,250,.18);
-  --text:#f5f3ff; --muted:#a5a0c8; --accent:#8b5cf6; --accent2:#22d3ee; --pink:#ec4899; --lime:#a3e635; --orange:#fb923c;
-  --up:#34d399; --down:#fb7185; --warn:#fbbf24;
-}
 body{font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI Variable Display",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);overflow-x:hidden}
 /* drifting colour glows */
-body::before{content:"";position:fixed;inset:-20%;z-index:-2;pointer-events:none;
-  background:radial-gradient(38% 32% at 18% 22%,rgba(139,92,246,.55),transparent 70%),
-             radial-gradient(32% 30% at 82% 18%,rgba(236,72,153,.40),transparent 70%),
-             radial-gradient(36% 34% at 72% 82%,rgba(34,211,238,.32),transparent 70%),
-             radial-gradient(30% 28% at 22% 86%,rgba(163,230,53,.20),transparent 70%);
-  filter:blur(10px);animation:drift 26s ease-in-out infinite alternate}
 @keyframes drift{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(3%,-2%) rotate(6deg)}100%{transform:translate(-3%,2%) rotate(-5deg)}}
 /* film grain + faint dot grid */
-body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.55;mix-blend-mode:overlay;
-  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
-    radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.2px);
-  background-size:160px 160px,22px 22px}
+body::after{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .5 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.2px)}
 header{background:rgba(13,10,31,.72);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line)}
-.brand{font-weight:800;letter-spacing:-.2px}
-.brand .logo{background:conic-gradient(from 210deg,#8b5cf6,#ec4899,#fb923c,#a3e635,#22d3ee,#8b5cf6);box-shadow:0 0 18px rgba(236,72,153,.45);animation:spin 18s linear infinite}
 @keyframes spin{to{filter:hue-rotate(360deg)}}
 .panel,.kpi,.scard,.bot,.node{backdrop-filter:blur(12px) saturate(130%);-webkit-backdrop-filter:blur(12px) saturate(130%)}
-.panel,.scard{border-radius:20px;box-shadow:0 10px 30px rgba(8,4,30,.35),inset 0 1px 0 rgba(255,255,255,.05)}
+.panel,.scard{border-radius:20px}
 .kpi{border-radius:18px}
 /* chunky, tappable buttons */
-button{border-radius:14px;font-weight:700;transition:transform .08s,box-shadow .15s,filter .15s;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+button{border-radius:14px;font-weight:700;transition:transform .08s,box-shadow .15s,filter .15s}
 button:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
 button:disabled{box-shadow:none}
-button.gopaper{background:linear-gradient(135deg,#22d3ee,#8b5cf6);border:none;color:#fff}
-button.golive{background:linear-gradient(135deg,#fb923c,#ec4899);border:none;color:#fff}
-button.danger{background:linear-gradient(135deg,#f43f5e,#be123c);border:none;color:#fff}
 button.gopaper:hover,button.golive:hover,button.danger:hover{filter:brightness(1.08)}
 .viewtoggle button{box-shadow:none}
-.viewtoggle button.on{background:linear-gradient(135deg,#8b5cf6,#ec4899)}
 /* hero */
-.hero{position:relative;overflow:hidden;border:none;border-radius:26px;padding:22px 20px 20px;
-  background:linear-gradient(135deg,#6d28d9 0%,#c026d3 48%,#f97316 100%);box-shadow:0 18px 50px rgba(192,38,211,.35)}
-.hero::before{content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.16) 45%,transparent 60%);transform:translateX(-100%);animation:sheen 7s ease-in-out infinite}
+.hero{position:relative;overflow:hidden;border-radius:26px;padding:22px 20px 20px}
+.hero::before{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.16) 45%,transparent 60%);transform:translateX(-100%);animation:sheen 7s ease-in-out infinite}
 @keyframes sheen{0%,55%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
-.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle,rgba(255,255,255,.25),transparent 65%)}
-body.is-live .hero{background:linear-gradient(135deg,#991b1b 0%,#dc2626 45%,#f59e0b 100%);box-shadow:0 18px 50px rgba(220,38,38,.4)}
+.hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;pointer-events:none;background:radial-gradient(circle,rgba(255,255,255,.25),transparent 65%)}
+body.is-live .hero{box-shadow:0 18px 50px rgba(220,38,38,.4)}
 .hero .lbl{color:rgba(255,255,255,.9);font-weight:700}
 .hero .lbl{flex-wrap:wrap}
 .hero .lbl #sMode{background:rgba(255,255,255,.2);padding:3px 10px;border-radius:999px;white-space:nowrap}
 .hero .lbl .muted{color:rgba(255,255,255,.75)}
-.hero .bal{font-size:46px;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.25)}
-.hero .bal.bump-up{animation:bumpUp .7s}.hero .bal.bump-down{animation:bumpDown .7s}
-@keyframes bumpUp{30%{transform:scale(1.04);color:#d9f99d}}@keyframes bumpDown{30%{transform:scale(.98);color:#fecdd3}}
+.hero .bal{transform-origin:left center}
+.hero .bal.bump-up{animation:bumpUp .7s}
+.hero .bal.bump-down{animation:bumpDown .7s}
+@keyframes bumpUp{30%{transform:scale(1.04);color:#d9f99d}}
+@keyframes bumpDown{30%{transform:scale(.98);color:#fecdd3}}
 .hero .chg{display:inline-flex;align-items:center;gap:6px;background:rgba(0,0,0,.18);padding:4px 10px;border-radius:999px}
-.hero .chg .up{color:#bbf7d0}.hero .chg .down{color:#fecdd3}
+.hero .chg .up{color:#bbf7d0}
+.hero .chg .down{color:#fecdd3}
 .hero .since{color:rgba(255,255,255,.8)}
 .hero .badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .hero .badge2{background:rgba(255,255,255,.18);color:#fff;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:700}
@@ -418,22 +436,20 @@ body.is-live .hero{background:linear-gradient(135deg,#991b1b 0%,#dc2626 45%,#f59
 .hero .actions2 button.golive{background:linear-gradient(135deg,#22d3ee,#3b82f6);color:#04121c;box-shadow:0 0 18px rgba(34,211,238,.45)}
 body.is-live .hero .actions2 button.gopaper{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff}
 /* live ticker */
-.ticker{margin:0 -20px 14px;padding:6px 0;overflow:hidden;white-space:nowrap;background:rgba(0,0,0,.16);
-  mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.ticker{margin:0 -20px 14px;padding:6px 0;overflow:hidden;white-space:nowrap;background:rgba(0,0,0,.16);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
 .ticker .run{display:inline-block;animation:tick 40s linear infinite;padding-left:100%}
 .ticker span{margin-right:26px;font-weight:700;font-size:13px;color:#fff;font-variant-numeric:tabular-nums}
-.ticker .u{color:#bbf7d0}.ticker .d{color:#fecdd3}
+.ticker .u{color:#bbf7d0}
+.ticker .d{color:#fecdd3}
 @keyframes tick{to{transform:translateX(-100%)}}
 /* bot crew with mascots */
 .crew{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-.mate2{position:relative;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:10px;cursor:pointer;min-width:0;transition:border-color .3s,box-shadow .3s}
+.mate2{position:relative;background:var(--panel2);border-radius:16px;padding:10px;cursor:pointer;min-width:0;transition:border-color .3s,box-shadow .3s}
 .mate2 .face{font-size:26px;width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--c);box-shadow:0 6px 16px -6px var(--c)}
-.mate2.busy{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 8px 24px -10px var(--c)}
-.mate2.busy .face{animation:bob .9s ease-in-out infinite}
+.mate2.busy{border-color:var(--c)}
 @keyframes bob{50%{transform:translateY(-4px) rotate(-6deg)}}
-.mate2 .nm{font-weight:800;font-size:13px;margin-top:6px}
-.mate2 .say{margin-top:6px;font-size:11px;color:#ddd6fe;background:rgba(139,92,246,.16);border-radius:10px 10px 10px 2px;padding:5px 7px;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;min-height:calc(2.7em + 10px);max-height:calc(2.7em + 10px)}
+.mate2 .nm{margin-top:6px}
+.mate2 .say{margin-top:6px;font-size:11px;border-radius:10px 10px 10px 2px;padding:5px 7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;min-height:calc(2.7em + 10px);max-height:calc(2.7em + 10px)}
 .mate2.off{opacity:.45}
 .mate2 .msn{font-size:10px;font-weight:700;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mission{margin-top:10px;font-weight:700;font-size:13px;background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:10px;padding:6px 10px}
@@ -441,65 +457,57 @@ body.is-live .hero .actions2 button.gopaper{background:linear-gradient(135deg,#8
 .rule{display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
 .rule:last-child{border-bottom:none}
 .rule .ic{flex:none;font-size:20px;width:34px;height:34px;display:grid;place-items:center;border-radius:10px;background:var(--panel2)}
-.rule .tx b{display:block}.rule .tx span{color:var(--muted);font-size:12px}
+.rule .tx b{display:block}
+.rule .tx span{color:var(--muted);font-size:12px}
 .learnstats{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .hstats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .hstat{background:var(--panel2);border:2px solid var(--ink,#0a0a1a);border-radius:14px;padding:8px;text-align:center;min-width:0}
 .hstat b{display:block;font-size:22px;font-family:var(--anime,inherit);color:var(--gold,#fde047)}
 .hstat span{font-size:11px;color:var(--muted)}
-.hwhy{font-size:13px}.hwhy b{display:block;margin:6px 0 2px;font-size:12px;color:var(--muted)}
+.hwhy{font-size:13px}
+.hwhy b{display:block;margin:6px 0 2px;font-size:12px;color:var(--muted)}
 .hwhy div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px solid var(--line)}
-@media (max-width:420px){.hstats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:420px){
+  .hstats{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 .learnstats .chip{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
-.learnstats .chip.good{border-color:var(--up)}.learnstats .chip.bad{border-color:var(--down)}
+.learnstats .chip.good{border-color:var(--up)}
+.learnstats .chip.bad{border-color:var(--down)}
 .avatar{font-size:16px}
 /* cards & lists get a splash of colour */
-.scard h4{font-size:16px;font-weight:800}
+.scard h4{font-size:16px}
 .ptrade{border-bottom-color:var(--line)}
 .happen .ic{border-radius:10px;font-size:15px;box-shadow:0 4px 12px -4px rgba(0,0,0,.5)}
 .toast{background:rgba(30,22,70,.92);backdrop-filter:blur(10px);border-radius:16px;font-weight:600}
-.toast.party{background:linear-gradient(135deg,#059669,#10b981);border:none;color:#fff}
+.toast.party{border:none}
 .sheet .panel2{background:rgba(26,20,56,.96);backdrop-filter:blur(16px)}
-.lockscreen{background:radial-gradient(circle at 50% 0%,#5b21b6,var(--bg) 62%)}
-.bottomnav a.on{background:linear-gradient(135deg,rgba(139,92,246,.35),rgba(236,72,153,.25))}
 #confetti{position:fixed;inset:0;pointer-events:none;z-index:60}
-@media (max-width:700px){.hero .bal{font-size:40px}.ticker{margin:0 -20px 12px}}
-
+@media (max-width:700px){
+  .ticker{margin:0 -20px 12px}
+}
 /* =================== GALAXY THEME ===================
    Deep space: a slowly drifting starfield over violet and teal nebulae, glassy panels, and a starship
    on the home page that reacts to trading. Everything is CSS / inline SVG: no outside fonts or images,
    so the strict security policy stays as it is. */
-:root{
-  --bg:#05030f; --panel:rgba(16,12,42,.72); --panel2:rgba(28,22,70,.66); --line:rgba(150,130,255,.20);
-  --text:#eef0ff; --muted:#a9aedb; --accent:#8b5cf6; --accent2:#22d3ee; --pink:#f472b6; --lime:#86efac; --orange:#fdba74;
-  --gold:#a5f3fc; --star:#fff7d6; --ink:#05030f; --up:#4ade80; --down:#fb7185; --warn:#fbbf24;
-  --anime:"Avenir Next","Futura","Century Gothic","Segoe UI Variable Display","Trebuchet MS",system-ui,sans-serif;
-  --stars:radial-gradient(1.2px 1.2px at 18px 26px,#fff,transparent),radial-gradient(1px 1px at 92px 64px,#c7d2fe,transparent),
+:root{--bg:#05030f;--panel:rgba(16,12,42,.72);--panel2:rgba(28,22,70,.66);--line:rgba(150,130,255,.20);--text:#eef0ff;--muted:#a9aedb;--accent:#8b5cf6;--accent2:#22d3ee;--pink:#f472b6;--lime:#86efac;--orange:#fdba74;--gold:#a5f3fc;--star:#fff7d6;--ink:#05030f;--up:#4ade80;--down:#fb7185;--warn:#fbbf24;--anime:"Avenir Next","Futura","Century Gothic","Segoe UI Variable Display","Trebuchet MS",system-ui,sans-serif;--stars:radial-gradient(1.2px 1.2px at 18px 26px,#fff,transparent),radial-gradient(1px 1px at 92px 64px,#c7d2fe,transparent),
           radial-gradient(1.4px 1.4px at 150px 140px,#fff,transparent),radial-gradient(1px 1px at 40px 170px,#a5f3fc,transparent),
-          radial-gradient(1px 1px at 200px 90px,#fff,transparent),radial-gradient(1.6px 1.6px at 240px 210px,#fde68a,transparent);
-}
+          radial-gradient(1px 1px at 200px 90px,#fff,transparent),radial-gradient(1.6px 1.6px at 240px 210px,#fde68a,transparent)}
 /* the sky: nebulae + two starfield layers drifting at different speeds (parallax) */
-body::before{content:"";position:fixed;inset:-10%;z-index:-2;pointer-events:none;filter:none;
-  background:var(--stars),
+body::before{content:"";position:fixed;inset:-10%;z-index:-2;pointer-events:none;filter:none;background:var(--stars),
              radial-gradient(45% 38% at 18% 20%,rgba(139,92,246,.45),transparent 70%),
              radial-gradient(38% 34% at 85% 15%,rgba(236,72,153,.28),transparent 70%),
              radial-gradient(42% 40% at 75% 85%,rgba(34,211,238,.25),transparent 70%),
              radial-gradient(60% 50% at 30% 95%,rgba(67,56,202,.35),transparent 70%),
-             linear-gradient(180deg,#07041a 0%,#05030f 60%,#0a0626 100%);
-  background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto,auto,auto;
-  animation:skydrift 180s linear infinite}
+             linear-gradient(180deg,#07041a 0%,#05030f 60%,#0a0626 100%);background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto,auto,auto;animation:skydrift 180s linear infinite}
 @keyframes skydrift{to{transform:translate3d(-260px,-130px,0)}}
-body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;mix-blend-mode:normal;opacity:.7;
-  background:var(--stars);background-size:420px 420px;animation:twinkle 6s ease-in-out infinite alternate}
+body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;mix-blend-mode:normal;opacity:.7;background:var(--stars);background-size:420px 420px;animation:twinkle 6s ease-in-out infinite alternate}
 @keyframes twinkle{from{opacity:.25}to{opacity:.8}}
 /* titles: clean, wide and glowing */
 h1,h2,h3,h4,.brand,.ftitle,.scard h4,.panel h2{font-family:var(--anime);font-style:normal;letter-spacing:.6px;font-weight:800}
 .hstat b,.goal .row1 b{text-shadow:0 0 18px rgba(165,243,252,.45)}
-.ftitle{font-size:46px;text-transform:uppercase;letter-spacing:4px;background:linear-gradient(90deg,#a5f3fc,#c4b5fd 45%,#f9a8d4);
-  -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(139,92,246,.6))}
+.ftitle{font-size:46px;text-transform:uppercase;letter-spacing:4px;background:linear-gradient(90deg,#a5f3fc,#c4b5fd 45%,#f9a8d4);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(139,92,246,.6))}
 .brand{color:#e0e7ff;text-shadow:0 0 12px rgba(139,92,246,.6)}
-.brand .logo{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#a5f3fc 18%,#8b5cf6 55%,#1e1b4b 80%);
-  box-shadow:0 0 0 2px rgba(165,243,252,.35),0 0 18px rgba(139,92,246,.8);animation:orbglow 3s ease-in-out infinite;filter:none}
+.brand .logo{border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff,#a5f3fc 18%,#8b5cf6 55%,#1e1b4b 80%);box-shadow:0 0 0 2px rgba(165,243,252,.35),0 0 18px rgba(139,92,246,.8);animation:orbglow 3s ease-in-out infinite;filter:none}
 @keyframes orbglow{50%{box-shadow:0 0 0 2px rgba(165,243,252,.6),0 0 30px rgba(34,211,238,.9)}}
 .brand .badge,.brand button,.brand #conn{font-family:ui-rounded,"SF Pro Rounded",system-ui,sans-serif;text-shadow:none;letter-spacing:0}
 /* glass panels with a faint starlit rim */
@@ -514,14 +522,11 @@ button.danger{background:linear-gradient(135deg,#fb7185,#be123c);color:#fff;bord
 .bottomnav a.on{background:linear-gradient(180deg,rgba(139,92,246,.4),rgba(34,211,238,.18));color:#fff}
 .tab.on{border-color:var(--accent2);background:rgba(34,211,238,.14)}
 /* hero: a nebula behind the balance (teal when it's real money) */
-.hero{border:1px solid rgba(196,181,253,.3);box-shadow:0 14px 44px rgba(76,29,149,.45),inset 0 1px 0 rgba(255,255,255,.08);
-  background:var(--stars),radial-gradient(circle at 78% 30%,rgba(244,114,182,.55),transparent 45%),
-             radial-gradient(circle at 20% 90%,rgba(34,211,238,.35),transparent 50%),linear-gradient(135deg,#2e1065,#4c1d95 45%,#1e1b4b);
-  background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto}
+.hero{border:1px solid rgba(196,181,253,.3);box-shadow:0 14px 44px rgba(76,29,149,.45),inset 0 1px 0 rgba(255,255,255,.08);background:var(--stars),radial-gradient(circle at 78% 30%,rgba(244,114,182,.55),transparent 45%),
+             radial-gradient(circle at 20% 90%,rgba(34,211,238,.35),transparent 50%),linear-gradient(135deg,#2e1065,#4c1d95 45%,#1e1b4b);background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto}
 .hero::after{display:none}
 body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgba(34,211,238,.55),transparent 45%),
-             radial-gradient(circle at 20% 90%,rgba(74,222,128,.3),transparent 50%),linear-gradient(135deg,#042f2e,#0e7490 45%,#082f49);
-  background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto}
+             radial-gradient(circle at 20% 90%,rgba(74,222,128,.3),transparent 50%),linear-gradient(135deg,#042f2e,#0e7490 45%,#082f49);background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto,auto,auto}
 .hero .bal{font-family:var(--anime);font-weight:800;letter-spacing:.5px;font-size:52px;color:#fff;text-shadow:0 0 24px rgba(165,243,252,.7),0 2px 0 rgba(0,0,0,.4)}
 .hero.powered{animation:aura 2.4s ease-in-out infinite}
 @keyframes aura{0%,100%{box-shadow:0 14px 44px rgba(76,29,149,.45),0 0 16px 2px rgba(165,243,252,.35)}50%{box-shadow:0 14px 44px rgba(76,29,149,.45),0 0 40px 10px rgba(165,243,252,.6)}}
@@ -546,34 +551,29 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 .mate2 .say{background:rgba(238,240,255,.95);color:#140b33;font-weight:600}
 .node.flash{box-shadow:0 0 0 2px var(--accent2),0 0 22px rgba(34,211,238,.7)}
 /* front page: a galaxy core */
-.lockscreen{background:var(--stars),radial-gradient(circle at 50% 30%,rgba(255,247,214,.9) 0%,rgba(244,114,182,.55) 6%,rgba(139,92,246,.45) 18%,rgba(30,27,75,.6) 40%,var(--bg) 72%);
-  background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto}
+.lockscreen{background:var(--stars),radial-gradient(circle at 50% 30%,rgba(255,247,214,.9) 0%,rgba(244,114,182,.55) 6%,rgba(139,92,246,.45) 18%,rgba(30,27,75,.6) 40%,var(--bg) 72%);background-size:260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,260px 260px,auto}
 .toast{border:1px solid var(--line);box-shadow:0 8px 24px rgba(3,1,20,.6)}
 .toast.party{background:linear-gradient(135deg,#8b5cf6,#22d3ee);color:#fff}
 /* SUPERNOVA! burst on a winning trade */
-#burst{position:fixed;inset:0;z-index:58;pointer-events:none;display:none;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 50% 45%,rgba(255,247,214,.85) 0%,rgba(165,243,252,.55) 10%,rgba(139,92,246,.35) 28%,transparent 60%)}
+#burst{position:fixed;inset:0;z-index:58;pointer-events:none;display:none;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 45%,rgba(255,247,214,.85) 0%,rgba(165,243,252,.55) 10%,rgba(139,92,246,.35) 28%,transparent 60%)}
 #burst.on{display:flex;animation:burst 1.2s ease-out forwards}
 #burst b{font-family:var(--anime);font-weight:900;font-size:58px;color:#fff;letter-spacing:6px;text-shadow:0 0 30px #a5f3fc,0 0 60px #8b5cf6;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
 @keyframes burst{0%{opacity:0;transform:scale(.6)}15%{opacity:1;transform:scale(1)}70%{opacity:1}100%{opacity:0;transform:scale(1.15)}}
 @keyframes pop{0%{transform:scale(.2)}100%{transform:scale(1)}}
-@media (max-width:700px){.hero .bal{font-size:42px}.ftitle{font-size:36px}#burst b{font-size:40px;letter-spacing:3px}}
+@media (max-width:700px){
+  .hero .bal{font-size:42px}
+  .ftitle{font-size:36px}
+  #burst b{font-size:40px;letter-spacing:3px}
+}
 /* ---- the cosmos: starship NOVA flies through space and reacts to trading ---- */
-.arena{position:relative;height:230px;margin-bottom:14px;border:1px solid rgba(165,180,252,.25);border-radius:24px;overflow:hidden;
-  background:radial-gradient(70% 90% at 15% 110%,rgba(139,92,246,.5),transparent 60%),radial-gradient(50% 70% at 90% 0%,rgba(236,72,153,.3),transparent 60%),#04020e;
-  box-shadow:0 14px 40px rgba(3,1,20,.6);--spd:70s}
+.arena{position:relative;height:230px;margin-bottom:14px;border:1px solid rgba(165,180,252,.25);border-radius:24px;overflow:hidden;background:radial-gradient(70% 90% at 15% 110%,rgba(139,92,246,.5),transparent 60%),radial-gradient(50% 70% at 90% 0%,rgba(236,72,153,.3),transparent 60%),#04020e;box-shadow:0 14px 40px rgba(3,1,20,.6);--spd:70s}
 .arena .stars{position:absolute;inset:0;background:var(--stars);background-size:260px 260px;animation:fly var(--spd) linear infinite;opacity:.9}
 .arena .stars.s2{background-size:140px 140px;opacity:.45;animation-duration:calc(var(--spd) * 1.8)}
 @keyframes fly{to{background-position:-1040px 0,-1040px 0,-1040px 0,-1040px 0,-1040px 0,-1040px 0}}
-.arena .warp{position:absolute;inset:0;opacity:0;transition:opacity .6s;
-  background:repeating-linear-gradient(180deg,transparent 0 9px,rgba(165,243,252,.55) 9px 10px,transparent 10px 23px);
-  -webkit-mask:linear-gradient(90deg,#000,transparent 75%);mask:linear-gradient(90deg,#000,transparent 75%);animation:warp .35s linear infinite}
+.arena .warp{position:absolute;inset:0;opacity:0;transition:opacity .6s;background:repeating-linear-gradient(180deg,transparent 0 9px,rgba(165,243,252,.55) 9px 10px,transparent 10px 23px);-webkit-mask:linear-gradient(90deg,#000,transparent 75%);mask:linear-gradient(90deg,#000,transparent 75%);animation:warp .35s linear infinite}
 @keyframes warp{to{background-position:0 23px}}
-.arena .planet{position:absolute;right:-26px;top:22px;width:130px;height:130px;border-radius:50%;
-  background:radial-gradient(circle at 32% 30%,#fbcfe8,#c084fc 30%,#6d28d9 62%,#2e1065 85%);box-shadow:inset -18px -14px 30px rgba(0,0,0,.55),0 0 40px rgba(192,132,252,.45);
-  animation:spinp 40s linear infinite}
-.arena .planet i{position:absolute;left:-30px;right:-30px;top:56px;height:18px;border-radius:50%;border:3px solid rgba(165,243,252,.55);transform:rotate(-14deg);
-  border-top-color:transparent;filter:drop-shadow(0 0 6px rgba(165,243,252,.6))}
+.arena .planet{position:absolute;right:-26px;top:22px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle at 32% 30%,#fbcfe8,#c084fc 30%,#6d28d9 62%,#2e1065 85%);box-shadow:inset -18px -14px 30px rgba(0,0,0,.55),0 0 40px rgba(192,132,252,.45);animation:spinp 40s linear infinite}
+.arena .planet i{position:absolute;left:-30px;right:-30px;top:56px;height:18px;border-radius:50%;border:3px solid rgba(165,243,252,.55);transform:rotate(-14deg);border-top-color:transparent;filter:drop-shadow(0 0 6px rgba(165,243,252,.6))}
 @keyframes spinp{50%{filter:hue-rotate(25deg)}}
 .arena .ship{position:absolute;left:14%;top:50%;width:150px;height:78px;margin-top:-30px;z-index:2;animation:hover 3.2s ease-in-out infinite;transition:left .8s}
 .arena .ship svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 10px rgba(165,243,252,.45))}
@@ -584,35 +584,55 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 .arena .comet,.arena .rock{position:absolute;opacity:0;z-index:1}
 .arena .comet{width:120px;height:2px;top:30px;right:-130px;background:linear-gradient(90deg,#fff,rgba(165,243,252,0));border-radius:2px;box-shadow:0 0 10px #fff}
 .arena .rock{width:26px;height:22px;top:40%;right:-40px;border-radius:46% 54% 42% 58%;background:radial-gradient(circle at 35% 35%,#a8a29e,#57534e 60%,#292524)}
-.arena .log{position:absolute;left:12px;top:10px;z-index:3;max-width:min(62%,320px);background:rgba(4,2,18,.6);border:1px solid rgba(165,243,252,.22);
-  border-radius:12px;padding:6px 10px;font-size:12px;line-height:1.35;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.arena .log{position:absolute;left:12px;top:10px;z-index:3;max-width:min(62%,320px);background:rgba(4,2,18,.6);border:1px solid rgba(165,243,252,.22);border-radius:12px;padding:6px 10px;font-size:12px;line-height:1.35;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .arena .log b{display:block;font-family:var(--anime);font-size:10px;letter-spacing:2px;color:#a5f3fc}
 .arena .log span{display:block}
-.arenatag{position:absolute;left:50%;bottom:8px;background:rgba(4,2,18,.6);padding:2px 12px;border-radius:999px;transform:translateX(-50%);z-index:3;
-  font-family:var(--anime);font-size:11px;letter-spacing:2px;color:#e0e7ff;border:1px solid rgba(165,243,252,.2);white-space:nowrap}
+.arenatag{position:absolute;left:50%;bottom:8px;background:rgba(4,2,18,.6);padding:2px 12px;border-radius:999px;transform:translateX(-50%);z-index:3;font-family:var(--anime);font-size:11px;letter-spacing:2px;color:#e0e7ff;border:1px solid rgba(165,243,252,.2);white-space:nowrap}
 .arenatag b{color:#a5f3fc}
-.arena.power{--spd:26s}.arena.power .ship .flame{transform:scaleX(1)}
-.arena.super{--spd:8s}.arena.super .warp{opacity:.9}.arena.super .ship{left:24%}
-.arena.super .ship .flame{transform:scaleX(1.5)}.arena.super .ship svg{filter:drop-shadow(0 0 16px rgba(253,230,138,.9))}
+.arena.power{--spd:26s}
+.arena.power .ship .flame{transform:scaleX(1)}
+.arena.super{--spd:8s}
+.arena.super .warp{opacity:.9}
+.arena.super .ship{left:24%}
+.arena.super .ship .flame{transform:scaleX(1.5)}
+.arena.super .ship svg{filter:drop-shadow(0 0 16px rgba(253,230,138,.9))}
 .arena.super .ship{animation:hover 3.2s ease-in-out infinite,shake .12s linear infinite}
 @keyframes shake{50%{translate:1px -1px}}
-.arena.cheer .comet{animation:comet 1.4s ease-in 2}.arena.cheer .ship{animation:loop 1.2s ease-in-out 2}
+.arena.cheer .comet{animation:comet 1.4s ease-in 2}
+.arena.cheer .ship{animation:loop 1.2s ease-in-out 2}
 @keyframes comet{0%{opacity:1;transform:translate(0,0) rotate(-18deg)}100%{opacity:0;transform:translate(-160vw,90px) rotate(-18deg)}}
 @keyframes loop{50%{transform:translateY(-26px) rotate(-12deg)}}
-.arena.hurt{--spd:90s}.arena.hurt .rock{animation:rock 1.6s linear 2}.arena.hurt .ship{animation:wobble .5s ease-in-out 3}
+.arena.hurt{--spd:90s}
+.arena.hurt .rock{animation:rock 1.6s linear 2}
+.arena.hurt .ship{animation:wobble .5s ease-in-out 3}
 .arena.hurt::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 50%,transparent 40%,rgba(251,113,133,.28));pointer-events:none;animation:alarm 1s ease-in-out 3}
 @keyframes rock{0%{opacity:1;transform:translateX(0) rotate(0)}100%{opacity:1;transform:translateX(-120vw) rotate(-540deg)}}
 @keyframes wobble{30%{transform:rotate(8deg) translateX(-6px)}60%{transform:rotate(-5deg)}}
 @keyframes alarm{50%{opacity:.2}}
-.arena.guard .stars{animation-play-state:paused}.arena.guard .ship{animation:none}.arena.guard .ship .shield{opacity:1}
-.arena.guard .ship .flame{transform:scaleX(.15)}.arena.guard{filter:saturate(.7)}
-@media (max-width:420px){.arena{height:210px}.arena .ship{width:120px;height:62px;left:8%}.arena .planet{width:96px;height:96px}.arena .planet i{top:40px}.arena .log{font-size:11px;max-width:70%}}
+.arena.guard .stars{animation-play-state:paused}
+.arena.guard .ship{animation:none}
+.arena.guard .ship .shield{opacity:1}
+.arena.guard .ship .flame{transform:scaleX(.15)}
+.arena.guard{filter:saturate(.7)}
+@media (max-width:420px){
+  .arena{height:210px}
+  .arena .ship{width:120px;height:62px;left:8%}
+  .arena .planet{width:96px;height:96px}
+  .arena .planet i{top:40px}
+  .arena .log{font-size:11px;max-width:70%}
+}
 /* ---- the live profit / loss chart ---- */
 .pick2{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin:6px 0 10px}
 .pick2 button.on{background:linear-gradient(135deg,#8b5cf6,#ec4899);color:#fff}
-.risktbl{width:100%;font-size:12px;border-collapse:collapse}.risktbl td,.risktbl th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
+.risktbl{width:100%;font-size:12px;border-collapse:collapse}
+.risktbl td,.risktbl th{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right}
 .risktbl td:first-child,.risktbl th:first-child{text-align:left;color:var(--muted)}
-@media (max-width:520px){.risktbl{font-size:11px;table-layout:fixed}.risktbl td,.risktbl th{padding:4px 3px;overflow-wrap:anywhere}.risktbl th{font-size:9.5px;letter-spacing:0}.risktbl td:first-child,.risktbl th:first-child{width:40%}}
+@media (max-width:520px){
+  .risktbl{font-size:11px;table-layout:fixed}
+  .risktbl td,.risktbl th{padding:4px 3px;overflow-wrap:anywhere}
+  .risktbl th{font-size:9.5px;letter-spacing:0}
+  .risktbl td:first-child,.risktbl th:first-child{width:40%}
+}
 .pnlhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;margin-bottom:6px}
 .pnlhead .big{font-family:var(--anime);font-size:26px;font-weight:800}
 .pnlhead .pnlsub{font-size:12px;color:var(--muted)}
@@ -620,11 +640,12 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 .pnlbar .tabs{margin:0}
 .pnlwrap{position:relative;touch-action:pan-y}
 .pnlwrap canvas{height:220px;cursor:crosshair}
-.pnltip{position:absolute;top:6px;pointer-events:none;background:rgba(4,2,18,.88);border:1px solid rgba(165,243,252,.3);border-radius:10px;
-  padding:5px 8px;font-size:11px;line-height:1.35;white-space:nowrap;display:none;z-index:2}
+.pnltip{position:absolute;top:6px;pointer-events:none;background:rgba(4,2,18,.88);border:1px solid rgba(165,243,252,.3);border-radius:10px;padding:5px 8px;font-size:11px;line-height:1.35;white-space:nowrap;display:none;z-index:2}
 .pnlkey{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--muted);margin-top:6px}
 .pnlkey i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
-.pnlkey i.buy{background:#22d3ee;border-radius:2px;transform:rotate(45deg)}.pnlkey i.win{background:#4ade80}.pnlkey i.loss{background:#fb7185}
+.pnlkey i.buy{background:#22d3ee;border-radius:2px;transform:rotate(45deg)}
+.pnlkey i.win{background:#4ade80}
+.pnlkey i.loss{background:#fb7185}
 /* the goal */
 .goal{margin-top:10px;background:rgba(3,2,18,.5);border:1px solid rgba(165,243,252,.2);border-radius:14px;padding:8px 10px;color:#fff}
 .goal .row1{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-weight:800;font-size:13px}
@@ -632,6 +653,26 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 .goal .bar{position:relative;height:12px;margin-top:6px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden}
 .goal .bar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#8b5cf6,#22d3ee,#fff7d6);box-shadow:0 0 12px rgba(34,211,238,.7);transition:width .8s}
 .goal .note{font-size:11px;color:rgba(255,255,255,.8);margin-top:5px}
+/* ---- shared helpers (in place of inline styles) ---- */
+.full{grid-column:1/-1}
+.small{font-size:12px}
+.note{font-size:12px;margin-top:8px}
+.center{text-align:center}
+.sheet .panel2.left{text-align:left;align-items:stretch}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.capbox{display:inline-flex;align-items:center;gap:6px}
+.capbox .txt{width:96px;flex:none;padding:7px 10px;font-size:15px;border-radius:12px}
+.acc .meta.warn{color:var(--warn)}
+button.ghost{background:transparent;box-shadow:none;color:var(--muted)}
+button.ghost:hover{color:var(--text)}
+.acc .btns button{flex:1 1 auto}
+.stackrows .coin .ch{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.stackrows .coin .ch span{font-weight:700;font-variant-numeric:tabular-nums}
+.stackrows .coin .mv button{flex:1;white-space:nowrap;padding:5px 6px}
+.acc .btns button.ghost{flex:0 1 auto;border-color:transparent}
+.kpis{grid-template-columns:repeat(auto-fit,minmax(128px,1fr))}
+.arena{height:190px}
+@media (max-width:700px){.kpis{grid-template-columns:1fr 1fr}}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
@@ -676,8 +717,8 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     </div>
   </div>
 </div>
-<div class="sheet" id="goalSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">🏆 Set your goal</h3>
+<div class="sheet" id="goalSheet"><div class="panel2 left">
+  <h3 class="center">🏆 Set your goal</h3>
   <label class="fl">Starting amount ($)</label><input id="goalStart" class="txt" inputmode="decimal" placeholder="50">
   <label class="fl">Target ($)</label><input id="goalTarget" class="txt" inputmode="decimal" placeholder="10000">
   <label class="fl">Daily goal ($ profit a day, 0 = off)</label><input id="goalDaily" class="txt" inputmode="decimal" placeholder="1000">
@@ -685,8 +726,8 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <div class="lockerr" id="goalErr"></div>
   <div class="row"><button id="goalCancel">Cancel</button><button id="goalSave" class="gopaper">Save goal</button></div>
 </div></div>
-<div class="sheet" id="riskSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">⚡ Real-money risk level</h3>
+<div class="sheet" id="riskSheet"><div class="panel2 left">
+  <h3 class="center">⚡ Real-money risk level</h3>
   <div class="pick2" id="riskPick"><button type="button" data-p="normal">🛡️ Normal</button><button type="button" data-p="aggressive">⚡ Aggressive</button><button type="button" data-p="bold">🔥 Bold</button></div>
   <table class="risktbl"><thead><tr><th></th><th>Normal</th><th>Aggressive</th><th>Bold</th></tr></thead><tbody>
     <tr><td>Risked per trade (to the early cut)</td><td>2.5%</td><td><b>4%</b></td><td><b>6%</b></td></tr>
@@ -714,11 +755,11 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <div id="pairCode" style="font-size:44px;font-weight:800;letter-spacing:8px;font-variant-numeric:tabular-nums">——————</div>
   <div class="muted" style="font-size:13px">…or send yourself this one-tap link and open it there:</div>
   <div class="mono" id="pairLink" style="font-size:12px;word-break:break-all;margin:4px 0"></div>
-  <div class="muted" id="pairLeft" style="font-size:12px"></div>
+  <div class="muted small" id="pairLeft"></div>
   <div class="row"><button id="pairShare" class="gopaper">Share link</button><button id="pairClose">Done</button></div>
 </div></div>
-<div class="sheet" id="brokerSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">🏦 Connect your real-money account</h3>
+<div class="sheet" id="brokerSheet"><div class="panel2 left">
+  <h3 class="center">🏦 Connect your real-money account</h3>
   <div id="brokerLinked" style="display:none">
     <div class="okbox" id="brokerStatus"></div>
     <div class="row" style="margin-top:12px"><button id="brokerClose2">Done</button><button id="brokerUnlink" class="danger">Disconnect</button></div>
@@ -736,7 +777,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     <a class="openlink" href="https://wallet.uphold.com/" target="_blank" rel="noopener noreferrer">Open Uphold ↗</a>
     <label class="fl">Uphold access token</label>
     <div class="pastebox"><input id="upholdToken" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="upholdToken">📋 Paste</button></div>
-    <div class="muted" style="font-size:12px">Heads-up: Uphold's price includes a spread of about 1% each way, so the bots skip tiny trades that couldn't beat it. Practice trades charge the same cost, so practice results match real ones.</div>
+    <div class="muted small">Heads-up: Uphold's price includes a spread of about 1% each way, so the bots skip tiny trades that couldn't beat it. Practice trades charge the same cost, so practice results match real ones.</div>
     </div>
     <div id="alpacaForm" style="display:none">
     <div class="steps-alpaca">
@@ -758,7 +799,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <li>Tap <b>Generate key</b>, then copy the <b>API Key</b> and the <b>Private Key</b> below.</li>
       </ol>
       <a class="openlink" href="https://www.kraken.com/u/security/api" target="_blank" rel="noopener noreferrer">Open Kraken API settings ↗</a>
-      <div class="okbox" style="font-size:12px">🛡️ Coins you already hold on Kraken are left alone - the bots only trade what they buy themselves.</div>
+      <div class="okbox small">🛡️ Coins you already hold on Kraken are left alone - the bots only trade what they buy themselves.</div>
     </div>
     <label class="fl" id="brokerKeyLbl">Key ID <span class="muted">(starts with AK)</span></label>
     <div class="pastebox"><input id="brokerKey" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="AK…"><button type="button" data-paste="brokerKey">📋 Paste</button></div>
@@ -766,12 +807,12 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     <div class="pastebox"><input id="brokerSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="brokerSecret">📋 Paste</button></div>
     </div>
     <div class="lockerr" id="brokerErr"></div>
-    <div class="muted" style="font-size:12px">Your keys stay on your own server and are never shown again. TradeZone keeps using practice money until you choose "Use real money".</div>
+    <div class="muted small">Your keys stay on your own server and are never shown again. TradeZone keeps using practice money until you choose "Use real money".</div>
     <div class="row" style="margin-top:12px"><button id="brokerCancel">Cancel</button><button id="brokerGo" class="gopaper">Connect</button></div>
   </div>
 </div></div>
-<div class="sheet" id="acctSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">➕ Link another account</h3>
+<div class="sheet" id="acctSheet"><div class="panel2 left">
+  <h3 class="center">➕ Link another account</h3>
   <div class="muted" style="font-size:14px">It gets its own bot team and trades at the same time as your other accounts. It starts on practice money - you switch it to real money on its own card.</div>
   <div class="coinchips" id="acctVenue" style="margin:8px 0 4px"><button type="button" data-venue="kraken" class="on">🐙 Kraken</button><button type="button" data-venue="alpaca">🦙 Alpaca</button><button type="button" data-venue="uphold">🟢 Uphold</button></div>
   <div class="muted" id="acctHelp" style="font-size:13px"></div>
@@ -781,11 +822,11 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <div id="acctSecretBox"><label class="fl" id="acctSecretLbl">Private Key</label>
   <div class="pastebox"><input id="acctSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="acctSecret">📋 Paste</button></div></div>
   <div class="lockerr" id="acctErr"></div>
-  <div class="muted" style="font-size:12px">Use a different account (or sub-account) from the ones already linked - two teams trading one balance would trip over each other, so the same keys are refused.</div>
+  <div class="muted small">Use a different account (or sub-account) from the ones already linked - two teams trading one balance would trip over each other, so the same keys are refused.</div>
   <div class="row" style="margin-top:12px"><button id="acctCancel">Cancel</button><button id="acctGo" class="gopaper">Link account</button></div>
 </div></div>
-<div class="sheet" id="walletSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">👛 Add a wallet</h3>
+<div class="sheet" id="walletSheet"><div class="panel2 left">
+  <h3 class="center">👛 Add a wallet</h3>
   <div class="wstep" id="ws1">
     <div class="muted" style="font-size:14px">Paste the address of the wallet you want to be able to send money to. We'll work out which coin it is.</div>
     <div class="pastebox"><input id="wwAddr" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Wallet address"><button type="button" id="wwPaste">📋 Paste</button></div>
@@ -809,13 +850,13 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     <div style="font-size:15px;font-weight:700">Give it a nickname</div>
     <input id="wwName" class="txt" maxlength="40" placeholder="My wallet">
     <div class="okbox" id="wwSummary"></div>
-    <div class="muted" style="font-size:12px" id="wwWaitNote">For your safety, a new wallet can receive money after a 24-hour wait.</div>
+    <div class="muted small" id="wwWaitNote">For your safety, a new wallet can receive money after a 24-hour wait.</div>
     <div class="lockerr" id="wwErr3"></div>
     <div class="row"><button id="wwBack3">Back</button><button id="wwSave" class="gopaper">Save wallet</button></div>
   </div>
 </div></div>
-<div class="sheet" id="sendSheet"><div class="panel2" style="text-align:left;align-items:stretch">
-  <h3 style="text-align:center">💸 Send money to a wallet</h3>
+<div class="sheet" id="sendSheet"><div class="panel2 left">
+  <h3 class="center">💸 Send money to a wallet</h3>
   <label class="fl">To</label><select id="sdWallet" class="txt"></select>
   <label class="fl">Coin</label><select id="sdAsset" class="txt"></select>
   <label class="fl">How much</label>
@@ -829,17 +870,17 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 <canvas id="confetti" aria-hidden="true"></canvas>
 <div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
   <div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:#e5e5e5">G</div>
-    <div><h3 style="margin:0">Grok AI analyst</h3><div class="muted" style="font-size:12px">xAI's Grok double-checks every new trade</div></div>
+    <div><h3 style="margin:0">Grok AI analyst</h3><div class="muted small">xAI's Grok double-checks every new trade</div></div>
     <button id="grokClose" style="margin-left:auto">Close</button></div>
   <div id="grokState" style="margin:12px 0;padding:10px 12px;border-radius:10px;background:var(--panel2);font-size:13px"></div>
   <form id="grokForm">
     <div class="sub">xAI API key</div>
-    <input id="grokKey" type="password" autocomplete="off" spellcheck="false" placeholder="xai-…" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+    <input class="txt" id="grokKey" type="password" autocomplete="off" spellcheck="false" placeholder="xai-…">
     <div class="muted" style="font-size:12px;margin-top:4px">Create one at <b>console.x.ai</b> → API Keys (the account needs credits). Stored on your server only; never shown again.</div>
     <div class="sub">Model</div>
-    <input id="grokModel" placeholder="automatic (best available)" autocomplete="off" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+    <input class="txt" id="grokModel" placeholder="automatic (best available)" autocomplete="off">
     <div class="sub">What Grok may do</div>
-    <select id="grokMode" style="width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:16px">
+    <select class="txt" id="grokMode">
       <option value="veto">Veto - a new trade needs Grok's approval</option>
       <option value="advisory">Advisory - Grok comments, never blocks</option>
       <option value="off">Off</option>
@@ -878,15 +919,8 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
   <section id="simple">
     <div class="pagehead" data-page="activity"><h2>📣 Activity</h2><p>What the bots are doing, what the world is saying, and what the team has learned.</p></div>
     <div class="pagehead" data-page="trades"><h2>📈 Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
-    <div class="pagehead" data-page="money"><h2>💰 Money</h2><p>Your real-money account, your crypto wallets and sending money out.</p></div>
-    <div class="pagehead" data-page="settings"><h2>⚙️ Settings</h2><p>Logging in, your goal and the devices that are logged in.</p></div>
-    <div class="arena" data-page="home" id="arena" aria-label="Your starship reacts to how trading is going">
-      <div class="stars"></div><div class="stars s2"></div><div class="warp"></div>
-      <div class="planet"><i></i></div><div class="comet"></div><div class="rock"></div>
-      <div class="ship" id="ship"></div>
-      <div class="log"><b>CAPTAIN'S LOG</b><span id="sayA"></span><span id="sayB" class="muted"></span></div>
-      <div class="arenatag">STARSHIP NOVA · <b id="arenaState">cruising</b></div>
-    </div>
+    <div class="pagehead" data-page="money"><h2>💰 Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
+    <div class="pagehead" data-page="settings"><h2>⚙️ Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
     <div class="hero" data-page="home">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
@@ -905,9 +939,16 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <button id="sLive" class="golive">Use real money</button>
       </div>
     </div>
+    <div class="arena" data-page="home" id="arena" aria-label="Your starship reacts to how trading is going">
+      <div class="stars"></div><div class="stars s2"></div><div class="warp"></div>
+      <div class="planet"><i></i></div><div class="comet"></div><div class="rock"></div>
+      <div class="ship" id="ship"></div>
+      <div class="log"><b>CAPTAIN'S LOG</b><span id="sayA"></span><span id="sayB" class="muted"></span></div>
+      <div class="arenatag">STARSHIP NOVA · <b id="arenaState">cruising</b></div>
+    </div>
     <div class="sgrid">
-      <div class="scard" data-page="home trades" id="sec-pnl" style="grid-column:1/-1">
-        <h4>📈 Profit &amp; loss <span class="muted" id="pnlBook" style="font-size:12px">practice money</span></h4>
+      <div class="scard full" data-page="home trades" id="sec-pnl">
+        <h4>📈 Profit &amp; loss <span class="muted small" id="pnlBook">practice money</span></h4>
         <div class="pnlhead"><span class="big" id="pnlNow">—</span><span class="pnlsub" id="pnlSub">loading…</span></div>
         <div class="pnlbar">
           <div class="tabs" id="pnlRange"><span class="tab" data-h="0.25">15m</span><span class="tab on" data-h="1">1h</span><span class="tab" data-h="24">1 day</span><span class="tab" data-h="168">1 week</span><span class="tab" data-h="0">All</span></div>
@@ -916,57 +957,47 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <div class="pnlwrap"><canvas id="pnlChart" height="220" aria-label="Profit and loss over time, with every trade marked"></canvas><div class="pnltip" id="pnlTip"></div></div>
         <div class="pnlkey"><span><i class="buy"></i>bought</span><span><i class="win"></i>sold at a profit</span><span><i class="loss"></i>sold at a loss</span><span>after all fees · updates live</span></div>
       </div>
-      <div class="scard" data-page="home" id="sec-protocol" style="grid-column:1/-1"><h4>💰 Make-me-money protocol <span class="muted" id="protoN" style="font-size:12px"></span></h4>
+      <div class="scard full" data-page="home" id="sec-protocol"><h4>💰 Make-me-money protocol <span class="muted small" id="protoN"></span></h4>
         <div id="protoSteps" class="protosteps"></div>
-        <div class="row" style="margin-top:10px;justify-content:flex-start;flex-wrap:wrap;gap:8px;align-items:center">
+        <div class="btnrow">
           <button id="protoBest" class="gopaper">Use the tested-best settings</button>
-          <span class="muted" style="font-size:12px">Real-money cap $</span><input id="protoCap" class="txt" inputmode="decimal" style="width:90px;padding:6px 8px" placeholder="50"><button id="protoCapSet">Set cap</button></div>
-        <div class="muted" style="font-size:12px;margin-top:8px">No setting can promise profit. This is the path that loses least while you find out whether the bots make money on real markets: practise, start small, keep the settings that tested best, check each week, take profits out.</div></div>
-      <div class="scard" data-page="home money" id="sec-accounts" style="grid-column:1/-1"><h4>🏦 Your accounts <span class="muted" id="accTotals" style="font-size:12px"></span></h4>
+          <span class="capbox"><span class="muted small">Real-money cap $</span><input id="protoCap" class="txt" inputmode="decimal" placeholder="50"></span><button id="protoCapSet">Set cap</button></div>
+        <div class="muted note">No setting can promise profit. This is the path that loses least while you find out whether the bots make money on real markets: practise, start small, keep the settings that tested best, check each week, take profits out.</div></div>
+      <div class="scard full" data-page="home money" id="sec-accounts"><h4>🏦 Your accounts <span class="muted small" id="accTotals"></span></h4>
         <div id="accList" class="acclist"></div>
-        <div class="row" style="margin-top:12px;justify-content:flex-start;flex-wrap:wrap;gap:8px"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
-        <div class="muted" style="font-size:12px;margin-top:8px">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
-      <div class="scard" data-page="home money" id="sec-stack" style="grid-column:1/-1"><h4>🪙 Hold stack <span class="muted" id="stackSub" style="font-size:12px">on the side · never sold by the bots · no stop-loss</span></h4>
-        <div class="stackhead"><div><div class="muted" style="font-size:12px">Worth now</div><div class="big" id="stackVal">—</div></div>
-          <div><div class="muted" style="font-size:12px">Paid</div><b id="stackCost">—</b></div><div><div class="muted" style="font-size:12px">Change</div><b id="stackPnl">—</b></div></div>
+        <div class="btnrow"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
+        <div class="muted note">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
+      <div class="scard full" data-page="home money" id="sec-stack"><h4>🪙 Hold stack <span class="muted small" id="stackSub">on the side · never sold by the bots · no stop-loss</span></h4>
+        <div class="stackhead"><div><div class="muted small">Worth now</div><div class="big" id="stackVal">—</div></div>
+          <div><div class="muted small">Paid</div><b id="stackCost">—</b></div><div><div class="muted small">Change</div><b id="stackPnl">—</b></div></div>
         <div id="stackRows" class="stackrows"></div>
         <div id="stackIn"></div>
-        <div class="muted" id="stackNext" style="font-size:12px;margin-top:8px"></div>
-        <div class="row" style="margin-top:10px;justify-content:flex-start"><button id="stackToggle">Pause stacking</button></div></div>
-      <div class="scard" data-page="home" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
-      <div class="scard" data-page="home"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
-      <div class="scard" data-page="activity" id="sec-happening" style="grid-column:1/-1"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
+        <div class="muted note" id="stackNext"></div>
+        <div class="btnrow"><button id="stackToggle">Pause stacking</button></div></div>
+      <div class="scard full" data-page="home" id="sec-hunt"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
+      <div class="scard" data-page="home"><h4>Your open trades <span class="muted small" id="sOpenN"></span></h4><div id="sOpen"></div></div>
+      <div class="scard full" data-page="activity" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
       <div class="scard" data-page="activity" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
-      <div class="scard" data-page="trades" style="grid-column:1/-1"><h4>Latest results</h4><div id="sResults"></div></div>
-      <div class="scard" data-page="home" style="grid-column:1/-1"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
+      <div class="scard full" data-page="trades"><h4>Latest results</h4><div id="sResults"></div></div>
+      <div class="scard full" data-page="home"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
       <div class="scard" data-page="activity" id="sec-rules"><h4>📜 Team rules</h4><div id="sRules"></div>
-        <div class="muted" style="font-size:12px;margin-top:8px">Every bot works by these. The safety limits (stops, daily loss limit) always come first.</div></div>
-      <div class="scard" data-page="activity" id="sec-learned"><h4>🧠 What the team has learned <span class="muted" id="sLearnN" style="font-size:12px"></span></h4>
+        <div class="muted note">Every bot works by these. The safety limits (stops, daily loss limit) always come first.</div></div>
+      <div class="scard" data-page="activity" id="sec-learned"><h4>🧠 What the team has learned <span class="muted small" id="sLearnN"></span></h4>
         <div id="sLearnStats" class="learnstats"></div><div id="sLearned"></div></div>
     </div>
     <div id="sec-settings">
       <div class="sgrid">
-        <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
-          <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
-          <div class="srow"><div class="ic">📱</div><div class="tx"><b>Log in another device</b><span>Shows a 6-digit code and a one-tap link (works once, for 5 minutes)</span></div><button id="setPairBtn" class="gopaper">Show code</button></div>
-          <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>To come back, use a code from another device or your Render logs</span></div><button id="setLogoutBtn">Log out</button></div>
-        </div>
         <div class="scard" data-page="settings"><h4>🏆 Your goal</h4>
           <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
         </div>
-        <div class="scard" data-page="money" style="grid-column:1/-1"><h4>🔗 Your accounts &amp; wallets</h4>
-          <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
-          <div class="srow"><div class="ic">💸</div><div class="tx"><b>Profit to take home</b><span id="accCashTxt">—</span></div><span></span></div>
-          <div class="srow"><div class="ic">🤖</div><div class="tx"><b>Grok AI helper</b><span id="accGrokTxt">Optional - double-checks every trade</span></div><button id="accGrokBtn">Connect</button></div>
-          <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
-          <div id="walletCards"></div>
+        <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
+          <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
+          <div class="srow"><div class="ic">📱</div><div class="tx"><b>Log in another device</b><span>Shows a 6-digit code and a one-tap link (works once, for 5 minutes)</span></div><button id="setPairBtn" class="gopaper">Show code</button></div>
+          <div class="srow"><div class="ic">👋</div><div class="tx"><b>Log out of this device</b><span>To come back, use a code from another device or your Render logs</span></div><button id="setLogoutBtn">Log out</button></div>
         </div>
-        <div class="scard" data-page="settings" id="sec-strategies" style="grid-column:1/-1"><h4>🧠 Trading strategies <span class="muted" id="stratN" style="font-size:12px"></span></h4>
-          <div id="stratList" class="stratlist"></div>
-          <div class="muted" style="font-size:12px;margin-top:8px">The Quant blends every strategy that's on into three votes (trend-following, buying dips, breakouts), and the Coach trusts the ones whose trades have been winning. Tested on real price history, everything that's on works best together: switching any of it off made less, and adding any of the five that are off made less too. Turn any on to try it.</div></div>
         <div class="scard" data-page="settings"><h4>📱 Devices logged in</h4>
           <div id="devList" class="emptyhint">Loading…</div>
           <button id="devOutAll" class="danger" style="margin-top:12px;width:100%">Log out everywhere</button>
@@ -974,6 +1005,16 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
             <div class="muted" style="font-size:13px;margin:8px 0">The security log, blocked addresses, charts and every bot's details live in the Pro view.</div>
             <button id="setProBtn">Open Pro view</button></details>
         </div>
+        <div class="scard full" data-page="money"><h4>🔗 Your accounts &amp; wallets</h4>
+          <div class="srow"><div class="ic">🏦</div><div class="tx"><b>Real-money account</b><span id="accBrokerTxt">Not connected - you're using practice money</span></div><button id="accBrokerBtn" class="gopaper">Connect</button></div>
+          <div class="srow"><div class="ic">💸</div><div class="tx"><b>Profit to take home</b><span id="accCashTxt">—</span></div><span></span></div>
+          <div class="srow"><div class="ic">🤖</div><div class="tx"><b>Grok AI helper</b><span id="accGrokTxt">Optional - double-checks every trade</span></div><button id="accGrokBtn">Connect</button></div>
+          <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
+          <div id="walletCards"></div>
+        </div>
+        <div class="scard full" data-page="settings" id="sec-strategies"><h4>🧠 Trading strategies <span class="muted small" id="stratN"></span></h4>
+          <div id="stratList" class="stratlist"></div>
+          <div class="muted note">The Quant blends every strategy that's on into three votes (trend-following, buying dips, breakouts), and the Coach trusts the ones whose trades have been winning. Tested on real price history, everything that's on works best together: switching any of it off made less, and adding any of the five that are off made less too. Turn any on to try it.</div></div>
       </div>
     </div>
   </section>
@@ -1064,7 +1105,7 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
       </div>
     </div>
   </section>
-  <section class="panel secpanel pro" id="sec-security" style="grid-column:1/-1">
+  <section class="panel secpanel pro full" id="sec-security">
     <h2><span>🔒 Security</span><span class="counter" id="secStatus"></span></h2>
     <div class="wgrid">
       <div>
@@ -1222,7 +1263,7 @@ async function openLive(which){
   const acct = a ? `<div class="acct"><div><div class="muted">Account cash</div><b>${money(a.cash)}</b></div><div><div class="muted">Account equity</div><b>${money(a.equity)}</b></div>
     <div><div class="muted">Bots can use</div><b>${money(a.trading_capital)}</b>${c.live_max_capital ? '<div class="muted" style="font-size:11px">capped by TZ_LIVE_MAX_CAPITAL</div>' : ''}</div>
     <div><div class="muted">Auto-stop if down</div><b>-${pct(c.risk.max_daily_loss_pct,0)} day / -${pct(c.risk.max_drawdown_pct,0)} DD</b></div></div>
-    <div class="muted" style="font-size:12px">Risk per trade ${pct(c.risk.risk_per_trade,1)} · max ${pct(c.risk.max_position_pct,0)} per position</div>` : '';
+    <div class="muted small">Risk per trade ${pct(c.risk.risk_per_trade,1)} · max ${pct(c.risk.max_position_pct,0)} per position</div>` : '';
   const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">To make sure, type <b>LIVE</b></div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
   $('liveBody').innerHTML = blockers + acct + confirmBox;
   $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
@@ -1589,10 +1630,16 @@ function seedStream(data){
   renderStream();
 }
 function onAction(a){ flash(a.bot, a.level); pushStream(streamItem('action', a)); }
+const SHOWN_FILLS = new Set();
 function onEvent(e){
   if (ORDER.includes(e.source)) flash(e.source, e.topic === 'alert' ? e.payload.level : 'info');
   pushStream(streamItem('event', e));
-  if (e.topic === 'trade.log') { addTradeRow(e.payload); celebrate(e.payload); pnlTrade(e.payload); }
+  if (e.topic === 'trade.log') {
+    const id = e.payload.fill_id;  // a fill delivered twice (e.g. while reconnecting) is shown once
+    if (id && SHOWN_FILLS.has(id)) return;
+    if (id) { SHOWN_FILLS.add(id); if (SHOWN_FILLS.size > 500) SHOWN_FILLS.delete(SHOWN_FILLS.values().next().value); }
+    addTradeRow(e.payload); celebrate(e.payload); pnlTrade(e.payload);
+  }
 }
 function renderStream(){
   STREAM.pending = false;
@@ -2115,7 +2162,7 @@ function renderSimple(st){
   if (S.view !== 'simple' || !st) return;
   const p = st.portfolio, live = st.mode === 'live';
   $('sMode').textContent = live ? '💵 Real money' : '🧪 Practice money';
-  $('sModeHint').textContent = live ? '· trading your broker account' : '· live prices, nothing real at risk';
+  $('sModeHint').textContent = live ? 'trading your broker account' : 'live prices, nothing real at risk';
   countTo($('sBal'), p.equity);
   renderTicker(st);
   renderBadges(st);
@@ -2151,7 +2198,7 @@ function renderSimple(st){
     return `<div class="ptrade"><div class="s">${esc(x.symbol)}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
       <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (profits if it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
       <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
-      ${prot ? `<div class="d" style="grid-column:1/-1">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
+      ${prot ? `<div class="d full">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
   }).join('') : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';
   // what's happening (plain English, newest first, no repeats)
   const lines = [], seen = new Set();
@@ -2167,7 +2214,7 @@ function renderSimple(st){
   const closes = TL.items.filter(t => t.pnl != null).slice(0, 5);
   $('sResults').innerHTML = closes.length ? closes.map(t => `<div class="happen"><div class="ic" style="background:${t.pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${t.pnl >= 0 ? '▲' : '▼'}</div>
       <div>${t.action === 'partial' ? 'Half of ' : ''}${esc(t.symbol)} <b class="${cls(t.pnl)}">${t.pnl >= 0 ? '+' : '-'}${money(Math.abs(t.pnl))}</b>
-      <div class="muted" style="font-size:12px">${esc(friendlyReason(t.reason))}</div></div><div class="tm">${ago(t.ts)}</div></div>`).join('')
+      <div class="muted small">${esc(friendlyReason(t.reason))}</div></div><div class="tm">${ago(t.ts)}</div></div>`).join('')
     : '<div class="emptyhint">No finished trades yet.</div>';
   // the team
   const now = Date.now() / 1000;
@@ -2193,7 +2240,7 @@ function renderSimple(st){
 function renderProtocol(pr){
   if (!pr) return;
   const done = pr.steps.filter(x => x.done).length;
-  $('protoN').textContent = `· ${done} of ${pr.steps.length} done`;
+  $('protoN').textContent = `${done} of ${pr.steps.length} done`;
   const nice = {strategies: 'strategies', snipe: 'meme breakout snipes', surge_snipe: 'volume snipes', pullback: 'Pullback Hunter', flipper: 'Flipper',
     accumulate: 'accumulating', flip_bank_fraction: 'quick-flip slices', flip_max_skims: 'skims', maker_exits: 'maker exits', fee_rule_stops: 'fee rule on stops',
     never_sell_at_loss: 'never sell at a loss', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
@@ -2228,10 +2275,10 @@ $('setNsBtn').onclick = async () => {
 };
 function renderStrategies(list){
   if (!list) return;
-  $('stratN').textContent = `· ${list.filter(x => x.on).length} of ${list.length} on`;  // strategies + trade finders
+  $('stratN').textContent = `${list.filter(x => x.on).length} of ${list.length} on`;  // strategies + trade finders
   setHTML($('stratList'), list.map(x => `<div class="strat ${x.on ? 'on' : ''}"><div><b>${esc(x.name)}</b>
       <div class="q">${esc(x.family)}${x.trades >= 1 ? ` · ${x.trades} trades · ${x.trust > 1.05 ? 'trusted more' : x.trust < 0.95 ? 'trusted less' : 'normal trust'}` : ''}</div></div>
-      ${x.core ? '<span class="q">always on</span>' : `<button data-strat="${esc(x.key)}" data-on="${x.on ? 0 : 1}" class="${x.on ? '' : 'gopaper'}">${x.on ? 'Turn off' : 'Turn on'}</button>`}</div>`).join(''));
+      ${x.core ? '<span class="accbadge">always on</span>' : `<button data-strat="${esc(x.key)}" data-on="${x.on ? 0 : 1}" class="${x.on ? '' : 'gopaper'}">${x.on ? 'Turn off' : 'Turn on'}</button>`}</div>`).join(''));
 }
 $('stratList').addEventListener('click', async e => {
   const b = e.target.closest('[data-strat]'); if (!b) return;
@@ -2241,16 +2288,16 @@ $('stratList').addEventListener('click', async e => {
 });
 function renderStack(k){
   if (!k) return;
-  const up = v => `<span style="color:var(${v >= 0 ? '--up' : '--down'})">${v >= 0 ? '+' : ''}${money(v)}</span>`;
+  const up = v => `<span class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${money(v)}</span>`;
   $('stackVal').textContent = money(k.value); $('stackCost').textContent = money(k.cost); $('stackPnl').innerHTML = k.cost ? up(k.pnl) : '—';
   const want = (k.coins || []).map(c => c + '-USD');
   const rows = want.map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
-  setHTML($('stackRows'), rows.map(h => `<div class="coin"><b>${esc(h.symbol.split('-')[0])}</b> <span class="muted" style="font-size:12px">${h.value != null ? money(h.value) : '—'}</span>
-    <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) : 'none yet'}${h.buys ? ` · ${h.buys} buy${h.buys > 1 ? 's' : ''} · avg ${money(h.avg, h.avg < 1 ? 4 : 2)}` : ''}</div>
-    ${h.cost ? `<div class="q">${up(h.pnl || 0)}</div>` : ''}
+  setHTML($('stackRows'), rows.map(h => `<div class="coin"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
+    <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) + ` · ${h.buys} buy${h.buys === 1 ? '' : 's'}` : 'none yet'}</div>
+    ${h.buys ? `<div class="q">avg ${money(h.avg, h.avg < 1 ? 4 : 2)}${h.cost ? ' · ' + up(h.pnl || 0) : ''}</div>` : ''}
     ${h.qty ? `<div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>` : ''}</div>`).join(''));
   const pos = ((S.state && S.state.portfolio && S.state.portfolio.positions) || []).filter(p => p.qty > 0);
-  setHTML($('stackIn'), pos.length ? `<div class="muted" style="font-size:12px;margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +
+  setHTML($('stackIn'), pos.length ? `<div class="muted small" style="margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +
     pos.map(p => `<div class="mvrow"><span><b>${esc(p.symbol.split('-')[0])}</b> <span class="muted">${Number(p.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} · ${money(p.market_value)}</span></span>
       <span><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="1">Hold it</button><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="0.5">Hold half</button></span></div>`).join('') : '');
   $('stackNext').textContent = !k.on ? 'Stacking is paused - what you hold stays held.'
@@ -2408,14 +2455,14 @@ function accCard(a){
     btns += a.halted ? `<button data-acc="reset" data-id="${id}">Restart</button>` : `<button data-acc="${a.paused ? 'resume' : 'pause'}" data-id="${id}">${a.paused ? 'Resume' : 'Pause'}</button>`;
     if (a.open) btns += `<button data-acc="flatten" data-id="${id}">Close trades</button>`;
     if (!a.halted) btns += `<button class="danger" data-acc="kill" data-id="${id}">Stop</button>`;
-    if (a.mode !== 'live') btns += `<button data-acc="remove" data-id="${id}">Remove</button>`;
+    if (a.mode !== 'live') btns += `<button class="ghost" data-acc="remove" data-id="${id}">Remove</button>`;
   }
   return `<div class="acc ${a.mode === 'live' ? 'live' : ''}"><div class="top"><span class="nm">${esc(a.label)}</span>${state}</div>
     <div class="bal">${money(a.equity)}</div>
-    <div class="meta"><span class="${pnl >= 0 ? 'up' : 'down'}" style="color:var(${pnl >= 0 ? '--up' : '--down'})">${pnl >= 0 ? '+' : ''}${money(pnl)} today</span> · ${money(a.cash)} cash · ${a.open} open trade${a.open === 1 ? '' : 's'}</div>
+    <div class="meta"><span class="${pnl >= 0 ? 'up' : 'down'}">${pnl >= 0 ? '+' : ''}${money(pnl)} today</span> · ${money(a.cash)} cash · ${a.open} open trade${a.open === 1 ? '' : 's'}</div>
     ${ex ? `<div class="meta">${ex}</div>` : ''}
-    ${a.halted && a.halt_reason ? `<div class="meta" style="color:var(--down)">${esc(a.halt_reason)}</div>` : a.paused && a.pause_reason && a.pause_reason !== 'operator' ? `<div class="meta">${esc(a.pause_reason)}</div>` : ''}
-    ${!a.feed_ok ? '<div class="meta" style="color:var(--warn)">waiting for prices…</div>' : ''}
+    ${a.halted && a.halt_reason ? `<div class="meta down">${esc(a.halt_reason)}</div>` : a.paused && a.pause_reason && a.pause_reason !== 'operator' ? `<div class="meta">${esc(a.pause_reason)}</div>` : ''}
+    ${!a.feed_ok ? '<div class="meta warn">waiting for prices…</div>' : ''}
     <div class="btns">${btns}</div></div>`;
 }
 function renderAccounts(st){
@@ -2423,7 +2470,7 @@ function renderAccounts(st){
   if (!rows.length) return;
   setHTML($('accList'), rows.map(accCard).join(''));
   const live = rows.filter(r => r.mode === 'live');
-  $('accTotals').textContent = rows.length > 1 ? `· ${rows.length} accounts${live.length ? ` · ${live.length} on real money: ${money(live.reduce((t, r) => t + r.equity, 0))}` : ''}` : '';
+  $('accTotals').textContent = rows.length > 1 ? `${rows.length} accounts${live.length ? ` · ${live.length} on real money: ${money(live.reduce((t, r) => t + r.equity, 0))}` : ''}` : '';
   $('accStopAll').style.display = rows.length > 1 ? '' : 'none';
 }
 $('accList').addEventListener('click', async e => {
