@@ -33,7 +33,7 @@ import time
 from ..core.bus import Event
 from ..core.models import Regime, now
 from .base import Bot
-from .quant import WEIGHTS
+from .quant import FAMILIES, STRATEGIES as ALL_STRATEGIES, WEIGHTS
 
 TEAM_RULES = [
     {"icon": "💰", "rule": "Make money", "detail": "Only take trades whose reward beats the risk and the fees."},
@@ -44,8 +44,12 @@ TEAM_RULES = [
     {"icon": "💵", "rule": "A $1,000+ day", "detail": "Aim for a $1,000+ day with the money on hand - and no ceiling above it: winners keep running with a moving take-profit, and a great day never stops the bots. If a good day starts slipping, new trades get smaller instead. Never by betting bigger to force it."},
     {"icon": "🛡️", "rule": "Don't lose the money", "detail": "Protecting what you put in comes first: stops on every trade, and trading stops itself after a bad day or a 10% drop. Growing fast never means bigger bets than the limits allow."},
 ]
-STRATEGIES = ("momentum", "mean_reversion", "breakout")
-NICE = {"momentum": "Momentum", "mean_reversion": "Buying dips", "breakout": "Breakouts"}
+STRATEGIES = tuple(ALL_STRATEGIES)
+NICE = {"momentum": "Momentum", "mean_reversion": "Buying dips", "breakout": "Breakouts", "macd": "MACD",
+        "vwap": "VWAP", "trend": "50-bar trend", "roc": "Rate of change", "obv": "On-balance volume",
+        "bollinger": "Bollinger Bands", "stochastic": "Stochastic"}
+FAMILY_OF = {m: fam for fam, members in FAMILIES.items() for m in members}
+CORE = ("momentum", "mean_reversion", "breakout")
 
 
 def regime_weights(regime: str) -> dict[str, float]:
@@ -161,7 +165,8 @@ class CoachBot(Bot):
         self._add("combo", f"{symbol}|{regime}", 1.0, win, pnl)
         if ctx:
             w = regime_weights(regime)
-            contrib = {k: abs(ctx["parts"].get(k, 0.0)) * w[k] for k in STRATEGIES}
+            # each strategy is credited by how strongly it spoke, within its family's weight in this market
+            contrib = {k: abs(ctx["parts"].get(k, 0.0)) * w[FAMILY_OF[k]] for k in STRATEGIES}
             total = sum(contrib.values()) or 1.0
             for k, c in contrib.items():
                 if c > 0:
@@ -322,7 +327,8 @@ class CoachBot(Bot):
             "trades_learned": self.learned_trades,
             "strategies": [{"key": k, "name": NICE[k], "trust": round(self.strategy_mult(k), 2),
                             "trades": round(self.stats["strategy"].get(k, _blank())["n"], 1),
-                            "win_rate": shrunk_win_rate(self.stats["strategy"].get(k, _blank()))} for k in STRATEGIES],
+                            "win_rate": shrunk_win_rate(self.stats["strategy"].get(k, _blank()))} for k in STRATEGIES
+                           if k in CORE or k in self.settings.strategies],
             "symbols": [{"symbol": k, "trades": round(v["n"]), "wins": round(v["wins"]), "pnl": v["pnl"],
                          "size": round(self.symbol_mult(k), 2), "benched_min": round(self.benched(k) / 60)} for k, v in sym],
             "benched": [{"symbol": k, "minutes": round(left / 60)} for k in list(self.bench)

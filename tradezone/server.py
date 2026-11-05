@@ -82,6 +82,10 @@ class AccountBody(BaseModel):
     label: str = ""
 
 
+class StrategyBody(BaseModel):
+    on: bool
+
+
 class RiskBody(BaseModel):
     profile: str
     confirm: str = ""
@@ -465,6 +469,17 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             d.set_risk_profile(body.profile, body.confirm)
         audit(request, f"real-money risk level set to {body.profile}", "warning")
         return info
+
+    @app.post("/api/strategies/{key}", dependencies=[Depends(check_token)])
+    async def set_strategy(key: str, body: StrategyBody, request: Request):
+        try:
+            info = desk.set_strategy(key, body.on)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        for d in desk.fleet.desks.values():  # the same strategies for every linked account
+            d.set_strategy(key, body.on)
+        audit(request, f"strategy {key} {'on' if body.on else 'off'}")
+        return _clean(info)
 
     @app.post("/api/goal", dependencies=[Depends(check_token)])
     async def set_goal(body: GoalBody, request: Request):

@@ -40,12 +40,85 @@ def breakout_score(s: Snapshot) -> float:
     return 0.0
 
 
+def _scale(s: Snapshot, k: float = 1.0) -> float:
+    return max(s.price * s.indicators.get("volatility", 0.0) * k, s.price * 1e-6, 1e-12)
+
+
+def macd_score(s: Snapshot) -> float | None:
+    """MACD: the histogram (MACD line minus its signal line) - momentum turning up or down."""
+    h = s.indicators.get("macd_hist")
+    return None if h is None else math.tanh(h / _scale(s, 0.5))
+
+
+def vwap_score(s: Snapshot) -> float | None:
+    """VWAP: trading above the volume-weighted average price is strength, below it weakness."""
+    v = s.indicators.get("vwap")
+    return None if not v else math.tanh((s.price - v) / _scale(s, 2.0))
+
+
+def trend_score(s: Snapshot) -> float | None:
+    """Trend: the price against its 50-bar average."""
+    m = s.indicators.get("sma50")
+    return None if not m else math.tanh((s.price - m) / _scale(s, 3.0))
+
+
+def roc_score(s: Snapshot) -> float | None:
+    """Rate of change: the move over the last 10 bars, against what's normal for the coin."""
+    r = s.indicators.get("roc10")
+    vol = s.indicators.get("volatility", 0.0)
+    return None if r is None or vol <= 0 else math.tanh(r / (vol * math.sqrt(10) * 1.5))
+
+
+def obv_score(s: Snapshot) -> float | None:
+    """On-balance volume: is volume flowing in (up bars) or out (down bars)?"""
+    o = s.indicators.get("obv_slope")
+    return None if o is None else math.tanh(o / 3.0)
+
+
+def bollinger_score(s: Snapshot) -> float | None:
+    """Bollinger Bands: below the lower band is cheap (buy the dip), above the upper band dear."""
+    ind = s.indicators
+    lo, hi, mid = ind.get("bb_lower"), ind.get("bb_upper"), ind.get("bb_mid")
+    if lo is None or hi is None or hi <= lo:
+        return None
+    half = (hi - lo) / 2
+    if s.price < lo:
+        return min(1.0, 0.5 + (lo - s.price) / half)
+    if s.price > hi:
+        return -min(1.0, 0.5 + (s.price - hi) / half)
+    return 0.0
+
+
+def stochastic_score(s: Snapshot) -> float | None:
+    """Stochastic %K: near the bottom of the recent range is oversold, near the top overbought."""
+    k = s.indicators.get("stoch_k")
+    if k is None:
+        return None
+    if 20 <= k <= 80:
+        return 0.0
+    return max(-1.0, min(1.0, (50 - k) / 30))
+
+
 MINOR_WEIGHT = 0.2  # a model weighted this little in a regime abstains instead of vetoing
 
+#: every strategy the Quant runs (each one's record is kept by the Coach, which trusts the winners more)
 STRATEGIES = {
     "momentum": momentum_score,
     "mean_reversion": mean_reversion_score,
     "breakout": breakout_score,
+    "macd": macd_score,
+    "vwap": vwap_score,
+    "trend": trend_score,
+    "roc": roc_score,
+    "obv": obv_score,
+    "bollinger": bollinger_score,
+    "stochastic": stochastic_score,
+}
+#: ...grouped into the three families that vote (so ten models don't give ten vetoes)
+FAMILIES = {
+    "momentum": ("momentum", "macd", "vwap", "trend", "roc", "obv"),
+    "mean_reversion": ("mean_reversion", "bollinger", "stochastic"),
+    "breakout": ("breakout",),
 }
 
 
@@ -156,12 +229,13 @@ class QuantBot(Bot):
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
         coach = self.desk.bots.get("coach")
-        weights = WEIGHTS[regime]
-        if coach is not None:  # 🧠 learn: trust the strategies that have been working
-            weights = {k: w * coach.strategy_mult(k) for k, w in weights.items()}
-        parts = {k: fn(s) for k, fn in STRATEGIES.items()}
+        every = {k: v for k, fn in STRATEGIES.items() if self._on(k) and (v := fn(s)) is not None}
+        parts, trust = self.families(every, coach)
+        # 🧠 learn: a family whose strategies have been working counts for more
+        weights = {k: w * trust[k] for k, w in WEIGHTS[regime].items()}
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
-        self.scores[s.symbol] = {**parts, "ensemble": score, "regime": regime.value}  # type: ignore[dict-item]
+        self.scores[s.symbol] = {**every, **{f"family_{k}": v for k, v in parts.items()},  # type: ignore[dict-item]
+                                 "ensemble": score, "regime": regime.value}
         if self._surge_snipe(s, before):  # (after the scores: the Coach learns from this bar's readings)
             return
 
@@ -217,6 +291,23 @@ class QuantBot(Bot):
         self.publish("signal.proposed", sig)
         self.bump("signals")
         self.act(f"proposed {side.value.upper()} {s.symbol} @ {s.price:,.2f} ({reason})")
+
+    def _on(self, name: str) -> bool:
+        return name in ("momentum", "mean_reversion", "breakout") or name in self.settings.strategies
+
+    @staticmethod
+    def families(every: dict[str, float], coach=None) -> tuple[dict[str, float], dict[str, float]]:
+        """Each family's view (the average of its strategies with an opinion, each counted by how well it has
+        been doing) and how much the family is trusted (its strategies' average track record)."""
+        out, trust = {}, {}
+        for fam, members in FAMILIES.items():
+            # a strategy with no opinion right now (exactly 0: inside its bands, no breakout) abstains
+            vals = [(every[m], coach.strategy_mult(m) if coach is not None else 1.0) for m in members
+                    if m in every and every[m] != 0.0]
+            w = sum(x for _, x in vals)
+            out[fam] = sum(v * x for v, x in vals) / w if w > 0 else 0.0
+            trust[fam] = w / len(vals) if vals else (coach.strategy_mult(members[0]) if coach is not None else 1.0)
+        return out, trust
 
     def consensus(self, direction: int, parts: dict[str, float], regime: Regime) -> dict[str, str]:
         """Each voter says yes / no / abstain on opening a position in ``direction``."""

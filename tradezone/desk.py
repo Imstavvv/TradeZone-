@@ -702,6 +702,10 @@ class TradingDesk:
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
         self.bots["stacker"].load()  # type: ignore[attr-defined]  # the hold stack
+        saved = self.store.load("strategies")
+        if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
+            from .bots.quant import STRATEGIES
+            self.settings.strategies = [k for k in saved["on"] if k in STRATEGIES]
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
@@ -815,6 +819,33 @@ class TradingDesk:
 
     # -- the goal: e.g. $50 -> $10,000, reached by compounding (never by taking more risk) ------
     RISK_WORD = "RISK"
+
+    # -- which trading strategies the Quant runs -------------------------------------------------
+    def strategy_info(self) -> list[dict]:
+        from .bots.coach import CORE, FAMILY_OF, NICE
+        from .bots.quant import STRATEGIES
+        coach = self.bots["coach"]
+        fam = {"momentum": "trend-following", "mean_reversion": "buying dips", "breakout": "breakouts"}
+        out = []
+        for k in STRATEGIES:
+            st = coach.stats["strategy"].get(k) or {"n": 0.0, "wins": 0.0, "pnl": 0.0}  # type: ignore[attr-defined]
+            out.append({"key": k, "name": NICE[k], "core": k in CORE, "on": k in CORE or k in self.settings.strategies,
+                        "family": fam[FAMILY_OF[k]], "trades": round(st["n"], 1), "pnl": round(st["pnl"], 2),
+                        "trust": round(coach.strategy_mult(k), 2)})  # type: ignore[attr-defined]
+        return out
+
+    def set_strategy(self, key: str, on: bool) -> list[dict]:
+        from .bots.coach import CORE
+        from .bots.quant import STRATEGIES
+        if key not in STRATEGIES:
+            raise ValueError("unknown strategy")
+        if key in CORE:
+            raise ValueError("momentum, buying dips and breakouts are the core of the team and always run")
+        chosen = [k for k in self.settings.strategies if k != key] + ([key] if on else [])
+        self.settings.strategies = [k for k in STRATEGIES if k in chosen]
+        self.store.save("strategies", {"on": self.settings.strategies})
+        self.bus.publish("alert", Alert("info", f"Strategy {key} {'on' if on else 'off'}", "operator"))
+        return self.strategy_info()
 
     def set_risk_profile(self, profile: str, confirm: str = "") -> dict:
         """Normal or Aggressive (real money only). Turning Aggressive on needs the word RISK typed."""
@@ -1078,6 +1109,7 @@ class TradingDesk:
             "flipper": self.bots["flipper"].summary(),  # type: ignore[attr-defined]
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
             "stack": self.bots["stacker"].summary(),  # type: ignore[attr-defined]
+            "strategies": self.strategy_info(),
             "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "accounts": self.fleet.summary() if not hasattr(self, "account_id") else [],

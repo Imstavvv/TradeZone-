@@ -195,6 +195,10 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
+.stratlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.strat{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
+.strat b{font-size:14px}.strat .q{font-size:11px;color:var(--muted)}.strat button{padding:5px 10px;font-size:12px;white-space:nowrap}
+.strat.on{border-color:rgba(139,92,246,.55)}
 .stackhead{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap;margin:4px 0 10px}
 .stackhead .big{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
 .stackrows{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
@@ -948,6 +952,9 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
           <div class="srow"><div class="ic">👛</div><div class="tx"><b>Crypto wallets</b><span id="accWalletTxt">Where you can send money out to</span></div><button id="accWalletBtn" class="gopaper">Add a wallet</button></div>
           <div id="walletCards"></div>
         </div>
+        <div class="scard" data-page="settings" id="sec-strategies" style="grid-column:1/-1"><h4>🧠 Trading strategies <span class="muted" id="stratN" style="font-size:12px"></span></h4>
+          <div id="stratList" class="stratlist"></div>
+          <div class="muted" style="font-size:12px;margin-top:8px">The Quant blends every strategy that's on into three votes (trend-following, buying dips, breakouts), and the Coach trusts the ones whose trades have been winning. Tested on real price history, the five that are off made less money when added, which is why they're off; turn any on to try it. The snipes, pullbacks, flips and the Stacker run alongside.</div></div>
         <div class="scard" data-page="settings"><h4>📱 Devices logged in</h4>
           <div id="devList" class="emptyhint">Loading…</div>
           <button id="devOutAll" class="danger" style="margin-top:12px;width:100%">Log out everywhere</button>
@@ -2161,7 +2168,21 @@ function renderSimple(st){
   renderSettings();
   renderAccounts(st);
   renderStack(st.stack);
+  renderStrategies(st.strategies);
 }
+function renderStrategies(list){
+  if (!list) return;
+  $('stratN').textContent = `· ${list.filter(x => x.on).length} of ${list.length} on`;
+  setHTML($('stratList'), list.map(x => `<div class="strat ${x.on ? 'on' : ''}"><div><b>${esc(x.name)}</b>
+      <div class="q">${esc(x.family)}${x.trades >= 1 ? ` · ${x.trades} trades · ${x.trust > 1.05 ? 'trusted more' : x.trust < 0.95 ? 'trusted less' : 'normal trust'}` : ''}</div></div>
+      ${x.core ? '<span class="q">always on</span>' : `<button data-strat="${esc(x.key)}" data-on="${x.on ? 0 : 1}" class="${x.on ? '' : 'gopaper'}">${x.on ? 'Turn off' : 'Turn on'}</button>`}</div>`).join(''));
+}
+$('stratList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-strat]'); if (!b) return;
+  b.disabled = true;
+  try { const r = await api(`/api/strategies/${b.dataset.strat}`, {on: b.dataset.on === '1'}); renderStrategies(r); toast('Strategies updated'); } catch {}
+  finally { b.disabled = false; }
+});
 function renderStack(k){
   if (!k) return;
   const up = v => `<span style="color:var(${v >= 0 ? '--up' : '--down'})">${v >= 0 ? '+' : ''}${money(v)}</span>`;

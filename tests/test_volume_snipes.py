@@ -76,3 +76,33 @@ def test_can_be_switched_off():
     bar(desk, "SOL-USD", 150.0)
     bar(desk, "SOL-USD", 151.5, vr=4.0)
     assert not any("volume snipe" in i.reason for i in got)
+
+
+def test_all_ten_strategies_are_available_and_can_be_switched():
+    from fastapi.testclient import TestClient
+
+    from tradezone.bots.quant import STRATEGIES
+    from tradezone.server import create_app
+    desk = make()
+    assert len(STRATEGIES) == 10
+    info = {x["key"]: x for x in desk.strategy_info()}
+    assert {k for k, x in info.items() if x["on"]} == {"momentum", "mean_reversion", "breakout", "macd", "obv"}
+    with TestClient(create_app(desk, run_desk=False)) as c:
+        r = c.post("/api/strategies/bollinger", json={"on": True})
+        assert r.status_code == 200 and next(x for x in r.json() if x["key"] == "bollinger")["on"]
+        assert c.post("/api/strategies/momentum", json={"on": False}).status_code == 400  # the core always runs
+        assert c.post("/api/strategies/nope", json={"on": True}).status_code == 400
+    assert desk.store.load("strategies")["on"] == ["macd", "obv", "bollinger"]  # remembered after a restart
+
+
+def test_every_strategy_scores_a_real_bar():
+    from tradezone.bots.quant import STRATEGIES
+    desk = make(strategies=list(STRATEGIES))
+    from tradezone.core.models import Tick
+    for i in range(80):  # build real indicators from ticks
+        px = 150 * (1 + 0.002 * i)
+        desk.bus.publish("market.tick", Tick("SOL-USD", px, 1000 + 50 * i, 1_800_000_000 + i))
+        run(desk.bus.drain())
+    sc = desk.bots["quant"].scores["SOL-USD"]
+    assert all(k in sc for k in ("macd", "vwap", "trend", "roc", "obv", "bollinger", "stochastic"))
+    assert sc["macd"] > 0 and sc["trend"] > 0 and sc["roc"] > 0 and sc["obv"] > 0  # a steady rise on rising volume

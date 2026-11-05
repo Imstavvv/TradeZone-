@@ -33,6 +33,14 @@ class _Book:
         self.bar_high = -math.inf
         self.bar_volume = 0.0
         self.volumes = RollingWindow(20)  # traded volume of recent bars (for "is this move on heavy volume?")
+        # the wider strategy set: MACD, Bollinger Bands, Stochastic, VWAP, OBV, rate of change
+        self.macd_signal = EMA(9)
+        self.bb = RollingWindow(20)
+        self.stoch_lows = RollingWindow(14)
+        self.stoch_highs = RollingWindow(14)
+        self.pv: deque[tuple[float, float]] = deque(maxlen=20)  # (price x volume, volume) for VWAP
+        self.obv = 0.0
+        self.obv_hist: deque[float] = deque(maxlen=11)
 
 
 class ScoutBot(Bot):
@@ -113,6 +121,16 @@ class ScoutBot(Bot):
         b.highs.push(high)
         avg_vol = b.volumes.mean() if b.volumes.full else 0.0  # the 20 bars BEFORE this one
         b.volumes.push(volume)
+        prev_px = b.prices[-2] if len(b.prices) >= 2 else t.price
+        macd = (b.ema_fast.value or t.price) - (b.ema_slow.value or t.price)
+        b.macd_signal.update(macd)
+        b.bb.push(t.price)
+        b.stoch_lows.push(low)
+        b.stoch_highs.push(high)
+        if volume > 0:
+            b.pv.append((t.price * volume, volume))
+            b.obv += volume if t.price > prev_px else -volume if t.price < prev_px else 0.0
+        b.obv_hist.append(b.obv)
         b.count += 1
 
         if b.count < WARMUP:
@@ -132,10 +150,29 @@ class ScoutBot(Bot):
             "swing_high": swing_high if swing_high is not None else max(high, t.price),
             # this bar's traded volume vs the recent average (None when the feed doesn't report volume)
             "volume_ratio": volume / avg_vol if avg_vol > 0 else None,
+            **self._more(b, t.price, macd),
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
         self.bump("snapshots")
         self.act(f"{t.symbol} {t.price:,.2f} rsi={ind['rsi']:.0f} vol={ind['volatility']:.2%}")
+
+    @staticmethod
+    def _more(b: _Book, price: float, macd: float) -> dict:
+        """MACD histogram, Bollinger Bands, Stochastic %K, VWAP, OBV slope and 10-bar rate of change."""
+        mid, sd = b.bb.mean(), b.bb.std()
+        lo, hi = b.stoch_lows.min(), b.stoch_highs.max()
+        vol_sum = sum(v for _, v in b.pv)
+        avg_vol = vol_sum / len(b.pv) if b.pv else 0.0
+        out = {
+            "macd_hist": macd - (b.macd_signal.value or macd),
+            "bb_mid": mid, "bb_upper": mid + 2 * sd, "bb_lower": mid - 2 * sd,
+            "stoch_k": 100 * (price - lo) / (hi - lo) if hi > lo else 50.0,
+            "roc10": price / b.prices[-11] - 1 if len(b.prices) > 10 and b.prices[-11] > 0 else 0.0,
+            "vwap": sum(pv for pv, _ in b.pv) / vol_sum if vol_sum > 0 and len(b.pv) >= 10 else None,
+            # OBV's change over 10 bars, in units of an average bar's volume (None without volume data)
+            "obv_slope": (b.obv_hist[-1] - b.obv_hist[0]) / (10 * avg_vol) if avg_vol > 0 and len(b.obv_hist) > 10 else None,
+        }
+        return out
 
     def backfill(self, symbol: str, candles: list[dict]) -> int:
         """Feed historical candles through the indicators (no trading on them)."""

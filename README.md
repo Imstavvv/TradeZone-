@@ -656,6 +656,28 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### 🧠 All trading strategies
+
+The Quant has **ten strategies**. Switch them on or off in **Settings → Trading strategies** (or `TZ_STRATEGIES`); your choice is remembered and applies to every linked account.
+
+| Family (one vote each) | Strategies |
+| --- | --- |
+| Trend-following | **Momentum** (fast vs slow average), **MACD** (histogram), **On-balance volume** (is volume flowing in?), VWAP (above or below the volume-weighted price), 50-bar trend, Rate of change (10 bars) |
+| Buying dips | **Buying dips** (RSI), Bollinger Bands (outside the bands), Stochastic (%K under 20 / over 80) |
+| Breakouts | **Breakouts** (through the 20-bar high or low) |
+
+The strategies in **bold** are on. The other five are available but off. Each family's vote is the average of its strategies that have an opinion right now (one sitting inside its bands abstains), so ten strategies don't give ten vetoes. The Coach keeps every strategy's own record and trusts the winners more, and the card shows that record. Alongside these, the meme breakout snipes, volume snipes, Pullback Hunter, Flipper and Stacker keep running.
+
+Real price history (20 runs of $500 per half):
+
+| | First half | Second half |
+| --- | --- | --- |
+| The original three | +$350 | +$287 |
+| **+ MACD and on-balance volume (on)** | **+$398** | **+$295** |
+| All ten (first 10 runs) | +$141 | +$116 (vs +$162 / +$150 for the three) |
+
+Adding all ten made less: the extra trend models crowded the score and dulled the clear signals. MACD and on-balance volume looked even better on the first 10 runs than on the next 10, so the gain is real but modest.
+
 ### 🎯 Volume snipes: every crypto and meme coin
 
 Any crypto or meme coin whose 1-minute bar trades **4 times its usual volume** (`TZ_SURGE_VOLUME_RATIO`) while the price jumps **+0.3% or more** (`TZ_SURGE_MIN_MOVE`) is bought on that bar. Conditions:
