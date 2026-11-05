@@ -162,6 +162,7 @@ class Settings:
     live_max_portfolio_heat: float = 0.10
     # ---- Trend Scout: meme coins over $50k market cap with promising volume, and trending coins ----
     discover_coins: bool = True
+    journal_keep_days: float = 2.0  # the Housekeeper clears working notes (trade ideas, turn-downs) older than this
     # coins launched on pump.fun (CoinGecko's pump.fun category), same bar: $50k+ market cap, plenty of volume.
     # They're traded only once the exchange lists them (never through a wallet key: nothing can be withdrawn)
     discover_pump: bool = True

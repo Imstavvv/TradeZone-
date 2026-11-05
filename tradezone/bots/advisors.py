@@ -305,7 +305,8 @@ class ShockGuardBot(Advisor):
         r = math.log(snap.price / p)
         h = self.rets.setdefault(snap.symbol, deque(maxlen=120))
         if len(h) >= 30:
-            sd = statistics.pstdev(h)
+            m = sum(h) / len(h)  # (plain float maths: statistics.pstdev uses exact fractions - 10x slower)
+            sd = math.sqrt(sum((x - m) ** 2 for x in h) / len(h))
             if sd > 0 and abs(r) >= 5 * sd:
                 scout = self.desk.bots.get("scout")
                 bucket = int(self.clock // max(getattr(scout, "bar_seconds", 0) or 1, 1))  # the same bar

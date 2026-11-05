@@ -519,6 +519,13 @@ class TradingDesk:
 
     def focus_status(self) -> dict:
         s, eq = self.settings, self.portfolio.equity
+        key = (self.cycles, eq, s.focus_small_coins, s.focus_small_until, s.focus_mid_until, len(s.symbols))
+        if getattr(self, "_focus_key", None) == key:  # asked ~30 times a cycle: work it out once
+            return self._focus_cache
+        self._focus_key, self._focus_cache = key, self._focus_status(s, eq)
+        return self._focus_cache
+
+    def _focus_status(self, s, eq) -> dict:
         if not s.focus_small_coins:
             stage = 3
         else:
@@ -746,6 +753,13 @@ class TradingDesk:
 
     async def step(self) -> None:
         """Run one full desk cycle."""
+        t_start = time.perf_counter()
+        try:
+            await self._step()
+        finally:
+            self.last_cycle_s = time.perf_counter() - t_start  # (the Speed Monitor reads this)
+
+    async def _step(self) -> None:
         today = self._today()
         if today != self._day:
             self._day = today
@@ -769,12 +783,14 @@ class TradingDesk:
         for bot in self.bots.values():
             if not bot.enabled:
                 continue
+            t0 = time.perf_counter()
             try:
                 await bot.on_cycle()
             except Exception as exc:
                 bot.errors += 1
                 bot.act(f"cycle error: {exc}", "critical")
                 log.exception("bot %s cycle failed", bot.name)
+            bot.busy_s += time.perf_counter() - t0
             await self.bus.drain()
         self.cycles += 1
         if self.live_broker is not None and self.cycles % 30 == 1:  # bid / ask / volume for the "can it be sold?" check

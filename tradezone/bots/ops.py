@@ -206,4 +206,99 @@ class AccountantBot(Advisor):
         return [self.days[k] for k in sorted(self.days, reverse=True)]
 
 
-OPS = [FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot]
+class SpeedBot(Advisor):
+    advisor = False  # watches the team; not consulted on trades
+    name = "speed"
+    title = "Speed Monitor"
+    role = "Processing Speed"
+    mission = "⏱️ Keep the team quick - time every cycle and every bot, and warn if the bots fall behind"
+    description = ("Times every trading cycle and how long each bot spends working (including waiting on the "
+                   "exchange); warns if cycles keep taking more than half the time between them.")
+    WINDOW = 60
+    NOTE_EVERY_S = 1800
+
+    def __init__(self, desk) -> None:
+        super().__init__(desk)
+        self.cycles: deque[float] = deque(maxlen=self.WINDOW)
+        self._busy_before: dict[str, float] = {}
+        self.busiest: list[tuple[str, float]] = []
+        self._noted = 0.0
+        self.overruns = 0
+
+    async def on_cycle(self) -> None:
+        last = getattr(self.desk, "last_cycle_s", None)
+        if last is None:
+            return
+        budget = self.settings.cycle_seconds
+        self.cycles.append(last)
+        if last > budget:
+            self.overruns += 1
+        avg = sum(self.cycles) / len(self.cycles)
+        self.metrics.update({"cycle_ms": round(last * 1000, 1), "avg_cycle_ms": round(avg * 1000, 1),
+                             "slowest_ms": round(max(self.cycles) * 1000, 1), "overruns": self.overruns,
+                             "load_pct": round(100 * avg / budget, 1) if budget > 0 else None})
+        if len(self.cycles) == self.WINDOW:  # once a minute: who's been busiest
+            busy = {n: b.busy_s for n, b in self.desk.bots.items()}
+            spent = {n: v - self._busy_before.get(n, 0.0) for n, v in busy.items()}
+            self._busy_before = busy
+            self.busiest = sorted(((n, round(1000 * v / self.WINDOW, 2)) for n, v in spent.items() if v > 0),
+                                  key=lambda x: -x[1])[:3]
+            self.metrics["busiest"] = ", ".join(f"{self.desk.bots[n].title} {ms} ms" for n, ms in self.busiest)
+            if budget > 0 and avg > 0.5 * budget and now() - self._noted > self.NOTE_EVERY_S:
+                self._noted = now()
+                who = self.metrics["busiest"] or "-"
+                self.publish("alert", Alert("warning", f"The bots are falling behind: a cycle takes {avg * 1000:.0f} ms "
+                                                       f"of the {budget * 1000:.0f} ms between cycles (busiest: {who})",
+                                            self.name))
+            self.cycles.clear()
+
+
+class HousekeeperBot(Advisor):
+    advisor = False
+    name = "housekeeper"
+    title = "Housekeeper"
+    role = "Database Upkeep"
+    mission = "🧹 Keep the records lean - so the server's disk never fills and lookups stay fast"
+    description = ("Every hour clears old working notes from the records (trade ideas and turn-downs after 2 days; "
+                   "order updates and alerts after 30) and thins old chart points; trades, deposits, withdrawals, "
+                   "the hold stack and your own actions are kept forever. Compacts the database once a day.")
+    EVERY_S = 3600
+    COMPACT_EVERY_S = 86_400
+    KEEP_FOREVER = ("trade.log", "stack.buy", "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed",
+                    "desk.control", "position.adjusted", "cash.adjusted")
+    KEEP_30_DAYS = ("order.filled", "order.update", "alert")
+
+    def __init__(self, desk) -> None:
+        super().__init__(desk)
+        self.last_run = now()  # (not straight after a restart)
+        self.last_compact = now()
+
+    async def on_cycle(self) -> None:
+        if now() - self.last_run >= self.EVERY_S:
+            self.tidy()
+
+    def tidy(self, at: float | None = None) -> dict:
+        t = at or now()
+        self.last_run = t
+        j = self.desk.journal
+        keep = self.settings.journal_keep_days * 86_400
+        forever = ",".join("?" * len(self.KEEP_FOREVER))
+        month = ",".join("?" * len(self.KEEP_30_DAYS))
+        removed = j.run(f"DELETE FROM events WHERE ts < ? AND topic NOT IN ({forever}) AND topic NOT IN ({month})",
+                        (t - keep, *self.KEEP_FOREVER, *self.KEEP_30_DAYS))
+        removed += j.run(f"DELETE FROM events WHERE ts < ? AND topic IN ({month})", (t - 30 * 86_400, *self.KEEP_30_DAYS))
+        thinned = j.run("DELETE FROM equity WHERE ts < ? AND rowid NOT IN (SELECT MIN(rowid) FROM equity WHERE ts < ? "
+                        "GROUP BY mode, CAST(ts / 600 AS INTEGER))", (t - 2 * 86_400, t - 2 * 86_400))
+        self.bump("records_cleared", removed)
+        self.bump("chart_points_thinned", thinned)
+        if removed or thinned:
+            self.act(f"tidied the records: {removed} old working notes cleared, {thinned} old chart points thinned")
+        if t - self.last_compact >= self.COMPACT_EVERY_S and j.path != ":memory:":
+            self.last_compact = t
+            with j._lock:
+                j.conn.execute("VACUUM")  # give the freed space back to the disk
+            self.bump("compactions")
+        return {"removed": removed, "thinned": thinned}
+
+
+OPS = [FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot]

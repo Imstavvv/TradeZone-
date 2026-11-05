@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -55,6 +56,7 @@ class Bot:
         self._log: deque[dict[str, Any]] = deque(maxlen=200)
         self._action_times: deque[float] = deque(maxlen=600)
         self.total_actions = 0
+        self.busy_s = 0.0  # time spent working (events + cycles), for the Speed Monitor
 
     @property
     def quick(self) -> bool:
@@ -73,9 +75,11 @@ class Bot:
         async def run(ev: Event) -> None:
             if not self.enabled:
                 return
+            t0 = time.perf_counter()
             res = handler(ev)
             if hasattr(res, "__await__"):
                 await res
+            self.busy_s += time.perf_counter() - t0  # (the Speed Monitor reads this)
 
         return run
 

@@ -17,7 +17,14 @@ from .executive import ExecutiveBot
 from .flipper import FlipperBot
 from .grok import GrokBot
 from .news import NewsBot
-from .ops import AccountantBot, FeeAuditorBot, SlippageBot, UptimeBot
+from .ops import (
+    AccountantBot,
+    FeeAuditorBot,
+    HousekeeperBot,
+    SlippageBot,
+    SpeedBot,
+    UptimeBot,
+)
 from .portfolio_manager import PortfolioBot
 from .quant import QuantBot
 from .risk import RiskBot
@@ -34,6 +41,6 @@ TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot,
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, LiquidityBot,
         ShockGuardBot, HTFBot,
         QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot, StackerBot,
-        FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SentinelBot, CoachBot]
+        FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot]
 
 __all__ = [c.__name__ for c in TEAM] + ["TEAM", "TEAM_RULES"]

@@ -49,9 +49,9 @@ def advice(desk, name, sym="ETH-USD", side=Side.BUY):
     return desk.bots[name].advise(Signal(sym, side, 0.6, "t", "quant"), desk.bots["risk"].snapshots.get(sym))
 
 
-def test_the_team_has_30_bots_and_10_advisors():
+def test_the_team_has_32_bots_and_10_advisors():
     desk = make()
-    assert len(desk.bots) == 30 and len(desk.advisors) == 12  # 10 advisors + the Slippage Tracker and Exchange Health
+    assert len(desk.bots) == 32 and len(desk.advisors) == 12  # 10 advisors + the Slippage Tracker and Exchange Health
     assert {"weather", "pullback", "fees", "accountant"} <= set(desk.bots)
 
 

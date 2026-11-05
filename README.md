@@ -90,7 +90,7 @@ TradeZone opens in **Simple view**: a colourful home screen in plain English. Th
 
 The dashboard streams everything the team does the moment it happens, over a WebSocket:
 
-* **Bot floor:** the 30 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Stacker → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
+* **Bot floor:** the 32 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Stacker → Speed Monitor → Housekeeper → Sentinel → Coach). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
@@ -504,6 +504,18 @@ Besides the main account (Settings → Linked accounts), you can link up to **5 
 - Each account keeps its keys and records in its own database file next to the main one (`tradezone-account-<id>.db`). The main database only lists which accounts exist. Everything comes back after a restart, and an account that was live resumes live only after its exchange account checks out.
 
 **TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
+
+### ⚙️ Processing helpers: the Speed Monitor and the Housekeeper
+
+- **⏱️ Speed Monitor** times every trading cycle and how long each bot spends working, including waiting on the exchange. Its tile on the bot floor shows the last and average cycle time, how much of the time between cycles the team uses, and the three busiest bots each minute. If cycles keep taking more than half the time between them, it warns that the bots are falling behind and names the busiest.
+- **🧹 Housekeeper** keeps the records lean. Every event the bots publish is recorded, and that added about 40 MB a day (over 1 GB a month), enough to fill a small hosted disk within weeks. Every hour it clears:
+  - old working notes: trade ideas, turn-downs and market-mood updates after 2 days (`TZ_JOURNAL_KEEP_DAYS`);
+  - order updates and alerts after 30 days;
+  - chart points older than 2 days, thinned to one every 10 minutes (the "All" chart still covers everything).
+
+  **Trades, hold-stack buys, deposits, withdrawals, wallet changes, your own control actions and balance corrections are kept forever.** It compacts the database once a day to give the space back to the disk.
+
+The cycle itself got faster too, from 7.1 ms to 4.2 ms with 20 coins. The Flash-Crash Guard's volatility maths used exact fractions (a third of all the time), and the coin-size ladder was worked out about 30 times a cycle instead of once.
 
 ### 🛑 Never sell at a loss
 
