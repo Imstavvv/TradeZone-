@@ -14,10 +14,10 @@ WARMUP = 30
 
 
 class _Book:
-    def __init__(self) -> None:
+    def __init__(self, fast: int = 12, slow: int = 26) -> None:
         self.prices: deque[float] = deque(maxlen=300)
-        self.ema_fast = EMA(12)
-        self.ema_slow = EMA(26)
+        self.ema_fast = EMA(fast)
+        self.ema_slow = EMA(slow)
         self.sma = RollingWindow(50)
         self.rsi = RSI(14)
         self.returns = RollingWindow(30)
@@ -67,13 +67,16 @@ class ScoutBot(Bot):
     def subscriptions(self):
         return {"market.tick": self.on_tick}
 
+    def _new_book(self) -> _Book:
+        return _Book(self.settings.ema_fast_period, self.settings.ema_slow_period)
+
     def on_tick(self, ev: Event) -> None:
         t: Tick = ev.payload
         if not (t.price > 0 and math.isfinite(t.price)):
             self.bump("bad_ticks")
             self.publish("alert", Alert("warning", f"discarded bad tick {t.symbol}={t.price}", self.name))
             return
-        b = self.books.setdefault(t.symbol, _Book())
+        b = self.books.get(t.symbol) or self.books.setdefault(t.symbol, self._new_book())
         self.desk.prices[t.symbol] = t.price
         b.last_ts = now()
         self._stale_alerted.discard(t.symbol)
@@ -176,7 +179,7 @@ class ScoutBot(Bot):
 
     def backfill(self, symbol: str, candles: list[dict]) -> int:
         """Feed historical candles through the indicators (no trading on them)."""
-        b = self.books.setdefault(symbol, _Book())
+        b = self.books.get(symbol) or self.books.setdefault(symbol, self._new_book())
         self._historical = True
         try:
             for c in candles:

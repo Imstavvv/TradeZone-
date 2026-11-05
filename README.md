@@ -678,6 +678,23 @@ Real price history (20 runs of $500 per half):
 
 Adding all ten made less: the extra trend models crowded the score and dulled the clear signals. MACD and on-balance volume looked even better on the first 10 runs than on the next 10, so the gain is real but modest.
 
+### ⏩ Trading faster: tested again, still less profit
+
+Faster settings, each tested against today's team on real price history (20 runs of $500 per half; today's team: +$398 / +$295):
+
+| | First half | Second half |
+| --- | --- | --- |
+| Faster moving averages (8/21 instead of 12/26) | +$363 | +$253 |
+| Fastest averages (6/13) | +$388 | +$239 |
+| Re-enter a trend after 3 bars instead of 5 | +$378 | +$281 |
+| Lower conviction bar (0.18 instead of 0.22) | +$428 | +$246 |
+| Free a stuck slot after 2 h instead of 3 | +$398 | +$295 |
+| Slower averages (16/34) | +$346 | +$214 |
+| Higher bar (0.26) | +$395 | +$230 |
+| Re-enter after 8 bars | +$399 | +$302 (on 20 fresh runs: +$371 / +$221 vs +$376 / +$227 - luck) |
+
+Reacting sooner means reacting to more noise and paying more fees. Nothing beat the settings the bots already use. What does make more money is more risk per trade (**Settings → Real-money risk → Aggressive** about doubled the second-half result, with deeper worst runs) and lower fees (Kraken's rate drops as your monthly volume grows, and the bots plan with the fee really paid). The averages' lengths are now settings (`TZ_EMA_FAST_PERIOD`, `TZ_EMA_SLOW_PERIOD`; 12 / 26).
+
 ### 🤝 The best combination: what's on works best together
 
 Every strategy and trade finder was tested both ways against the whole team, on real price history (20 runs of $500 per half). Today's team made **+$398 / +$295**.
