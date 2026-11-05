@@ -315,6 +315,8 @@ class PortfolioBot(Bot):
             self.watch.pop(sym, None)
             self.bump("patient_rescues")
             return self._exit(sym, f"came back: closed at +{net:,.2f} after fees after being down")
+        if net > 0:  # back in profit after fees, just not beating them yet: never cut - wait for it (its stop protects it)
+            return
         if mom <= s.no_return_momentum and heavy:
             self.bump("patient_cuts")
             return self._exit(sym, f"no comeback in sight: momentum {mom:+.2f} against it, {vol_txt} - cutting at -{loss:.1%}")

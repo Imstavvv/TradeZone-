@@ -148,3 +148,11 @@ def test_by_default_a_locked_stop_still_covers_break_even_and_the_fees():
     for px in (50_500.0, 51_500.0, 53_000.0):
         bar(desk, "BTC-USD", px, mom=0.5)
     assert desk.settings.net_if_sold(pos, pos.stop_price) > 0  # a stop in profit never turns into a loss after fees
+
+
+def test_a_trade_back_in_profit_is_never_cut_while_it_waits_to_beat_its_fees():
+    desk = make()
+    pos = buy(desk)
+    bar(desk, "BTC-USD", 48_600.0, mom=-0.3)  # down: on watch
+    bar(desk, "BTC-USD", 50_700.0, mom=-0.9, vr=3.0)  # back in profit (less than the fees), momentum dips hard
+    assert pos.qty > 0 and desk.bots["portfolio"].metrics.get("patient_cuts", 0) == 0

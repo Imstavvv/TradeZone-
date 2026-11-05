@@ -152,8 +152,6 @@ class QuantBot(Bot):
             return  # warm-up data: never trade on the past
         before = self.last_snap.get(s.symbol)
         self.last_snap[s.symbol] = s
-        if self._surge_snipe(s, before):
-            return
         self.bump("checks")  # every bar looked at: shown as "chances checked"
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
@@ -164,6 +162,8 @@ class QuantBot(Bot):
         parts = {k: fn(s) for k, fn in STRATEGIES.items()}
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
         self.scores[s.symbol] = {**parts, "ensemble": score, "regime": regime.value}  # type: ignore[dict-item]
+        if self._surge_snipe(s, before):  # (after the scores: the Coach learns from this bar's readings)
+            return
 
         th = coach.bar() if coach is not None else self.settings.risk.min_signal_strength
         prev = self.stance.get(s.symbol, 0)

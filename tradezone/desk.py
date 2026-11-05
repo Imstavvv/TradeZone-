@@ -793,7 +793,7 @@ class TradingDesk:
         elif ev.topic == "signal.proposed":
             if p.source in ("quant", "skimmer") and p.kind.value == "entry" and self.portfolio.position(p.symbol).is_flat:
                 h["agreed"] += 1
-                h["snipes"] += p.reason.startswith("snipe")
+                h["snipes"] += p.reason.startswith(("snipe", "volume snipe"))
                 h["skims"] += p.source == "skimmer"
         elif ev.topic in ("signal.rejected", "order.held"):
             src = p.get("signal") if ev.topic == "signal.rejected" else p.get("request")
