@@ -17,6 +17,7 @@ from .execution import ExecutionBot
 from .executive import ExecutiveBot
 from .flipper import FlipperBot
 from .grok import GrokBot
+from .learners import TargetLearnerBot, TradeReviewerBot
 from .news import NewsBot
 from .ops import (
     AccountantBot,
@@ -42,6 +43,7 @@ TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot,
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, LiquidityBot,
         ShockGuardBot, HTFBot,
         QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
-        FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot]
+        FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot,
+        TargetLearnerBot, TradeReviewerBot]
 
 __all__ = [c.__name__ for c in TEAM] + ["TEAM", "TEAM_RULES"]

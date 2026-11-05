@@ -286,6 +286,9 @@ class Settings:
     # ---- Grok (xAI) AI analyst ----
     # ---- Coach: the team learns from its own closed trades (hard safety limits never change) ----
     coach_learning: bool = True
+    learn_targets: bool = True  # Target Learner: each coin's take-profit from how far its winning trades really ran
+    learn_targets_raise_only: bool = True  # ...only ever raising a target (lowering them sold winners too soon)
+    learn_sources: bool = True  # Trade Reviewer: size each trade finder by its record
     coach_bench_minutes: float = 45.0  # how long a coin that keeps losing sits out
     coach_idle_hours: float = 6.0  # idle this long with healthy results -> lower the bar a little
     grok_api_key: str = ""

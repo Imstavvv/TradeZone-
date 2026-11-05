@@ -1079,9 +1079,9 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
 
 <script>
 const PCT_KEYS = new Set(['portfolio_heat','drawdown','daily_pnl_pct','gross_exposure','win_rate','max_drawdown']);
-const MASCOT = {weather: '🌦️', volsizer: '📏', ranker: '🏅', stretch: '🪢', levels: '🧱', correlation: '🧩', whales: '🐋', liquidity: '💧', shockguard: '🧯', htf: '🔭', pullback: '🎣', fees: '🧾', slippage: '🎯', uptime: '📡', accountant: '📒', scout: '🔭', trends: '🔥', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️', stacker: '🪙', dipbuyer: '🔁', speed: '⏱️', housekeeper: '🧹'};
+const MASCOT = {weather: '🌦️', volsizer: '📏', ranker: '🏅', stretch: '🪢', levels: '🧱', correlation: '🧩', whales: '🐋', liquidity: '💧', shockguard: '🧯', htf: '🔭', pullback: '🎣', fees: '🧾', slippage: '🎯', uptime: '📡', accountant: '📒', scout: '🔭', trends: '🔥', news: '📰', strategist: '🧭', quant: '🧮', grok: '🤖', risk: '🛡️', executive: '👑', execution: '⚡', portfolio: '💼', sentinel: '🦉', coach: '🎓', skimmer: '🏄', flipper: '⏱️', stacker: '🪙', dipbuyer: '🔁', targets: '🎯', reviewer: '📋', speed: '⏱️', housekeeper: '🧹'};
 const avatarOf = (name, title) => MASCOT[name] || esc(String(title || name)[0]);
-const COLORS = {weather:'#60a5fa',volsizer:'#a3e635',ranker:'#fbbf24',stretch:'#fb923c',levels:'#a8a29e',correlation:'#c084fc',whales:'#38bdf8',liquidity:'#22d3ee',shockguard:'#ef4444',htf:'#818cf8',pullback:'#2dd4bf',fees:'#facc15',slippage:'#f472b6',uptime:'#4ade80',accountant:'#e879f9',trends:'#f43f5e',news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185',stacker:'#f59e0b',dipbuyer:'#2dd4bf',speed:'#a3e635',housekeeper:'#94a3b8'};
+const COLORS = {weather:'#60a5fa',volsizer:'#a3e635',ranker:'#fbbf24',stretch:'#fb923c',levels:'#a8a29e',correlation:'#c084fc',whales:'#38bdf8',liquidity:'#22d3ee',shockguard:'#ef4444',htf:'#818cf8',pullback:'#2dd4bf',fees:'#facc15',slippage:'#f472b6',uptime:'#4ade80',accountant:'#e879f9',trends:'#f43f5e',news:'#f97316',executive:'#eab308',grok:'#e5e5e5',treasury:'#facc15',scout:'#22d3ee',strategist:'#a78bfa',quant:'#6366f1',risk:'#f59e0b',execution:'#22c55e',portfolio:'#f472b6',sentinel:'#94a3b8',coach:'#34d399',skimmer:'#38bdf8',flipper:'#fb7185',stacker:'#f59e0b',dipbuyer:'#2dd4bf',targets:'#f472b6',reviewer:'#c084fc',speed:'#a3e635',housekeeper:'#94a3b8'};
 const S = {state:null, history:{}, equity:[], symbol:null, authRequired: true};
 try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept the token here; sessions replace it
 const $ = id => document.getElementById(id);
@@ -1507,7 +1507,7 @@ function renderWallets(st){
 }
 
 // =================== live bot floor ===================
-const ORDER = ['scout','trends','news','strategist','weather','volsizer','ranker','stretch','levels','correlation','whales','liquidity','shockguard','htf','quant','pullback','grok','risk','executive','execution','portfolio','skimmer','flipper','dipbuyer','stacker','fees','slippage','uptime','accountant','speed','housekeeper','sentinel','coach'];
+const ORDER = ['scout','trends','news','strategist','weather','volsizer','ranker','stretch','levels','correlation','whales','liquidity','shockguard','htf','quant','pullback','grok','risk','executive','execution','portfolio','skimmer','flipper','dipbuyer','stacker','fees','slippage','uptime','accountant','speed','housekeeper','sentinel','coach','targets','reviewer'];
 const FLASH = {};
 function renderFloor(st){
   const pipe = $('pipeline');
@@ -1834,6 +1834,10 @@ function renderCoach(c){
     for (const [k, v] of Object.entries(F.coins_gained || {})) chips.push(`<span class="chip good">🪙 +${num(v)} ${esc(k.split('-')[0])} gained by flipping slices</span>`);
     for (const [k, v] of Object.entries(F.slices_out || {})) chips.push(`<span class="chip">🪙 ${num(v.qty)} ${esc(k.split('-')[0])} sold at ${num(v.sold_at)} - waiting to buy back cheaper</span>`);
   }
+  for (const f of (S.state && S.state.finders) || []) if (f.n >= 1)
+    chips.push(`<span class="chip ${f.size > 1.02 ? 'good' : f.size < 0.98 ? 'bad' : ''}">📋 ${esc(f.name)}: ${f.wins}/${f.n} won · ${money(f.pnl)}${f.size !== 1 ? ` · next trades ${f.size.toFixed(2)}x` : ''}</span>`);
+  for (const t of (S.state && S.state.learned_targets) || []) if (t.learned && Math.abs(t.target - t.usual) > 1e-6)
+    chips.push(`<span class="chip good">🎯 ${esc(t.symbol.split('-')[0])}: aiming for +${(t.target * 100).toFixed(1)}% (usually +${(t.usual * 100).toFixed(1)}%)</span>`);
   $('sLearnStats').innerHTML = chips.join('');
   $('sLearned').innerHTML = c.lessons.length ? c.lessons.slice(0, 6).map(l => `<div class="happen"><div class="ic" style="background:${l.level === 'warning' ? 'var(--warn)' : '#34d399'}">🎓</div>
       <div>${esc(l.text)}</div><div class="tm">${ago(l.ts)}</div></div>`).join('')

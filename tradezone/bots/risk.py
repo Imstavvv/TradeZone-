@@ -263,6 +263,8 @@ class RiskBot(Bot):
             how = f"skim -{s.skim_stop_pct:.1%} / +{skim:.1%} after fees"
         elif s.stop_method == "percent":
             sl_pct, tp_pct = s.plan_pcts(sig.symbol, quick)
+            if (learner := self.desk.bots.get("targets")) is not None:
+                tp_pct = learner.target(sig.symbol, tp_pct)  # type: ignore[attr-defined]  # where this coin's moves end
             if s.patient(self.desk.is_live):  # a wider safety stop: losing trades get room to come back
                 sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
             if s.wide_stop:  # -33%: small dips never stop the trade out (the size keeps the money at risk the same)
@@ -307,6 +309,8 @@ class RiskBot(Bot):
             risk_budget *= 0.5
         if coach is not None:  # 🌱 grow: size up slowly after good results, down after bad ones
             risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
+        if (reviewer := self.desk.bots.get("reviewer")) is not None:  # 📋 the trade finders that keep winning
+            risk_budget *= reviewer.size_mult(sig.reason)  # type: ignore[attr-defined]
         if meme:  # meme coins swing hard: smaller bets
             b = s.boost(self.desk.is_live)
             risk_budget *= b["meme_risk_mult"] if b else s.meme_risk_mult

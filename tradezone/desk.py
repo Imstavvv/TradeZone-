@@ -708,6 +708,8 @@ class TradingDesk:
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
         self.bots["stacker"].load()  # type: ignore[attr-defined]  # the hold stack
+        self.bots["targets"].load()  # type: ignore[attr-defined]  # each coin's learned targets
+        self.bots["reviewer"].load()  # type: ignore[attr-defined]  # each trade finder's record
         saved = self.store.load("strategies")
         if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
             from .bots.quant import STRATEGIES
@@ -1152,6 +1154,8 @@ class TradingDesk:
             "flipper": self.bots["flipper"].summary(),  # type: ignore[attr-defined]
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
             "stack": self.bots["stacker"].summary(),  # type: ignore[attr-defined]
+            "learned_targets": self.bots["targets"].summary(),  # type: ignore[attr-defined]
+            "finders": self.bots["reviewer"].summary(),  # type: ignore[attr-defined]
             "strategies": self.strategy_info(),
             "never_sell_at_loss": self.settings.never_sell_at_loss,
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
