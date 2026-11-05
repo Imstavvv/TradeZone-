@@ -817,13 +817,13 @@ class TradingDesk:
     def set_risk_profile(self, profile: str, confirm: str = "") -> dict:
         """Normal or Aggressive (real money only). Turning Aggressive on needs the word RISK typed."""
         profile = (profile or "").strip().lower()
-        if profile not in ("normal", "aggressive"):
-            raise ValueError("choose normal or aggressive")
-        if profile == "aggressive" and confirm.strip().upper() != self.RISK_WORD:
+        if profile not in ("normal", "aggressive", "bold"):
+            raise ValueError("choose normal, aggressive or bold")
+        if profile != "normal" and confirm.strip().upper() != self.RISK_WORD:
             raise ValueError(f"type {self.RISK_WORD} to confirm bigger bets with real money")
         self.settings.risk_profile = profile
         self._dirty = True
-        self.bus.publish("alert", Alert("warning" if profile == "aggressive" else "info",
+        self.bus.publish("alert", Alert("warning" if profile != "normal" else "info",
                                         f"Real-money risk level: {profile.upper()}", "desk"))
         return self.risk_info(live=True)
 
@@ -927,7 +927,7 @@ class TradingDesk:
         self.halt_kind = data.get("halt_kind", "")
         self.floor_ack = data.get("floor_ack", {})
         self.goal = data.get("goal", {})
-        if data.get("risk_profile") in ("normal", "aggressive") and "TZ_RISK_PROFILE" not in os.environ:  # a server setting wins
+        if data.get("risk_profile") in ("normal", "aggressive", "bold") and "TZ_RISK_PROFILE" not in os.environ:  # a server setting wins
             self.settings.risk_profile = data["risk_profile"]
         hunt = data.get("hunt")
         if isinstance(hunt, dict) and hunt.get("day") == self._today():

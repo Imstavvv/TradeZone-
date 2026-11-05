@@ -55,6 +55,13 @@ def _env(name: str, default):
 AGGRESSIVE = {"risk_per_trade": 0.04, "max_position_pct": 0.50, "max_portfolio_heat": 0.20, "meme_risk_mult": 0.75,
               "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 8, "extra_memes": 1,
               "bar_cut": 0.03, "day_lock_trigger": 0.04, "day_giveback": 0.6}
+#: the Bold risk level (real money only): bigger again. Tested on real price history it made a little more than
+#: Aggressive on unseen data, with clearly bigger worst losses. Every trade still has a stop; nothing is borrowed.
+BOLD = {"risk_per_trade": 0.06, "max_position_pct": 0.70, "max_portfolio_heat": 0.30, "meme_risk_mult": 0.75,
+        "daily_loss": 0.15, "drawdown": 0.40, "floor": 0.50, "max_open_positions": 8, "extra_memes": 2,
+        "bar_cut": 0.04, "day_lock_trigger": 0.06, "day_giveback": 0.65}
+#: real-money risk levels above Normal
+PROFILES = {"aggressive": AGGRESSIVE, "bold": BOLD}
 
 # real-money venues -> how the app names them
 VENUES = {"alpaca": "Alpaca", "kraken": "Kraken", "uphold": "Uphold"}
@@ -347,7 +354,12 @@ class Settings:
     risk: RiskLimits = field(default_factory=RiskLimits)
 
     def aggressive(self, live: bool) -> bool:
-        return live and self.risk_profile == "aggressive"
+        """Real money on a level above Normal (Aggressive or Bold)."""
+        return live and self.risk_profile in PROFILES
+
+    def boost(self, live: bool) -> dict | None:
+        """The numbers of the real-money level above Normal in force, or None."""
+        return PROFILES[self.risk_profile] if self.aggressive(live) else None
 
     def limits(self, live: bool) -> RiskLimits:
         """The risk limits in force: Aggressive (real money only) roughly doubles what a trade may risk and
@@ -359,16 +371,18 @@ class Settings:
                            max_portfolio_heat=self.live_max_portfolio_heat,
                            max_daily_loss_pct=max(self.risk.max_daily_loss_pct, self.live_max_daily_loss_pct),
                            max_drawdown_pct=max(self.risk.max_drawdown_pct, self.live_max_drawdown_pct))
-        return replace(self.risk, risk_per_trade=AGGRESSIVE["risk_per_trade"], max_position_pct=AGGRESSIVE["max_position_pct"],
-                       max_open_positions=max(self.risk.max_open_positions, AGGRESSIVE["max_open_positions"]),
-                       max_portfolio_heat=AGGRESSIVE["max_portfolio_heat"],
-                       max_daily_loss_pct=max(self.risk.max_daily_loss_pct, AGGRESSIVE["daily_loss"]),
-                       max_drawdown_pct=max(self.risk.max_drawdown_pct, AGGRESSIVE["drawdown"]))
+        b = PROFILES[self.risk_profile]
+        return replace(self.risk, risk_per_trade=b["risk_per_trade"], max_position_pct=b["max_position_pct"],
+                       max_open_positions=max(self.risk.max_open_positions, b["max_open_positions"]),
+                       max_portfolio_heat=b["max_portfolio_heat"],
+                       max_daily_loss_pct=max(self.risk.max_daily_loss_pct, b["daily_loss"]),
+                       max_drawdown_pct=max(self.risk.max_drawdown_pct, b["drawdown"]))
 
     def live_limits(self) -> tuple[float, float, float]:
         """(daily loss, drawdown, capital floor) that stop real-money trading."""
-        if self.risk_profile == "aggressive":
-            return AGGRESSIVE["daily_loss"], AGGRESSIVE["drawdown"], AGGRESSIVE["floor"]
+        if self.risk_profile in PROFILES:
+            b = PROFILES[self.risk_profile]
+            return b["daily_loss"], b["drawdown"], b["floor"]
         return self.live_max_daily_loss_pct, self.live_max_drawdown_pct, self.live_capital_floor_pct
 
     def patient(self, live: bool) -> bool:
@@ -524,8 +538,8 @@ class Settings:
             raise ValueError("TZ_BROKER=alpaca requires TZ_ALPACA_KEY and TZ_ALPACA_SECRET (paper account)")
         if self.feed == "alpaca" and not self.data_keys():
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
-        if self.risk_profile not in ("normal", "aggressive"):
-            raise ValueError("TZ_RISK_PROFILE must be normal or aggressive")
+        if self.risk_profile not in ("normal", *PROFILES):
+            raise ValueError("TZ_RISK_PROFILE must be normal, aggressive or bold")
         if self.shorting not in ("auto", "off"):
             raise ValueError("TZ_SHORTING must be auto or off")
         if self.stop_method not in ("structure", "atr", "percent"):

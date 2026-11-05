@@ -83,3 +83,35 @@ def test_risk_level_api():
     r = c.post("/api/risk-profile", json={"profile": "aggressive", "confirm": "RISK"})
     assert r.status_code == 200 and r.json()["risk_per_trade"] == 0.04
     assert desk.state()["live_risk"]["active"] and not desk.state()["limits"]["active"]  # practice unaffected
+
+
+def test_bold_bets_bigger_again_and_needs_the_word_risk():
+    normal, agg, bold = make(), make("aggressive"), make()
+    with pytest.raises(ValueError, match="RISK"):
+        bold.set_risk_profile("bold")
+    info = bold.set_risk_profile("bold", "risk")
+    assert info["risk_per_trade"] == 0.06 and info["max_position_pct"] == 0.70 and info["max_daily_loss_pct"] == 0.15
+    assert bold.settings.live_limits() == (0.15, 0.40, 0.50)
+    for d in (normal, agg, bold):
+        prime(d, "BTC-USD", 50_000.0, atr=250.0)
+        run(d.switch_mode("live"))
+    n, a, b = (at_risk(buy(d)) for d in (normal, agg, bold))
+    assert n < a < b <= 10_000 * 0.06 * 1.01  # bigger each level; never more than 6% to the early cut
+    assert buy(bold).stop_price is not None  # every trade still has a stop
+    assert bold.portfolio.cash >= 0  # never borrows
+
+
+def test_bold_never_touches_practice_money():
+    d = make()
+    d.set_risk_profile("bold", "RISK")
+    assert at_risk(buy(d)) == pytest.approx(at_risk(buy(make())), rel=0.01)
+
+
+def test_bold_is_remembered_after_a_restart(tmp_path):
+    db = str(tmp_path / "tz.db")
+    d1 = make(journal=Journal(db))
+    d1.set_risk_profile("bold", "RISK")
+    d1.save_state()
+    d2 = make(journal=Journal(db))
+    run(d2.restore_state())
+    assert d2.settings.risk_profile == "bold"

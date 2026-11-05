@@ -260,9 +260,8 @@ class CoachBot(Bot):
     def bar(self) -> float:
         """The conviction a new trade needs: the configured minimum, nudged by what was learned."""
         base = self.settings.flip_min_strength if self.quick else self.settings.risk.min_signal_strength
-        if self.settings.aggressive(self.desk.is_live):  # takes a few more chances, not just bigger ones
-            from ..config import AGGRESSIVE
-            base -= AGGRESSIVE["bar_cut"]
+        if (b := self.settings.boost(self.desk.is_live)) is not None:  # takes a few more chances, not just bigger ones
+            base -= b["bar_cut"]
         if not self.enabled or not self.settings.coach_learning:
             return base
         return round(max(min(base, 0.18 if self.quick else 0.30), base + self.threshold_adj), 3)

@@ -6,7 +6,6 @@ import calendar
 import time
 from collections import deque
 
-from ..config import AGGRESSIVE
 from ..core.bus import Event
 from ..core.models import (
     Alert,
@@ -58,9 +57,9 @@ class RiskBot(Bot):
         p, s = self.portfolio, self.settings
         start, peak = p.day_start_equity, self._track_day_peak()
         best = peak - start
-        agg = s.aggressive(self.desk.is_live)
-        trigger = AGGRESSIVE["day_lock_trigger"] if agg else s.day_lock_trigger_pct
-        giveback = AGGRESSIVE["day_giveback"] if agg else s.day_giveback_pct
+        b = s.boost(self.desk.is_live)
+        trigger = b["day_lock_trigger"] if b else s.day_lock_trigger_pct
+        giveback = b["day_giveback"] if b else s.day_giveback_pct
         locked = start > 0 and best >= trigger * start and p.equity <= start + best * (1 - giveback)
         goal = self.desk.daily_goal()
         goal_day = goal > 0 and best >= goal  # a goal day: protect it more tightly
@@ -227,7 +226,7 @@ class RiskBot(Bot):
             return self.reject(sig, "max open positions reached" + (" for this balance (spread wider as it grows)" if focus_max else ""))
         meme = self.settings.is_meme(sig.symbol)
         if meme and sum(self.settings.is_meme(p.symbol) for p in self.portfolio.open_positions) \
-                >= self.settings.max_meme_positions + (AGGRESSIVE["extra_memes"] if s0.aggressive(self.desk.is_live) else 0):
+                >= self.settings.max_meme_positions + ((s0.boost(self.desk.is_live) or {}).get("extra_memes", 0)):
             return self.reject(sig, "already holding the most meme coins allowed at once")
         if self.desk.is_live and self.desk.broker.supports(sig.symbol) is False:
             return self.reject(sig, f"{sig.symbol} can't be traded on your real-money {self.desk.broker.label} "
@@ -299,7 +298,8 @@ class RiskBot(Bot):
         if coach is not None:  # 🌱 grow: size up slowly after good results, down after bad ones
             risk_budget *= coach.risk_mult() * coach.symbol_mult(sig.symbol)
         if meme:  # meme coins swing hard: smaller bets
-            risk_budget *= AGGRESSIVE["meme_risk_mult"] if s.aggressive(self.desk.is_live) else s.meme_risk_mult
+            b = s.boost(self.desk.is_live)
+            risk_budget *= b["meme_risk_mult"] if b else s.meme_risk_mult
         if news is not None:  # scary world news: half-size new buys
             risk_budget *= news.size_mult(direction)
         if flipper is not None:  # ⏱️ bigger in proven good hours, smaller in proven bad ones

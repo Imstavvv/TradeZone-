@@ -638,7 +638,7 @@ Every feature runs with real money. Each can be switched off on its own:
 | Daily goal ($1,000, a floor not a ceiling) | on | `TZ_DAILY_GOAL_USD` |
 | Shorting | only where the account can (Alpaca margin, stocks) | `TZ_SHORTING` |
 | "Never buy what can't be sold" checks | on | (always) |
-| Aggressive risk level | opt-in | Settings → Your goal |
+| Aggressive / Bold risk levels | opt-in | Settings → Your goal |
 
 Patient exits, skims and the quick-flip slice had been switched off after the losing-trades review below. They're back on by request. With the -33% stop, patient exits are what cuts a falling trade early (when momentum and heavy volume both point down) instead of riding it to -33%. In simulated real-money trading (random prices, Kraken fees), switching all three back on made more trades and left almost no money stuck in losing positions, and ended about 1% lower over four $500 runs (the extra fees). That's within the noise of random prices; real markets will tell.
 
@@ -655,6 +655,24 @@ Random prices can't show whether a strategy has an edge, so the whole real-money
 With $2,000 the same change went from +$171 to +$246 on the first half and from +$70 to +$84 on the second, with 7 of 10 runs up instead of 5. At $100 nothing changed: those slices are below Kraken's minimum order anyway. Both features sell part of a winner early. Real prices trend, so a coin that keeps rising doesn't dip back to the buy-back price, and the slice is simply gone, plus two extra fees. A higher conviction bar, waiting longer before trading a coin again, stricter or looser patient exits, a 4x-fees minimum target and a 3x-fees minimum for strategy exits were also tried. None helped on both halves, so they stay as they are.
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
+
+### 🔥 More risk, more reward: the Bold level
+
+There are three real-money risk levels (**Settings → Your goal → Real-money risk**; a level above Normal needs **RISK** typed; `TZ_RISK_PROFILE`):
+
+| | Normal | Aggressive | Bold |
+| --- | --- | --- | --- |
+| Risked per trade (to the early cut) | 2.5% | 4% | 6% |
+| Biggest single position | 35% | 50% | 70% |
+| All open trades' risk together | 10% | 20% | 30% |
+| Stop for the day after a loss of | 5% | 10% | 15% |
+| Stop everything after a drop of | 15% | 30% | 40% |
+| Stop if below what you put in by | 15% | 35% | 50% |
+| Real price history, first half (10 × $500) | +$206 | +$196 | +$333 |
+| Real price history, second half (never tuned on) | +$85 | +$170 | +$176 |
+| Worst single run | -$16 (-3%) | -$30 (-6%) | -$45 (-9%) |
+
+Going from Normal to Aggressive about doubled the result on the unseen half. Going from Aggressive to Bold added only $6 there, but made the worst run 50% deeper. A still bigger level (8% a trade, a single trade up to the whole balance) was also tested: +$182 on the unseen half, with a worst run of -$54 (-11%). It isn't offered, because the extra risk bought almost nothing. Every level keeps a stop and the early cut on every trade, never borrows, and never touches the hold stack. Practice money always uses Normal.
 
 ### 💵 The whole cash balance trades (your hold stack excepted)
 
