@@ -53,12 +53,12 @@ def _env(name: str, default):
 
 #: the Aggressive risk level (real money only). Every trade still has a stop; nothing is borrowed.
 AGGRESSIVE = {"risk_per_trade": 0.04, "max_position_pct": 0.50, "max_portfolio_heat": 0.20, "meme_risk_mult": 0.75,
-              "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 8, "extra_memes": 1,
+              "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 20, "extra_memes": 1,
               "bar_cut": 0.03, "day_lock_trigger": 0.04, "day_giveback": 0.6}
 #: the Bold risk level (real money only): bigger again. Tested on real price history it made a little more than
 #: Aggressive on unseen data, with clearly bigger worst losses. Every trade still has a stop; nothing is borrowed.
 BOLD = {"risk_per_trade": 0.06, "max_position_pct": 0.70, "max_portfolio_heat": 0.30, "meme_risk_mult": 0.75,
-        "daily_loss": 0.15, "drawdown": 0.40, "floor": 0.50, "max_open_positions": 8, "extra_memes": 2,
+        "daily_loss": 0.15, "drawdown": 0.40, "floor": 0.50, "max_open_positions": 20, "extra_memes": 2,
         "bar_cut": 0.04, "day_lock_trigger": 0.06, "day_giveback": 0.65}
 #: real-money risk levels above Normal
 PROFILES = {"aggressive": AGGRESSIVE, "bold": BOLD}
@@ -71,7 +71,7 @@ class RiskLimits:
     risk_per_trade: float = 0.015  # fraction of equity risked to the stop (1.5%)
     max_position_pct: float = 0.25  # max notional per symbol as fraction of equity
     max_gross_exposure: float = 1.0  # max total notional as multiple of equity
-    max_open_positions: int = 6
+    max_open_positions: int = 20  # trades open at once
     max_daily_loss_pct: float = 0.05  # kill switch trips beyond this daily loss
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30
@@ -219,8 +219,8 @@ class Settings:
     shorting: str = "auto"  # auto | off
     # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
     focus_small_coins: bool = True
-    focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins), 4 trades at once
-    focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...), 6 at once; above: all coins
+    focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins)
+    focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...); above: all coins
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
@@ -282,7 +282,8 @@ class Settings:
     # ---- Executive (head trader) ----
     exec_max_chase_r: float = 0.5  # hold an entry if price already moved this many R past the plan
     exec_stale_after_s: float = 20.0  # hold entries when a symbol's price is older than this
-    exec_max_correlated: int = 4  # max same-direction crypto positions at once
+    exec_max_correlated: int = 20  # max same-direction crypto positions at once (the Correlation Officer still
+    # blocks a third copy of the very same move)
     exec_lookback_trades: int = 20
     exec_market_hours_only: bool = True  # stocks: only open positions during regular US market hours
     exec_defensive_after_losses: int = 3  # losses in a row that switch to the defensive stance

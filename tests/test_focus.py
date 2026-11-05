@@ -36,7 +36,7 @@ def test_coin_sizes():
 def test_a_small_balance_trades_smaller_coins_only():
     desk = make(100.0)
     f = desk.focus_status()
-    assert f["stage"] == 1 and f["max_positions"] == 4 and "DOGE-USD" in f["coins"] and "BTC-USD" not in f["coins"]
+    assert f["stage"] == 1 and f["max_positions"] is None and "DOGE-USD" in f["coins"] and "BTC-USD" not in f["coins"]
     qty, rej = buy(desk, "BTC-USD")
     assert qty == 0 and "joins when the balance reaches $1,000" in rej[-1]["reason"]
     qty, rej = buy(desk, "SOL-USD")
@@ -44,15 +44,22 @@ def test_a_small_balance_trades_smaller_coins_only():
     assert buy(desk, "DOGE-USD")[0] > 0
 
 
-def test_capital_isnt_spread_too_thin_until_it_grows():
+def test_a_small_balance_can_hold_more_than_four_trades_now():
     desk = make(200.0)
     SYMS["WIF-USD"], SYMS["BONK-USD"] = 2.0, 0.00003
     desk.settings.symbols += ["WIF-USD", "BONK-USD"]
     desk.settings.max_meme_positions = 5
-    for sym in ("DOGE-USD", "ARB-USD", "PEPE-USD", "WIF-USD"):
-        assert buy(desk, sym)[0] > 0
-    qty, rej = buy(desk, "BONK-USD")
-    assert qty == 0 and "for this balance" in rej[-1]["reason"]  # 4 trades at once at this size
+    for sym in ("DOGE-USD", "ARB-USD", "PEPE-USD", "WIF-USD", "BONK-USD"):
+        assert buy(desk, sym)[0] > 0  # (it used to stop at 4 at this size)
+
+
+def test_never_more_than_20_trades_at_once():
+    from tradezone.core.portfolio import Position
+    desk = make(100_000.0)
+    for i in range(20):
+        desk.portfolio.positions[f"C{i}-USD"] = Position(f"C{i}-USD", qty=1.0, avg_price=1.0, last_price=1.0)
+    qty, rej = buy(desk, "DOGE-USD")
+    assert qty == 0 and "max open positions" in rej[-1]["reason"]
 
 
 def test_bigger_coins_join_as_the_balance_grows():

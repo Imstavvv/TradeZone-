@@ -656,6 +656,15 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### Up to 20 trades at a time
+
+The bots can hold up to **20 trades at once** (`TZ_MAX_OPEN_POSITIONS`), on every risk level and at every balance. It used to be 6 (8 on Aggressive / Bold), small balances were held to 4-6, and at most 4 crypto trades could point the same way. Still in place:
+- at most 3 meme coins at once (`TZ_MAX_MEME_POSITIONS`; +1 Aggressive, +2 Bold);
+- the Correlation Officer still blocks a third trade that moves exactly like two already held;
+- the total-risk cap and the cash on hand still decide how big each trade can be, so more trades means more, smaller trades, never borrowed money.
+
+In a practice run with 24 coins to choose from, the bots held up to 18 trades at once (they open one only when a coin sets up, so 20 isn't always reached). The number of coins on the watchlist is also a limit: Kraken lists plenty, but Uphold and Alpaca give the bots only about 9-12 coins.
+
 ### 🔥 More risk, more reward: the Bold level
 
 There are three real-money risk levels (**Settings → Your goal → Real-money risk**; a level above Normal needs **RISK** typed; `TZ_RISK_PROFILE`):
