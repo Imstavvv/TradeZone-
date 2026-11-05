@@ -75,6 +75,13 @@ class BrokerBody(BaseModel):
     venue: str = "alpaca"  # alpaca | kraken (Key + Secret) | uphold (key = access token)
 
 
+class AccountBody(BaseModel):
+    venue: str
+    key: str
+    secret: str = ""
+    label: str = ""
+
+
 class RiskBody(BaseModel):
     profile: str
     confirm: str = ""
@@ -235,10 +242,12 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         tasks = [asyncio.create_task(broadcaster())]
         if run_desk:
             tasks.append(asyncio.create_task(desk.run_forever()))
+            await desk.fleet.start()  # every extra linked account trades at the same time
         try:
             yield
         finally:
             desk.stop()
+            await desk.fleet.stop()
             for t in tasks:
                 t.cancel()
             for t in tasks:
@@ -543,6 +552,83 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             raise HTTPException(409, str(exc)) from None
         audit(request, "unlinked the real-money account", "warning")
         return {"ok": True}
+
+    # -- more than one real-money account at the same time (each with its own bot team) --------------
+    def fleet_desk(acct_id: str) -> TradingDesk:
+        try:
+            return desk.fleet.desk(acct_id)
+        except KeyError:
+            raise HTTPException(404, "no such account") from None
+
+    @app.get("/api/fleet", dependencies=[Depends(check_token)])
+    async def fleet(refresh: bool = False):
+        if refresh:
+            await desk.fleet.refresh_balances(force=True)
+        return _clean({"accounts": desk.fleet.summary(), "totals": desk.fleet.totals()})
+
+    @app.post("/api/fleet", dependencies=[Depends(check_token)])
+    async def fleet_add(body: AccountBody, request: Request):
+        from .fleet import FleetError
+        try:
+            row = await desk.fleet.add(body.venue, body.key, body.secret, body.label)
+        except (FleetError, ValueError) as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, f"linked another real-money account: {row['label']} ({row['venue_label']}, trading only, "
+                       "no withdrawals)", "warning")
+        return _clean(row)
+
+    @app.delete("/api/fleet/{acct_id}", dependencies=[Depends(check_token)])
+    async def fleet_remove(acct_id: str, request: Request):
+        from .fleet import FleetError
+        if acct_id == "main":
+            raise HTTPException(400, "unlink the main account in Settings → Linked accounts")
+        fleet_desk(acct_id)
+        try:
+            await desk.fleet.remove(acct_id)
+        except FleetError as exc:
+            raise HTTPException(409, str(exc)) from None
+        audit(request, f"unlinked account {acct_id}", "warning")
+        return {"ok": True}
+
+    @app.get("/api/fleet/{acct_id}/mode", dependencies=[Depends(check_token)])
+    async def fleet_mode_check(acct_id: str):
+        return _clean(await fleet_desk(acct_id).mode_check())
+
+    @app.post("/api/fleet/{acct_id}/mode", dependencies=[Depends(check_token)])
+    async def fleet_mode(acct_id: str, body: ModeBody, request: Request):
+        d = fleet_desk(acct_id)
+        if body.mode == "live" and body.confirm.strip().upper() != LIVE_SWITCH_WORD:
+            raise HTTPException(400, f"type {LIVE_SWITCH_WORD} to confirm switching to real-money trading")
+        audit(request, f"account {acct_id}: switch to {body.mode.upper()}", "critical" if body.mode == "live" else "warning")
+        try:
+            out = await d.switch_mode(body.mode, flatten=body.flatten)
+        except ModeSwitchError as exc:
+            raise HTTPException(409, str(exc)) from None
+        return _clean({**out, "account": desk.fleet.row(acct_id)})
+
+    @app.post("/api/fleet/{acct_id}/control/{action}", dependencies=[Depends(check_token)])
+    async def fleet_control(acct_id: str, action: str, request: Request):
+        from .fleet import FleetError
+        audit(request, f"account {acct_id}: {action}", "warning" if action in ("kill", "flatten") else "info")
+        if acct_id == "all":
+            try:
+                return {"ok": True, "accounts": desk.fleet.control_all(action)}
+            except FleetError as exc:
+                raise HTTPException(400, str(exc)) from None
+        d = fleet_desk(acct_id)
+        if action == "pause":
+            d.pause("operator")
+        elif action == "resume":
+            d.resume()
+        elif action == "flatten":
+            return {"ok": True, "closing": d.flatten("operator flatten")}
+        elif action == "kill":
+            d.halt("manual kill", flatten=True)
+        elif action == "reset":
+            d.reset_halt()
+        else:
+            raise HTTPException(400, "action must be pause|resume|flatten|kill|reset")
+        return _clean({"ok": True, "account": desk.fleet.row(acct_id)})
 
     @app.post("/api/grok/ping", dependencies=[Depends(check_token)])
     async def grok_ping():

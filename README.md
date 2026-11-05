@@ -492,6 +492,19 @@ Every one of them that the exchange lists against USD (with Kraken prices) is ad
 
 Two limits keep this safe: a coin is only **bought** if the "never buy what can't be sold" checks pass (listed for buying and selling, a tight bid/ask gap, enough daily trading for the position), so a thin coin is watched but not bought. And coins that **only trade on decentralised exchanges** (most $50k-$1M meme coins) can't be bought: TradeZone trades through the exchange account, and DEX-only tokens carry a high risk of tokens that can never be sold.
 
+### 🏦 Several real-money accounts at the same time
+
+Besides the main account (Settings → Linked accounts), you can link up to **5 more** on the Money page (**Your accounts → + Link another account**): Kraken, Alpaca or Uphold, in any mix, including two accounts at the same exchange.
+
+- **Each account gets its own complete bot team**, with its own book, risk limits, daily-loss and drawdown stops, kill switch and practice/LIVE switch. All the teams trade at the same time, and each one trades only its own balance.
+- **Balances are shown separately.** Each card shows what the bots count (balance, today's profit or loss, cash, open trades) next to the exchange's own figure, which is re-read once a minute. The header adds up the accounts on real money.
+- **A loss limit or a stop in one account never touches another.** **Stop all accounts** closes every account's trades, the main one included, and halts them all at once.
+- **The same safety checks apply to every account.** A Kraken key that can withdraw is refused, Alpaca paper keys are refused, and every account starts on practice money. Switching an account to real money means typing LIVE on its own card.
+- **The same account can't be linked twice.** Two teams trading one balance would trip over each other, so a key that is already in use is refused. For two teams at one exchange, use two accounts or sub-accounts.
+- Each account keeps its keys and records in its own database file next to the main one (`tradezone-account-<id>.db`). The main database only lists which accounts exist. Everything comes back after a restart, and an account that was live resumes live only after its exchange account checks out.
+
+**TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
+
 ### Kraken's meme coins
 
 With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:

@@ -195,6 +195,18 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
+.acclist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-top:6px}
+.acc{border:1px solid var(--line);border-radius:14px;padding:12px;background:rgba(255,255,255,.03);min-width:0}
+.acc.live{border-color:rgba(74,222,128,.55);box-shadow:0 0 0 1px rgba(74,222,128,.2) inset}
+.acc .top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.acc .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acc .bal{font-size:24px;font-weight:800;font-variant-numeric:tabular-nums;margin:6px 0 2px}
+.acc .meta{font-size:12px;color:var(--muted);line-height:1.5}
+.acc .btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.acc .btns button{padding:6px 10px;font-size:12px}
+.accbadge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:rgba(255,255,255,.08);white-space:nowrap}
+.accbadge.live{background:rgba(74,222,128,.18);color:var(--up)}
+.accbadge.stop{background:rgba(251,113,133,.18);color:var(--down)}
 .okbox{background:rgba(52,211,153,.12);border:1px solid rgba(52,211,153,.35);border-radius:12px;padding:10px 12px;font-size:14px;margin-top:8px}
 .coinchips{display:flex;flex-wrap:wrap;gap:8px}
 .coinchips button{min-height:38px;padding:6px 12px;font-size:13px}
@@ -742,6 +754,20 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
     <div class="row" style="margin-top:12px"><button id="brokerCancel">Cancel</button><button id="brokerGo" class="gopaper">Connect</button></div>
   </div>
 </div></div>
+<div class="sheet" id="acctSheet"><div class="panel2" style="text-align:left;align-items:stretch">
+  <h3 style="text-align:center">➕ Link another account</h3>
+  <div class="muted" style="font-size:14px">It gets its own bot team and trades at the same time as your other accounts. It starts on practice money - you switch it to real money on its own card.</div>
+  <div class="coinchips" id="acctVenue" style="margin:8px 0 4px"><button type="button" data-venue="kraken" class="on">🐙 Kraken</button><button type="button" data-venue="alpaca">🦙 Alpaca</button><button type="button" data-venue="uphold">🟢 Uphold</button></div>
+  <div class="muted" id="acctHelp" style="font-size:13px"></div>
+  <label class="fl">Name (optional)</label><input id="acctLabel" class="txt" maxlength="40" autocomplete="off" placeholder="e.g. Kraken savings">
+  <label class="fl" id="acctKeyLbl">API Key</label>
+  <div class="pastebox"><input id="acctKey" autocomplete="off" spellcheck="false" autocapitalize="off"><button type="button" data-paste="acctKey">📋 Paste</button></div>
+  <div id="acctSecretBox"><label class="fl" id="acctSecretLbl">Private Key</label>
+  <div class="pastebox"><input id="acctSecret" type="password" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="••••••••"><button type="button" data-paste="acctSecret">📋 Paste</button></div></div>
+  <div class="lockerr" id="acctErr"></div>
+  <div class="muted" style="font-size:12px">Use a different account (or sub-account) from the ones already linked - two teams trading one balance would trip over each other, so the same keys are refused.</div>
+  <div class="row" style="margin-top:12px"><button id="acctCancel">Cancel</button><button id="acctGo" class="gopaper">Link account</button></div>
+</div></div>
 <div class="sheet" id="walletSheet"><div class="panel2" style="text-align:left;align-items:stretch">
   <h3 style="text-align:center">👛 Add a wallet</h3>
   <div class="wstep" id="ws1">
@@ -873,6 +899,10 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <div class="pnlwrap"><canvas id="pnlChart" height="220" aria-label="Profit and loss over time, with every trade marked"></canvas><div class="pnltip" id="pnlTip"></div></div>
         <div class="pnlkey"><span><i class="buy"></i>bought</span><span><i class="win"></i>sold at a profit</span><span><i class="loss"></i>sold at a loss</span><span>after all fees · updates live</span></div>
       </div>
+      <div class="scard" data-page="home money" id="sec-accounts" style="grid-column:1/-1"><h4>🏦 Your accounts <span class="muted" id="accTotals" style="font-size:12px"></span></h4>
+        <div id="accList" class="acclist"></div>
+        <div class="row" style="margin-top:12px;justify-content:flex-start;flex-wrap:wrap;gap:8px"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
+        <div class="muted" style="font-size:12px;margin-top:8px">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
       <div class="scard" data-page="home" id="sec-hunt" style="grid-column:1/-1"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
       <div class="scard" data-page="home"><h4>Your open trades <span class="muted" id="sOpenN" style="font-size:12px"></span></h4><div id="sOpen"></div></div>
       <div class="scard" data-page="activity" id="sec-happening" style="grid-column:1/-1"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
@@ -1148,10 +1178,11 @@ $('btnKill').onclick = emergencyStop;
 const modal = $('liveModal');
 $('liveCancel').onclick = () => modal.classList.remove('open');
 $('liveConnect').onclick = () => { modal.classList.remove('open'); openBroker(); };
-async function openLive(){
+async function openLive(which){
+  S.liveAcct = typeof which === 'string' ? which : null;
   modal.classList.add('open'); $('liveGo').disabled = true; $('liveFlatten').style.display = 'none';
   $('liveBody').textContent = 'Checking live account…';
-  const c = await api('/api/mode');
+  const c = await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/mode` : '/api/mode');
   const blockers = c.blockers.length ? `<div class="sub" style="color:var(--down)">Almost there - first:</div><ul>${c.blockers.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>` : '';
   const a = c.account;
   const acct = a ? `<div class="acct"><div><div class="muted">Account cash</div><b>${money(a.cash)}</b></div><div><div class="muted">Account equity</div><b>${money(a.equity)}</b></div>
@@ -1161,17 +1192,19 @@ async function openLive(){
   const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">To make sure, type <b>LIVE</b></div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
   $('liveBody').innerHTML = blockers + acct + confirmBox;
   $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
-  $('liveConnect').style.display = c.blockers.some(b => /Linked accounts|Real-money account/.test(b)) ? '' : 'none';
+  $('liveConnect').style.display = !S.liveAcct && c.blockers.some(b => /Linked accounts|Real-money account/.test(b)) ? '' : 'none';
+  const who = S.liveAcct ? (S.state.accounts || []).find(r => r.id === S.liveAcct) : null;
+  document.querySelectorAll('#liveModal .venueName').forEach(e => e.textContent = who ? `${who.label} (${who.venue_label})` : (S.accounts && S.accounts.broker && S.accounts.broker.label) || e.textContent);
   const w = $('liveWord');
   if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
 }
-$('liveFlatten').onclick = async () => { await api('/api/control/flatten', {reason:'switching to live'}); setTimeout(openLive, 1500); };
+$('liveFlatten').onclick = async () => { await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/control/flatten` : '/api/control/flatten', {reason:'switching to live'}); setTimeout(() => openLive(S.liveAcct), 1500); };
 $('liveGo').onclick = async () => {
   $('liveGo').disabled = true;
   const t = await confirmAction('switch to LIVE, real-money trading');
   if (t === null) { $('liveGo').disabled = false; return; }
-  try { await api('/api/mode', {mode:'live', confirm: $('liveWord').value}, t); modal.classList.remove('open'); }
-  catch { openLive(); }
+  try { await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/mode` : '/api/mode', {mode:'live', confirm: $('liveWord').value}, t); modal.classList.remove('open'); }
+  catch { openLive(S.liveAcct); }
 };
 $('btnMode').onclick = async () => {
   if (!S.state) return;
@@ -2093,6 +2126,7 @@ function renderSimple(st){
   renderHunt(st);
   renderNews(st.news);
   renderSettings();
+  renderAccounts(st);
 }
 $('sPause').onclick = () => S.state?.halted ? restartTrading() : togglePause();
 $('sClose').onclick = closeAll;
@@ -2131,7 +2165,7 @@ function renderSettings(){
   if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
-    document.querySelectorAll('.venueName').forEach(e => e.textContent = b.label || 'Alpaca');
+    if (!(S.liveAcct && modal.classList.contains('open'))) document.querySelectorAll('.venueName').forEach(e => e.textContent = b.label || 'Alpaca');
     $('accBrokerTxt').textContent = b.linked ? `${b.label} connected ✓${b.account ? ' · ' + money(b.account.cash) + ' available' : ''} · trades only, can't withdraw` : "Not connected - Uphold, Alpaca or Kraken (you're using practice money)";
     $('accBrokerBtn').textContent = b.linked ? 'Manage' : 'Connect'; $('accBrokerBtn').className = b.linked ? '' : 'gopaper';
     $('accGrokTxt').textContent = !g.configured ? 'Optional - double-checks every trade'
@@ -2210,6 +2244,88 @@ document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e
 
 // ---- connect a real-money broker ----
 let VENUE = 'uphold';
+// ---- several accounts at once: one card each, its own balance and its own LIVE switch ----
+function accCard(a){
+  const state = a.halted ? '<span class="accbadge stop">stopped</span>' : a.paused ? '<span class="accbadge">paused</span>'
+    : a.mode === 'live' ? '<span class="accbadge live">● LIVE</span>' : '<span class="accbadge">practice</span>';
+  const ex = a.exchange && a.exchange.cash != null ? `${esc(a.venue_label)} says: ${money(a.exchange.cash)} cash${a.exchange.equity != null ? ' · ' + money(a.exchange.equity) + ' total' : ''}` : '';
+  const pnl = a.pnl_today || 0;
+  const id = esc(a.id);
+  let btns = '';
+  if (a.main) btns = `<button data-acc="manage" data-id="main">${a.linked ? 'Manage' : 'Connect'}</button>`;
+  else {
+    btns += a.mode === 'live' ? `<button data-acc="paper" data-id="${id}">Back to practice</button>` : `<button class="golive" data-acc="live" data-id="${id}">Use real money</button>`;
+    btns += a.halted ? `<button data-acc="reset" data-id="${id}">Restart</button>` : `<button data-acc="${a.paused ? 'resume' : 'pause'}" data-id="${id}">${a.paused ? 'Resume' : 'Pause'}</button>`;
+    if (a.open) btns += `<button data-acc="flatten" data-id="${id}">Close trades</button>`;
+    if (!a.halted) btns += `<button class="danger" data-acc="kill" data-id="${id}">Stop</button>`;
+    if (a.mode !== 'live') btns += `<button data-acc="remove" data-id="${id}">Remove</button>`;
+  }
+  return `<div class="acc ${a.mode === 'live' ? 'live' : ''}"><div class="top"><span class="nm">${esc(a.label)}</span>${state}</div>
+    <div class="bal">${money(a.equity)}</div>
+    <div class="meta"><span class="${pnl >= 0 ? 'up' : 'down'}" style="color:var(${pnl >= 0 ? '--up' : '--down'})">${pnl >= 0 ? '+' : ''}${money(pnl)} today</span> · ${money(a.cash)} cash · ${a.open} open trade${a.open === 1 ? '' : 's'}</div>
+    ${ex ? `<div class="meta">${ex}</div>` : ''}
+    ${a.halted && a.halt_reason ? `<div class="meta" style="color:var(--down)">${esc(a.halt_reason)}</div>` : a.paused && a.pause_reason && a.pause_reason !== 'operator' ? `<div class="meta">${esc(a.pause_reason)}</div>` : ''}
+    ${!a.feed_ok ? '<div class="meta" style="color:var(--warn)">waiting for prices…</div>' : ''}
+    <div class="btns">${btns}</div></div>`;
+}
+function renderAccounts(st){
+  const rows = st.accounts || [];
+  if (!rows.length) return;
+  setHTML($('accList'), rows.map(accCard).join(''));
+  const live = rows.filter(r => r.mode === 'live');
+  $('accTotals').textContent = rows.length > 1 ? `· ${rows.length} accounts${live.length ? ` · ${live.length} on real money: ${money(live.reduce((t, r) => t + r.equity, 0))}` : ''}` : '';
+  $('accStopAll').style.display = rows.length > 1 ? '' : 'none';
+}
+$('accList').addEventListener('click', async e => {
+  const b = e.target.closest('[data-acc]'); if (!b) return;
+  const id = b.dataset.id, act = b.dataset.acc, a = (S.state.accounts || []).find(r => r.id === id) || {};
+  if (act === 'manage') return openBroker();
+  if (act === 'live') return openLive(id);
+  if (act === 'paper') {
+    if (!await ask(`${a.label}: back to practice money?`, a.open ? `Its ${a.open} real-money trade${a.open > 1 ? 's' : ''} will be closed at market first.` : 'No more real orders will be sent from this account.', {ok: 'Switch', danger: !!a.open})) return;
+    b.disabled = true;
+    try { await api(`/api/fleet/${id}/mode`, {mode: 'paper', flatten: true}); toast(`${a.label} is on practice money`); } catch {} finally { b.disabled = false; }
+    return;
+  }
+  if (act === 'remove') {
+    if (!await ask(`Remove ${a.label}?`, 'Its bot team stops and its keys are forgotten. Its money stays in your account.', {ok: 'Remove', danger: true})) return;
+    try { await api(`/api/fleet/${id}`, undefined, {}, 'DELETE'); toast(`${a.label} removed`); } catch {}
+    return;
+  }
+  if (act === 'kill' && !await ask(`Stop ${a.label}?`, 'Its open trades are closed at market and it stops trading until you restart it. Your other accounts keep going.', {ok: 'Stop', danger: true})) return;
+  if (act === 'flatten' && !await ask(`Close ${a.label}'s trades?`, 'Its open trades are sold at market.', {ok: 'Close trades', danger: true})) return;
+  try { await api(`/api/fleet/${id}/control/${act}`, {}); } catch {}
+});
+$('accStopAll').onclick = async () => {
+  if (!await ask('Stop ALL accounts?', 'Every account (the main one too) closes its open trades at market and stops trading until restarted.', {ok: 'Stop all', danger: true})) return;
+  try { const r = await api('/api/fleet/all/control/kill', {}); toast(`Stopped ${r.accounts} accounts`, 'warn'); } catch {}
+};
+let ACCV = 'kraken';
+const ACC_HELP = {
+  kraken: 'Kraken → Settings → API → Create API key. Turn on Query Funds, Query Open/Closed Orders &amp; Trades, Create &amp; Modify Orders, Cancel/Close Orders. Leave <b>Withdraw Funds</b> off - a key that can withdraw is refused.',
+  alpaca: 'Alpaca → your <b>Live</b> account (not Paper) → API Keys → Generate New Keys. Live keys start with AK.',
+  uphold: 'Run <span class="mono">python -m tradezone uphold-token</span> on the computer running TradeZone and paste the token it prints.'};
+function pickAccVenue(v){
+  ACCV = v; document.querySelectorAll('#acctVenue [data-venue]').forEach(b => b.classList.toggle('on', b.dataset.venue === v));
+  $('acctHelp').innerHTML = ACC_HELP[v];
+  $('acctSecretBox').style.display = v === 'uphold' ? 'none' : '';
+  $('acctKeyLbl').textContent = {kraken: 'API Key', alpaca: 'Key ID', uphold: 'Uphold access token'}[v];
+  $('acctSecretLbl').textContent = v === 'kraken' ? 'Private Key' : 'Secret Key';
+  $('acctErr').textContent = '';
+}
+document.querySelectorAll('#acctVenue [data-venue]').forEach(b => b.onclick = () => pickAccVenue(b.dataset.venue));
+$('accAdd').onclick = () => { $('acctKey').value = $('acctSecret').value = $('acctLabel').value = ''; pickAccVenue(ACCV); $('acctSheet').classList.add('open'); };
+$('acctCancel').onclick = () => $('acctSheet').classList.remove('open');
+$('acctGo').onclick = async () => {
+  const key = $('acctKey').value.trim(), secret = ACCV === 'uphold' ? '' : $('acctSecret').value.trim();
+  if (!key || (ACCV !== 'uphold' && !secret)) { $('acctErr').textContent = ACCV === 'uphold' ? 'Paste the access token.' : 'Paste both keys.'; return; }
+  $('acctGo').disabled = true; $('acctErr').textContent = `Checking with ${ {kraken: 'Kraken (and making sure the key can\'t withdraw)', alpaca: 'Alpaca', uphold: 'Uphold'}[ACCV] }…`;
+  try { const r = await api('/api/fleet', {venue: ACCV, key, secret, label: $('acctLabel').value.trim()});
+        toast(`Linked ${r.label} ✓ ${r.account && r.account.cash != null ? money(r.account.cash) + ' available' : ''}`, 'ok', 5000);
+        $('acctSheet').classList.remove('open'); }
+  catch (e) { $('acctErr').textContent = e.message || 'Could not link'; }
+  finally { $('acctGo').disabled = false; }
+};
 function pickVenue(v){
   VENUE = v; document.querySelectorAll('#venuePick [data-venue]').forEach(b => b.classList.toggle('on', b.dataset.venue === v));
   const kr = v === 'kraken';

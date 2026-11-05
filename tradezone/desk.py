@@ -142,6 +142,9 @@ class TradingDesk:
         from .wallets import WalletService
 
         self.wallets = WalletService(self)
+        from .fleet import AccountFleet
+
+        self.fleet = AccountFleet(self)  # extra real-money accounts, each with its own bot team
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -753,6 +756,11 @@ class TradingDesk:
             self.bots["scout"].metrics["feed_mode"] = getattr(self.feed, "mode", "poll")
         if self._dirty or self.cycles % 10 == 0:
             self.save_state()
+        if not hasattr(self, "account_id") and (self.fleet.desks or self.live_broker is not None):
+            try:  # each exchange's own balance, once a minute (shown next to what the bots count)
+                await self.fleet.refresh_balances()
+            except Exception:
+                log.exception("account balances")
 
     # -- "today's hunt": what the bots looked at and why they did or didn't trade --------
     def _new_hunt(self) -> dict:
@@ -1055,6 +1063,7 @@ class TradingDesk:
             "trends": self.bots["trends"].summary(),  # type: ignore[attr-defined]
             "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
+            "accounts": self.fleet.summary() if not hasattr(self, "account_id") else [],
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
             "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard(),  # type: ignore[attr-defined]
                      "daily": self.daily_goal_status()},
