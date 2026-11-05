@@ -88,6 +88,11 @@ class StackMoveBody(BaseModel):
     fraction: float = 1.0  # share of what's there to move
 
 
+class ProtocolBody(BaseModel):
+    action: str  # "best" (tested-best settings) | "cap" (real-money cap in USD)
+    amount: float = 0.0
+
+
 class StrategyBody(BaseModel):
     on: bool
 
@@ -494,6 +499,22 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         await desk.bus.drain()  # book it now, so the reply shows the new balances
         audit(request, f"moved {res['moved']:g} {sym} to the {res['to']}", "warning")
         return _clean({**res, "stack": st.summary()})  # type: ignore[attr-defined]
+
+    @app.post("/api/protocol", dependencies=[Depends(check_token)])
+    async def protocol(body: ProtocolBody, request: Request):
+        try:
+            if body.action == "best":
+                out = desk.apply_best()
+                for d in desk.fleet.desks.values():
+                    d.apply_best()
+            elif body.action == "cap":
+                out = desk.set_live_cap(body.amount)
+            else:
+                raise ValueError("action must be best or cap")
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, f"protocol: {body.action}" + (f" ${body.amount:,.0f}" if body.action == "cap" else ""), "warning")
+        return _clean(out)
 
     @app.post("/api/never-sell", dependencies=[Depends(check_token)])
     async def never_sell(body: StrategyBody, request: Request):

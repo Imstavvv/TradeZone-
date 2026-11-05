@@ -195,6 +195,8 @@ body.locked main,body.locked .bottomnav,body.locked header .controls{visibility:
 .pastebox input,.txt{flex:1;min-width:0;width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;font-size:16px}
 .pastebox button{white-space:nowrap;min-height:44px}
 .openlink{display:block;text-align:center;margin:4px 0 8px;padding:10px;border-radius:12px;border:1px solid var(--line);color:var(--text);text-decoration:none;font-weight:700}
+.protosteps{display:grid;gap:6px}.pstep{display:grid;grid-template-columns:26px 1fr;gap:8px;align-items:start;padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03)}
+.pstep .ok{font-size:16px}.pstep b{font-size:14px}.pstep .q{font-size:12px;color:var(--muted)}.pstep.done{border-color:rgba(74,222,128,.4)}
 .stratlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
 .strat{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
 .strat b{font-size:14px}.strat .q{font-size:11px;color:var(--muted)}.strat button{padding:5px 10px;font-size:12px;white-space:nowrap}
@@ -914,6 +916,12 @@ body.is-live .hero{background:var(--stars),radial-gradient(circle at 78% 30%,rgb
         <div class="pnlwrap"><canvas id="pnlChart" height="220" aria-label="Profit and loss over time, with every trade marked"></canvas><div class="pnltip" id="pnlTip"></div></div>
         <div class="pnlkey"><span><i class="buy"></i>bought</span><span><i class="win"></i>sold at a profit</span><span><i class="loss"></i>sold at a loss</span><span>after all fees · updates live</span></div>
       </div>
+      <div class="scard" data-page="home" id="sec-protocol" style="grid-column:1/-1"><h4>💰 Make-me-money protocol <span class="muted" id="protoN" style="font-size:12px"></span></h4>
+        <div id="protoSteps" class="protosteps"></div>
+        <div class="row" style="margin-top:10px;justify-content:flex-start;flex-wrap:wrap;gap:8px;align-items:center">
+          <button id="protoBest" class="gopaper">Use the tested-best settings</button>
+          <span class="muted" style="font-size:12px">Real-money cap $</span><input id="protoCap" class="txt" inputmode="decimal" style="width:90px;padding:6px 8px" placeholder="50"><button id="protoCapSet">Set cap</button></div>
+        <div class="muted" style="font-size:12px;margin-top:8px">No setting can promise profit. This is the path that loses least while you find out whether the bots make money on real markets: practise, start small, keep the settings that tested best, check each week, take profits out.</div></div>
       <div class="scard" data-page="home money" id="sec-accounts" style="grid-column:1/-1"><h4>🏦 Your accounts <span class="muted" id="accTotals" style="font-size:12px"></span></h4>
         <div id="accList" class="acclist"></div>
         <div class="row" style="margin-top:12px;justify-content:flex-start;flex-wrap:wrap;gap:8px"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
@@ -2180,7 +2188,29 @@ function renderSimple(st){
   renderStack(st.stack);
   renderStrategies(st.strategies);
   renderNeverSell(st);
+  renderProtocol(st.protocol);
 }
+function renderProtocol(pr){
+  if (!pr) return;
+  const done = pr.steps.filter(x => x.done).length;
+  $('protoN').textContent = `· ${done} of ${pr.steps.length} done`;
+  const nice = {strategies: 'strategies', snipe: 'meme breakout snipes', surge_snipe: 'volume snipes', pullback: 'Pullback Hunter', flipper: 'Flipper',
+    accumulate: 'accumulating', flip_bank_fraction: 'quick-flip slices', flip_max_skims: 'skims', maker_exits: 'maker exits', fee_rule_stops: 'fee rule on stops',
+    never_sell_at_loss: 'never sell at a loss', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
+  setHTML($('protoSteps'), pr.steps.map((x, i) => `<div class="pstep ${x.done ? 'done' : ''}"><span class="ok">${x.done ? '✅' : ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'][i]}</span>
+    <div><b>${esc(x.title)}</b><div class="q">${esc(x.text)}${x.key === 'best' && pr.off.length ? ': ' + pr.off.map(o => esc(nice[o.key] || o.key) + (o.server ? ' (set on the server)' : '')).join(', ') : ''}</div></div></div>`).join(''));
+  if (document.activeElement !== $('protoCap')) $('protoCap').value = pr.cap ? String(pr.cap) : '';
+  $('protoBest').disabled = !pr.off.length;
+}
+$('protoBest').onclick = async () => {
+  if (!await ask('Use the tested-best settings?', "Every bot setting goes back to the combination that did best together on real price history. Your risk level and real-money cap stay as they are.", {ok: 'Use them'})) return;
+  try { await api('/api/protocol', {action: 'best'}); toast('Tested-best settings on', 'ok'); } catch {}
+};
+$('protoCapSet').onclick = async () => {
+  const v = Number(($('protoCap').value || '0').replace(/[$,]/g, ''));
+  if (!(v >= 0)) return toast('Type an amount in dollars (0 = no cap)', 'error');
+  try { await api('/api/protocol', {action: 'cap', amount: v}); toast(v ? `The bots may use up to $${v.toLocaleString()} of real money` : 'No cap on real money', 'ok'); } catch {}
+};
 function renderNeverSell(st){
   const on = !!st.never_sell_at_loss, held = st.held_losers || [];
   $('setNsTxt').textContent = `Never sell at a loss: ${on ? 'ON' : 'OFF'}`;

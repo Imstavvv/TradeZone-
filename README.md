@@ -505,6 +505,17 @@ Besides the main account (Settings → Linked accounts), you can link up to **5 
 
 **TastyFx isn't linkable yet.** Its trading API is not a simple web API like Kraken's or Alpaca's: it is either tastyfx's own WebSocket protocol or FIX 5.0. Its documentation couldn't be reached from the development environment, and guessing at a real-money order protocol isn't safe. Forex with TastyFx would also need its own price feed, lot sizes and weekend market hours.
 
+### 💰 The make-me-money protocol
+
+No setting can promise profit. The **Make-me-money protocol** card on the home screen is the path that loses least while you find out whether the bots make money on real markets. Each step shows its live status:
+
+1. **Practise first.** How many days practice has run and what it made; a week or two shows how the bots do on today's market.
+2. **Link your exchange.** Trading only; the bots can never withdraw.
+3. **Start real money small.** Set a **real-money cap** right on the card (e.g. $50, remembered; `TZ_LIVE_MAX_CAPITAL`). Add more only after a few good weeks. A new cap takes effect the next time real money is switched on.
+4. **Use the tested-best settings.** It lists any bot setting that has drifted from the combination that did best together on real price history. **Use the tested-best settings** puts them all back in one tap, on every linked account. Your risk level and cap stay yours, and settings fixed on the server are named.
+5. **Review each week.** The last 7 days on real money: trades won, profit banked, and any losing trades being held.
+6. **Take profits out now and then.** Profit is only really yours once it's out of the exchange. The bots never withdraw; you do.
+
 ### 🧠 Learning bots
 
 The team already learned three ways: the **Coach** (which strategies and coins work, how high the bar is), the **Flipper** (the best and worst hours) and the **Fee Auditor** (the fee really paid). Two more learn from every finished trade and remember across restarts:

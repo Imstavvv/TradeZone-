@@ -714,6 +714,8 @@ class TradingDesk:
         if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
             from .bots.quant import STRATEGIES
             self.settings.strategies = [k for k in saved["on"] if k in STRATEGIES]
+        if (cap := self.store.load("live_cap")) is not None and "TZ_LIVE_MAX_CAPITAL" not in os.environ:
+            self.settings.live_max_capital = float(cap.get("usd", 0.0))
         if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
             self.settings.never_sell_at_loss = bool(ns.get("on"))
         for k, on in (self.store.load("finders") or {}).items():
@@ -881,6 +883,76 @@ class TradingDesk:
         self.store.save("strategies", {"on": self.settings.strategies})
         self.bus.publish("alert", Alert("info", f"Strategy {key} {'on' if on else 'off'}", "operator"))
         return self.strategy_info()
+
+    # -- "make me money" protocol: the safest proven path, step by step -------------------------
+    #: the combination that tested best together on real price history (each value tested both ways)
+    BEST: ClassVar[dict[str, object]] = {
+        "strategies": ["macd", "obv"], "snipe": True, "surge_snipe": True, "surge_volume_ratio": 4.0,
+        "pullback": True, "flipper": True, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
+        "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
+        "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
+        "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22}
+
+    def protocol_status(self) -> dict:
+        s, now_ = self.settings, time.time()
+        row = self.journal.one("SELECT MIN(ts) FROM equity WHERE mode = 'paper'")
+        practice_days = (now_ - row[0]) / 86_400 if row and row[0] else 0.0
+        practice_pnl = self.journal.last_pnl("paper") if not self.is_live else None
+        if practice_pnl is None and not self.is_live:
+            practice_pnl = self.lifetime_pnl()
+        off = [{"key": k, "now": getattr(s, k), "best": v, "server": f"TZ_{k.upper()}" in os.environ}
+               for k, v in self.BEST.items() if getattr(s, k) != v]
+        week = None
+        if self.live_portfolio is not None:
+            p = self.live_portfolio
+            recent = [t for t in p.closed_trades if t.ts >= now_ - 7 * 86_400]
+            old = self.journal.one("SELECT pnl FROM equity WHERE mode = 'live' AND ts <= ? AND pnl IS NOT NULL "
+                                   "ORDER BY ts DESC LIMIT 1", (now_ - 7 * 86_400,))
+            held = [x for x in p.open_positions if s.net_if_sold(x, x.last_price or x.avg_price) < 0]
+            week = {"closed": len(recent), "won": sum(t.pnl > 0 for t in recent), "realized": sum(t.pnl for t in recent),
+                    "change": (self.lifetime_pnl() - old[0]) if (old and self.is_live) else None,
+                    "held_losers": len(held), "held_loss": sum(s.net_if_sold(x, x.last_price or x.avg_price) for x in held)}
+        steps = [
+            {"key": "practice", "title": "Practise first", "done": practice_days >= 7 or self.is_live,
+             "text": f"{practice_days:.1f} days on practice money" + (f", {practice_pnl:+,.2f}" if practice_pnl is not None else "")
+                     + " - a week or two shows how the bots do on today's market"},
+            {"key": "link", "title": "Link your exchange", "done": self.live_broker is not None,
+             "text": f"{self.live_broker.label} linked (trading only - the bots can never withdraw)" if self.live_broker
+                     else "Money → Real-money account"},
+            {"key": "small", "title": "Start real money small", "done": self.is_live and s.live_max_capital > 0,
+             "text": (f"the bots may use up to ${s.live_max_capital:,.0f}" if s.live_max_capital > 0 else
+                      "set a cap below, then add more only after a few good weeks")
+                     + ("" if self.is_live else " · not on real money yet")},
+            {"key": "best", "title": "Use the tested-best settings", "done": not off,
+             "text": "all on the best-tested combination" if not off else f"{len(off)} setting(s) differ from it"},
+            {"key": "review", "title": "Review each week", "done": week is not None and week["closed"] > 0,
+             "text": "after a week on real money, compare it with practice" if week is None else
+                     f"last 7 days: {week['won']}/{week['closed']} closed trades won, {week['realized']:+,.2f} banked"
+                     + (f", {week['held_losers']} losing trade(s) held ({week['held_loss']:+,.2f})" if week["held_losers"] else "")},
+            {"key": "cashout", "title": "Take profits out now and then", "done": False,
+             "text": "profit is only really yours once it's out of the exchange - the bots never withdraw; you do"},
+        ]
+        return {"steps": steps, "off": off, "week": week, "cap": s.live_max_capital, "risk_profile": s.risk_profile}
+
+    def apply_best(self) -> dict:
+        """Put every bot setting back on the combination that tested best (your risk level and cap stay yours)."""
+        for k, v in self.BEST.items():
+            setattr(self.settings, k, list(v) if isinstance(v, list) else v)
+        self.store.save("strategies", {"on": self.settings.strategies})
+        self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
+        self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
+        self.store.save("protocol", {"best": True, "ts": time.time()})
+        self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
+        return self.protocol_status()
+
+    def set_live_cap(self, amount: float) -> dict:
+        if amount < 0:
+            raise ValueError("the cap can't be negative (0 = no cap)")
+        self.settings.live_max_capital = float(amount)
+        self.store.save("live_cap", {"usd": float(amount)})
+        self.bus.publish("alert", Alert("info", f"Real-money cap: {'$' + format(amount, ',.0f') if amount else 'none'}"
+                                        " (takes effect the next time real money is switched on)", "operator"))
+        return self.protocol_status()
 
     def set_never_sell(self, on: bool) -> dict:
         """Never sell at a loss (on) or cut losing trades with stops and early cuts (off)."""
@@ -1158,6 +1230,7 @@ class TradingDesk:
             "finders": self.bots["reviewer"].summary(),  # type: ignore[attr-defined]
             "strategies": self.strategy_info(),
             "never_sell_at_loss": self.settings.never_sell_at_loss,
+            "protocol": self.protocol_status(),
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
                              "pct": ((p.last_price or p.avg_price) / p.avg_price - 1) * (1 if p.qty > 0 else -1)}
                             for p in self.portfolio.open_positions
