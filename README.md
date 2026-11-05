@@ -656,6 +656,18 @@ With $2,000 the same change went from +$171 to +$246 on the first half and from 
 
 Both switched back on by request earlier; they're off again because the evidence says they cost money. `TZ_ACCUMULATE=true` and `TZ_FLIP_BANK_FRACTION=0.25` bring them back. These are still simulations: no past data guarantees future profit.
 
+### 🎯 Volume snipes: every crypto and meme coin
+
+Any crypto or meme coin whose 1-minute bar trades **4 times its usual volume** (`TZ_SURGE_VOLUME_RATIO`) while the price jumps **+0.3% or more** (`TZ_SURGE_MIN_MOVE`) is bought on that bar. Conditions:
+- the price must be above its fast average;
+- not already wildly overbought (RSI 80, `TZ_SURGE_MAX_RSI`);
+- not a bounce inside a falling trend;
+- one snipe per coin per surge (`TZ_SURGE_COOLDOWN_BARS`).
+
+The idea then goes through the same checks as any trade: Risk and the advisors (falling Bitcoin, flash crashes, thin markets), the fee rules, the position limits (5 meme coins, 20 trades), and its own stop. Stocks aren't sniped. The meme-coin breakout snipes (`TZ_SNIPE`) still run alongside. `TZ_SURGE_SNIPE=false` turns it off.
+
+On real price history (ten $500 runs per half) such surges were rare, about one snipe per run. At 4× they made no difference on unseen data (+$162 / +$150 vs +$160 / +$150). At 3× or 2.5× they did worse there (+$137). That history is stocks and currencies, not meme coins, whose surges are bigger and more frequent. Whether sniping them pays will show in real trading.
+
 ### 💰 Every profit sale keeps more than its fees
 
 A trade that's sold to take profit must keep **more profit, after both fees, than the fees it paid** (`TZ_PROFIT_OVER_FEES=1`; 2 would mean twice the fees). Example: a $500 trade on Kraken pays about $2 to buy and $2 to sell, so it's only sold for profit once it would keep more than $4 after those fees (about +1.6% on the price). That covers every sale made for profit:

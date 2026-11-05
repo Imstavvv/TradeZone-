@@ -343,6 +343,13 @@ class Settings:
     # Sniping: on a trusted meme coin, a live price breaking this far above its recent high is
     # acted on at once (not at the bar close), if momentum agrees.
     snipe: bool = True
+    # volume snipes: any crypto or meme coin whose bar trades several times its usual volume while the price
+    # jumps up is bought on that bar (then the usual checks: Risk, the advisors, fees, the stop)
+    surge_snipe: bool = True
+    surge_volume_ratio: float = 4.0  # this many times the usual volume (3x and 2.5x tested worse on unseen data)...
+    surge_min_move: float = 0.003  # ...and the bar up at least this much
+    surge_max_rsi: float = 80.0  # not when it's already wildly overbought
+    surge_cooldown_bars: int = 30  # one snipe per coin per surge
     snipe_breakout_pct: float = 0.01
     stop_buffer_atr: float = 1.0  # buffer beyond the swing level
     min_stop_atr: float = 1.5  # never tighter than this (noise)

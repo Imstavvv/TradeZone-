@@ -69,6 +69,7 @@ class QuantBot(Bot):
         self._voting_meme = False
         self.sniped: dict[str, float] = {}  # meme coin -> breakout level already acted on
         self._bars_since: dict[str, int] = {}  # symbol -> bars since its last trade idea
+        self._surge_wait: dict[str, int] = {}  # symbol -> bars until it may be volume-sniped again
 
     def subscriptions(self):
         return {"market.snapshot": self.on_snapshot, "market.tick": self.on_tick}
@@ -109,11 +110,50 @@ class QuantBot(Bot):
         self.bump("snipes")
         self.act(f"SNIPE {t.symbol} @ {t.price:,.6g} (+{jump:.1%} through the high)")
 
+    def _surge_snipe(self, snap: Snapshot, before: Snapshot | None) -> bool:
+        """Volume snipe: a crypto or meme coin trading several times its usual volume while the price jumps up."""
+        st, sym = self.settings, snap.symbol
+        if self._surge_wait.get(sym, 0) > 0:
+            self._surge_wait[sym] -= 1
+            return False
+        if not st.surge_snipe or not st.is_crypto(sym) or before is None or before.price <= 0:
+            return False
+        ind = snap.indicators
+        vr = ind.get("volume_ratio")
+        move = snap.price / before.price - 1
+        if vr is None or vr < st.surge_volume_ratio or move < st.surge_min_move:
+            return False
+        if snap.price < ind.get("ema_fast", snap.price) or ind.get("rsi", 50) > st.surge_max_rsi:
+            return False
+        if not self.portfolio.position(sym).is_flat:
+            return False
+        mom = momentum_score(snap)
+        votes = {"volume": "yes", "breakout": "yes" if snap.price >= ind.get("donchian_high", float("inf")) else "abstain",
+                 "momentum": "yes" if mom > 0.1 else "no" if mom < -0.5 else "abstain"}
+        self._surge_wait[sym] = st.surge_cooldown_bars
+        if "no" in votes.values():
+            self.bump("surges_passed")
+            self.act(f"no volume snipe on {sym}: {vr:.1f}x volume but the trend is still down")
+            return False
+        self.stance[sym] = self.emitted[sym] = 1
+        self.blocked.pop(sym, None)
+        self._bars_since[sym] = 0
+        strength = round(min(1.0, 0.55 + 0.05 * min(vr, 8.0) + 0.2 * max(mom, 0.0)), 3)
+        self.publish("signal.proposed", Signal(
+            sym, Side.BUY, strength, f"volume snipe: {sym} trading {vr:.1f}x its usual volume, +{move:.1%} this bar",
+            self.name, votes=votes))
+        self.bump("volume_snipes")
+        self.act(f"VOLUME SNIPE {sym} @ {snap.price:,.6g}: {vr:.1f}x volume, +{move:.1%}")
+        return True
+
     def on_snapshot(self, ev: Event) -> None:
         s: Snapshot = ev.payload
         if s.historical:
             return  # warm-up data: never trade on the past
+        before = self.last_snap.get(s.symbol)
         self.last_snap[s.symbol] = s
+        if self._surge_snipe(s, before):
+            return
         self.bump("checks")  # every bar looked at: shown as "chances checked"
         strategist = self.desk.bots.get("strategist")
         regime = strategist.regime(s.symbol) if strategist and strategist.enabled else Regime.UNKNOWN
