@@ -33,7 +33,8 @@ import time
 from ..core.bus import Event
 from ..core.models import Regime, now
 from .base import Bot
-from .quant import FAMILIES, STRATEGIES as ALL_STRATEGIES, WEIGHTS
+from .quant import FAMILIES, WEIGHTS
+from .quant import STRATEGIES as ALL_STRATEGIES
 
 TEAM_RULES = [
     {"icon": "💰", "rule": "Make money", "detail": "Only take trades whose reward beats the risk and the fees."},

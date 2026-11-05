@@ -78,7 +78,7 @@ def obv_score(s: Snapshot) -> float | None:
 def bollinger_score(s: Snapshot) -> float | None:
     """Bollinger Bands: below the lower band is cheap (buy the dip), above the upper band dear."""
     ind = s.indicators
-    lo, hi, mid = ind.get("bb_lower"), ind.get("bb_upper"), ind.get("bb_mid")
+    lo, hi = ind.get("bb_lower"), ind.get("bb_upper")
     if lo is None or hi is None or hi <= lo:
         return None
     half = (hi - lo) / 2
