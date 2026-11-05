@@ -430,7 +430,19 @@ class PortfolioBot(Bot):
         if self.settings.live_max_capital > 0:
             gap = min(gap, 0.0)  # capped: deposits beyond the cap aren't the bots' to use
         if abs(gap) < max(self.CASH_TOLERANCE_USD, 0.005 * max(p.equity, 0.0)):
-            self._cash_seen = None
+            # small and steady: the venue's own fees and rounding (Alpaca takes its crypto fee out of what a trade
+            # receives, so it never shows up as a fee on the fill). Book it as a trading cost - it's not a transfer -
+            # before it can add up to look like one.
+            if abs(gap) >= 0.01 and self._cash_seen is not None and abs(gap - self._cash_seen) < 0.01:
+                p.cash += gap
+                if gap < 0:
+                    p.commissions -= gap
+                self.publish("cash.adjusted", {"delta": gap, "reason": "venue fees / rounding"})
+                self.act(f"cash matched to the account: {gap:+,.2f} (venue fees / rounding)")
+                self.bump("fee_corrections")
+                self._cash_seen = None
+                return 0.0
+            self._cash_seen = gap if abs(gap) >= 0.01 else None
             return 0.0
         if self._cash_seen is None or abs(gap - self._cash_seen) > max(self.CASH_TOLERANCE_USD, 0.005 * abs(gap)):
             self._cash_seen = gap  # seen once (or still moving): wait for the next check

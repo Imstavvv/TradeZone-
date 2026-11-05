@@ -14,6 +14,7 @@ JOURNALED = (
     "order.update", "order.filled",
     "trade.closed", "regime.update", "alert", "desk.control", "signal.reviewed", "grok.opinion",
     "funds.deposit", "funds.withdrawal", "wallet.linked", "wallet.removed", "trade.log", "position.adjusted",
+    "cash.adjusted",
 )
 
 
@@ -58,6 +59,8 @@ class SentinelBot(Bot):
             self.shadow_cash += ev.payload["usd_value"]
         elif ev.topic == "funds.withdrawal":
             self.shadow_cash -= ev.payload["usd_value"]
+        elif ev.topic == "cash.adjusted":
+            self.shadow_cash += ev.payload["delta"]
         elif ev.topic == "position.adjusted":
             sym = ev.payload["symbol"]
             self.shadow_qty[sym] = self.shadow_qty.get(sym, 0.0) + ev.payload["delta"]

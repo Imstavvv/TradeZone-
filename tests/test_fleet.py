@@ -189,3 +189,20 @@ def test_balance_checks_run_in_the_background(exchange):
         await task
     run(go())
     assert desk.fleet.balances[acct_id]["cash"] == 1_200.0
+
+
+def test_the_risk_level_applies_to_every_linked_account(exchange):
+    from fastapi.testclient import TestClient
+
+    from tradezone.server import create_app
+    desk = main_desk()
+    acct_id = run(desk.fleet.add("kraken", "KEY-B", SECRET))["id"]
+    with TestClient(create_app(desk, run_desk=False)) as c:
+        assert c.post("/api/risk-profile", json={"profile": "bold", "confirm": "RISK"}).status_code == 200
+    assert desk.settings.risk_profile == desk.fleet.desk(acct_id).settings.risk_profile == "bold"
+
+
+def test_no_mode_switch_while_a_hold_stack_purchase_is_filling(exchange):
+    desk = main_desk()
+    desk.bots["stacker"].pending = {"order": None}
+    assert any("hold-stack purchase" in b for b in desk._switch_blockers("live"))

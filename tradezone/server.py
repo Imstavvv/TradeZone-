@@ -461,6 +461,8 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             info = desk.set_risk_profile(body.profile, body.confirm)
         except ValueError as exc:
             raise HTTPException(400, str(exc)) from None
+        for d in desk.fleet.desks.values():  # one risk level for every linked account
+            d.set_risk_profile(body.profile, body.confirm)
         audit(request, f"real-money risk level set to {body.profile}", "warning")
         return info
 

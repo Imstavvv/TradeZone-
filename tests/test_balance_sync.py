@@ -52,14 +52,14 @@ def test_a_withdrawal_at_the_exchange_lowers_what_the_bots_may_spend():
 def test_a_one_off_blip_or_rounding_is_ignored():
     fk = FakeKraken(usd=500.0)
     desk, pm = live(fk)
-    fk.bal["ZUSD"] += 0.40  # rounding-sized
+    fk.bal["ZUSD"] += 0.40  # rounding-sized: matched to the account, never called a deposit
     check(desk, pm, 3)
-    assert desk.portfolio.cash == 500.0
+    assert desk.portfolio.cash == pytest.approx(500.40) and desk.portfolio.net_flows == 0
     fk.bal["ZUSD"] += 80.0
     check(desk, pm, 1)
     fk.bal["ZUSD"] -= 80.0  # gone again on the next check: never booked
     check(desk, pm, 2)
-    assert desk.portfolio.cash == 500.0
+    assert desk.portfolio.cash == pytest.approx(500.40) and desk.portfolio.net_flows == 0
 
 
 def test_with_a_capital_cap_only_money_taken_out_is_followed():
@@ -90,3 +90,18 @@ def test_paper_mode_never_syncs():
     fk.bal["ZUSD"] += 999
     check(desk, pm)
     assert desk.portfolio.cash == desk.settings.starting_cash
+
+
+def test_venue_fees_taken_out_of_the_proceeds_are_booked_as_fees_not_as_a_withdrawal():
+    """Alpaca takes its crypto fee out of what a trade receives: small steady gaps are costs, not transfers."""
+    fk = FakeKraken(usd=500.0)
+    desk, pm = live(fk)
+    alerts = capture(desk, "alert")
+    fees_before = desk.portfolio.commissions
+    for _ in range(12):  # twelve sales, each 0.37 short of what the records expect
+        fk.bal["ZUSD"] -= 0.37
+        check(desk, pm)
+    assert desk.portfolio.cash == pytest.approx(fk.bal["ZUSD"], abs=0.01)
+    assert desk.portfolio.commissions == pytest.approx(fees_before + 12 * 0.37, abs=0.01)  # counted as costs
+    assert not any("taken out" in a.message for a in alerts)
+    assert desk.bots["sentinel"].audit_books() == []

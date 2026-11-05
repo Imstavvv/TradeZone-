@@ -252,6 +252,8 @@ class TradingDesk:
             out.append(f"close your {len(self.portfolio.open_positions)} open {self.mode} position(s) first (tap Close all trades)")
         if self.bots["execution"].working:  # type: ignore[attr-defined]
             out.append("wait for working orders to finish")
+        if self.bots["stacker"].pending is not None:  # type: ignore[attr-defined]
+            out.append("wait a moment: a hold-stack purchase is still filling")
         return out
 
     async def mode_check(self) -> dict:
