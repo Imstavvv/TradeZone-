@@ -236,6 +236,8 @@ class QuantBot(Bot):
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
         self.scores[s.symbol] = {**every, **{f"family_{k}": v for k, v in parts.items()},  # type: ignore[dict-item]
                                  "ensemble": score, "regime": regime.value}
+        if self.settings.is_stack_only(s.symbol) and self.portfolio.position(s.symbol).is_flat:
+            return  # a hold-stack-only coin: scored (the Stacker reads it), never a new trade
         if self._surge_snipe(s, before):  # (after the scores: the Coach learns from this bar's readings)
             return
 

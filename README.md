@@ -725,7 +725,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Meme breakout snipes, volume snipes (4× volume), Pullback Hunter, Flipper | on | Settings → Trading strategies |
 | Trend Scout: meme coins and **pump.fun** coins over $50k with plenty of volume, trending coins | on (only coins your exchange lists, same coin checked) | `TZ_DISCOVER_COINS`, `TZ_DISCOVER_PUMP` |
 | Up to 20 trades at once, up to 5 meme coins | on | `TZ_MAX_OPEN_POSITIONS`, `TZ_MAX_MEME_POSITIONS` |
-| Hold stack (SOL, XRP, DOGE, ETH bought slowly on the side, never sold) | on | `TZ_STACK` |
+| Hold stack (SOL, XRP, DOGE, ETH and Onyxcoin XCN bought slowly on the side, never sold) | on | `TZ_STACK` |
 | Learning: Coach, Flipper hours, Fee Auditor, Target Learner, Trade Reviewer | on | `TZ_COACH_LEARNING`, `TZ_LEARN_TARGETS`, `TZ_LEARN_SOURCES` |
 | Speed Monitor, Housekeeper (records kept lean) | on | `TZ_JOURNAL_KEEP_DAYS` |
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
@@ -921,7 +921,9 @@ About five times as much money is working, so the swings are bigger too: the wor
 
 ### 🪙 The Stacker: a hold stack on the side (never sold, no stop-loss)
 
-The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE and ETH** (`TZ_STACK_COINS`), separate from the trading:
+The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE, ETH and Onyxcoin (XCN)** (`TZ_STACK_COINS`), separate from the trading:
+
+- **XCN is stack-only** (`TZ_STACK_ONLY_COINS`): its price is watched so the Stacker can buy it, but the trading bots never open a trade in it. It's a small coin that swings hard, so it's held, not flipped with the trading balance. It's listed on Coinbase and Kraken; on a venue that doesn't list it (Alpaca), it's simply skipped. Moved out of the stack by hand ("Trade it"), the bots manage that position like any other.
 
 - **Funding:** a small budget builds up over time: **1% of the trading balance a day** (`TZ_STACK_DAILY_PCT`, or a fixed `TZ_STACK_DAILY_USD`) plus **a quarter of every winning trade's profit** (`TZ_STACK_PROFIT_SHARE`).
 - **Buying:** once the budget covers the exchange's smallest order (at least $5, `TZ_STACK_MIN_BUY_USD`; up to $25 a buy, `TZ_STACK_MAX_BUY_USD`), it buys one coin: whichever is furthest below its share of the stack. It prefers a coin that isn't running hot (RSI under 55); if every coin has been hot for 6 hours, it buys anyway, because the point is buying slowly, not timing.

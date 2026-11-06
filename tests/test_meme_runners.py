@@ -28,7 +28,8 @@ def tick(desk, sym, price):
 def test_defaults_are_crypto_with_trusted_meme_coins():
     s = Settings(feed="coinbase")
     s.validate()
-    assert s.symbols == CRYPTO_SYMBOLS and all(x.endswith("-USD") for x in s.symbols)
+    # the defaults, plus Onyxcoin: watched for the hold stack only, never traded
+    assert s.symbols == [*CRYPTO_SYMBOLS, "XCN-USD"] and all(x.endswith("-USD") for x in s.symbols)
     assert {"DOGE-USD", "SHIB-USD", "PEPE-USD"} <= set(s.symbols)
     assert s.is_meme("PEPE-USD") and s.is_meme("doge/usd") and not s.is_meme("BTC-USD")
     assert (s.stop_method, s.stop_loss_pct, s.take_profit_pct) == ("percent", 0.08, 0.15)

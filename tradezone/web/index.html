@@ -2426,7 +2426,7 @@ function renderStack(k){
   const rows = want.map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
   setHTML($('stackRows'), rows.map(h => `<div class="coin"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
     <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) + ` · ${h.buys} buy${h.buys === 1 ? '' : 's'}` : 'none yet'}</div>
-    ${h.buys ? `<div class="q">avg ${money(h.avg, h.avg < 1 ? 4 : 2)}${h.cost ? ' · ' + up(h.pnl || 0) : ''}</div>` : ''}
+    ${h.buys ? `<div class="q">avg ${px(h.avg)}${h.cost ? ' · ' + up(h.pnl || 0) : ''}</div>` : ''}
     ${h.qty ? `<div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>` : ''}</div>`).join(''));
   const pos = ((S.state && S.state.portfolio && S.state.portfolio.positions) || []).filter(p => p.qty > 0);
   setHTML($('stackIn'), pos.length ? `<div class="muted small" style="margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +

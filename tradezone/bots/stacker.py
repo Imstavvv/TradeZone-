@@ -26,8 +26,9 @@ class StackerBot(Bot):
     title = "Stacker"
     role = "Long-Term Holds"
     mission = "🪙 Stack coins slowly on the side - held for the long run, never sold by the bots, no stop-loss"
-    description = ("Slowly buys SOL, XRP, DOGE and ETH into a separate hold stack: a small daily budget plus a share "
-                   "of winning trades' profit. Held coins are never sold by any bot and have no stop-loss.")
+    description = ("Slowly buys SOL, XRP, DOGE, ETH and Onyxcoin (XCN) into a separate hold stack: a small daily budget plus a share "
+                   "of winning trades' profit. Held coins are never sold by any bot and have no stop-loss; XCN is "
+                   "stack-only (never traded).")
 
     WAIT_FOR_DIP_S = 6 * 3600  # budget ready but every coin running hot this long: buy anyway
     MAX_POLLS = 20

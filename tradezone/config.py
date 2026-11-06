@@ -177,7 +177,11 @@ class Settings:
     flipper: bool = True
     # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
     stack: bool = True
-    stack_coins: list[str] = field(default_factory=lambda: ["SOL", "XRP", "DOGE", "ETH"])
+    stack_coins: list[str] = field(default_factory=lambda: ["SOL", "XRP", "DOGE", "ETH", "XCN"])
+    # stacked but never traded by the bots: their prices are watched for the Stacker only (Onyxcoin is small and
+    # swings hard - it is held, not flipped with the trading balance). Moved out of the stack by hand, the bots
+    # manage that position like any other; they just never open a new trade in it.
+    stack_only_coins: list[str] = field(default_factory=lambda: ["XCN"])
     stack_daily_pct: float = 0.01  # budget: 1% of the trading balance a day...
     stack_daily_usd: float = 0.0  # ...or exactly this many dollars a day (0 = use the percentage)
     stack_profit_share: float = 0.25  # ...plus this share of every winning trade's profit
@@ -455,6 +459,10 @@ class Settings:
             return self.flip_major_stop_pct, self.flip_major_target_pct
         return self.major_stop_loss_pct, self.major_take_profit_pct
 
+    def is_stack_only(self, symbol: str) -> bool:
+        """A coin the Stacker buys and the trading bots never open a trade in."""
+        return symbol.upper().replace("/", "-").split("-")[0] in self.stack_only_coins
+
     def is_meme(self, symbol: str) -> bool:
         return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.meme_coins
 
@@ -566,6 +574,12 @@ class Settings:
         if not self.symbols:
             self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "kraken": CRYPTO_SYMBOLS,
                                  "alpaca": ALPACA_SYMBOLS}.get(self.feed, MIXED_SYMBOLS))
+        self.stack_coins = [c.strip().upper().split("-")[0] for c in self.stack_coins if c.strip()]
+        self.stack_only_coins = [c.strip().upper().split("-")[0] for c in self.stack_only_coins if c.strip()]
+        if self.stack and self.feed in ("coinbase", "kraken"):  # watch a stack-only coin's price (the feed skips it if unlisted)
+            for c in self.stack_only_coins:
+                if c in self.stack_coins and f"{c}-USD" not in self.symbols:
+                    self.symbols.append(f"{c}-USD")
         if self.feed in ("coinbase", "kraken"):
             bad = [s for s in self.symbols if not s.endswith("-USD")]
             if bad:

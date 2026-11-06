@@ -1,4 +1,4 @@
-"""The Stacker: slowly builds a long-term hold of SOL, XRP, DOGE and ETH on the side - never sold, no stop-loss."""
+"""The Stacker: slowly builds a long-term hold of SOL, XRP, DOGE, ETH and XCN on the side - never sold, no stop-loss."""
 
 import pytest
 
@@ -169,3 +169,48 @@ def test_pausing_stacking_from_the_dashboard_keeps_what_is_held_and_survives_a_r
     again = make(db=db)
     again.bots["stacker"].load()
     assert again.settings.stack is False
+
+
+def test_onyxcoin_is_stacked_with_the_others_but_never_traded():
+    """XCN (Onyxcoin) is a stack coin only: the Stacker buys it slowly; the trading bots never open a trade in it."""
+    from tradezone.core.models import Side, Signal, SignalKind
+    global PX
+    old = PX
+    PX = {**old, "XCN-USD": 0.002}
+    try:
+        s = Settings(feed="sim", symbols=[*SYMS, "XCN-USD"], starting_cash=1_000.0, wide_stop=False)
+        desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+        for sym, px in PX.items():
+            prime(desk, sym, px)
+        assert "XCN" in s.stack_coins and s.is_stack_only("XCN-USD") and not s.is_stack_only("SOL-USD")
+        st = day(desk, hours=24 * 10)
+        held = {h["symbol"]: h for h in st.summary()["holdings"]}
+        assert set(held) == {"ETH-USD", "SOL-USD", "XRP-USD", "DOGE-USD", "XCN-USD"}
+        assert held["XCN-USD"]["qty"] > 1_000  # a tiny price: thousands of coins for a few dollars
+        assert desk.portfolio.open_positions == []
+        # a trade idea in XCN is refused, with the reason; the same idea in SOL is not refused for that reason
+        rejected = capture(desk, "signal.rejected")
+        for sym in ("XCN-USD", "SOL-USD"):
+            desk.bots["risk"].evaluate(Signal(sym, Side.BUY, 0.99, "test", "quant", kind=SignalKind.ENTRY))
+        run(desk.bus.drain())
+        why = {e["signal"]["symbol"]: e["reason"] for e in rejected}
+        assert "hold-stack coin only" in why.get("XCN-USD", "")
+        assert "hold-stack" not in why.get("SOL-USD", "")
+        assert desk.portfolio.position("XCN-USD").is_flat
+    finally:
+        PX = old
+
+
+def test_onyxcoin_prices_are_watched_on_coinbase_and_kraken():
+    def settings(**kw):
+        s = Settings(**kw)
+        s.validate()
+        return s
+    for feed in ("coinbase", "kraken"):
+        s = settings(feed=feed)
+        assert "XCN-USD" in s.symbols and s.is_stack_only("XCN-USD")
+    assert "XCN-USD" not in settings(feed="coinbase", stack=False).symbols  # not watched when stacking is off
+    assert "XCN-USD" not in settings(feed="sim").symbols  # the demo feed's list is left as it is
+    # moved back to an ordinary stack coin: watched as before and traded again
+    s = settings(feed="coinbase", stack_only_coins=[])
+    assert not s.is_stack_only("XCN-USD")

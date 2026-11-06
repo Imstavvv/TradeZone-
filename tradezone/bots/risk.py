@@ -186,6 +186,9 @@ class RiskBot(Bot):
             return self._dip_add(sig, pos, price)  # buying more of a held loser on a further dip
         if not pos.is_flat:
             return self.reject(sig, "already positioned in this direction")
+        if self.settings.is_stack_only(sig.symbol):
+            return self.reject(sig, f"{sig.symbol} is a hold-stack coin only: the Stacker buys it slowly, "
+                                    "the trading bots don't trade it")
         guard = self.day_guard()
         if guard["locked"] and self.settings.day_lock_stops:  # (optional) a good day isn't handed back
             return self.reject(sig, f"locking in today's gains: up {guard['best_today_pct']:.1%} at best and too much "

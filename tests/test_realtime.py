@@ -95,7 +95,7 @@ def test_backfill_warms_up_without_trading():
                                               100 + (300 - i) * 0.2, 100 + (300 - i) * 0.2, 5] for i in range(1, 301)])
         return httpx.Response(500)
 
-    s = Settings(feed="coinbase", symbols=["BTC-USD"])
+    s = Settings(feed="coinbase", symbols=["BTC-USD"], stack=False)  # one coin only (no hold-stack coins watched)
     feed = CoinbaseFeed(s.symbols, client=rest_client(handler), use_ws=False)
     desk = TradingDesk(s, feed=feed, journal=Journal(":memory:"))
     signals = capture(desk, "signal.proposed")
