@@ -1,4 +1,4 @@
-"""-33% stop-loss from the buy price: small dips never stop a trade out; winners stay protected."""
+"""The wide stop-loss (-20% from the buy price): small dips never stop a trade out; winners stay protected."""
 
 import pytest
 
@@ -31,22 +31,23 @@ def tick(desk, sym, price):
     run(desk.bus.drain())
 
 
-def test_the_stop_is_33_percent_below_the_buy_price():
+def test_the_stop_is_20_percent_below_the_buy_price():
     desk = make()
+    assert desk.settings.wide_stop_pct == 0.20  # (was 33%: stops at most 20% away)
     pos = buy(desk)
-    assert pos.stop_price == pytest.approx(pos.avg_price * 0.67, rel=1e-3)
+    assert pos.stop_price == pytest.approx(pos.avg_price * 0.80, rel=1e-3)
     meme = buy(desk, "DOGE-USD", 0.2)
-    assert meme.stop_price == pytest.approx(meme.avg_price * 0.67, rel=1e-3)  # meme coins too
+    assert meme.stop_price == pytest.approx(meme.avg_price * 0.80, rel=1e-3)  # meme coins too
 
 
 def test_small_and_medium_dips_dont_stop_the_trade_out():
     desk = make()
     pos = buy(desk)
-    for p in (49_000, 47_500, 45_000, 40_000, 36_000):  # down 2%, 5%, 10%, 20%, 28%
+    for p in (49_000, 47_500, 45_000, 42_500, 41_000):  # down 2%, 5%, 10%, 15%, 18%
         tick(desk, "BTC-USD", p)
         assert pos.qty > 0
     trades = capture(desk, "trade.closed")
-    tick(desk, "BTC-USD", 33_000)  # -34%: through the stop
+    tick(desk, "BTC-USD", 39_500)  # -21%: through the stop
     assert pos.is_flat and trades[-1].pnl < 0
 
 
@@ -62,7 +63,7 @@ def test_full_cash_sizes_for_the_patient_cut_so_the_whole_balance_can_trade():
     desk = make()
     eq = desk.portfolio.equity
     pos = buy(desk)
-    assert pos.stop_price == pytest.approx(pos.avg_price * 0.67, rel=1e-3)  # the -33% stop is still there
+    assert pos.stop_price == pytest.approx(pos.avg_price * (1 - desk.settings.wide_stop_pct), rel=1e-3)  # the wide stop is still there
     lost_at_cut = pos.qty * pos.avg_price * desk.settings.patient_stop_pct
     assert lost_at_cut <= eq * desk.settings.risk.risk_per_trade * 1.01  # one trade's risk at the patient cut...
     old = make(full_cash=False)

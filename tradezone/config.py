@@ -222,17 +222,21 @@ class Settings:
     tp_step: bool = True
     tp_step_pct: float = 0.10  # every +10% from the buy price: the target moves another 10% out...
     tp_step_lock: float = 0.5  # ...and the stop locks in at least half of the step reached (+5% at +10%, +10% at +20%)
-    # ---- wide stop-loss: -33% from the buy price, so ordinary dips never stop a trade out ----
+    # ---- wide stop-loss: -20% from the buy price (was -33%), so ordinary dips never stop a trade out ----
     # Positions are sized so hitting it still costs about risk_per_trade of the account. The trailing stop and
     # the break-even lock still work from the normal plan's stop (-2% / -5%), so winners stay protected.
     wide_stop: bool = True
-    # full cash: with the -33% stop and patient exits, trades are sized (and the risk cap counted) by the patient
-    # cut (-5%, meme -12%) instead of -33% - so the whole cash balance can be at work, not about a third of it
+    # full cash: with the wide stop and patient exits, trades are sized (and the risk cap counted) by the patient
+    # cut (-5%, meme -12%) instead of the wide stop - so the whole cash balance can be at work, not about a third of it
     full_cash: bool = True
-    wide_stop_pct: float = 0.33
+    wide_stop_pct: float = 0.20  # (was 33%; you asked for stops at most 20% away)
+    # loss floor: with never-sell-at-a-loss on, a trade this far below what was paid IS sold (0 = never).
+    # Tested on real price history over 3.5-day windows: the same result when prices rise or go sideways
+    # (nothing falls that far), and about a fifth less lost when they fall (-598 vs -755 / -417 vs -532).
+    max_loss_pct: float = 0.20
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
-    patient_exits: bool = True  # with the -33% stop: cut early when momentum AND volume say no comeback
+    patient_exits: bool = True  # with the wide stop: cut early when momentum AND volume say no comeback
     patient_stop_pct: float = 0.05  # the safety stop for bigger coins (and stocks)...
     patient_meme_stop_pct: float = 0.12  # ...and for meme coins
     no_return_momentum: float = -0.5  # momentum this strongly against the trade...
@@ -456,8 +460,8 @@ class Settings:
         return self.live_max_daily_loss_pct, self.live_max_drawdown_pct, self.live_capital_floor_pct
 
     def patient(self, live: bool) -> bool:
-        """Patient exits: real money with patient_exits on - and practice too when the -33% stop is on, so a falling
-        trade there is also cut early (on momentum + volume) instead of riding to -33%: practice previews real money."""
+        """Patient exits: real money with patient_exits on - and practice too when the wide stop is on, so a falling
+        trade there is also cut early (on momentum + volume) instead of riding to the wide stop: practice previews real money."""
         return self.patient_exits and (live or self.wide_stop)
 
     def sizing_stop_pct(self, symbol: str, live: bool) -> float | None:

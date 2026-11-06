@@ -720,10 +720,11 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 
 | Feature | Real money | Switch |
 | --- | --- | --- |
-| **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) | **on** | Settings → Your goal, `TZ_NEVER_SELL_AT_LOSS` |
+| **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) - **except at the loss floor** | **on** | Settings → Your goal, `TZ_NEVER_SELL_AT_LOSS` |
+| **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your goal, `TZ_MAX_LOSS_PCT` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
 | **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your goal, `TZ_LOSER_CAP` |
-| Stop-loss 33% from the buy price | on, but with never-sell on it only sells once the trade is back above break-even | `TZ_WIDE_STOP` |
+| Stop-loss 20% from the buy price (was 33%) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
 | Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
 | Every profit sale keeps more than its fees (and comebacks) | on | `TZ_PROFIT_OVER_FEES`, `TZ_FEE_RULE_RESCUE` |
@@ -1012,7 +1013,7 @@ Skims risk their tight 1.2% stop plus ~0.9% of round-trip fees to make 1.5%, so 
 
 ### Stop-loss at -33% from the buy price
 
-Every trade's stop-loss sits **33% below the buy price** (`TZ_WIDE_STOP_PCT`; 33% above for a short), so ordinary dips, even a 20-30% drop, never stop a trade out. Three things keep this from risking more money:
+Every trade's stop-loss sits **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%; 20% above for a short), so ordinary dips never stop a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what lets that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
 
 * **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (2.5% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
 * **Winners are still protected** from the normal plan's stop distance (-2% / -5% with real money): once a trade is up that much, the stop moves to break-even + fees, then trails and locks profit as before, and the moving take-profit works as before. A winner never rides back down to -33%.

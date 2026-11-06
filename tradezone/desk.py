@@ -821,6 +821,8 @@ class TradingDesk:
         if (dt := self.store.load("day_trades")) is not None:
             self.day_trades = {k: list(v) for k, v in (dt.get("trades") or {}).items()} or self.day_trades
             self._bought_on = {k: dict(v) for k, v in (dt.get("bought") or {}).items()} or self._bought_on
+        if (lf := self.store.load("loss_floor")) is not None and "TZ_MAX_LOSS_PCT" not in os.environ:
+            self.settings.max_loss_pct = float(lf.get("pct", 0.0))
         if (lc := self.store.load("loser_cap")) is not None and "TZ_LOSER_CAP" not in os.environ:
             self.settings.loser_cap = float(lc.get("cap", 0.0))
         for k, on in (self.store.load("finders") or {}).items():
@@ -997,7 +999,7 @@ class TradingDesk:
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.15,
-        "loser_cap_depth": 0.005}
+        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()
@@ -1048,6 +1050,7 @@ class TradingDesk:
         self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap})
+        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
         self.store.save("protocol", {"best": True, "ts": time.time()})
         self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
         return self.protocol_status()
@@ -1070,6 +1073,15 @@ class TradingDesk:
                                                                      if on else "OFF - stops and early cuts sell losers"),
                                         "operator"))
         return {"never_sell_at_loss": self.settings.never_sell_at_loss}
+
+    def set_loss_floor(self, on: bool) -> dict:
+        """The loss floor on (a trade 20% under what was paid is sold, even with never-sell on) or off."""
+        self.settings.max_loss_pct = float(self.BEST["max_loss_pct"]) if on else 0.0  # type: ignore[arg-type]
+        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
+        self.bus.publish("alert", Alert("warning" if not on else "info", "Loss floor: " + (
+            f"ON - a trade {self.settings.max_loss_pct:.0%} below what was paid is sold" if on
+            else "OFF - with never-sell on, losing trades are held however far they fall"), "operator"))
+        return {"max_loss_pct": self.settings.max_loss_pct}
 
     def set_loser_cap(self, on: bool) -> dict:
         """The underwater cap on (the tested 15%) or off (new buys whatever is held below break-even)."""
@@ -1354,6 +1366,7 @@ class TradingDesk:
             "strategies": self.strategy_info(),
             "never_sell_at_loss": self.settings.never_sell_at_loss,
             "loser_cap": self.loser_cap_status(),
+            "max_loss_pct": self.settings.max_loss_pct,
             "day_trades": self.day_trade_status(),
             "protocol": self.protocol_status(),
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),

@@ -166,7 +166,8 @@ class RiskBot(Bot):
             if (why := self.desk.day_trade_block(sig.symbol, sig.force)):
                 return self.reject(sig, why)
             # reduce-only exits are always allowed: they lower risk
-            if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0:
+            if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0 \
+                    and not self._past_floor(pos, price):
                 return self.reject(sig, "held: it's below break-even after fees, and the bots never sell at a loss")
             # profit-taking (and a winner's change-of-mind exit) may wait at the ask for the maker fee
             calm = sig.calm or sig.kind is SignalKind.ENTRY
@@ -275,7 +276,7 @@ class RiskBot(Bot):
                 tp_pct = learner.target(sig.symbol, tp_pct)  # type: ignore[attr-defined]  # where this coin's moves end
             if s.patient(self.desk.is_live):  # a wider safety stop: losing trades get room to come back
                 sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
-            if s.wide_stop:  # -33%: small dips never stop the trade out (the size keeps the money at risk the same)
+            if s.wide_stop:  # -20% (the wide stop): small dips never stop the trade out (the size keeps the money at risk the same)
                 sl_pct = max(sl_pct, s.wide_stop_pct)
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
@@ -335,7 +336,7 @@ class RiskBot(Bot):
             risk_budget *= s.day_lock_size
         size_dist = stop_dist
         if (sp := s.sizing_stop_pct(sig.symbol, self.desk.is_live)) is not None:
-            size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the -33% stop
+            size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the wide -20% stop
         qty = risk_budget / (size_dist + cost)  # a stopped-out trade also pays fees
         cap = limits.max_position_pct
         if meme and s.never_sell_at_loss:  # held without a cut, a meme coin can fall a long way: half the size
@@ -376,6 +377,13 @@ class RiskBot(Bot):
         if len(self.strength_by_signal) > 5000:
             self.strength_by_signal.clear()
         self.approve(OrderRequest(sig.symbol, sig.side, qty, sig.reason, sig.id, False, stop, tp, price))
+
+    def _past_floor(self, pos, price: float) -> bool:
+        """The loss floor: never-sell holds a loser - unless it's this far below what was paid (then it's sold)."""
+        floor = self.settings.max_loss_pct
+        if floor <= 0 or not pos.avg_price:
+            return False
+        return (price / pos.avg_price - 1) * (1 if pos.qty > 0 else -1) <= -floor
 
     def _buy_back(self, sig: Signal, price: float) -> None:
         """Add coins back to a held position (bought back cheaper than they were sold): no new stop or target,

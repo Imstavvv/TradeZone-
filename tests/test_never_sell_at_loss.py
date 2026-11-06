@@ -9,6 +9,7 @@ from tradezone.core.models import Side, Signal, SignalKind
 
 def make(**kw):
     kw.setdefault("patient_exits", True)
+    kw.setdefault("max_loss_pct", 0.0)  # never-sell on its own (the loss floor has its own tests)
     return _make(**kw)
 
 
@@ -115,3 +116,25 @@ def test_the_stop_message_says_trades_are_held_not_sold():
     desk.portfolio.cash -= 0.06 * desk.portfolio.equity
     run(desk.bots["risk"].on_cycle())
     assert "held, never sold at a loss" in desk.halt_reason
+
+
+# ---- the loss floor: never sell at a loss - except a trade 20% under what was paid --------------------
+def test_the_loss_floor_sells_a_trade_20_percent_down_even_with_never_sell_on():
+    desk = make(max_loss_pct=0.20)
+    pos = buy(desk)
+    trades = capture(desk, "trade.closed")
+    tick(desk, "BTC-USD", pos.avg_price * 0.82)  # -18%: still held
+    assert pos.qty > 0 and not trades
+    tick(desk, "BTC-USD", pos.avg_price * 0.79)  # -21%: past the floor and through the -20% stop
+    assert pos.is_flat and trades and trades[-1].pnl < 0
+    assert trades[-1].pnl > -0.25 * trades[-1].qty * trades[-1].entry_price  # about a fifth lost, not more
+
+
+def test_the_floor_is_on_by_default_and_part_of_the_tested_best_settings():
+    from tradezone.config import Settings
+    from tradezone.desk import TradingDesk
+    from tradezone.journal import Journal
+    d = TradingDesk(Settings(feed="sim", symbols=["BTC-USD"]), journal=Journal(":memory:"))
+    assert d.settings.max_loss_pct == 0.20 and d.settings.wide_stop_pct == 0.20
+    assert d.BEST["max_loss_pct"] == 0.20 and d.protocol_status()["off"] == []
+    assert d.set_loss_floor(False)["max_loss_pct"] == 0.0 and "max_loss_pct" in {x["key"] for x in d.protocol_status()["off"]}

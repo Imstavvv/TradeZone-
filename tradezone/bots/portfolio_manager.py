@@ -99,7 +99,7 @@ class PortfolioBot(Bot):
                 and not pos.is_flat and order and order.stop_price:
             pos.stop_price = order.stop_price
             pos.take_profit = order.take_profit
-            # trailing stop / break-even lock work from the normal plan's stop, not a wide -33% safety stop
+            # trailing stop / break-even lock work from the normal plan's stop, not a wide -20% safety stop
             dist = abs(pos.avg_price - order.stop_price)
             if self.settings.wide_stop:
                 dist = min(dist, pos.avg_price * self.settings.plan_pcts(f.symbol, self.quick)[0])
@@ -375,6 +375,8 @@ class PortfolioBot(Bot):
         price = self.desk.prices.get(pos.symbol) or pos.last_price
         if not s.never_sell_at_loss or not price or s.net_if_sold(pos, price) >= 0:
             return False
+        if s.max_loss_pct > 0 and pos.avg_price and (price / pos.avg_price - 1) * (1 if pos.qty > 0 else -1) <= -s.max_loss_pct:
+            return False  # the loss floor: this far down it IS sold (its stop decides)
         if now() - self._held_note.get(f"loss|{pos.symbol}", 0) > 3600:  # (said - and counted - once an hour)
             self._held_note[f"loss|{pos.symbol}"] = now()
             self.act(f"holding {pos.symbol}: it's below break-even after fees, and the bots never sell at a loss")

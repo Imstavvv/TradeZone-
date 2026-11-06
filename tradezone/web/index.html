@@ -1278,6 +1278,7 @@ body.is-live .hero .bal{text-shadow:none}
           <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap</b><span id="setLcSub">No new buys while trades below break-even tie up 15% of the balance</span></div><button id="setLcBtn">Turn off</button></div>
+          <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (20%)</b><span id="setLfSub">A trade 20% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
           <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>Light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
         </div>
@@ -2673,6 +2674,7 @@ function renderSimple(st){
   renderStrategies(st.strategies);
   renderNeverSell(st);
   renderLoserCap(st);
+  renderLossFloor(st);
   renderProtocol(st.protocol);
 }
 function renderProtocol(pr){
@@ -2702,6 +2704,7 @@ function renderNeverSell(st){
   $('setNsSub').textContent = on
     ? (held.length ? `Holding ${held.length} losing trade${held.length > 1 ? 's' : ''} until they recover: ${held.map(h => `${h.symbol.split('-')[0]} ${(h.pct * 100).toFixed(1)}%`).join(', ')}` : "A losing trade is held until it's back in profit after fees (your Close all / Emergency stop still sell)")
     : 'Stops and early cuts sell losing trades to limit the loss';
+  if (on && st.max_loss_pct > 0) $('setNsSub').textContent += ` · sold if ${Math.round(st.max_loss_pct * 100)}% down (the loss floor)`;
   $('setNsBtn').textContent = on ? 'Turn off' : 'Turn on';
 }
 $('setNsBtn').onclick = async () => {
@@ -2710,6 +2713,20 @@ $('setNsBtn').onclick = async () => {
                  : 'Stop-losses and early cuts will sell losing trades again, to limit each loss.';
   if (!await ask(on ? 'Never sell at a loss?' : 'Cut losing trades again?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: on})) return;
   try { await api('/api/never-sell', {on}); toast(on ? 'Never sell at a loss: on' : 'Stops and cuts: on'); } catch {}
+};
+function renderLossFloor(st){
+  const f = st.max_loss_pct || 0, on = f > 0, ns = !!st.never_sell_at_loss;
+  $('setLfTxt').textContent = `Loss floor: ${on ? `ON (${Math.round(f * 100)}%)` : 'OFF'}`;
+  $('setLfSub').textContent = on ? `The most a trade can lose: ${Math.round(f * 100)}% below what was paid, it's sold${ns ? ' (even with never-sell on)' : ''}. Tested: the same when prices rise or go sideways, about a fifth less lost when they fall`
+    : (ns ? "Off: with never-sell on, a losing trade is held however far it falls" : 'Off: the stops decide on their own');
+  $('setLfBtn').textContent = on ? 'Turn off' : 'Turn on';
+}
+$('setLfBtn').onclick = async () => {
+  const on = !(S.state && S.state.max_loss_pct > 0);
+  const msg = on ? 'A trade that falls 20% below what was paid will be sold, taking that loss - even with "never sell at a loss" on. Tested on real price history: the same result when prices rise or go sideways, and about a fifth less lost when they fall (a falling coin stops tying up your money).'
+                 : 'With never-sell on, losing trades will be held however far they fall - a coin that keeps falling can tie up your money for a long time, or go to zero.';
+  if (!await ask(on ? 'Turn the loss floor on?' : 'Turn the loss floor off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
+  try { await api('/api/loss-floor', {on}); toast(on ? 'Loss floor: on (20%)' : 'Loss floor: off'); } catch {}
 };
 function renderLoserCap(st){
   const c = st.loser_cap; if (!c) return;
