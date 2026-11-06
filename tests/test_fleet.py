@@ -281,3 +281,22 @@ def test_a_damaged_saved_account_is_reported_not_fatal(exchange):
     desk.fleet.load()
     run(desk.bus.drain())
     assert "bad" not in desk.fleet.desks and any("Broken" in a.message for a in alerts)
+
+
+def test_every_open_trade_of_every_account_is_listed_in_full(exchange):
+    """The Open tab lists all of them: each account's trades, with stop, target and age, none cut off."""
+    from tradezone.core.portfolio import Position
+    desk = main_desk()
+    acct = run(desk.fleet.add("kraken", "KEY-A", SECRET, "Kraken savings"))["id"]
+    d = desk.fleet.desk(acct)
+    for i in range(25):  # more than the old cap of 20
+        d.portfolio.positions[f"C{i}-USD"] = Position(symbol=f"C{i}-USD", qty=2.0, avg_price=10.0, last_price=9.0,
+                                                      stop_price=6.7, take_profit=11.0, opened_ts=1_700_000_000.0)
+    desk.portfolio.positions["BTC-USD"] = Position(symbol="BTC-USD", qty=0.01, avg_price=60_000.0, last_price=61_000.0)
+    rows = {r["id"]: r for r in desk.fleet.summary()}
+    assert len(rows[acct]["positions"]) == 25 and rows[acct]["open"] == 25
+    t = rows[acct]["positions"][0]
+    assert (t["avg_price"], t["last_price"], t["stop_price"], t["take_profit"], t["opened_ts"]) == (10.0, 9.0, 6.7, 11.0, 1_700_000_000.0)
+    assert t["unrealized_pnl"] == -2.0 and t["market_value"] == 18.0
+    assert rows[acct]["never_sell"] is True
+    assert [p["symbol"] for p in rows["main"]["positions"]] == ["BTC-USD"]

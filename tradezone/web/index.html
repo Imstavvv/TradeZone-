@@ -762,6 +762,41 @@ button.ghost:hover{color:var(--text)}
 .actions2 button{font-size:12.5px;letter-spacing:1.4px}
 @media (max-width:700px){.actions2 button{font-size:11px;letter-spacing:.7px;padding:6px 4px}.sheet .row button{font-size:13px}}
 .banner{border-radius:4px;border-left-width:3px;letter-spacing:.2px}
+/* ---- the Open tab ---- */
+.opensum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.opensum div{border:1px solid var(--line);border-radius:5px;background:rgba(0,229,255,.04);padding:8px 10px;min-width:0}
+.opensum span{display:block;font-family:var(--hud);font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+.opensum b{font-family:var(--hud);font-size:18px;font-weight:700}
+.opensum i{font-style:normal;font-size:12px;margin-left:6px}
+.openbar{display:flex;flex-wrap:wrap;gap:6px 12px;justify-content:space-between;margin-bottom:6px}
+.openbar .tabs{margin:0}
+.otrade{padding:10px 2px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+.otrade:last-child{border-bottom:none}
+.otrade.live{box-shadow:inset 3px 0 0 var(--magenta);padding-left:10px}
+.otrade .o1{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.otrade .who{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;min-width:0}
+#openSort,#openAcct{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
+.otrade .sym b{font-family:var(--hud);font-size:15px;letter-spacing:.8px}
+.otrade .pl{text-align:right;font-family:var(--hud);font-weight:700;font-size:15px;white-space:nowrap}
+.otrade .pl i{font-style:normal;font-size:12px;margin-left:8px;opacity:.85}
+.otrade .o2{margin-top:4px;font-size:13px;color:var(--text)}
+.otrade .o3{margin-top:2px;font-size:12px;color:var(--muted)}
+.otrade .o3:empty{display:none}
+.otrade .o3.warn{color:var(--warn)}
+.navn{font-family:var(--hud);font-size:9px;font-style:normal;min-width:16px;padding:1px 4px;border-radius:3px;background:var(--accent);color:#00121c;text-align:center;line-height:1.3}
+.navn:empty{display:none}
+.bottomnav a{position:relative}
+.bottomnav .navn{position:absolute;top:2px;left:calc(50% + 6px)}
+/* tabs on a computer (the phone has them at the bottom) */
+.tabbar{display:none}
+@media (min-width:701px){
+  body.simple .tabbar{display:flex;gap:4px;width:100%;margin:2px 0 -12px;border-top:1px solid var(--line);padding-top:6px}
+  .tabbar a{display:flex;align-items:center;gap:8px;padding:9px 16px 11px;color:var(--muted);text-decoration:none;font-family:var(--hud);font-size:11px;
+    letter-spacing:1.4px;text-transform:uppercase;border-bottom:2px solid transparent}
+  .tabbar a svg{width:16px;height:16px}
+  .tabbar a:hover{color:var(--text)}
+  .tabbar a.on{color:var(--accent);border-bottom-color:var(--accent);text-shadow:0 0 8px rgba(0,229,255,.7);background:linear-gradient(0deg,rgba(0,229,255,.12),transparent)}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
@@ -780,6 +815,7 @@ button.ghost:hover{color:var(--text)}
     <button id="btnKill" class="danger" data-long="Kill switch" data-short="Kill">Kill switch</button>
     <button id="btnReset" style="display:none" data-long="Reset kill switch" data-short="Reset">Reset kill switch</button>
   </div>
+  <nav class="tabbar" id="tabbar" aria-label="Pages"></nav>
 </header>
 
 <div class="lockscreen welcome" id="welcome" aria-modal="true" role="dialog">
@@ -1007,6 +1043,7 @@ button.ghost:hover{color:var(--text)}
   <div class="banner" id="banner"></div>
   <section id="simple">
     <div class="pagehead" data-page="activity"><h2>📣 Activity</h2><p>What the bots are doing, what the world is saying, and what the team has learned.</p></div>
+    <div class="pagehead" data-page="open"><h2>🎯 Open trades</h2><p>Every trade that's open right now, in every account, in one list.</p></div>
     <div class="pagehead" data-page="trades"><h2>📈 Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
     <div class="pagehead" data-page="money"><h2>💰 Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
     <div class="pagehead" data-page="settings"><h2>⚙️ Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
@@ -1036,6 +1073,12 @@ button.ghost:hover{color:var(--text)}
       <div class="arenatag">STARSHIP NOVA · <b id="arenaState">cruising</b></div>
     </div>
     <div class="sgrid">
+      <div class="scard full" data-page="open" id="sec-open"><h4>All open trades <span class="muted small" id="openN"></span></h4>
+        <div class="opensum" id="openSum"></div>
+        <div class="openbar"><div class="tabs" id="openSort"><span class="tab on" data-o="new">Newest</span><span class="tab" data-o="gain">Best</span><span class="tab" data-o="loss">Worst</span><span class="tab" data-o="big">Biggest</span></div>
+          <div class="tabs" id="openAcct"></div></div>
+        <div id="openList"></div>
+        <div class="muted note" id="openStack"></div></div>
       <div class="scard full" data-page="home trades" id="sec-pnl">
         <h4>📈 Profit &amp; loss <span class="muted small" id="pnlBook">practice money</span></h4>
         <div class="pnlhead"><span class="big" id="pnlNow">—</span><span class="pnlsub" id="pnlSub">loading…</span></div>
@@ -1064,7 +1107,7 @@ button.ghost:hover{color:var(--text)}
         <div class="muted note" id="stackNext"></div>
         <div class="btnrow"><button id="stackToggle">Pause stacking</button></div></div>
       <div class="scard full" data-page="home" id="sec-hunt"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
-      <div class="scard" data-page="home"><h4>Your open trades <span class="muted small" id="sOpenN"></span></h4><div id="sOpen"></div></div>
+      <div class="scard" data-page="home"><h4>Your open trades <a data-goto="open">Every account ›</a></h4><div class="muted small" id="sOpenN"></div><div id="sOpen"></div></div>
       <div class="scard full" data-page="activity" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
       <div class="scard" data-page="activity" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
       <div class="scard full" data-page="trades"><h4>Latest results</h4><div id="sResults"></div></div>
@@ -2278,7 +2321,6 @@ function renderSimple(st){
   $('sLive').disabled = false;  // always tappable: the dialog explains anything missing, with a Connect shortcut
   $('sLive').title = '';
   // open trades
-  $('sOpenN').textContent = n ? `${n} open` : '';
   $('sOpen').innerHTML = n ? p.positions.map(x => {
     const upl = x.unrealized_pnl, cost = Math.abs(x.qty * x.avg_price), r = cost ? upl / cost : 0;
     const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
@@ -2321,6 +2363,7 @@ function renderSimple(st){
   renderNews(st.news);
   renderSettings();
   renderAccounts(st);
+  renderOpen(st);
   renderStack(st.stack);
   renderStrategies(st.strategies);
   renderNeverSell(st);
@@ -2554,6 +2597,58 @@ function accCard(a){
     ${!a.feed_ok ? '<div class="meta warn">waiting for prices…</div>' : ''}
     <div class="btns">${btns}</div></div>`;
 }
+// ---- the Open tab: every open trade in every account, in one list ----
+const OPEN = {sort: 'new', acct: 'all'};
+function dur(ts){
+  if (!ts) return '';
+  const m = Math.max(0, Math.round((Date.now() / 1000 - ts) / 60));
+  return m < 60 ? `${m}m` : m < 1440 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.floor(m / 1440)}d ${Math.floor(m % 1440 / 60)}h`;
+}
+function openRows(st){
+  const accts = st.accounts && st.accounts.length ? st.accounts
+    : [{id: 'main', label: 'This account', mode: st.mode, positions: (st.portfolio || {}).positions || [], never_sell: st.never_sell_at_loss}];
+  return accts.flatMap(a => (a.positions || []).map(x => ({...x, acct: a.id, acct_label: a.label, live: a.mode === 'live', never_sell: a.never_sell ?? st.never_sell_at_loss})));
+}
+function renderOpen(st){
+  const all = openRows(st), n = all.length;
+  document.querySelectorAll('[data-pg=open] .navn').forEach(b => { b.textContent = n || ''; });
+  $('sOpenN').textContent = n ? `${n} open in every account together` : '';
+  if (S.page !== 'open' || S.view !== 'simple') return;
+  const accts = [...new Map(all.map(x => [x.acct, x.acct_label])).entries()];
+  if (OPEN.acct !== 'all' && !accts.some(([id]) => id === OPEN.acct)) OPEN.acct = 'all';
+  setHTML($('openAcct'), accts.length > 1 ? [`<span class="tab ${OPEN.acct === 'all' ? 'on' : ''}" data-a="all">All</span>`,
+    ...accts.map(([id, label]) => `<span class="tab ${OPEN.acct === id ? 'on' : ''}" data-a="${esc(id)}">${esc(label)}</span>`)].join('') : '');
+  document.querySelectorAll('#openSort .tab').forEach(t => t.classList.toggle('on', t.dataset.o === OPEN.sort));
+  const rows = all.filter(x => OPEN.acct === 'all' || x.acct === OPEN.acct);
+  const by = {new: (a, b) => (b.opened_ts || 0) - (a.opened_ts || 0), gain: (a, b) => b.unrealized_pnl - a.unrealized_pnl,
+              loss: (a, b) => a.unrealized_pnl - b.unrealized_pnl, big: (a, b) => Math.abs(b.market_value) - Math.abs(a.market_value)};
+  rows.sort(by[OPEN.sort]);
+  const worth = rows.reduce((t, x) => t + Math.abs(x.market_value), 0), upl = rows.reduce((t, x) => t + x.unrealized_pnl, 0);
+  const cost = rows.reduce((t, x) => t + Math.abs(x.qty * x.avg_price), 0), realW = rows.filter(x => x.live).reduce((t, x) => t + Math.abs(x.market_value), 0);
+  const nAcct = new Set(rows.map(x => x.acct)).size;
+  $('openN').textContent = n ? `${rows.length}${rows.length === n ? '' : ' of ' + n} open` : '';
+  setHTML($('openSum'), rows.length ? `<div><span>Open trades</span><b>${rows.length}</b></div><div><span>Accounts</span><b>${nAcct}</b></div>
+    <div><span>Worth now</span><b>${money(worth)}</b></div><div><span>Up / down</span><b class="${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</b><i class="${cls(upl)}">${cost ? (upl >= 0 ? '+' : '') + pct(upl / cost, 1) : ''}</i></div>
+    ${realW ? `<div><span>Real money</span><b>${money(realW)}</b></div>` : ''}` : '');
+  setHTML($('openList'), rows.length ? rows.map(x => {
+    const u = x.unrealized_pnl, c = Math.abs(x.qty * x.avg_price), r = c ? u / c : 0;
+    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
+    const prot = locked ? `🔒 Profit locked · stop ${px(x.stop_price)}` : x.stop_price != null ? `Safety stop ${px(x.stop_price)}` : '';
+    const held = u < 0 && x.never_sell ? '<div class="o3 warn">🛑 Held until it is back in profit after fees - never sold at a loss</div>' : '';
+    const [coin, quote] = x.symbol.split('-');
+    return `<div class="otrade ${x.live ? 'live' : ''}">
+      <div class="o1"><span class="who"><span class="sym"><b>${esc(coin)}</b><span class="muted">${quote ? '-' + esc(quote) : ''}</span></span>
+        ${accts.length > 1 ? `<span class="accbadge">${esc(x.acct_label)}</span>` : ''}${x.live ? '<span class="accbadge live">● LIVE</span>' : ''}</span>
+        <span class="pl ${cls(u)}">${u >= 0 ? '+' : '-'}${money(Math.abs(u))}<i>${r >= 0 ? '+' : ''}${pct(r, 1)}</i></span></div>
+      <div class="o2">${x.qty > 0 ? 'Bought' : 'Shorted'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)} · worth ${money(Math.abs(x.market_value))}</div>
+      <div class="o3">${[prot, x.take_profit ? `target ${px(x.take_profit)}` : '', x.opened_ts ? `open ${dur(x.opened_ts)}` : ''].filter(Boolean).join(' · ')}</div>${held}</div>`;
+  }).join('') : `<div class="emptyhint">${n ? 'No open trades in this account.' : 'No open trades in any account right now. The bots only buy when the whole team agrees it\'s a good chance.'}</div>`);
+  const k = st.stack;
+  $('openStack').textContent = k && k.value > 0 ? `Not listed here: your hold stack (${money(k.value)}), which the bots never sell. It's on the Money tab.` : '';
+}
+$('openSort').addEventListener('click', e => { const t = e.target.closest('[data-o]'); if (!t) return; OPEN.sort = t.dataset.o; renderOpen(S.state); });
+$('openAcct').addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t) return; OPEN.acct = t.dataset.a; renderOpen(S.state); });
+document.addEventListener('click', e => { const a = e.target.closest('[data-goto]'); if (!a) return; e.preventDefault(); showPage(a.dataset.goto); });
 function renderAccounts(st){
   const rows = st.accounts || [];
   if (!rows.length) return;
@@ -2761,7 +2856,8 @@ $('sdGo').onclick = async () => {
 
 // =================== pages (Simple view) / sections (Pro view) + bottom navigation ===================
 // Simple view: Home holds the bots and all the trading; every other tab is its own page.
-const PAGES = [['home', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'], ['activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'], ['trades', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+const PAGES = [['home', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'],
+               ['open', 'Open', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'], ['activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'], ['trades', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
                ['money', 'Money', '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>'], ['settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>']];
 const PRO_NAV = [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
                  ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],
@@ -2777,7 +2873,7 @@ function showPage(pg, {push = true} = {}){
   const simple = S.view === 'simple';
   document.querySelectorAll('main [data-page]').forEach(el => { el.hidden = simple && !el.dataset.page.split(' ').includes(pg); });
   document.body.dataset.tab = simple ? pg : '';  // (not data-page: that marks the blocks shown per page)
-  document.querySelectorAll('#bottomnav a').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
+  document.querySelectorAll('#bottomnav a, #tabbar a').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
   if (push && simple && location.hash !== '#/' + pg) history.pushState(null, '', pg === 'home' ? location.pathname : '#/' + pg);
   window.scrollTo({top: 0});
   if (pg === 'trades' && S.state) loadTrades(true);
@@ -2793,9 +2889,12 @@ function scrollToSection(id){
 function updateNav(){
   const nav = $('bottomnav'), svg = icon => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>`;
   if (S.view === 'simple') {
-    nav.innerHTML = PAGES.map(([k, label, icon]) => `<a href="#/${k}" data-pg="${k}" class="${k === S.page ? 'on' : ''}">${svg(icon)}${label}</a>`).join('');
-    nav.querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); showPage(a.dataset.pg); });
+    const tabs = PAGES.map(([k, label, icon]) => `<a href="#/${k}" data-pg="${k}" class="${k === S.page ? 'on' : ''}">${svg(icon)}<span>${label}</span>${k === 'open' ? '<b class="navn"></b>' : ''}</a>`).join('');
+    nav.innerHTML = tabs; $('tabbar').innerHTML = tabs;
+    document.querySelectorAll('#bottomnav a, #tabbar a').forEach(a => a.onclick = e => { e.preventDefault(); showPage(a.dataset.pg); });
+    if (S.state) renderOpen(S.state);
   } else {
+    $('tabbar').innerHTML = '';
     nav.innerHTML = PRO_NAV.map(([id, label, icon], i) => `<a href="#${id}" data-sec="${id}" class="${i ? '' : 'on'}">${svg(icon)}${label}</a>`).join('');
     nav.querySelectorAll('a').forEach(a => a.onclick = e => { e.preventDefault(); scrollToSection(a.dataset.sec); });
   }

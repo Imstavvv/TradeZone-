@@ -285,8 +285,9 @@ class AccountFleet:
             "mode": "live" if d.is_live else "paper", "running": d.running,
             "cash": p.cash, "equity": p.equity, "pnl_today": p.equity - p.day_start_equity,
             "pnl_total": d.lifetime_pnl(), "open": len(p.open_positions),
-            "positions": [{"symbol": x.symbol, "qty": x.qty, "value": x.market_value, "pnl": x.unrealized_pnl}
-                          for x in p.open_positions][:20],
+            # every open trade in full (the Open tab lists them all, across accounts)
+            "positions": [x.to_dict() for x in p.open_positions],
+            "never_sell": d.settings.never_sell_at_loss,
             "paused": d.paused, "pause_reason": d.pause_reason, "halted": d.halted, "halt_reason": d.halt_reason,
             "feed": d.feed.name, "feed_ok": not d.feed_down,
             "exchange": ({"cash": bal.get("cash"), "equity": bal.get("equity", bal.get("portfolio_value"))}
