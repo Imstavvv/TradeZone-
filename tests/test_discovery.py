@@ -232,3 +232,25 @@ def test_a_stock_with_an_order_still_filling_or_in_the_hold_stack_is_not_dropped
     d.feed.screen.update(actives=[], gainers={})
     d.feed.screen["snap"].update(TSLA=(250.0, 1e6), PLTR=(25.0, 1e6))
     assert run(t.refresh())["dropped"] == [] and {"TSLA", "PLTR"} <= set(d.settings.symbols)
+
+
+def test_up_to_100_found_coins_and_history_requests_are_spaced_out(_no_history_pause):
+    import asyncio
+
+    from tradezone.config import Settings
+    from tradezone.desk import TradingDesk
+    from tradezone.journal import Journal
+    from tradezone.market.simulated import SimulatedFeed
+    s = Settings(feed="sim", symbols=["BTC-USD"])
+    assert s.max_discovered == 100
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    asked = []
+
+    async def history(sym, gran, n):
+        asked.append(sym)
+        return []
+    d.feed.history = history
+    d.bots["scout"].bar_seconds = 60
+    asyncio.run(d.bots["trends"]._load_history(["A-USD", "B-USD", "C-USD"]))
+    assert asked == ["A-USD", "B-USD", "C-USD"]
+    assert _no_history_pause == [s.history_pause_s] * 2  # a pause between requests, not before the first

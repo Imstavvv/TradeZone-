@@ -60,6 +60,11 @@ def light_state(desk: TradingDesk) -> dict:
     st.pop("events", None)  # streamed individually as they happen
     st.pop("actions", None)
     st["equity_point"] = [st["uptime"], st["portfolio"]["equity"]]
+    # per coin, only what the screen shows (with up to 100+ coins watched, the rest made every update ~3x bigger)
+    keep = ("momentum", "mean_reversion", "breakout", "ensemble")
+    st["scores"] = {sym: {k: round(v, 3) for k in keep if isinstance(v := sc.get(k), (int, float))}
+                    for sym, sc in (st.get("scores") or {}).items()}
+    st["regimes"] = {sym: {"regime": r.get("regime")} for sym, r in (st.get("regimes") or {}).items() if isinstance(r, dict)}
     return st
 
 

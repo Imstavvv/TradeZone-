@@ -17,3 +17,15 @@ def settings():
 @pytest.fixture
 def desk(settings):
     return TradingDesk(settings, journal=Journal(":memory:"))
+
+
+@pytest.fixture(autouse=True)
+def _no_history_pause(monkeypatch):
+    """The Trend Scout spaces out history requests (the exchange's rate limit); tests don't need to wait."""
+    import tradezone.bots.trends as trends
+    waited = []
+
+    async def fake(s):
+        waited.append(s)
+    monkeypatch.setattr(trends, "_pause", fake)
+    return waited

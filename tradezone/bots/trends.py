@@ -39,6 +39,7 @@ import httpx
 from ..core.models import now
 from .base import Bot
 
+_pause = asyncio.sleep  # (between history requests; tests skip the wait)
 log = logging.getLogger(__name__)
 
 
@@ -313,7 +314,9 @@ class TrendBot(Bot):
         gran = int(getattr(scout, "bar_seconds", 0) or 0)
         if scout is None or gran <= 0:
             return
-        for sym in symbols:
+        for n, sym in enumerate(symbols):
+            if n:  # (many coins at once - up to 100 - stay within the exchange's request limit; this runs in the background)
+                await _pause(self.settings.history_pause_s)
             try:
                 candles = await self.desk.feed.history(sym, gran, 300)
             except Exception as exc:  # one coin's history must not stop the scan

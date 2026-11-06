@@ -173,7 +173,8 @@ class Settings:
     discovery_min_mcap: float = 50_000.0  # meme coins worth at least this much...
     discovery_min_volume: float = 100_000.0  # ...trading at least this much a day...
     discovery_min_turnover: float = 0.05  # ...and at least 5% of the market cap changing hands a day
-    max_discovered: int = 20  # coins the Trend Scout may add to the watchlist
+    max_discovered: int = 100  # coins the Trend Scout may add to the watchlist (each still needs enough volume)
+    history_pause_s: float = 1.1  # between price-history requests for newly found coins (Kraken allows ~1 a second)
     # stocks (Alpaca accounts): the day's busiest established stocks from Alpaca's screener
     discover_stocks: bool = True
     max_discovered_stocks: int = 10
