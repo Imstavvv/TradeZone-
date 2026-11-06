@@ -89,10 +89,10 @@ def test_reconcile_adopts_fee_sized_difference_and_keeps_audit_balanced():
 
 
 def test_executive_holds_stocks_when_market_closed(monkeypatch):
-    import tradezone.bots.executive as ex
+    import tradezone.core.util as util
     desk = live_desk(FakeLiveBroker())
     desk.feed.name = "alpaca"  # real-data feed
-    monkeypatch.setattr(ex, "us_market_open", lambda: False)
+    monkeypatch.setattr(util, "us_market_open", lambda: False)
     prime(desk, "AAPL")
     held = capture(desk, "order.held")
     desk.bus.publish("order.approved", OrderRequest("AAPL", Side.BUY, 1, "t", "s", False, 98.5, 103, 100))
@@ -110,3 +110,27 @@ def test_csp_never_echoes_junk_host():
     with TestClient(create_app(desk, run_desk=False)) as c:
         csp = c.get("/", headers={"host": "evil.com; script-src *"}).headers["content-security-policy"]
         assert "script-src *" not in csp and "evil.comscript-src" in csp
+
+
+def test_alpacas_clock_decides_holidays_and_early_closes(monkeypatch):
+    """A weekday at 11:00 can still be closed (Thanksgiving): Alpaca's clock says so, and the bots wait."""
+    import time as _t
+
+    import tradezone.core.util as util
+    desk = live_desk(FakeLiveBroker())
+    desk.feed.name = "alpaca"
+    monkeypatch.setattr(util, "us_market_open", lambda: True)  # by the plain weekday rule: open
+    desk.live_broker.market_open = lambda: False  # Alpaca: closed today
+    assert desk.stock_market_open() is False
+    prime(desk, "AAPL")
+    held = capture(desk, "order.held")
+    desk.bus.publish("order.approved", OrderRequest("AAPL", Side.BUY, 1, "t", "s", False, 98.5, 103, 100))
+    run(desk.bus.drain())
+    assert "market is closed" in held[0]["reason"]
+    # an Alpaca answer older than 10 minutes isn't trusted: the plain rule decides again
+    from tradezone.brokers.alpaca import AlpacaBroker
+    b = AlpacaBroker.__new__(AlpacaBroker)
+    b.clock_open, b.clock_at = False, _t.time() - 3600
+    assert b.market_open() is None
+    b.clock_at = _t.time()
+    assert b.market_open() is False

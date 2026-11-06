@@ -497,6 +497,8 @@ class TradingDesk:
         if b is None:
             return
         b.symbols = s.symbols  # type: ignore[attr-defined]  # the same list: coins the feed adds are checked too
+        if hasattr(b, "crypto_fee_bps"):
+            b.crypto_fee_bps = s.crypto_fee_bps  # Alpaca takes its crypto fee from what you receive
         for k, v in (("max_spread_pct", s.sell_max_spread_pct), ("min_volume_usd", s.sell_min_volume_usd),
                      ("max_volume_share", s.sell_max_volume_share)):
             if hasattr(b, k):
@@ -569,6 +571,13 @@ class TradingDesk:
                 f"${need:,.0f} (now ${f['equity']:,.2f})")
 
     # -- shorting: only where it really works -----------------------------------------
+    def stock_market_open(self) -> bool:
+        """US stock market open now? Alpaca's clock when linked (holidays, early closes), else weekdays 9:30-16:00."""
+        from .core.util import us_market_open
+        clock = getattr(self.live_broker, "market_open", None)
+        said = clock() if callable(clock) else None
+        return said if said is not None else us_market_open()
+
     # -- the US day-trade rule: stocks, accounts under $25,000 -----------------------------------
     PDT_EQUITY = 25_000.0
     PDT_LIMIT = 3  # day trades allowed in 5 trading days
@@ -576,8 +585,9 @@ class TradingDesk:
     @staticmethod
     def _ny_day(ts: float) -> str:
         from datetime import datetime
-        from zoneinfo import ZoneInfo
-        return datetime.fromtimestamp(ts, ZoneInfo("America/New_York")).date().isoformat()
+
+        from .core.util import _NY
+        return datetime.fromtimestamp(ts, _NY).date().isoformat()
 
     def _track_day_trades(self, ev) -> None:
         p = ev.payload

@@ -27,7 +27,7 @@ from dataclasses import replace
 
 from ..core.bus import Event
 from ..core.models import Alert, OrderRequest, now
-from ..core.util import round_qty, us_market_open
+from ..core.util import round_qty
 from .base import Bot
 
 CRITICAL_TEAM = ("scout", "risk", "execution", "portfolio", "sentinel")
@@ -160,7 +160,7 @@ class ExecutiveBot(Bot):
                 return self.hold(req, f"price ran {moved / risk_dist:.2f}R since the signal - not chasing", latency())
 
         if s.exec_market_hours_only and not s.is_crypto(req.symbol) and self.desk.feed.name != "sim" \
-                and not us_market_open():
+                and not self.desk.stock_market_open():
             return self.hold(req, "US stock market is closed - prices are stale until the open", latency())
         if (n := self.correlated_count(req)) >= s.exec_max_correlated:
             return self.hold(req, f"already {n} crypto positions the same way (correlated)", latency())

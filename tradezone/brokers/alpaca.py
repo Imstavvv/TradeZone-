@@ -6,7 +6,7 @@ import logging
 
 import httpx
 
-from ..core.models import Fill, Order, OrderStatus
+from ..core.models import Fill, Order, OrderStatus, Side
 from .base import Broker
 
 log = logging.getLogger(__name__)
@@ -45,10 +45,16 @@ class AlpacaBroker(Broker):
         base = self.PAPER_URL if paper else self.LIVE_URL
         self.client = client or httpx.AsyncClient(base_url=base, headers=headers, timeout=10.0)
         self._reported: dict[str, tuple[float, float]] = {}  # order id -> (qty, avg)
+        # Alpaca takes its crypto fee from what you RECEIVE: coins on a buy, dollars on a sale (stocks: none).
+        # The fill is booked that way - fewer coins, fee as the commission - or the records drift above what
+        # the account holds and a later "sell everything" asks for more than is there (and is refused).
+        self.crypto_fee_bps = 25.0
         self.symbols: list[str] = []  # what the bots watch (set by the desk)
         self.shorting_enabled = False  # margin account with shorting switched on (and $2,000+ equity)
         self.shortable: set[str] = set()  # stocks Alpaca says are shortable AND easy to borrow right now
         self.day_trades: int | None = None  # Alpaca's own count of day trades in the last 5 trading days
+        self.clock_open: bool | None = None  # Alpaca's market clock (holidays and early closes included)
+        self.clock_at = 0.0
         self._short_at = 0.0
 
     def supports(self, symbol: str) -> bool | None:
@@ -66,7 +72,12 @@ class AlpacaBroker(Broker):
         delta = filled - prev_qty
         px = (avg * filled - prev_avg * prev_qty) / delta
         self._reported[order.id] = (filled, avg)
-        return [Fill(order.id, order.symbol, order.side, delta, px, 0.0)]
+        if not _is_crypto(order.symbol) or self.crypto_fee_bps <= 0:
+            return [Fill(order.id, order.symbol, order.side, delta, px, 0.0)]
+        fee = delta * px * self.crypto_fee_bps / 10_000  # (in dollars)
+        if order.side is Side.BUY:  # the coins received are the fee short: same dollars paid, fee as commission
+            return [Fill(order.id, order.symbol, order.side, delta * (1 - self.crypto_fee_bps / 10_000), px, fee)]
+        return [Fill(order.id, order.symbol, order.side, delta, px, fee)]
 
     async def submit(self, order: Order) -> list[Fill]:
         crypto = _is_crypto(order.symbol)
@@ -112,9 +123,26 @@ class AlpacaBroker(Broker):
             except httpx.HTTPError as exc:  # a network blip must not become a bot error (the next poll settles it)
                 log.warning("alpaca cancel %s failed: %s", order.id, exc)
 
-    async def refresh_market(self) -> None:
-        """Which stocks can be shorted (every 10 min): a margin account and easy-to-borrow shares only."""
+    async def refresh_clock(self) -> None:
+        """Is the US stock market open right now - by Alpaca's clock, which knows holidays and early closes."""
         import time as _t
+        try:
+            r = await self.client.get("/v2/clock")
+            r.raise_for_status()
+            self.clock_open, self.clock_at = bool(r.json().get("is_open")), _t.time()
+        except Exception as exc:
+            log.warning("alpaca clock fetch failed: %s", exc)
+
+    def market_open(self) -> bool | None:
+        """Alpaca's answer if it's recent (10 minutes), else None (then the plain weekday 9:30-16:00 rule)."""
+        import time as _t
+        return self.clock_open if self.clock_open is not None and _t.time() - self.clock_at < 600 else None
+
+    async def refresh_market(self) -> None:
+        """The market clock (every call), and which stocks can be shorted (every 10 min)."""
+        import time as _t
+        if any(not _is_crypto(s) for s in self.symbols):
+            await self.refresh_clock()
         if _t.time() - self._short_at < 600:
             return
         self._short_at = _t.time()

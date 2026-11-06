@@ -11,6 +11,7 @@ from tradezone.core.models import Order, OrderStatus, Side
 class FakeAlpaca:
     def __init__(self):
         self.orders, self.sent, self.fail = {}, [], set()
+        self.is_open = True
         self.account = {"cash": "1500.50", "equity": "2600.00", "shorting_enabled": True}
         self.assets = {"TSLA": {"tradable": True, "shortable": True, "easy_to_borrow": True},
                        "GME": {"tradable": True, "shortable": True, "easy_to_borrow": False}}
@@ -37,6 +38,8 @@ class FakeAlpaca:
             return httpx.Response(204)
         if path == "/v2/account":
             return httpx.Response(200, json=self.account)
+        if path == "/v2/clock":
+            return httpx.Response(200, json={"is_open": self.is_open, "timestamp": "2026-11-26T11:00:00-05:00"})
         if path.startswith("/v2/assets/"):
             a = self.assets.get(path.rsplit("/", 1)[1])
             return httpx.Response(200, json=a) if a else httpx.Response(404)
@@ -72,8 +75,9 @@ def test_partial_fills_are_reported_once_each_at_the_right_price():
     f1 = run(b.poll(o))
     fa.orders[o.broker_id].update(status="filled", filled_qty="0.02", filled_avg_price="60500")
     f2 = run(b.poll(o))
-    assert f1[0].qty == pytest.approx(0.01) and f1[0].price == pytest.approx(60_000)
-    assert f2[0].qty == pytest.approx(0.01) and f2[0].price == pytest.approx(61_000)  # the second half's own price
+    net = 1 - 0.0025  # Alpaca's crypto fee comes out of the coins received
+    assert f1[0].qty == pytest.approx(0.01 * net) and f1[0].price == pytest.approx(60_000)
+    assert f2[0].qty == pytest.approx(0.01 * net) and f2[0].price == pytest.approx(61_000)  # the second half's own price
     assert run(b.poll(o)) == [] and o.status is OrderStatus.FILLED  # nothing reported twice
 
 
@@ -127,3 +131,45 @@ def test_balances_and_holdings():
     assert run(b.position_qty("TSLA")) == -3.0 and run(b.position_qty("ETH-USD")) == 0.0
     fa.fail.update({"/v2/account", "/v2/positions", "/v2/positions/BTCUSD"})
     assert run(b.account()) is None and run(b.positions()) is None and run(b.position_qty("BTC-USD")) is None
+
+
+def test_the_market_clock_is_read_when_stocks_are_watched_and_a_failure_is_only_logged():
+    fa = FakeAlpaca()
+    b = broker(fa)
+    b.symbols = ["BTC-USD", "AAPL"]
+    fa.is_open = False  # e.g. Thanksgiving, 11:00 on a Thursday
+    run(b.refresh_market())
+    assert b.market_open() is False
+    fa.is_open = True
+    run(b.refresh_clock())
+    assert b.market_open() is True
+    fa.fail.add("/v2/clock")
+    run(b.refresh_clock())  # network down: the last answer stays until it's 10 minutes old
+    assert b.market_open() is True
+    c = broker(FakeAlpaca())
+    c.symbols = ["BTC-USD"]  # crypto only: no clock needed
+    run(c.refresh_market())
+    assert c.market_open() is None
+
+
+def test_crypto_fees_are_booked_the_way_alpaca_takes_them_and_stocks_have_none():
+    """Alpaca takes its crypto fee from what you receive. Booked any other way, the records drift above what
+    the account holds and a later 'sell everything' asks for more than is there (and is refused)."""
+    fa = FakeAlpaca()
+    b = broker(fa)
+    buy = Order("BTC-USD", Side.BUY, 0.01, "b1")
+    run(b.submit(buy))
+    fa.orders[buy.broker_id].update(status="filled", filled_qty="0.01", filled_avg_price="60000")
+    f = run(b.poll(buy))[0]
+    assert f.qty == pytest.approx(0.01 * 0.9975) and f.commission == pytest.approx(1.5)  # 0.25% of $600
+    assert f.qty * f.price + f.commission == pytest.approx(600.0)  # the dollars really paid
+    sell = Order("BTC-USD", Side.SELL, 0.009975, "s1")
+    run(b.submit(sell))
+    fa.orders[sell.broker_id].update(status="filled", filled_qty="0.009975", filled_avg_price="62000")
+    g = run(b.poll(sell))[0]
+    assert g.qty == pytest.approx(0.009975) and g.commission == pytest.approx(0.009975 * 62_000 * 0.0025)
+    stock = Order("AAPL", Side.BUY, 2, "a1")
+    run(b.submit(stock))
+    fa.orders[stock.broker_id].update(status="filled", filled_qty="2", filled_avg_price="190")
+    h = run(b.poll(stock))[0]
+    assert h.qty == 2 and h.commission == 0.0
