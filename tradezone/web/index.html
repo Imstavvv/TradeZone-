@@ -582,6 +582,21 @@ button.ghost:hover{color:var(--text)}
 @media (max-width:700px){
   .acctpick{flex-wrap:nowrap;overflow-x:auto;margin:0 -12px 10px;padding:0 12px}
 }
+/* ---- the Stack tab ---- */
+.stackbar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);margin:12px 0 6px}
+.stackbar i{display:block;height:100%}.stackbar i.empty{width:100%}
+.stackkey{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.stackkey i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+#sec-stack .stackrows{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+#sec-stack .coin{border-top:4px solid var(--cc);display:flex;flex-direction:column;gap:3px}
+#sec-stack .coin .ch b{font-size:17px}
+#sec-stack .coin .chg{font-size:15px;font-weight:800}
+#sec-stack .coin .chg i{font-style:normal;font-size:12.5px;margin-left:6px}
+#sec-stack .coin .share{height:6px;border-radius:999px;background:var(--line);overflow:hidden;margin-top:4px}
+#sec-stack .coin .share i{display:block;height:100%;background:var(--cc)}
+#sec-stack .coin .mv{margin-top:auto;padding-top:6px}
+#stackSum i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+.stacklink{display:block;color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,.5);text-underline-offset:3px}
 /* ---- the Trades tab: one card per trade ---- */
 .trip{border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-top:8px;overflow:hidden;font-variant-numeric:tabular-nums}
 .trip.win{box-shadow:inset 4px 0 0 var(--up)}.trip.loss{box-shadow:inset 4px 0 0 var(--down)}
@@ -946,7 +961,8 @@ body.is-live .hero .bal{text-shadow:none}
    Measured, not guessed: every visible text checked for contrast against its real background (WCAG: 4.5:1,
    3:1 for large text), text size (phone 12px+, computer 11px+) and phone tap targets (40px+). */
 /* colours that pass on white: deeper green / red, a darker grey for secondary text */
-:root{--muted:#5a5e74;--up:#047857;--down:#be123c}
+:root{--muted:#5a5e74;--up:#047857;--down:#be123c;--warn:#b45309}
+:root[data-theme="dark"]{--warn:#fbbf24}:root[data-theme="heater"]{--warn:#fde047}
 :root[data-theme="dark"]{--muted:#a6abc6;--up:#34d399;--down:#fb7185}
 :root[data-theme="heater"]{--muted:#e0b39c;--up:#4ade80;--down:#fda4af}
 /* the balance card: deep enough everywhere for white text (the light ends of the gradients were 1.8-2.4:1) */
@@ -987,13 +1003,15 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
 .kpi .muted{font-size:12.5px !important}
 .hero .since{font-size:14px}
 .node .now{height:auto;min-height:44px}
+.navn,.trip .res em{font-size:12px}
 /* ...and nothing under 12px on a phone, with 40px+ places to tap */
 @media (max-width:700px){
   body{font-size:15px}
   .bottomnav a,.bottomnav a span{font-size:12px}
   .kpi .muted{font-size:12.5px !important}
   .bottomnav a svg{width:22px;height:22px}
-  .navn{font-size:11px}
+  .navn{font-size:12px}
+  .stacklink{display:flex;align-items:center;min-height:40px}
   .badge,.accbadge,.pill,.hero .badge2,.tagchip,.stream .tag,.node .crown{font-size:12px}
   .panel h2,.panel h2 > span,.panel h2 .muted,.panel h2 .counter,.counter,#csvLink,#conn{font-size:12px}
   #tripSum b.pair,#tripSum b.pair span{font-size:15px}
@@ -1255,6 +1273,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
   <section id="simple">
     <div class="pagehead" data-page="activity"><h2><span class="pe">📣</span> Activity</h2><p>What the bots are doing, what the world is saying, and what the team has learned.</p></div>
     <div class="pagehead" data-page="open"><h2><span class="pe">🎯</span> Open trades</h2><p>Every trade that's open right now, in every account, in one list.</p></div>
+    <div class="pagehead" data-page="stack"><h2><span class="pe">🪙</span> Hold stack</h2><p>The coins stacking on the side: bought slowly, held for the long run, never sold by the bots, no stop-loss.</p></div>
     <div class="pagehead" data-page="trades"><h2><span class="pe">📈</span> Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
     <div class="pagehead" data-page="money"><h2><span class="pe">💰</span> Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
     <div class="pagehead" data-page="settings"><h2><span class="pe">⚙️</span> Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
@@ -1265,7 +1284,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
       <div class="bal" id="sBal">—</div>
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
-      <div class="since" id="sStack" style="display:none"></div>
+      <a class="since stacklink" id="sStack" data-goto="stack" href="#/stack" style="display:none"></a>
       <div class="badges" id="sBadges"></div>
       <div class="power" id="sPower"></div>
       <div class="goal" id="sGoal"></div>
@@ -1312,13 +1331,17 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
         <div id="accList" class="acclist"></div>
         <div class="btnrow"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
         <div class="muted note">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
-      <div class="scard full" data-page="home money" id="sec-stack"><h4>🪙 Hold stack <span class="muted small" id="stackSub">on the side · never sold by the bots · no stop-loss</span></h4>
-        <div class="stackhead"><div><div class="muted small">Worth now</div><div class="big" id="stackVal">—</div></div>
-          <div><div class="muted small">Paid</div><b id="stackCost">—</b></div><div><div class="muted small">Change</div><b id="stackPnl">—</b></div></div>
+      <div class="scard full" data-page="money" id="sec-stackmini"><h4>🪙 Hold stack <a data-goto="stack">See it all ›</a></h4><div id="stackMini" class="muted"></div></div>
+      <div class="scard full" data-page="stack" id="sec-stack"><h4>🪙 Your hold stack <span class="muted small" id="stackSub">never sold by the bots · no stop-loss</span></h4>
+        <div class="opensum" id="stackSum"></div>
+        <div class="stackbar" id="stackBar" aria-label="Each coin's share of the stack"></div>
+        <div class="stackkey" id="stackKey"></div>
         <div id="stackRows" class="stackrows"></div>
         <div id="stackIn"></div>
         <div class="muted note" id="stackNext"></div>
         <div class="btnrow"><button id="stackToggle">Pause stacking</button></div></div>
+      <div class="scard full" data-page="stack" id="sec-stackbuys"><h4>🧾 Recent purchases <span class="muted small" id="stackBuysN"></span></h4><div id="stackBuys"></div>
+        <div class="muted note">A small budget builds up every day (plus a share of each winning trade); once it covers a purchase, the coin furthest below its share is bought - preferably while it isn't running hot. Moving coins in or out by hand doesn't sell anything: they stay in your account.</div></div>
       <div class="scard full" data-page="home" id="sec-hunt"><h4>🎯 Today's hunt</h4><div id="sHunt"></div></div>
       <div class="scard" data-page="home"><h4>Your open trades <a data-goto="open">Every account ›</a></h4><div class="muted small" id="sOpenN"></div><div id="sOpen"></div></div>
       <div class="scard full" data-page="activity" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
@@ -2824,16 +2847,50 @@ $('stratList').addEventListener('click', async e => {
   try { const r = await api(`/api/strategies/${b.dataset.strat}`, {on: b.dataset.on === '1'}); renderStrategies(r); toast('Strategies updated'); } catch {}
   finally { b.disabled = false; }
 });
+const COIN_COLORS = {SOL: '#8b5cf6', XRP: '#0ea5e9', DOGE: '#eab308', ETH: '#6366f1', XCN: '#ec4899', BTC: '#f97316'};
+function coinColor(sym){
+  const c = String(sym).split('-')[0];
+  if (COIN_COLORS[c]) return COIN_COLORS[c];
+  let h = 0; for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return `hsl(${h} 70% 50%)`;
+}
 function renderStack(k){
   if (!k) return;
   const up = v => `<span class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${money(v)}</span>`;
-  $('stackVal').textContent = money(k.value); $('stackCost').textContent = money(k.cost); $('stackPnl').innerHTML = k.cost ? up(k.pnl) : '—';
   const want = (k.coins || []).map(c => c + '-USD');
-  const rows = want.map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
-  setHTML($('stackRows'), rows.map(h => `<div class="coin"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
-    <div class="q">${h.qty ? Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6}) + ` · ${h.buys} buy${h.buys === 1 ? '' : 's'}` : 'none yet'}</div>
-    ${h.buys ? `<div class="q">avg ${px(h.avg)}${h.cost ? ' · ' + up(h.pnl || 0) : ''}</div>` : ''}
-    ${h.qty ? `<div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>` : ''}</div>`).join(''));
+  const extra = k.holdings.filter(h => !want.includes(h.symbol)).map(h => h.symbol);  // (moved in by hand)
+  const rows = [...want, ...extra].map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
+  const worth = rows.reduce((t, h) => t + (h.value || 0), 0), held = rows.filter(h => h.qty > 0);
+  const buys = rows.reduce((t, h) => t + (h.buys || 0), 0), chg = k.cost ? k.pnl / k.cost : null;
+  const sign = v => (v >= 0 ? '+' : '-') + money(Math.abs(v));
+  setHTML($('stackSum'), `<div><span>Worth now</span><b>${money(k.value)}</b></div><div><span>Paid</span><b>${money(k.cost)}</b></div>
+    <div><span>Change</span><b class="${cls(k.pnl)}">${k.cost ? sign(k.pnl) : '—'}</b>${chg == null ? '' : `<i class="${cls(chg)}">${chg >= 0 ? '+' : ''}${pct(chg, 1)}</i>`}</div>
+    <div><span>Coins held</span><b>${held.length}</b><i>of ${rows.length}</i></div><div><span>Purchases</span><b>${buys}</b></div>
+    <div><span>Saved for the next</span><b>${money(k.budget)}</b><i>${k.on ? `+${money(k.daily)} a day` : 'paused'}</i></div>`);
+  const shares = held.map(h => [h, worth > 0 ? (h.value || 0) / worth : 0]);
+  setHTML($('stackBar'), shares.length ? shares.map(([h, f]) => `<i style="width:${(f * 100).toFixed(2)}%;background:${coinColor(h.symbol)}" title="${esc(h.symbol.split('-')[0])} ${pct(f, 0)}"></i>`).join('') : '<i class="empty"></i>');
+  setHTML($('stackKey'), shares.map(([h, f]) => `<span><i style="background:${coinColor(h.symbol)}"></i>${esc(h.symbol.split('-')[0])} ${pct(f, 0)}</span>`).join(''));
+  const target = rows.length ? 1 / rows.length : 0;
+  setHTML($('stackRows'), rows.map(h => {
+    const share = worth > 0 ? (h.value || 0) / worth : 0, nowp = h.qty ? (h.value || 0) / h.qty : null, c = h.cost ? (h.pnl || 0) / h.cost : null;
+    return `<div class="coin" style="--cc:${coinColor(h.symbol)}"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
+    ${h.qty ? `<div class="q">${Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} coins${nowp ? ` · now ${px(nowp)}` : ''}</div>
+      <div class="q">paid ${px(h.avg)} each · ${h.buys} buy${h.buys === 1 ? '' : 's'}</div>
+      ${h.cost ? `<div class="chg ${cls(h.pnl)}">${sign(h.pnl || 0)}${c == null ? '' : ` <i>${c >= 0 ? '+' : ''}${pct(c, 1)}</i>`}</div>` : ''}
+      <div class="share"><i style="width:${Math.min(100, share * 100).toFixed(1)}%"></i></div><div class="q">${pct(share, 0)} of the stack · aim ${pct(target, 0)}</div>
+      <div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>`
+      : `<div class="q">none yet</div><div class="q">${k.next && k.next.symbol === h.symbol ? `next up: once ${money(k.next.at)} is saved` : 'bought as the budget builds up'}</div>`}</div>`;
+  }).join(''));
+  const recent = (k.recent || []).slice().reverse();
+  $('stackBuysN').textContent = recent.length ? `last ${recent.length}` : '';
+  setHTML($('stackBuys'), recent.length ? recent.map(x => {
+    const coin = esc(x.symbol.split('-')[0]), q = Math.abs(x.qty);
+    const what = x.move === 'in' ? `Moved ${num(q)} ${coin} in from the trading` : x.move === 'out' ? `Moved ${num(q)} ${coin} out to the trading` : `Bought ${num(q)} ${coin}`;
+    return `<div class="happen"><div class="ic" style="background:${coinColor(x.symbol)}">${x.move ? '↔' : '+'}</div><div>${what} <b>${money(x.usd)}</b>
+      <div class="muted small">at ${px(x.price)}</div></div><div class="tm">${ago(x.ts)}</div></div>`;
+  }).join('') : `<div class="emptyhint">${buys ? 'Earlier purchases aren\'t listed here - the next ones will be.' : 'No purchases yet - the first comes once the daily budget covers one.'}</div>`);
+  setHTML($('stackMini'), k.value > 0 ? `<b style="color:var(--text)">${money(k.value)}</b> in ${held.length} coin${held.length === 1 ? '' : 's'} (${held.map(h => esc(h.symbol.split('-')[0])).join(', ')})${k.cost ? ` · <span class="${cls(k.pnl)}">${sign(k.pnl)}</span>` : ''}`
+    : 'Nothing stacked yet.');
   const pos = ((S.state && S.state.portfolio && S.state.portfolio.positions) || []).filter(p => p.qty > 0);
   setHTML($('stackIn'), pos.length ? `<div class="muted small" style="margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +
     pos.map(p => `<div class="mvrow"><span><b>${esc(p.symbol.split('-')[0])}</b> <span class="muted">${Number(p.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} · ${money(p.market_value)}</span></span>
@@ -2845,7 +2902,7 @@ function renderStack(k){
       (k.sitting_out || []).map(x => ` · ${x.symbol.split('-')[0]} sits out until ${new Date(x.until * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}: ${x.why}`).join('');
   $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
   const hs = $('sStack'); hs.style.display = k.value > 0 && (S.acct === 'main' || S.acct === 'all') ? '' : 'none';  // (the main account's stack)
-  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack`;
+  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack ›`;
 }
 document.getElementById('sec-stack').addEventListener('click', async e => {
   const b = e.target.closest('[data-mv]'); if (!b) return;
@@ -3281,7 +3338,8 @@ $('sdGo').onclick = async () => {
 // =================== pages (Simple view) / sections (Pro view) + bottom navigation ===================
 // Simple view: Home holds the bots and all the trading; every other tab is its own page.
 const PAGES = [['home', 'Home', '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/>'],
-               ['open', 'Open', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'], ['activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'], ['trades', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
+               ['open', 'Open', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>'],
+               ['stack', 'Stack', '<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 10v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/><path d="M5 14v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/>'], ['activity', 'Activity', '<path d="M22 12h-4l-3 8L9 4l-3 8H2"/>'], ['trades', 'Trades', '<path d="M4 6h16M4 12h16M4 18h10"/>'],
                ['money', 'Money', '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>'], ['settings', 'Settings', '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/>']];
 const PRO_NAV = [['top', 'Overview', '<path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/>'],
                  ['sec-floor', 'Bots', '<rect x="4" y="7" width="16" height="12" rx="3"/><path d="M12 3v4M9 12h.01M15 12h.01M9 16h6"/>'],

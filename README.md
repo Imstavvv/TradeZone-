@@ -61,6 +61,7 @@ Safety properties:
 | --- | --- |
 | 🏠 **Home** | The bots and all the trading: starship Nova, your balance and the trading buttons, the live profit & loss chart, Today's hunt, open trades, the bot crew |
 | 📣 **Activity** | What's happening (live), what the world is saying (news), team rules, what the team has learned |
+| 🪙 **Stack** | Your hold stack on its own tab: worth now, paid, change, each coin's share (a colour bar), a card per coin (amount, price now, paid each, change, buys, share vs its aim), recent purchases and moves, the next purchase, pause, and moving coins to / from the trading |
 | 📈 **Trades** | The live profit & loss chart, **every trade as one card** (buy to sale, with totals and filters), and the full trade log (filter, export) |
 | 💰 **Money** | Real-money account, Grok AI helper, crypto wallets and sending money |
 | ⚙️ **Settings** | Logging in (another device, log out), your goal, devices logged in |
