@@ -942,6 +942,71 @@ body.is-live .hero .bal{text-shadow:none}
 @media (max-width:700px){
   .themebtn{width:34px;height:34px;min-height:34px}
 }
+/* =================== READABILITY (every look, phone and computer) ===================
+   Measured, not guessed: every visible text checked for contrast against its real background (WCAG: 4.5:1,
+   3:1 for large text), text size (phone 12px+, computer 11px+) and phone tap targets (40px+). */
+/* colours that pass on white: deeper green / red, a darker grey for secondary text */
+:root{--muted:#5a5e74;--up:#047857;--down:#be123c}
+:root[data-theme="dark"]{--muted:#a6abc6;--up:#34d399;--down:#fb7185}
+:root[data-theme="heater"]{--muted:#e0b39c;--up:#4ade80;--down:#fda4af}
+/* the balance card: deep enough everywhere for white text (the light ends of the gradients were 1.8-2.4:1) */
+:root{--practice:linear-gradient(135deg,#5b21b6 0%,#4338ca 50%,#0e7490 100%);--live:linear-gradient(135deg,#be185d 0%,#be123c 50%,#c2410c 100%)}
+:root[data-theme="heater"]{--practice:linear-gradient(135deg,#7c2d12 0%,#c2410c 55%,#b45309 100%);--live:linear-gradient(135deg,#881337 0%,#be123c 55%,#c2410c 100%)}
+.hero .statusline,.power,.goal{background:rgba(0,0,0,.16);border-color:rgba(255,255,255,.2)}
+.hero .chg,.hero .badge2,.hero .lbl #sMode{background:rgba(0,0,0,.2)}
+body.is-live .hero .lbl #sMode{background:rgba(0,0,0,.22)}
+.hero .actions2 button:not(.golive):not(.danger):not(.gopaper){background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.4)}
+.hero .lbl,.hero .lbl .muted,.hero .since,.goal .note,.power .orbs{color:#fff}
+.hero .chg .up{color:#bbf7d0}.hero .chg .down{color:#fecdd3}
+/* gradient buttons: white text needs the deeper end of each colour */
+button.gopaper{background:linear-gradient(135deg,#6d28d9,#4f46e5)}
+button.golive{background:linear-gradient(135deg,#be185d,#c2410c)}
+button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
+:root[data-theme="heater"] button.gopaper{background:linear-gradient(135deg,#c2410c,#b91c1c)}
+:root[data-theme="heater"] button.danger{background:linear-gradient(135deg,#dc2626,#991b1b)}
+.navn{background:#be185d}
+/* the starship card's captions sit on a dark glass panel */
+.arena .log,.arenatag{background:rgba(10,6,30,.62);border-color:rgba(255,255,255,.18)}
+.arena .log span,.arenatag{color:#fff}.arena .log .muted{color:#d6d3f0}
+.arena .log b,.arenatag b{color:#fde68a}
+/* names in the activity feed: the bot colours were too pale as text on white */
+.stream .who{color:var(--text) !important}
+.stream .tag.thought{color:var(--muted)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .feed .src{color:var(--soft-fg)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .stream .who{color:var(--text) !important}
+/* sizes: nothing under 11px on a computer */
+.panel h2 > span,.panel h2 .muted,.panel h2 .counter,.counter,.node .rl,.node .st,.node .st span,.mate2 .msn,.stream .tag,.navn,
+.arena .log b,.node .crown,.bot .mets,.hstat span{font-size:11px}
+/* the small print, at a size you can read on any screen */
+.badge,.accbadge,.pill,.hero .badge2,.tagchip,.stream .tag,.node .crown,.panel h2,.panel h2 > span,.panel h2 .muted,.panel h2 .counter,
+.counter,#csvLink,#conn{font-size:12px}
+.kpi .l,.kpi .muted,.kpi div:not(.v),.opensum span,#tripSum i,.hstat span,.bot .mets,.bot .mets span,.bot .role,
+.node .rl,.node .now,.node .st,.node .st span,.mate2 .msn,.mate2 .say,.strat .q,.sub,.sub span,.happen .tm,.tcard .why,
+.trip .leg .lr,.power .orbs,.power .orbs span,.goal .note,.pnlkey,.pnlkey span,th,.arena .log,.arena .log span,.arena .log b,.arenatag,
+.stream,.stream .it,.stream .msg,.stream .t,.stream .who,button.switch,.small,.note{font-size:12.5px}
+.kpi .muted{font-size:12.5px !important}
+.hero .since{font-size:14px}
+.node .now{height:auto;min-height:44px}
+/* ...and nothing under 12px on a phone, with 40px+ places to tap */
+@media (max-width:700px){
+  body{font-size:15px}
+  .bottomnav a,.bottomnav a span{font-size:12px}
+  .kpi .muted{font-size:12.5px !important}
+  .bottomnav a svg{width:22px;height:22px}
+  .navn{font-size:11px}
+  .badge,.accbadge,.pill,.hero .badge2,.tagchip,.stream .tag,.node .crown{font-size:12px}
+  .panel h2,.panel h2 > span,.panel h2 .muted,.panel h2 .counter,.counter,#csvLink,#conn{font-size:12px}
+  #tripSum b.pair,#tripSum b.pair span{font-size:15px}
+  .node .now{max-height:none}
+  /* tap targets */
+  button{min-height:44px}
+  .tab,.chip{min-height:40px;display:inline-flex;align-items:center;padding:8px 14px}
+  .learnstats .chip{min-height:0;padding:5px 10px}  /* (labels, not buttons) */
+  .viewtoggle button{min-height:40px;padding:6px 16px}
+  .themebtn{width:42px;height:42px;min-height:42px}
+  .scard h4 a{display:inline-flex;align-items:center;min-height:40px;padding:0 4px;margin:-10px -4px}
+  button.switch{min-height:40px;padding:6px 12px}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
