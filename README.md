@@ -800,6 +800,18 @@ A check on 16 windows per market (tuning / unseen):
 
 It lost 5-10% less when prices fell and earned a little more when they rose, but did slightly worse sideways on both halves (about $2 over 16 runs) - so it didn't beat "without it" everywhere and is **off by default**; a switch in Settings if you'd rather lose less in a fall. Even so, it's modest: in a fall it saves only a little, because the bots still buy as a slide begins (before the average turns down) and never-sell then holds those trades. Also tried: a 2-hour and an 8-hour average, and pausing all buying while half the coins fall - each lost to "without it" somewhere. Judged on less than the full 4 hours of history, it did worse sideways, which is why it waits. (An earlier guard that looked only at the last 30-240 minutes' change made no difference - see the underwater cap above.)
 
+### Where the money goes (every market)
+
+Replayed on real price history (16 windows of $500 per market, tuning / unseen half; trade results are after fees):
+
+| | Total | Winning trades | Sold at a loss | Still held below cost | Fees paid |
+| --- | --- | --- | --- | --- | --- |
+| Rising | +$396 / +$173 | +$395 / +$197 | $0 | −$24 / −$46 | $183 / $119 |
+| Sideways | −$29 / −$23 | +$48 / +$59 | $0 | −$90 / −$94 | $41 / $45 |
+| Falling | −$389 / −$256 | +$14 / +$18 | −$81 / −$21 | −$328 / −$258 | $19 / $20 |
+
+The loss is almost all **trades still held below what was paid** (never-sell holds them; about two per window, 35-45% of the money), then fees, which eat most of a sideways market's small wins. The cause is entries no better than chance (see "Better buy signals"). Stricter entries were tried - a conviction bar of 0.30 or 0.40 for real money (it's 0.22), 3 agreeing indicators instead of 2, and each with the dip-turn filter: all did better sideways on the tuning half (up to +$27 vs −$29) and all worse on the unseen half (−$28 to −$42 vs −$23) - an "improvement" that doesn't repeat on unseen data is luck - so the defaults stay.
+
 ### Losing money in falling markets: where it goes, and what was tried
 
 In a falling market almost the whole loss is **trades still held below what was paid** (never-sell holds them; they average 12-14% down, short of the 20% loss floor): 16 windows of $500, tuning / unseen half - total −$389 / −$256, of which held trades −$328 / −$258, trades already sold −$66 / −$3, the hold stack −$4 / −$5. About 30% of the balance ends up in them. Every fix tried cut that loss, and every one cost about as much profit when prices rise, because when a trade is opened no rule here can tell the start of a rise from the start of a fall:
