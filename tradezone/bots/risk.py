@@ -36,6 +36,7 @@ class RiskBot(Bot):
     def __init__(self, desk) -> None:
         super().__init__(desk)
         self.snapshots: dict[str, Snapshot] = {}
+        self.long_px: dict[str, deque[float]] = {}  # (the falling-market guard's longer price history)
         self.order_times: deque[float] = deque()
         self.last_trade: dict[str, float] = {}
         self.seen_signals: set[str] = set()
@@ -80,6 +81,36 @@ class RiskBot(Bot):
 
     def on_snapshot(self, ev: Event) -> None:
         self.snapshots[ev.payload.symbol] = ev.payload
+        st = self.settings
+        if st.falling_guard != "off":
+            px = self.long_px.setdefault(ev.payload.symbol, deque(maxlen=st.falling_window + st.falling_slope_bars))
+            px.append(ev.payload.price)
+
+    def _falling(self, symbol: str) -> bool | None:
+        """True when the coin is below its long average and that average is lower than it was; None: too little history."""
+        st = self.settings
+        px = self.long_px.get(symbol)
+        w, k = st.falling_window, st.falling_slope_bars
+        if not px or len(px) < max(30, w // 4) + 2:
+            return None
+        xs = list(px)
+        n = min(w, len(xs) - min(k, len(xs) // 2))
+        if n < 10:
+            return None
+        avg_now = sum(xs[-n:]) / n
+        lag = min(k, len(xs) - n)
+        avg_then = sum(xs[-n - lag:len(xs) - lag]) / n
+        return xs[-1] < avg_now * (1 - st.falling_min_drop) and avg_now < avg_then
+
+    def falling_block(self, symbol: str) -> str | None:
+        st = self.settings
+        if st.falling_guard == "coin" and self._falling(symbol):
+            return f"{symbol} is in a downtrend (below its long average, which is falling) - no new buys until it turns"
+        if st.falling_guard == "market":
+            votes = [f for f in (self._falling(s) for s in self.long_px) if f is not None]
+            if votes and sum(votes) / len(votes) >= st.falling_market_share:
+                return f"the market is falling ({sum(votes)} of {len(votes)} coins in a downtrend) - no new buys until it turns"
+        return None
 
     # ------------------------------------------------------------------
     def reject(self, sig: Signal, reason: str) -> None:
@@ -186,6 +217,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and not sig.force and (why := self.falling_block(sig.symbol)):
+            return self.reject(sig, why)  # (dip adds and buy-backs too: no catching a falling knife)
         if sig.side is Side.BUY and (why := self.desk.underwater_block()):
             return self.reject(sig, why)  # (before the Dip Buyer's adds: averaging down counts too)
         if sig.qty and sig.source == "flipper" and sig.side is Side.BUY and pos.qty > 0:

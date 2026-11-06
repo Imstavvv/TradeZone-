@@ -197,6 +197,14 @@ class Settings:
     # swings hard - it is held, not flipped with the trading balance). Moved out of the stack by hand, the bots
     # manage that position like any other; they just never open a new trade in it.
     stack_only_coins: list[str] = field(default_factory=lambda: ["XCN"])
+    # ---- falling-market guard: no new buys while prices are clearly falling ----
+    # "off" | "coin" (that coin is below its long average and the average is sloping down) |
+    # "market" (most watched coins are doing that at once). Exits and stops are never affected.
+    falling_guard: str = "off"
+    falling_window: int = 240  # bars (1-minute) behind the long average
+    falling_slope_bars: int = 60  # how far back the average's slope is measured
+    falling_min_drop: float = 0.0  # how far below its average the price must be to count (0.002 = 0.2%)
+    falling_market_share: float = 0.5  # "market": the share of coins falling that pauses buying
     stack_daily_pct: float = 0.01  # budget: 1% of the trading balance a day...
     stack_daily_usd: float = 0.0  # ...or exactly this many dollars a day (0 = use the percentage)
     stack_profit_share: float = 0.25  # ...plus this share of every winning trade's profit
