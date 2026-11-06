@@ -286,7 +286,7 @@ class AccountFleet:
             "cash": p.cash, "equity": p.equity, "pnl_today": p.equity - p.day_start_equity,
             "pnl_total": d.lifetime_pnl(), "open": len(p.open_positions),
             # every open trade in full (the Open tab lists them all, across accounts)
-            "positions": [x.to_dict() for x in p.open_positions],
+            "positions": [{**x.to_dict(), "net": d.settings.net_if_sold(x, x.last_price)} for x in p.open_positions],
             "never_sell": d.settings.never_sell_at_loss,
             "paused": d.paused, "pause_reason": d.pause_reason, "halted": d.halted, "halt_reason": d.halt_reason,
             "feed": d.feed.name, "feed_ok": not d.feed_down,

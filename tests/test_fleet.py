@@ -298,5 +298,6 @@ def test_every_open_trade_of_every_account_is_listed_in_full(exchange):
     t = rows[acct]["positions"][0]
     assert (t["avg_price"], t["last_price"], t["stop_price"], t["take_profit"], t["opened_ts"]) == (10.0, 9.0, 6.7, 11.0, 1_700_000_000.0)
     assert t["unrealized_pnl"] == -2.0 and t["market_value"] == 18.0
+    assert t["net"] < -2.0  # after the fees of selling it: what never-sell-at-a-loss goes by
     assert rows[acct]["never_sell"] is True
     assert [p["symbol"] for p in rows["main"]["positions"]] == ["BTC-USD"]

@@ -214,3 +214,27 @@ def test_onyxcoin_prices_are_watched_on_coinbase_and_kraken():
     # moved back to an ordinary stack coin: watched as before and traded again
     s = settings(feed="coinbase", stack_only_coins=[])
     assert not s.is_stack_only("XCN-USD")
+
+
+def test_a_coin_the_exchange_refuses_sits_out_and_the_others_keep_stacking():
+    """It used to retry the refused coin every cycle (still the furthest below its share), so nothing else was stacked."""
+    from tradezone.core.models import OrderStatus
+    desk = make()
+    broker, real = desk.broker, desk.broker.submit
+    tries = []
+
+    async def submit(order):
+        if order.symbol == "XRP-USD":
+            tries.append(order.symbol)
+            order.status, order.reason = OrderStatus.REJECTED, "pair not available"
+            return []
+        return await real(order)
+
+    broker.submit = submit
+    st = day(desk, hours=24 * 8)
+    held = {h["symbol"] for h in st.summary()["holdings"]}
+    assert held == {"ETH-USD", "SOL-USD", "DOGE-USD"}  # the others still stacked
+    assert 1 <= len(tries) <= 8 * 24 // 6 + 1  # at most one try per 6 hours, not one per cycle
+    assert desk.bots["sentinel"].audit_books() == [] and desk.portfolio.open_positions == []
+    out = st.summary()["sitting_out"]
+    assert [x["symbol"] for x in out] in ([], ["XRP-USD"]) and all("refused" in x["why"] for x in out)

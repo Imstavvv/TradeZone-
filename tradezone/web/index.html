@@ -2435,7 +2435,8 @@ function renderStack(k){
   $('stackNext').textContent = !k.on ? 'Stacking is paused - what you hold stays held.'
     : k.blocked ? `Waiting: ${k.blocked}.`
     : `Saving ${money(k.daily)} a day plus ${Math.round(k.profit_share * 100)}% of each winning trade · ${money(k.budget)} saved so far` +
-      (k.next ? ` · next: ${k.next.symbol.split('-')[0]} once it reaches ${money(k.next.at)}` : '');
+      (k.next ? ` · next: ${k.next.symbol.split('-')[0]} once it reaches ${money(k.next.at)}` : '') +
+      (k.sitting_out || []).map(x => ` · ${x.symbol.split('-')[0]} sits out until ${new Date(x.until * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}: ${x.why}`).join('');
   $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
   const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';
   if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack`;
@@ -2634,7 +2635,7 @@ function renderOpen(st){
     const u = x.unrealized_pnl, c = Math.abs(x.qty * x.avg_price), r = c ? u / c : 0;
     const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
     const prot = locked ? `🔒 Profit locked · stop ${px(x.stop_price)}` : x.stop_price != null ? `Safety stop ${px(x.stop_price)}` : '';
-    const held = u < 0 && x.never_sell ? '<div class="o3 warn">🛑 Held until it is back in profit after fees - never sold at a loss</div>' : '';
+    const held = (x.net ?? u) < 0 && x.never_sell ? '<div class="o3 warn">🛑 Held until it is back in profit after fees - never sold at a loss</div>' : '';
     const [coin, quote] = x.symbol.split('-');
     return `<div class="otrade ${x.live ? 'live' : ''}">
       <div class="o1"><span class="who"><span class="sym"><b>${esc(coin)}</b><span class="muted">${quote ? '-' + esc(quote) : ''}</span></span>

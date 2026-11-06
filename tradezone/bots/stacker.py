@@ -32,6 +32,8 @@ class StackerBot(Bot):
 
     WAIT_FOR_DIP_S = 6 * 3600  # budget ready but every coin running hot this long: buy anyway
     MAX_POLLS = 20
+    REFUSED_WAIT_S = 6 * 3600  # a coin the exchange refused sits out this long, so the others keep stacking
+    NO_FILL_WAIT_S = 3600  # an order that didn't fill: that coin waits an hour
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
@@ -44,6 +46,7 @@ class StackerBot(Bot):
         self._measure_at = 0.0
         self.pending: dict | None = None  # the order in flight: {order, mode, before, ours_before, fills}
         self.history: list[dict] = []
+        self.sitting_out: dict[str, tuple[float, str]] = {}  # symbol -> (until, why): refused or unfilled lately
 
     def subscriptions(self):
         return {"market.tick": self.on_tick, "trade.log": self.on_trade}
@@ -108,7 +111,8 @@ class StackerBot(Bot):
 
     def pick(self) -> tuple[str, float] | None:
         """The coin furthest below its share of the stack (preferably one that isn't running hot), and how much to buy."""
-        coins = [s for s in self.coins() if self.desk.prices.get(s)]
+        clock = self._clock or now()
+        coins = [s for s in self.coins() if self.desk.prices.get(s) and self.sitting_out.get(s, (0.0, ""))[0] <= clock]
         if not coins:
             return None
         total = self.value() + self.budget[self.mode]
@@ -120,7 +124,6 @@ class StackerBot(Bot):
 
         snaps = self.desk.bots["risk"].snapshots
         cool = [s for s in coins if (snaps.get(s) and snaps[s].indicators.get("rsi", 50) <= self.settings.stack_max_rsi)]
-        clock = self._clock or now()
         pool = cool
         if not pool:
             self._ready_since = self._ready_since or clock
@@ -172,7 +175,9 @@ class StackerBot(Bot):
         fills = await broker.submit(order)
         if order.status is OrderStatus.REJECTED:
             self.bump("rejected")
-            self.act(f"couldn't stack {sym}: {order.reason}", "warning")
+            # without this the same coin (still the furthest below its share) was retried every cycle, and the
+            # other coins never got their turn
+            self._sit_out(sym, self.REFUSED_WAIT_S, f"the exchange refused it ({order.reason})")
             self._ready_since = None
             return
         self.pending = {"order": order, "mode": self.mode, "before": before, "fills": list(fills), "polls": 0,
@@ -197,7 +202,7 @@ class StackerBot(Bot):
         fills = p["fills"]
         qty = sum(f.qty for f in fills)
         if qty <= 0:
-            self.act(f"stack order for {order.symbol} didn't fill", "warning")
+            self._sit_out(order.symbol, self.NO_FILL_WAIT_S, "the last order didn't fill")
             return
         cost = sum(f.qty * f.price + f.commission for f in fills)
         sym, mode = order.symbol, p["mode"]
@@ -340,6 +345,12 @@ class StackerBot(Bot):
         self.save()
 
     # -- views / persistence ------------------------------------------------------
+    def _sit_out(self, sym: str, wait_s: float, why: str) -> None:
+        self.sitting_out[sym] = ((self._clock or now()) + wait_s, why)
+        others = [s.split("-")[0] for s in self.coins() if s != sym]
+        self.act(f"couldn't stack {sym}: {why} - {sym.split('-')[0]} sits out {wait_s / 3600:.0f}h"
+                 + (f", stacking {', '.join(others)} meanwhile" if others else ""), "warning")
+
     def summary(self) -> dict:
         mode = self.mode
         rows = []
@@ -365,7 +376,9 @@ class StackerBot(Bot):
                 "holdings": rows, "cost": cost, "value": value, "pnl": value - cost, "budget": self.budget[mode],
                 "daily": self.settings.stack_daily_usd or self.settings.stack_daily_pct * max(self.portfolio.equity, 0.0),
                 "profit_share": self.settings.stack_profit_share, "next": nxt, "blocked": self._blocked(),
-                "recent": [x for x in self.history if x["mode"] == mode][-8:]}
+                "recent": [x for x in self.history if x["mode"] == mode][-8:],
+                "sitting_out": [{"symbol": s, "until": u, "why": w} for s, (u, w) in self.sitting_out.items()
+                                if u > (self._clock or now())]}
 
     def save(self) -> None:
         store = getattr(self.desk, "store", None)
