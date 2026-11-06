@@ -2528,8 +2528,8 @@ function focusLine(){
   if (!f || !f.on) return '';
   const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: 0});
   const always = (f.always || []).length ? ` · ${f.always.map(esc).join(' & ')} traded at any balance` : '';
-  const txt = f.stage === 1 ? `🪙 Stage 1 of 3: smaller coins only (meme coins & small altcoins)${always}, up to 4 trades - other mid-size coins join at ${m(f.next_at)}, BTC & ETH at ${m(f.mid_until)}`
-    : f.stage === 2 ? `🪙 Stage 2 of 3: smaller + mid-size coins (SOL, XRP, LINK, ...), up to 6 trades - BTC & ETH join at ${m(f.next_at)}`
+  const txt = f.stage === 1 ? `🪙 Stage 1 of 3: smaller coins only (meme coins & small altcoins)${always} - other mid-size coins join at ${m(f.next_at)}, BTC & ETH at ${m(f.mid_until)}`
+    : f.stage === 2 ? `🪙 Stage 2 of 3: smaller + mid-size coins (SOL, XRP, LINK, ...) - BTC & ETH join at ${m(f.next_at)}`
     : '🪙 Stage 3 of 3: every coin, spread across all of them';
   return `<div class="note">${esc(txt)}</div>`;
 }

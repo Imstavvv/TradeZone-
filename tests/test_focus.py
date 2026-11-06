@@ -69,10 +69,15 @@ def test_a_small_balance_can_hold_more_than_four_trades_now():
         assert buy(desk, sym)[0] > 0  # (it used to stop at 4 at this size)
 
 
-def test_never_more_than_20_trades_at_once():
+def test_up_to_100_trades_at_once_and_never_more():
     from tradezone.core.portfolio import Position
     desk = make(100_000.0)
-    for i in range(20):
+    assert desk.settings.risk.max_open_positions == 100
+    for lvl in ("aggressive", "bold"):
+        desk.settings.risk_profile = lvl
+        assert desk.settings.limits(True).max_open_positions == 100
+    desk.settings.risk_profile = "normal"
+    for i in range(100):
         desk.portfolio.positions[f"C{i}-USD"] = Position(f"C{i}-USD", qty=1.0, avg_price=1.0, last_price=1.0)
     qty, rej = buy(desk, "DOGE-USD")
     assert qty == 0 and "max open positions" in rej[-1]["reason"]

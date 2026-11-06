@@ -738,7 +738,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Trend Scout: meme coins and **pump.fun** coins over $50k with plenty of volume, trending coins, on every account | on (only coins your exchange lists, same coin checked) | `TZ_DISCOVER_COINS`, `TZ_DISCOVER_PUMP` |
 | Stock discovery (Alpaca): the day's busiest stocks, $10+, $50M+ traded, main exchanges, no leveraged/inverse funds | on (not tested on price history - see below) | `TZ_DISCOVER_STOCKS`, `TZ_MAX_DISCOVERED_STOCKS` |
 | News per stock and coin from Alpaca's news service | on (Alpaca accounts) | `TZ_NEWS_ALPACA` |
-| Up to 20 trades at once, up to 5 meme coins | on | `TZ_MAX_OPEN_POSITIONS`, `TZ_MAX_MEME_POSITIONS` |
+| Up to 100 trades at once, up to 5 meme coins | on | `TZ_MAX_OPEN_POSITIONS`, `TZ_MAX_MEME_POSITIONS` |
 | Hold stack (SOL, XRP, DOGE, ETH and Onyxcoin XCN bought slowly on the side, never sold) | on | `TZ_STACK` |
 | Learning: Coach, Flipper hours, Fee Auditor, Target Learner, Trade Reviewer | on | `TZ_COACH_LEARNING`, `TZ_LEARN_TARGETS`, `TZ_LEARN_SOURCES` |
 | Speed Monitor, Housekeeper (records kept lean) | on | `TZ_JOURNAL_KEEP_DAYS` |
@@ -940,7 +940,7 @@ Any crypto or meme coin whose 1-minute bar trades **4 times its usual volume** (
 - not a bounce inside a falling trend;
 - one snipe per coin per surge (`TZ_SURGE_COOLDOWN_BARS`).
 
-The idea then goes through the same checks as any trade: Risk and the advisors (falling Bitcoin, flash crashes, thin markets), the fee rules, the position limits (5 meme coins, 20 trades), and its own stop. Stocks aren't sniped. The meme-coin breakout snipes (`TZ_SNIPE`) still run alongside. `TZ_SURGE_SNIPE=false` turns it off.
+The idea then goes through the same checks as any trade: Risk and the advisors (falling Bitcoin, flash crashes, thin markets), the fee rules, the position limits (5 meme coins, 100 trades), and its own stop. Stocks aren't sniped. The meme-coin breakout snipes (`TZ_SNIPE`) still run alongside. `TZ_SURGE_SNIPE=false` turns it off.
 
 On real price history (ten $500 runs per half) such surges were rare, about one snipe per run. At 4× they made no difference on unseen data (+$162 / +$150 vs +$160 / +$150). At 3× or 2.5× they did worse there (+$137). That history is stocks and currencies, not meme coins, whose surges are bigger and more frequent. Whether sniping them pays will show in real trading.
 
@@ -984,9 +984,9 @@ Each flip pays about 0.4% to buy and 0.4% to sell on Kraken's starting tier, so 
 
 No setting turns $500 into 1,000 times its value. Compounding works on whatever the bots really make after fees: about +3% to +17% per $500 run in these tests (and some runs lost). Bigger risk levels raise both the gains and the losses (see *More risk, more reward*).
 
-### Up to 20 trades at a time
+### Up to 100 trades at a time
 
-The bots can hold up to **20 trades at once** (`TZ_MAX_OPEN_POSITIONS`), on every risk level and at every balance. It used to be 6 (8 on Aggressive / Bold), small balances were held to 4-6, and at most 4 crypto trades could point the same way. Still in place:
+The bots can hold up to **100 trades at once** (`TZ_MAX_OPEN_POSITIONS`), on every risk level and at every balance (it was 20, and before that 6 (8 on Aggressive / Bold); small balances were held to 4-6, and at most 4 crypto trades could point the same way). **The real limit is the coins watched:** one trade per coin, so with about 12 coins plus up to 20 found by the Trend Scout (`TZ_MAX_DISCOVERED`) that's around 30 on Kraken, fewer on Uphold or Alpaca. Not tested on price history as a change. Still in place:
 - at most 5 meme coins at once (`TZ_MAX_MEME_POSITIONS`; 6 on Aggressive, 7 on Bold);
 - the Correlation Officer still blocks a third trade that moves exactly like two already held;
 - the total-risk cap and the cash on hand still decide how big each trade can be, so more trades means more, smaller trades, never borrowed money.

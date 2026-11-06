@@ -56,12 +56,12 @@ def _env(name: str, default):
 
 #: the Aggressive risk level (real money only). Every trade still has a stop; nothing is borrowed.
 AGGRESSIVE = {"risk_per_trade": 0.04, "max_position_pct": 0.50, "max_portfolio_heat": 0.20, "meme_risk_mult": 0.75,
-              "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 20, "extra_memes": 1,
+              "daily_loss": 0.10, "drawdown": 0.30, "floor": 0.35, "max_open_positions": 100, "extra_memes": 1,
               "bar_cut": 0.03, "day_lock_trigger": 0.04, "day_giveback": 0.6}
 #: the Bold risk level (real money only): bigger again. Tested on real price history it made a little more than
 #: Aggressive on unseen data, with clearly bigger worst losses. Every trade still has a stop; nothing is borrowed.
 BOLD = {"risk_per_trade": 0.06, "max_position_pct": 0.70, "max_portfolio_heat": 0.30, "meme_risk_mult": 0.75,
-        "daily_loss": 0.15, "drawdown": 0.40, "floor": 0.50, "max_open_positions": 20, "extra_memes": 2,
+        "daily_loss": 0.15, "drawdown": 0.40, "floor": 0.50, "max_open_positions": 100, "extra_memes": 2,
         "bar_cut": 0.04, "day_lock_trigger": 0.06, "day_giveback": 0.65}
 #: real-money risk levels above Normal
 PROFILES = {"aggressive": AGGRESSIVE, "bold": BOLD}
@@ -74,7 +74,7 @@ class RiskLimits:
     risk_per_trade: float = 0.015  # fraction of equity risked to the stop (1.5%)
     max_position_pct: float = 0.25  # max notional per symbol as fraction of equity
     max_gross_exposure: float = 1.0  # max total notional as multiple of equity
-    max_open_positions: int = 20  # trades open at once
+    max_open_positions: int = 100  # trades open at once (one per coin: the coins watched are the real limit)
     max_daily_loss_pct: float = 0.05  # kill switch trips beyond this daily loss
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30

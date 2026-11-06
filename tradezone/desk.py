@@ -538,7 +538,7 @@ class TradingDesk:
         allowed = {"small"} | ({"mid"} if stage >= 2 else set()) | ({"large"} if stage >= 3 else set())
         return {"on": s.focus_small_coins, "stage": stage, "allowed": sorted(allowed), "next_at": nxt,
                 "small_until": s.focus_small_until, "mid_until": s.focus_mid_until,
-                "max_positions": None, "equity": eq,  # (trades open at once: the risk level's limit, up to 20)
+                "max_positions": None, "equity": eq,  # (trades open at once: the risk level's limit, up to 100)
                 "coins": [x for x in s.symbols if s.coin_size(x) in allowed or x.split("-")[0] in s.always_trade],
                 "always": list(s.always_trade)}
 
