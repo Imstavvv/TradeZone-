@@ -122,3 +122,35 @@ def test_the_underwater_budget_shrinks_a_new_buy_to_fit():
     run(d.bus.drain())
     assert approved, rej
     assert approved[-1].qty * d.prices["SOL-USD"] <= 0.20 * d.portfolio.equity + 1e-6
+
+
+def test_trend_split_is_off_by_default():
+    d = make()
+    assert d.settings.trend_split_falling_size == 1.0 and d.settings.trend_split_rising_past_cap is False
+
+
+def test_trend_split_reads_each_coins_own_trend():
+    d = make()
+    feed(d, "SOL-USD", falling(150.0))
+    feed(d, "ETH-USD", falling(3_000.0, step=0.001))
+    feed(d, "BTC-USD", falling(60_000.0, n=50))
+    r = d.bots["risk"]
+    assert r._trend("SOL-USD") == "down" and r._trend("ETH-USD") == "up" and r._trend("BTC-USD") is None
+
+
+def test_trend_split_can_keep_out_of_a_falling_coin():
+    d = make(trend_split_falling_size=0.0)
+    feed(d, "SOL-USD", falling(150.0))
+    assert "clear downtrend" in (idea(d, "SOL-USD") or "")
+
+
+def test_a_rising_coin_may_pass_a_full_underwater_cap():
+    d = make(trend_split_rising_past_cap=True)
+    d.settings.loser_cap = 0.15
+    d.portfolio.positions["BTC-USD"] = Position(symbol="BTC-USD", qty=0.005, avg_price=60_000.0, last_price=50_000.0)
+    d.portfolio.cash -= 300.0
+    d.prices["BTC-USD"] = 50_000.0
+    feed(d, "SOL-USD", falling(150.0))
+    assert "underwater cap" in (idea(d, "SOL-USD") or "")  # a falling coin still waits
+    feed(d, "ETH-USD", falling(3_000.0, step=0.001))
+    assert "underwater cap" not in (idea(d, "ETH-USD") or "")  # a rising one goes

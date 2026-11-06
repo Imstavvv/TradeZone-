@@ -208,6 +208,12 @@ class Settings:
     falling_slope_bars: int = 60  # how far back the average's slope is measured
     falling_min_drop: float = 0.0  # how far below its average the price must be to count (0.002 = 0.2%)
     falling_market_share: float = 0.5  # "market": the share of coins falling that pauses buying
+    # ---- divide and conquer: each coin traded by its own trend (the 4-hour average above) ----
+    # a coin in a clear uptrend (above its rising 4-hour average) may be bought even while the underwater cap is
+    # full; a coin in a clear downtrend (below its falling average) is bought at this share of the usual size
+    # (0 = not at all); everything else as usual. Off by default: 1.0 and False change nothing.
+    trend_split_falling_size: float = 1.0
+    trend_split_rising_past_cap: bool = False
     stack_daily_pct: float = 0.01  # budget: 1% of the trading balance a day...
     stack_daily_usd: float = 0.0  # ...or exactly this many dollars a day (0 = use the percentage)
     stack_profit_share: float = 0.25  # ...plus this share of every winning trade's profit

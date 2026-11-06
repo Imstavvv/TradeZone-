@@ -101,6 +101,23 @@ class RiskBot(Bot):
         avg_then = sum(xs[-w - lag:len(xs) - lag]) / w
         return xs[-1] < avg_now * (1 - st.falling_min_drop) and avg_now < avg_then
 
+    def _trend(self, symbol: str) -> str | None:
+        """'up' (above a rising 4-hour average), 'down' (below a falling one), 'flat', or None (too little history)."""
+        st = self.settings
+        px = self.long_px.get(symbol)
+        w, k = st.falling_window, st.falling_slope_bars
+        if not px or len(px) < w + 1:
+            return None
+        xs = list(px)
+        lag = min(k, len(xs) - w)
+        now_avg = sum(xs[-w:]) / w
+        then_avg = sum(xs[-w - lag:len(xs) - lag]) / w
+        if xs[-1] > now_avg and now_avg > then_avg:
+            return "up"
+        if xs[-1] < now_avg and now_avg < then_avg:
+            return "down"
+        return "flat"
+
     def falling_block(self, symbol: str) -> str | None:
         st = self.settings
         if st.falling_guard == "coin" and self._falling(symbol):
@@ -218,7 +235,10 @@ class RiskBot(Bot):
             return self.reject(sig, "trading paused")
         if sig.side is Side.BUY and not sig.force and (why := self.falling_block(sig.symbol)):
             return self.reject(sig, why)  # (dip adds and buy-backs too: no catching a falling knife)
-        if sig.side is Side.BUY and (why := self.desk.underwater_block()):
+        rising_pass = sig.side is Side.BUY and self.settings.trend_split_rising_past_cap and self._trend(sig.symbol) == "up"
+        if sig.side is Side.BUY and self.settings.trend_split_falling_size <= 0 and self._trend(sig.symbol) == "down":
+            return self.reject(sig, f"{sig.symbol} is in a clear downtrend - no new buys of it until it turns")
+        if sig.side is Side.BUY and not rising_pass and (why := self.desk.underwater_block()):
             return self.reject(sig, why)  # (before the Dip Buyer's adds: averaging down counts too)
         if sig.qty and sig.source == "flipper" and sig.side is Side.BUY and pos.qty > 0:
             return self._buy_back(sig, price)  # the Flipper buying back a slice it sold higher
@@ -379,6 +399,8 @@ class RiskBot(Bot):
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
         budget_left = float("inf")
+        if sig.side is Side.BUY and 0 < s.trend_split_falling_size < 1 and self._trend(sig.symbol) == "down":
+            qty *= s.trend_split_falling_size  # a coin in a clear downtrend: a smaller bet
         if s.underwater_budget > 0 and sig.side is Side.BUY:  # the new trade starts below break-even too
             left = budget_left = equity * s.underwater_budget - self.desk.underwater_cost()
             if left <= 0:
