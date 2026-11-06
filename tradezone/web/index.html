@@ -1373,6 +1373,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap</b><span id="setLcSub">No new buys while trades below break-even tie up 15% of the balance</span></div><button id="setLcBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (20%)</b><span id="setLfSub">A trade 20% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
+          <div class="srow"><div class="ic">📉</div><div class="tx"><b id="setFgTxt">Falling-market guard: ON</b><span id="setFgSub">No new buys of a coin while it's falling</span></div><button id="setFgBtn">Turn off</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
           <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>Light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
         </div>
@@ -2786,6 +2787,7 @@ function renderSimple(st){
   renderNeverSell(st);
   renderLoserCap(st);
   renderLossFloor(st);
+  renderFallingGuard(st);
   renderProtocol(st.protocol);
 }
 function renderProtocol(pr){
@@ -2794,7 +2796,7 @@ function renderProtocol(pr){
   $('protoN').textContent = `${done} of ${pr.steps.length} done`;
   const nice = {strategies: 'strategies', snipe: 'meme breakout snipes', surge_snipe: 'volume snipes', pullback: 'Pullback Hunter', flipper: 'Flipper',
     accumulate: 'accumulating', flip_bank_fraction: 'quick-flip slices', flip_max_skims: 'skims', maker_exits: 'maker exits', fee_rule_stops: 'fee rule on stops',
-    never_sell_at_loss: 'never sell at a loss', loser_cap: 'underwater cap', loser_cap_depth: 'underwater cap depth', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
+    never_sell_at_loss: 'never sell at a loss', loser_cap: 'underwater cap', falling_guard: 'falling-market guard', loser_cap_depth: 'underwater cap depth', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
   setHTML($('protoSteps'), pr.steps.map((x, i) => `<div class="pstep ${x.done ? 'done' : ''}"><span class="ok">${x.done ? '✅' : ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'][i]}</span>
     <div><b>${esc(x.title)}</b><div class="q">${esc(x.text)}${x.key === 'best' && pr.off.length ? ': ' + pr.off.map(o => esc(nice[o.key] || o.key) + (o.server ? ' (set on the server)' : '')).join(', ') : ''}</div></div></div>`).join(''));
   if (document.activeElement !== $('protoCap')) $('protoCap').value = pr.cap ? String(pr.cap) : '';
@@ -2838,6 +2840,21 @@ $('setLfBtn').onclick = async () => {
                  : 'With never-sell on, losing trades will be held however far they fall - a coin that keeps falling can tie up your money for a long time, or go to zero.';
   if (!await ask(on ? 'Turn the loss floor on?' : 'Turn the loss floor off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
   try { await api('/api/loss-floor', {on}); toast(on ? 'Loss floor: on (20%)' : 'Loss floor: off'); } catch {}
+};
+function renderFallingGuard(st){
+  const on = (st.falling_guard || 'off') !== 'off';
+  $('setFgTxt').textContent = `Falling-market guard: ${on ? 'ON' : 'OFF'}`;
+  $('setFgSub').textContent = on
+    ? "No new buys of a coin while it's below its 4-hour average and that average is falling. Selling, stops and your own buys are never blocked. Tested: better when prices rise, fall or go sideways"
+    : 'New buys whatever the trend';
+  $('setFgBtn').textContent = on ? 'Turn off' : 'Turn on';
+}
+$('setFgBtn').onclick = async () => {
+  const on = (S.state && S.state.falling_guard || 'off') === 'off';
+  const msg = on ? "The bots won't open a new trade in a coin while it's below its 4-hour average and that average is falling. Tested on real price history: a little more profit when prices rise, a little less lost when they fall or go sideways."
+                 : 'The bots will buy whatever the trend, including coins that are clearly falling.';
+  if (!await ask(on ? 'Turn the falling-market guard on?' : 'Turn the falling-market guard off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
+  try { await api('/api/falling-guard', {on}); toast(on ? 'Falling-market guard: on' : 'Falling-market guard: off'); } catch {}
 };
 function renderLoserCap(st){
   const c = st.loser_cap; if (!c) return;

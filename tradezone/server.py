@@ -560,6 +560,14 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         audit(request, f"loss floor: {'on' if body.on else 'off'}", "warning")
         return out
 
+    @app.post("/api/falling-guard", dependencies=[Depends(check_token)])
+    async def falling_guard(body: StrategyBody, request: Request):
+        out = desk.set_falling_guard(body.on)
+        for d in desk.fleet.desks.values():
+            d.set_falling_guard(body.on)
+        audit(request, f"falling-market guard: {'on' if body.on else 'off'}", "warning")
+        return out
+
     @app.post("/api/loser-cap", dependencies=[Depends(check_token)])
     async def loser_cap(body: StrategyBody, request: Request):
         out = desk.set_loser_cap(body.on)

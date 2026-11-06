@@ -91,15 +91,12 @@ class RiskBot(Bot):
         st = self.settings
         px = self.long_px.get(symbol)
         w, k = st.falling_window, st.falling_slope_bars
-        if not px or len(px) < max(30, w // 4) + 2:
+        if not px or len(px) < w + 1:  # judged on too little history it did worse: wait for the full window
             return None
         xs = list(px)
-        n = min(w, len(xs) - min(k, len(xs) // 2))
-        if n < 10:
-            return None
-        avg_now = sum(xs[-n:]) / n
-        lag = min(k, len(xs) - n)
-        avg_then = sum(xs[-n - lag:len(xs) - lag]) / n
+        lag = min(k, len(xs) - w)
+        avg_now = sum(xs[-w:]) / w
+        avg_then = sum(xs[-w - lag:len(xs) - lag]) / w
         return xs[-1] < avg_now * (1 - st.falling_min_drop) and avg_now < avg_then
 
     def falling_block(self, symbol: str) -> str | None:

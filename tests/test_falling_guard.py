@@ -38,11 +38,20 @@ def idea(desk, sym, side=Side.BUY, force=False):
     return out[-1]["reason"] if out else None
 
 
-def test_off_by_default():
+def test_on_by_default_as_part_of_the_tested_best_settings():
     d = make()
-    assert d.settings.falling_guard == "off"
+    assert d.settings.falling_guard == "coin" and d.BEST["falling_guard"] == "coin"
+    assert "falling_guard" not in [x["key"] for x in d.protocol_status()["off"]]
+
+
+def test_switched_off_it_never_blocks_and_the_choice_is_saved():
+    d = make()
+    d.set_falling_guard(False)
+    assert d.settings.falling_guard == "off" and d.store.load("falling_guard") == {"mode": "off"}
     feed(d, "SOL-USD", falling(150.0))
     assert "downtrend" not in (idea(d, "SOL-USD") or "")
+    d.set_falling_guard(True)
+    assert d.settings.falling_guard == "coin"
 
 
 def test_coin_mode_blocks_buys_in_a_downtrend_and_allows_them_in_an_uptrend():
@@ -55,7 +64,7 @@ def test_coin_mode_blocks_buys_in_a_downtrend_and_allows_them_in_an_uptrend():
 
 def test_too_little_history_never_blocks():
     d = make(falling_guard="coin")
-    feed(d, "SOL-USD", falling(150.0, n=20))
+    feed(d, "SOL-USD", falling(150.0, n=200))  # under the full 4 hours
     assert "downtrend" not in (idea(d, "SOL-USD") or "")
 
 

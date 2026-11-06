@@ -198,9 +198,11 @@ class Settings:
     # manage that position like any other; they just never open a new trade in it.
     stack_only_coins: list[str] = field(default_factory=lambda: ["XCN"])
     # ---- falling-market guard: no new buys while prices are clearly falling ----
-    # "off" | "coin" (that coin is below its long average and the average is sloping down) |
-    # "market" (most watched coins are doing that at once). Exits and stops are never affected.
-    falling_guard: str = "off"
+    # "off" | "coin" (that coin is below its 4-hour average and the average is sloping down) |
+    # "market" (most watched coins are doing that at once). Exits, stops and your own buys are never affected.
+    # Tested on real price history (300 bars loaded first, as the app does) in rising, falling and sideways
+    # markets: "coin" did better in all three on both halves of the data; it waits for a full 4 hours of prices.
+    falling_guard: str = "coin"
     falling_window: int = 240  # bars (1-minute) behind the long average
     falling_slope_bars: int = 60  # how far back the average's slope is measured
     falling_min_drop: float = 0.0  # how far below its average the price must be to count (0.002 = 0.2%)

@@ -852,6 +852,8 @@ class TradingDesk:
             self.settings.max_loss_pct = float(lf.get("pct", 0.0))
         if (lc := self.store.load("loser_cap")) is not None and "TZ_LOSER_CAP" not in os.environ:
             self.settings.loser_cap = float(lc.get("cap", 0.0))
+        if (fg := self.store.load("falling_guard")) is not None and "TZ_FALLING_GUARD" not in os.environ:
+            self.settings.falling_guard = str(fg.get("mode", "off"))
         for k, on in (self.store.load("finders") or {}).items():
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
@@ -1029,7 +1031,8 @@ class TradingDesk:
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.15,
-        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20}
+        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20,
+        "falling_guard": "coin"}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()
@@ -1081,6 +1084,7 @@ class TradingDesk:
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap})
         self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
+        self.store.save("falling_guard", {"mode": self.settings.falling_guard})
         self.store.save("protocol", {"best": True, "ts": time.time()})
         self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
         return self.protocol_status()
@@ -1112,6 +1116,15 @@ class TradingDesk:
             f"ON - a trade {self.settings.max_loss_pct:.0%} below what was paid is sold" if on
             else "OFF - with never-sell on, losing trades are held however far they fall"), "operator"))
         return {"max_loss_pct": self.settings.max_loss_pct}
+
+    def set_falling_guard(self, on: bool) -> dict:
+        """The falling-market guard on (no new buys of a coin in a downtrend) or off."""
+        self.settings.falling_guard = str(self.BEST["falling_guard"]) if on else "off"
+        self.store.save("falling_guard", {"mode": self.settings.falling_guard})
+        self.bus.publish("alert", Alert("info", "Falling-market guard: " + (
+            "ON - no new buys of a coin while it's below its 4-hour average and that average is falling"
+            if on else "OFF - new buys whatever the trend"), "operator"))
+        return {"falling_guard": self.settings.falling_guard}
 
     def set_loser_cap(self, on: bool) -> dict:
         """The underwater cap on (the tested 15%) or off (new buys whatever is held below break-even)."""
@@ -1397,6 +1410,7 @@ class TradingDesk:
             "never_sell_at_loss": self.settings.never_sell_at_loss,
             "loser_cap": self.loser_cap_status(),
             "max_loss_pct": self.settings.max_loss_pct,
+            "falling_guard": self.settings.falling_guard,
             "day_trades": self.day_trade_status(),
             "protocol": self.protocol_status(),
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
