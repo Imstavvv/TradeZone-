@@ -221,7 +221,8 @@ class ExecutionBot(Bot):
                     order.status = OrderStatus.CANCELED
                     self.publish("order.update", order)
                     await self._maker_fallback(order)
-            elif now() - self._submitted_at.get(oid, now()) > self.ORDER_TIMEOUT_S:
+            elif not order.maker and now() - self._submitted_at.get(oid, now()) > self.ORDER_TIMEOUT_S:
+                # (a resting maker order is never just dropped here: its own wait above hands the rest to market)
                 await self.desk.broker.cancel(order)
                 late = await self.desk.broker.poll(order)  # it may have filled while we waited: never lose a fill
                 self._emit(order, late)

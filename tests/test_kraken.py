@@ -525,6 +525,26 @@ def test_real_money_buys_wait_at_the_bid_for_the_lower_maker_fee():
     assert pos.avg_price == pytest.approx(bid, rel=1e-6)  # bought at the bid, not the ask
 
 
+def test_a_longer_maker_wait_than_the_order_timeout_still_buys_at_market_in_the_end():
+    # the general 60 s order timeout used to drop a resting bid with no market fallback: the buy was lost
+    fk, desk = live_kraken()
+    fk.limit_fills = False
+    desk.settings.maker_wait_s = 180.0
+    exe = desk.bots["execution"]
+    pos = kbuy(desk)
+    for o in exe.working.values():
+        exe._submitted_at[o.id] -= 90  # past the 60 s timeout, inside the 180 s wait
+    run(exe.on_cycle())
+    run(desk.bus.drain())
+    assert pos.is_flat and exe.working  # still waiting at the bid, not dropped
+    for o in exe.working.values():
+        exe._submitted_at[o.id] -= 200
+    run(exe.on_cycle())
+    run(desk.bus.drain())
+    assert pos.qty > 0 and fk.ordertypes[-1] == "market" and exe.metrics["maker_fallbacks"] == 1
+    assert check(desk) == [] and not desk.paused
+
+
 def test_a_bid_that_isnt_filled_in_time_is_bought_at_market():
     fk, desk = live_kraken()
     fk.limit_fills = False
