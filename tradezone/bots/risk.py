@@ -376,6 +376,12 @@ class RiskBot(Bot):
         qty = min(qty, equity * cap / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
+        if s.underwater_budget > 0 and sig.side is Side.BUY:  # the new trade starts below break-even too
+            left = equity * s.underwater_budget - self.desk.underwater_cost()
+            if left <= 0:
+                return self.reject(sig, f"underwater budget: {s.underwater_budget:.0%} of the balance is already in "
+                                        "trades below break-even - no new buys until some recover")
+            qty = min(qty, left / price)
         # buys need cash; a short needs the same amount set aside (no borrowing to make bets bigger)
         qty = min(qty, self.desk.free_cash() * 0.995 / price)
         # portfolio heat: total money at risk to all stops stays under the cap
@@ -449,6 +455,8 @@ class RiskBot(Bot):
         if s.is_meme(sig.symbol) and s.never_sell_at_loss:
             cap *= s.never_sell_meme_size
         room = equity * cap - abs(pos.qty) * price  # the trade never grows past the normal biggest position
+        if s.underwater_budget > 0:  # averaging down adds to what's below break-even
+            room = min(room, equity * s.underwater_budget - self.desk.underwater_cost())
         spare = self.desk.free_cash() - s.dip_keep_cash * equity  # and a share of the balance stays in cash
         qty = self._round_qty(min(sig.qty or 0.0, max(room, 0.0) / price, max(spare, 0.0) * 0.995 / price), price)
         least = self.desk.broker.min_qty(sig.symbol, price)

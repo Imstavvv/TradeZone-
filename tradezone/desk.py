@@ -560,14 +560,18 @@ class TradingDesk:
     def _mkt_ts(self) -> float:
         return getattr(self, "_last_tick_ts", 0.0) or time.time()
 
+    def underwater_cost(self, grace: bool = False) -> float:
+        """What was paid for the open trades now held below break-even after fees."""
+        return sum(abs(x.qty * x.avg_price) for x in self.portfolio.open_positions
+                   if (px := self.prices.get(x.symbol)) and self._underwater(x, px) and (not grace or self._past_grace(x)))
+
     def underwater_block(self) -> str | None:
         """The underwater cap: why new buys wait (too much is tied up in trades held below break-even), or None."""
         s = self.settings
         if s.loser_cap <= 0:
             return None
         p = self.portfolio
-        stuck = sum(abs(x.qty * x.avg_price) for x in p.open_positions
-                    if (px := self.prices.get(x.symbol)) and self._underwater(x, px) and self._past_grace(x))
+        stuck = self.underwater_cost(grace=True)
         equity = max(p.equity, 1e-9)
         if stuck >= s.loser_cap * equity:
             return (f"underwater cap: {stuck / equity:.0%} of the balance is in trades held below break-even "

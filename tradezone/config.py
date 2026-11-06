@@ -310,6 +310,10 @@ class Settings:
     # a brand-new trade starts below break-even (it hasn't earned back its fees yet): it only counts toward the
     # cap once it has been open this many minutes (0 = from the start)
     loser_cap_grace_min: float = 0.0
+    # underwater budget: a new buy is made smaller so that trades below break-even - counting the new one, which
+    # starts there - never tie up more than this share of the balance (0 = off; the cap above only checks what
+    # is already stuck, so one big trade could land on top of it)
+    underwater_budget: float = 0.0
     dip_step_pct: float = 0.06  # at least this far below the average price paid (meme coins: twice as far)...
     dip_add_fraction: float = 0.5  # ...buy this share of what's held...
     dip_max_adds: int = 2  # ...at most this many times per trade...
