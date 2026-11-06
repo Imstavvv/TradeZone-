@@ -138,6 +138,10 @@ class TradingDesk:
         self.goal: dict = {}
         for topic in ("market.snapshot", "signal.proposed", "signal.rejected", "order.held", "trade.log"):
             self.bus.subscribe(topic, self._count_hunt, owner="desk")
+        # the US day-trade rule (stocks, under $25,000): what was bought today, and the day trades made
+        self.day_trades: dict[str, list[float]] = {"paper": [], "live": []}
+        self._bought_on: dict[str, dict[str, str]] = {"paper": {}, "live": {}}
+        self.bus.subscribe("trade.log", self._track_day_trades, owner="desk")
         from .persistence import StateStore
 
         self.store = StateStore(self.journal)
@@ -565,6 +569,73 @@ class TradingDesk:
                 f"${need:,.0f} (now ${f['equity']:,.2f})")
 
     # -- shorting: only where it really works -----------------------------------------
+    # -- the US day-trade rule: stocks, accounts under $25,000 -----------------------------------
+    PDT_EQUITY = 25_000.0
+    PDT_LIMIT = 3  # day trades allowed in 5 trading days
+
+    @staticmethod
+    def _ny_day(ts: float) -> str:
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        return datetime.fromtimestamp(ts, ZoneInfo("America/New_York")).date().isoformat()
+
+    def _track_day_trades(self, ev) -> None:
+        p = ev.payload
+        sym, ts = p.get("symbol", ""), float(p.get("ts") or time.time())
+        if not sym or self.settings.is_crypto(sym):
+            return
+        mode = p.get("mode") or self.mode
+        day = self._ny_day(ts)
+        bought = self._bought_on.setdefault(mode, {})
+        if p.get("action") in ("open", "add", "flip"):
+            if p.get("action") == "flip" and bought.get(sym) == day:
+                self._log_day_trade(mode, ts)
+            bought[sym] = day
+        elif p.get("action") in ("close", "partial", "reduce") and bought.get(sym) == day:
+            self._log_day_trade(mode, ts)
+        self.store.save("day_trades", {"trades": self.day_trades, "bought": self._bought_on})
+
+    def _log_day_trade(self, mode: str, ts: float) -> None:
+        self.day_trades.setdefault(mode, []).append(ts)
+        self.day_trades[mode] = [t for t in self.day_trades[mode] if t > ts - 10 * 86_400][-50:]
+
+    def day_trades_used(self, mode: str | None = None) -> int:
+        """Day trades in the last 5 trading days (ours, or Alpaca's own count when it's higher)."""
+        from datetime import date, timedelta
+        mode = mode or self.mode
+        today = date.fromisoformat(self._ny_day(time.time()))
+        days, d, n = [today.isoformat()], today, int(today.weekday() < 5)  # (today always, even a weekend)
+        while n < 5:
+            d -= timedelta(days=1)
+            if d.weekday() < 5:
+                days.append(d.isoformat())
+                n += 1
+        ours = sum(self._ny_day(t) in days for t in self.day_trades.get(mode, []))
+        theirs = getattr(self.live_broker, "day_trades", None) if mode == "live" and self.is_live else None
+        return max(ours, theirs or 0)
+
+    def day_trade_status(self) -> dict:
+        s = self.settings
+        applies = s.day_trade_guard and s.venue() == "alpaca" and self.portfolio.equity < self.PDT_EQUITY \
+            and any(not s.is_crypto(x) for x in s.symbols)
+        return {"applies": applies, "used": self.day_trades_used(), "limit": self.PDT_LIMIT, "bots": s.day_trades_for_bots}
+
+    def day_trade_block(self, symbol: str, force: bool = False) -> str | None:
+        """Why the bots won't sell ``symbol`` today (it would be a day trade past their share), or None."""
+        s = self.settings
+        if force or not s.day_trade_guard or s.is_crypto(symbol) or s.venue() != "alpaca":
+            return None
+        if self.portfolio.equity >= self.PDT_EQUITY:
+            return None
+        if self._bought_on.get(self.mode, {}).get(symbol) != self._ny_day(time.time()):
+            return None  # bought on an earlier day: selling it isn't a day trade
+        used = self.day_trades_used()
+        if used < s.day_trades_for_bots:
+            return None
+        return (f"day-trade rule: {used} of {self.PDT_LIMIT} day trades used in 5 trading days (balance under "
+                f"$25,000) - {symbol} was bought today, so it sells from the next trading day; the last one is "
+                "kept for your Close all / Emergency stop")
+
     def short_block(self, symbol: str) -> str | None:
         """Why the bots may NOT short ``symbol`` here, or None when they may."""
         s = self.settings
@@ -737,6 +808,9 @@ class TradingDesk:
             self.settings.live_max_capital = float(cap.get("usd", 0.0))
         if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
             self.settings.never_sell_at_loss = bool(ns.get("on"))
+        if (dt := self.store.load("day_trades")) is not None:
+            self.day_trades = {k: list(v) for k, v in (dt.get("trades") or {}).items()} or self.day_trades
+            self._bought_on = {k: dict(v) for k, v in (dt.get("bought") or {}).items()} or self._bought_on
         if (lc := self.store.load("loser_cap")) is not None and "TZ_LOSER_CAP" not in os.environ:
             self.settings.loser_cap = float(lc.get("cap", 0.0))
         for k, on in (self.store.load("finders") or {}).items():
@@ -1270,6 +1344,7 @@ class TradingDesk:
             "strategies": self.strategy_info(),
             "never_sell_at_loss": self.settings.never_sell_at_loss,
             "loser_cap": self.loser_cap_status(),
+            "day_trades": self.day_trade_status(),
             "protocol": self.protocol_status(),
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
                              "pct": ((p.last_price or p.avg_price) / p.avg_price - 1) * (1 if p.qty > 0 else -1)}

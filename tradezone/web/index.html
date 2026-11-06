@@ -762,6 +762,11 @@ button.ghost:hover{color:var(--text)}
 .actions2 button{font-size:12.5px;letter-spacing:1.4px}
 @media (max-width:700px){.actions2 button{font-size:11px;letter-spacing:.7px;padding:6px 4px}.sheet .row button{font-size:13px}}
 .banner{border-radius:4px;border-left-width:3px;letter-spacing:.2px}
+/* ---- the overview's account tabs ---- */
+.acctwrap{min-width:0}
+.acctpick{margin:0 0 10px;flex-wrap:wrap}
+.acctpick .tab{font-size:11px;padding:6px 12px}
+@media (max-width:700px){.acctpick{flex-wrap:nowrap;overflow-x:auto;margin:0 -12px 10px;padding:0 12px}}
 /* ---- the Open tab ---- */
 .opensum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
 .opensum div{border:1px solid var(--line);border-radius:5px;background:rgba(0,229,255,.04);padding:8px 10px;min-width:0}
@@ -1047,6 +1052,7 @@ button.ghost:hover{color:var(--text)}
     <div class="pagehead" data-page="trades"><h2>📈 Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
     <div class="pagehead" data-page="money"><h2>💰 Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
     <div class="pagehead" data-page="settings"><h2>⚙️ Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
+    <div class="acctwrap" data-page="home"><div class="tabs acctpick" id="acctPick" hidden aria-label="Show account"></div></div>
     <div class="hero" data-page="home">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
@@ -1058,7 +1064,8 @@ button.ghost:hover{color:var(--text)}
       <div class="power" id="sPower"></div>
       <div class="goal" id="sGoal"></div>
       <div class="statusline" id="sStatus"><span class="led"></span><span id="sStatusText">Connecting…</span></div>
-      <div class="actions2">
+      <div class="actions2" id="sAcctBtns" hidden></div>
+      <div class="actions2" id="sMainBtns">
         <button id="sPause">Pause trading</button>
         <button id="sClose">Close all trades</button>
         <button id="sStop" class="danger">Emergency stop</button>
@@ -2291,12 +2298,71 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
     default: return null;
   }
 }
+// ---- the overview, for one account or all of them (Home: the tabs above the balance) ----
+try { S.acct = localStorage.getItem('tz_acct') || 'main'; } catch { S.acct = 'main'; }
+function renderOverview(st){
+  const rows = st.accounts || [], pick = $('acctPick');
+  if (rows.length < 2) { pick.hidden = true; S.acct = 'main'; }
+  else {
+    pick.hidden = false;
+    if (S.acct !== 'all' && !rows.some(r => r.id === S.acct)) S.acct = 'main';
+    setHTML(pick, [['all', 'All accounts'], ...rows.map(r => [r.id, r.label + (r.mode === 'live' ? ' ●' : '')])]
+      .map(([v, l]) => `<span class="tab ${S.acct === v ? 'on' : ''}" data-v="${esc(v)}">${esc(l)}</span>`).join(''));
+  }
+  const main = S.acct === 'main';
+  ['sPower', 'sGoal', 'sMainBtns', 'sBadges'].forEach(id => { $(id).hidden = !main; });  // (the main account's)
+  $('sAcctBtns').hidden = main;
+  if (main) return;
+  const all = S.acct === 'all', sel = all ? rows : rows.filter(r => r.id === S.acct), a = sel[0] || {};
+  const sum = k => sel.reduce((t, r) => t + (r[k] || 0), 0);
+  const eq = sum('equity'), today = sum('pnl_today'), total = sum('pnl_total'), live = sel.filter(r => r.mode === 'live');
+  const open = sel.flatMap(r => (r.positions || []).map(x => ({...x, acct_label: r.label})));
+  $('sMode').textContent = all ? '🗂️ All accounts' : `${a.mode === 'live' ? '💵' : '🧪'} ${a.label}`;
+  $('sModeHint').textContent = all ? `${rows.length} accounts${live.length ? ` · ${live.length} on real money (${money(live.reduce((t, r) => t + r.equity, 0))})` : ' · all on practice money'}`
+    : `${a.mode === 'live' ? 'real money' : 'practice money'}${a.venue_label ? ' · ' + a.venue_label : ''}`;
+  countTo($('sBal'), eq);
+  const base = eq - today;
+  $('sToday').innerHTML = `<span class="${cls(today)}">${today >= 0 ? '▲ +' : '▼ -'}${money(Math.abs(today))} today (${today >= 0 ? '+' : ''}${pct(base > 0 ? today / base : 0)})</span>`;
+  $('sSince').textContent = `${total >= 0 ? 'Up' : 'Down'} ${money(Math.abs(total))} since ${all ? 'they' : 'it'} started`;
+  $('sStack').style.display = all && st.stack && st.stack.value > 0 ? '' : 'none';
+  let txt, kind = '';
+  if (all) {
+    const halted = sel.filter(r => r.halted).length, paused = sel.filter(r => r.paused && !r.halted).length;
+    txt = `${sel.length - halted - paused} trading${paused ? `, ${paused} paused` : ''}${halted ? `, ${halted} stopped` : ''} · ${open.length} open trade${open.length === 1 ? '' : 's'} in all`;
+    kind = halted ? 'stop' : paused ? 'warn' : '';
+  } else if (a.halted) { txt = `Stopped${a.halt_reason ? ` (${a.halt_reason})` : ''}. No new trades until you restart it.`; kind = 'stop'; }
+  else if (a.paused) { txt = 'Paused. Its open trades keep their safety stops.'; kind = 'warn'; }
+  else if (!a.feed_ok) { txt = 'Waiting for market prices…'; kind = 'warn'; }
+  else {
+    const dt = a.day_trades && a.day_trades.applies ? ` · ${a.day_trades.used} of ${a.day_trades.limit} day trades used this week` : '';
+    txt = `Its bots are trading${open.length ? ` with ${open.length} open trade${open.length > 1 ? 's' : ''}` : ''}${dt}.`;
+  }
+  $('sStatus').className = 'statusline ' + kind; $('sStatusText').textContent = txt;
+  setHTML($('sAcctBtns'), all ? `<button data-acc="pause" data-id="all">Pause all</button><button data-acc="resume" data-id="all">Resume all</button><button class="danger" data-acc="kill" data-id="all">Stop all accounts</button>`
+    : accBtns(a));
+  $('sOpenN').textContent = open.length ? `${open.length} open` : '';
+  $('sOpen').innerHTML = open.length ? ptradeRows(open, all)
+    : `<div class="emptyhint">No open trades ${all ? 'in any account' : 'in this account'} right now.</div>`;
+}
+// one row per open trade (the home card; with an account name when several are shown together)
+function ptradeRows(list, named){
+  return list.map(x => {
+    const upl = x.unrealized_pnl, cost = Math.abs(x.qty * x.avg_price), r = cost ? upl / cost : 0;
+    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
+    const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
+      : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
+    return `<div class="ptrade"><div class="s">${esc(x.symbol)}${named && x.acct_label ? ` <span class="accbadge">${esc(x.acct_label)}</span>` : ''}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
+      <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (profits if it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
+      <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
+      ${prot ? `<div class="d full">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
+  }).join('');
+}
 function renderSimple(st){
   if (S.view !== 'simple' || !st) return;
   const p = st.portfolio, live = st.mode === 'live';
   $('sMode').textContent = live ? '💵 Real money' : '🧪 Practice money';
   $('sModeHint').textContent = live ? 'trading your broker account' : 'live prices, nothing real at risk';
-  countTo($('sBal'), p.equity);
+  if (S.acct === 'main' || (st.accounts || []).length < 2) countTo($('sBal'), p.equity);  // (another account: renderOverview)
   renderTicker(st);
   renderBadges(st);
   const today = p.equity * p.daily_pnl_pct / (1 + p.daily_pnl_pct);
@@ -2322,16 +2388,8 @@ function renderSimple(st){
   $('sLive').disabled = false;  // always tappable: the dialog explains anything missing, with a Connect shortcut
   $('sLive').title = '';
   // open trades
-  $('sOpen').innerHTML = n ? p.positions.map(x => {
-    const upl = x.unrealized_pnl, cost = Math.abs(x.qty * x.avg_price), r = cost ? upl / cost : 0;
-    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
-    const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
-      : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
-    return `<div class="ptrade"><div class="s">${esc(x.symbol)}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
-      <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (profits if it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
-      <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
-      ${prot ? `<div class="d full">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
-  }).join('') : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';
+  $('sOpen').innerHTML = n ? ptradeRows(p.positions) : '<div class="emptyhint">No open trades right now. The bots only buy when the whole team agrees it\'s a good chance.</div>';
+  renderOverview(st);
   // what's happening (plain English, newest first, no repeats)
   const lines = [], seen = new Set();
   for (let i = STREAM.items.length - 1; i >= 0 && lines.length < 7; i--) {
@@ -2457,7 +2515,7 @@ function renderStack(k){
       (k.next ? ` · next: ${k.next.symbol.split('-')[0]} once it reaches ${money(k.next.at)}` : '') +
       (k.sitting_out || []).map(x => ` · ${x.symbol.split('-')[0]} sits out until ${new Date(x.until * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}: ${x.why}`).join('');
   $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
-  const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';
+  const hs = $('sStack'); hs.style.display = k.value > 0 && (S.acct === 'main' || S.acct === 'all') ? '' : 'none';  // (the main account's stack)
   if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack`;
 }
 document.getElementById('sec-stack').addEventListener('click', async e => {
@@ -2594,11 +2652,7 @@ document.querySelectorAll('.sheet').forEach(sh => sh.addEventListener('click', e
 // ---- connect a real-money broker ----
 let VENUE = 'uphold';
 // ---- several accounts at once: one card each, its own balance and its own LIVE switch ----
-function accCard(a){
-  const state = a.halted ? '<span class="accbadge stop">stopped</span>' : a.paused ? '<span class="accbadge">paused</span>'
-    : a.mode === 'live' ? '<span class="accbadge live">● LIVE</span>' : '<span class="accbadge">practice</span>';
-  const ex = a.exchange && a.exchange.cash != null ? `${esc(a.venue_label)} says: ${money(a.exchange.cash)} cash${a.exchange.equity != null ? ' · ' + money(a.exchange.equity) + ' total' : ''}` : '';
-  const pnl = a.pnl_today || 0;
+function accBtns(a){
   const id = esc(a.id);
   let btns = '';
   if (a.main) btns = `<button data-acc="manage" data-id="main">${a.linked ? 'Manage' : 'Connect'}</button>`;
@@ -2609,6 +2663,15 @@ function accCard(a){
     if (!a.halted) btns += `<button class="danger" data-acc="kill" data-id="${id}">Stop</button>`;
     if (a.mode !== 'live') btns += `<button class="ghost" data-acc="remove" data-id="${id}">Remove</button>`;
   }
+  return btns;
+}
+function accCard(a){
+  const state = a.halted ? '<span class="accbadge stop">stopped</span>' : a.paused ? '<span class="accbadge">paused</span>'
+    : a.mode === 'live' ? '<span class="accbadge live">● LIVE</span>' : '<span class="accbadge">practice</span>';
+  const ex = a.exchange && a.exchange.cash != null ? `${esc(a.venue_label)} says: ${money(a.exchange.cash)} cash${a.exchange.equity != null ? ' · ' + money(a.exchange.equity) + ' total' : ''}` : '';
+  const pnl = a.pnl_today || 0;
+  const id = esc(a.id);
+  const btns = accBtns(a);
   return `<div class="acc ${a.mode === 'live' ? 'live' : ''}"><div class="top"><span class="nm">${esc(a.label)}</span>${state}</div>
     <div class="bal">${money(a.equity)}</div>
     <div class="meta"><span class="${pnl >= 0 ? 'up' : 'down'}">${pnl >= 0 ? '+' : ''}${money(pnl)} today</span> · ${money(a.cash)} cash · ${a.open} open trade${a.open === 1 ? '' : 's'}</div>
@@ -2632,7 +2695,7 @@ function openRows(st){
 function renderOpen(st){
   const all = openRows(st), n = all.length;
   document.querySelectorAll('[data-pg=open] .navn').forEach(b => { b.textContent = n || ''; });
-  $('sOpenN').textContent = n ? `${n} open in every account together` : '';
+  if (S.acct === 'main') $('sOpenN').textContent = n ? `${n} open in every account together` : '';
   if (S.page !== 'open' || S.view !== 'simple') return;
   const accts = [...new Map(all.map(x => [x.acct, x.acct_label])).entries()];
   if (OPEN.acct !== 'all' && !accts.some(([id]) => id === OPEN.acct)) OPEN.acct = 'all';
@@ -2677,7 +2740,7 @@ function renderAccounts(st){
   $('accTotals').textContent = rows.length > 1 ? `${rows.length} accounts${live.length ? ` · ${live.length} on real money: ${money(live.reduce((t, r) => t + r.equity, 0))}` : ''}` : '';
   $('accStopAll').style.display = rows.length > 1 ? '' : 'none';
 }
-$('accList').addEventListener('click', async e => {
+async function onAccButton(e){
   const b = e.target.closest('[data-acc]'); if (!b) return;
   const id = b.dataset.id, act = b.dataset.acc, a = (S.state.accounts || []).find(r => r.id === id) || {};
   if (act === 'manage') return openBroker();
@@ -2695,7 +2758,19 @@ $('accList').addEventListener('click', async e => {
   }
   if (act === 'kill' && !await ask(`Stop ${a.label}?`, 'Its open trades are closed at market and it stops trading until you restart it. Your other accounts keep going.', {ok: 'Stop', danger: true})) return;
   if (act === 'flatten' && !await ask(`Close ${a.label}'s trades?`, 'Its open trades are sold at market.', {ok: 'Close trades', danger: true})) return;
+  if (id === 'all') {
+    if (act === 'kill') return $('accStopAll').onclick();
+    try { const r = await api(`/api/fleet/all/control/${act}`, {}); toast(`${act === 'pause' ? 'Paused' : 'Resumed'} ${r.accounts} accounts`); } catch {}
+    return;
+  }
   try { await api(`/api/fleet/${id}/control/${act}`, {}); } catch {}
+}
+$('accList').addEventListener('click', onAccButton);
+$('sAcctBtns').addEventListener('click', onAccButton);
+$('acctPick').addEventListener('click', e => {
+  const t = e.target.closest('[data-v]'); if (!t) return;
+  S.acct = t.dataset.v; try { localStorage.setItem('tz_acct', S.acct); } catch {}
+  if (S.state) renderSimple(S.state);
 });
 $('accStopAll').onclick = async () => {
   if (!await ask('Stop ALL accounts?', 'Every account (the main one too) closes its open trades at market and stops trading until restarted.', {ok: 'Stop all', danger: true})) return;

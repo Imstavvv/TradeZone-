@@ -733,11 +733,31 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Growth ladder (smaller coins first on small balances) | on | `TZ_FOCUS_SMALL_COINS` |
 | Daily goal ($1,000, a floor not a ceiling) | on | `TZ_DAILY_GOAL_USD` |
 | "Never buy what can't be sold" checks | on | (always) |
-| Shorting | only where the account can (Alpaca margin, stocks) | `TZ_SHORTING` |
+| Shorting | **off** (tested: with never-sell on, shorts lost money) | `TZ_SHORTING` |
+| Alpaca: US stocks (SPY, QQQ, AAPL, NVDA, MSFT) next to its crypto | on, long only | `TZ_ALPACA_STOCKS` |
+| Day-trade rule (stocks, under $25,000: the bots use at most 2 of the 3 day trades allowed in 5 days) | on | `TZ_DAY_TRADE_GUARD` |
 | Quick-flip slices, skims, accumulating, profit sales at the ask, the fee rule on locked stops | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS`, `TZ_FEE_RULE_STOPS` |
 | Aggressive / Bold risk levels | opt-in | Settings → Your goal |
 
 The full list of settings, with every default, is in `.env.example`.
+
+### The Alpaca team: stocks next to crypto, no shorting, the day-trade rule
+
+A linked Alpaca account runs its own bot team on Alpaca's crypto **and five big US stocks/ETFs** (SPY, QQQ, AAPL, NVDA, MSFT: liquid, fractional, no commission). Stocks trade only in US market hours; crypto around the clock. Under a $1,000 balance the growth ladder keeps the team on smaller coins (stocks join from $1,000).
+
+Tested like everything else, on real price history in rising, falling and sideways markets ($2,000 account, 8 windows each, tuning half / unseen half). Only daily stock history was available here, replayed minute by minute at normal intraday stock volatility, so treat it as a careful estimate rather than proof:
+
+| Alpaca team | Rising | Falling | Sideways | All three |
+| --- | --- | --- | --- | --- |
+| Crypto only | +$907 / +$350 | −$747 / −$449 | +$8 / −$38 | +$168 / −$137 |
+| Crypto + stocks, with shorting | −$229 / −$113 | −$397 / −$143 | +$5 / +$20 | −$621 / −$236 |
+| **Crypto + stocks, no shorting** | +$962 / +$369 | −$832 / −$467 | +$41 / −$29 | **+$171 / −$127** |
+
+**Shorting is now off by default.** With never-sell-at-a-loss on, a short (a bet on a fall) that goes the wrong way is held while the price keeps rising, and that loss has no ceiling. Long-only stocks added a little over crypto alone, on both halves: more when prices rise or go sideways, a bit more lost when they fall.
+
+**The US day-trade rule.** Under $25,000, an account may make at most 3 day trades (buy and sell the same stock on the same day) in any 5 trading days; Alpaca refuses the 4th, and repeated breaches lock the account for 90 days. The bots count them (and use Alpaca's own count when it's higher) and stop at 2: after that, a stock bought today is sold from the next trading day, and the last day trade is kept for your own Close all / Emergency stop, which always go through. Crypto isn't covered by the rule.
+
+**The overview switch.** With more than one account linked, Home has tabs above the balance: *All accounts* (the total, today's change, how many are trading, paused or stopped, every open trade, and Pause / Resume / Stop all), *Main*, and one per linked account (its balance, status, day trades used, open trades and its own buttons). The choice is remembered on that device.
 
 ### Tested in rising, falling and sideways markets: the underwater cap
 

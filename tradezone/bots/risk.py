@@ -162,6 +162,9 @@ class RiskBot(Bot):
                     return self.reject(sig, "profit slice skipped: too small to split on this venue - the whole trade "
                                             "keeps running (its stop protects it)")
                 qty = part
+            # the US day-trade rule: a stock bought today waits for the next trading day past the bots' share
+            if (why := self.desk.day_trade_block(sig.symbol, sig.force)):
+                return self.reject(sig, why)
             # reduce-only exits are always allowed: they lower risk
             if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0:
                 return self.reject(sig, "held: it's below break-even after fees, and the bots never sell at a loss")

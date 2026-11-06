@@ -32,6 +32,9 @@ ALPACA_CRYPTO = {"AAVE", "AVAX", "BAT", "BCH", "BTC", "CRV", "DOGE", "DOT", "ETH
 #: default list on the Alpaca feed: crypto only (stocks can still be added with TZ_SYMBOLS)
 ALPACA_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
                   "DOGE-USD", "SHIB-USD", "PEPE-USD"]
+#: US stocks / ETFs the Alpaca team trades next to its crypto (big, liquid, fractional): tested on real price
+#: history, long only, they added a little profit over crypto alone (more when prices rise or go sideways)
+ALPACA_STOCKS = ["SPY", "QQQ", "AAPL", "NVDA", "MSFT"]
 #: synthetic demo feed (offline demos and tests)
 MIXED_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "AAPL", "NVDA", "TSLA"]
 
@@ -177,6 +180,13 @@ class Settings:
     flipper: bool = True
     # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
     stack: bool = True
+    # ---- Alpaca: US stocks next to the crypto, and the day-trade rule ----
+    alpaca_stocks: list[str] = field(default_factory=lambda: list(ALPACA_STOCKS))  # traded on the Alpaca feed
+    # US rule: under $25,000, at most 3 day trades (buy and sell the same stock the same day) in 5 trading
+    # days - Alpaca refuses the 4th (and repeat breaches lock the account for 90 days). The bots stop
+    # day-trading stocks at this many, keeping the last one for your own Close all / Emergency stop.
+    day_trade_guard: bool = True
+    day_trades_for_bots: int = 2
     stack_coins: list[str] = field(default_factory=lambda: ["SOL", "XRP", "DOGE", "ETH", "XCN"])
     # stacked but never traded by the bots: their prices are watched for the Stacker only (Onyxcoin is small and
     # swings hard - it is held, not flipped with the trading balance). Moved out of the stack by hand, the bots
@@ -228,7 +238,10 @@ class Settings:
     # auto = only where it really works: stocks on an Alpaca margin account that are easy to borrow
     # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
     # Never crypto (Kraken is used spot-only, Alpaca and Uphold can't short it) and never meme coins.
-    shorting: str = "auto"  # auto | off
+    # OFF by default: tested on real price history with stocks on Alpaca, shorts made the team lose money
+    # (crypto + stocks: -$621 / -$236 with shorts vs +$171 / -$127 without, tuning / unseen half) - with
+    # never-sell-at-a-loss on, a short in a rising market is held while it loses, and that loss has no ceiling.
+    shorting: str = "off"  # auto | off
     # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
     focus_small_coins: bool = True
     focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins)
@@ -580,7 +593,7 @@ class Settings:
             self.feed = "kraken" if self.venue() == "kraken" else "alpaca" if self.data_keys() else "coinbase"
         if not self.symbols:
             self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "kraken": CRYPTO_SYMBOLS,
-                                 "alpaca": ALPACA_SYMBOLS}.get(self.feed, MIXED_SYMBOLS))
+                                 "alpaca": [*ALPACA_SYMBOLS, *self.alpaca_stocks]}.get(self.feed, MIXED_SYMBOLS))
         self.stack_coins = [c.strip().upper().split("-")[0] for c in self.stack_coins if c.strip()]
         self.stack_only_coins = [c.strip().upper().split("-")[0] for c in self.stack_only_coins if c.strip()]
         if self.stack and self.feed in ("coinbase", "kraken"):  # watch a stack-only coin's price (the feed skips it if unlisted)

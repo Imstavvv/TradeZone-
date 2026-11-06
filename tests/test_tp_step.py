@@ -40,6 +40,7 @@ def test_past_10_percent_the_target_moves_out_instead_of_selling(desk):
 
 
 def test_a_short_moves_its_target_down_the_same_way(desk):
+    desk.settings.shorting = "auto"  # (off by default)
     pos = open_trade(desk, "AAPL", 200.0, Side.SELL)
     assert pos.qty < 0
     tick(desk, "AAPL", 178.0)  # fell 11%: good for the short

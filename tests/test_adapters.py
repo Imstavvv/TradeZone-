@@ -97,7 +97,9 @@ def test_paper_defaults_to_real_market_data():
     assert s.feed == "coinbase" and all(x.endswith("-USD") for x in s.symbols)
     s = Settings(alpaca_key="k", alpaca_secret="s")
     s.validate()
-    assert s.feed == "alpaca" and "PEPE-USD" in s.symbols and all("-" in x for x in s.symbols)
+    from tradezone.config import ALPACA_STOCKS
+    assert s.feed == "alpaca" and "PEPE-USD" in s.symbols
+    assert [x for x in s.symbols if "-" not in x] == ALPACA_STOCKS  # crypto plus the tested stocks
     with pytest.raises(ValueError, match="crypto"):
         Settings(feed="coinbase", symbols=["AAPL"]).validate()
 

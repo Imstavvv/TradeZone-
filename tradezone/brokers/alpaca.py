@@ -48,6 +48,7 @@ class AlpacaBroker(Broker):
         self.symbols: list[str] = []  # what the bots watch (set by the desk)
         self.shorting_enabled = False  # margin account with shorting switched on (and $2,000+ equity)
         self.shortable: set[str] = set()  # stocks Alpaca says are shortable AND easy to borrow right now
+        self.day_trades: int | None = None  # Alpaca's own count of day trades in the last 5 trading days
         self._short_at = 0.0
 
     def supports(self, symbol: str) -> bool | None:
@@ -143,7 +144,9 @@ class AlpacaBroker(Broker):
             r = await self.client.get("/v2/account")
             r.raise_for_status()
             a = r.json()
-            return {"cash": float(a["cash"]), "equity": float(a["equity"])}
+            self.day_trades = int(a.get("daytrade_count") or 0)  # day trades in the last 5 trading days
+            return {"cash": float(a["cash"]), "equity": float(a["equity"]), "daytrade_count": self.day_trades,
+                    "pattern_day_trader": bool(a.get("pattern_day_trader"))}
         except Exception as exc:
             log.warning("alpaca account fetch failed: %s", exc)
             return None

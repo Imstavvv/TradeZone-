@@ -58,6 +58,7 @@ def test_risk_rejections(desk, mutate, reason):
 
 
 def test_never_shorts_crypto(desk):
+    desk.settings.shorting = "auto"  # even with shorting allowed
     prime(desk, "BTC-USD", 50_000.0, atr=250.0)
     rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 0.9, "t", "quant"))

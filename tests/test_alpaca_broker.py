@@ -121,7 +121,7 @@ def test_only_easy_to_borrow_stocks_on_a_margin_account_can_be_shorted_never_cry
 def test_balances_and_holdings():
     fa = FakeAlpaca()
     b = broker(fa)
-    assert run(b.account()) == {"cash": 1500.5, "equity": 2600.0}
+    assert run(b.account()) == {"cash": 1500.5, "equity": 2600.0, "daytrade_count": 0, "pattern_day_trader": False}
     assert run(b.positions()) == {"BTCUSD": 0.01, "TSLA": -3.0}
     assert run(b.position_qty("BTC-USD")) == pytest.approx(0.01)
     assert run(b.position_qty("TSLA")) == -3.0 and run(b.position_qty("ETH-USD")) == 0.0
