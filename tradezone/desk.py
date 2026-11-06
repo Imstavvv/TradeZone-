@@ -571,6 +571,31 @@ class TradingDesk:
                 f"${need:,.0f} (now ${f['equity']:,.2f})")
 
     # -- shorting: only where it really works -----------------------------------------
+    def _watch_held(self) -> list[str]:
+        """After a restart: what's still held (open trades in either book, the hold stack) is watched again.
+
+        Coins and stocks the Trend Scout found aren't on the starting list. Without this a held one got no
+        prices after a restart - its stop couldn't fire, it couldn't be sold, and its value froze. Each is handed
+        back to the scout, so it's dropped again once it's sold and no longer qualifies."""
+        s = self.settings
+        held: set[str] = set()
+        for book in (self.paper_portfolio, self.live_portfolio):
+            if book is not None:
+                held |= {p.symbol for p in book.open_positions}
+        st = self.bots.get("stacker")
+        for b in (getattr(st, "books", None) or {}).values():
+            held |= {sym for sym, h in b.items() if h.get("qty", 0) > 0}
+        back = []
+        trends = self.bots.get("trends")
+        for sym in sorted(held):
+            if sym in s.symbols or (s.feed in ("coinbase", "kraken") and not sym.endswith("-USD")):
+                continue  # (a stock can't be priced by a crypto feed)
+            s.symbols.append(sym)  # the same list the feed, broker and bots use
+            back.append(sym)
+            if trends is not None:
+                (trends.added if s.is_crypto(sym) else trends.stocks_added)[sym] = time.time()
+        return back
+
     def stock_market_open(self) -> bool:
         """US stock market open now? Alpaca's clock when linked (holidays, early closes), else weekdays 9:30-16:00."""
         from .core.util import us_market_open
@@ -594,6 +619,8 @@ class TradingDesk:
         sym, ts = p.get("symbol", ""), float(p.get("ts") or time.time())
         if not sym or self.settings.is_crypto(sym):
             return
+        if p.get("reason") == "moved by you between the hold stack and the trading":
+            return  # a hand move to or from the hold stack: no order reaches the exchange, so no day trade
         mode = p.get("mode") or self.mode
         day = self._ny_day(ts)
         bought = self._bought_on.setdefault(mode, {})
@@ -644,7 +671,7 @@ class TradingDesk:
             return None
         return (f"day-trade rule: {used} of {self.PDT_LIMIT} day trades used in 5 trading days (balance under "
                 f"$25,000) - {symbol} was bought today, so it sells from the next trading day; the last one is "
-                "kept for your Close all / Emergency stop")
+                "kept for your own Close all / Emergency stop (an automatic stop waits too)")
 
     def short_block(self, symbol: str) -> str | None:
         """Why the bots may NOT short ``symbol`` here, or None when they may."""
@@ -831,6 +858,9 @@ class TradingDesk:
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
+        if back := self._watch_held():
+            self.bus.publish("alert", Alert("info", f"Still holding {', '.join(back)}: watching {'it' if len(back) == 1 else 'them'} "
+                                            "again after the restart", "desk"))
         await self.feed.start()
         if self.live_broker is not None:
             await self.live_broker.prepare()  # which coins the venue can trade (others stay practice-only)

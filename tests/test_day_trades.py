@@ -111,3 +111,34 @@ def test_alpacas_own_count_is_used_when_it_is_higher(monkeypatch):
     monkeypatch.setattr(TradingDesk, "is_live", property(lambda self: True))
     d.live_broker = type("B", (), {"day_trades": 2})()
     assert d.day_trades_used("live") == 2
+
+
+def test_an_automatic_emergency_stop_doesnt_use_the_day_trade_kept_for_you():
+    """It did: a drawdown stop sold a stock bought that day as the 3rd day trade, and your own Close all was
+    then refused by Alpaca. Only your own forced sales may use it; the automatic one waits for tomorrow."""
+    d = make()
+    for _ in range(2):
+        trade(d, "AAPL", "open")
+        trade(d, "AAPL", "close")
+    trade(d, "SPY", "open")
+    hold(d, "SPY", avg=450.0)
+    out = capture(d, "signal.rejected")
+    d.bots["risk"].evaluate(Signal("SPY", Side.SELL, 0.99, "kill switch: drawdown 22.04% breached limit", "portfolio",
+                                   kind=SignalKind.EXIT, force=True))
+    run(d.bus.drain())
+    assert "day-trade rule" in out[-1]["reason"]
+    for mine in ("kill switch: manual kill: operator", "operator flatten"):
+        out.clear()
+        d.bots["risk"].evaluate(Signal("SPY", Side.SELL, 0.99, mine, "portfolio", kind=SignalKind.EXIT, force=True))
+        run(d.bus.drain())
+        assert not any("day-trade" in r["reason"] for r in out)
+
+
+def test_a_hand_move_to_the_hold_stack_isnt_counted_as_a_day_trade():
+    d = make()
+    trade(d, "AAPL", "open")
+    d.bus.publish("trade.log", {"symbol": "AAPL", "action": "close", "mode": d.mode, "ts": time.time(), "price": 200.0,
+                                "qty": 1.0, "side": "sell", "pnl": 0.0,
+                                "reason": "moved by you between the hold stack and the trading"})
+    run(d.bus.drain())
+    assert d.day_trades_used() == 0

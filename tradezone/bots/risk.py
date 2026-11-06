@@ -163,7 +163,9 @@ class RiskBot(Bot):
                                             "keeps running (its stop protects it)")
                 qty = part
             # the US day-trade rule: a stock bought today waits for the next trading day past the bots' share
-            if (why := self.desk.day_trade_block(sig.symbol, sig.force)):
+            # (only YOUR forced sales may use the day trade kept back - an automatic emergency stop waits too)
+            yours = sig.force and not (sig.reason.startswith("kill switch:") and "manual kill" not in sig.reason)
+            if (why := self.desk.day_trade_block(sig.symbol, yours)):
                 return self.reject(sig, why)
             # reduce-only exits are always allowed: they lower risk
             if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0 \

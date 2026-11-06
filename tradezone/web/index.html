@@ -2408,7 +2408,7 @@ function ago(ts){
 // why a trade was bought, in everyday words
 function friendlyEntry(r){
   r = String(r || '');
-  const rules = [[/^pullback:/, 'Pullback: retested its breakout level and held 🎣'], [/snipe/i, 'Snipe: a meme coin broke out 🎯'],
+  const rules = [[/moved out of the hold stack|moved by you between the hold stack/, 'Moved out of the hold stack (by you) 🪙'], [/^pullback:/, 'Pullback: retested its breakout level and held 🎣'], [/snipe/i, 'Snipe: a meme coin broke out 🎯'],
     [/volume surge|surge/i, 'Volume surge: trading jumped and the price turned up 📢'], [/^flip|flipper/i, 'Flip: a quick in-and-out ⏱️'],
     [/dip buy/, 'Dip Buyer: bought more lower down 🔁'], [/^breakout lead/, 'Breakout: the price broke out of its range 🚀'],
     [/^momentum lead/, 'Momentum: a strong move picking up speed 📈'], [/^mean_reversion lead/, "Buying a dip that's turning back up 🛒"],
@@ -2491,6 +2491,7 @@ function friendlyReason(r){
   if (/kill switch|manual kill/.test(r)) return 'Emergency stop';
   if (/flatten/.test(r)) return 'You closed it';
   if (/switching to/.test(r)) return 'Closed when switching money mode';
+  if (/moved by you between the hold stack/.test(r)) return 'Moved into the hold stack (by you) 🪙';
   if (/patient rescue|back to \+/.test(r)) return 'Came back above break-even - sold before it could slip again 🛟';
   if (/patient cut|patient exit|no comeback/.test(r)) return 'Cut early: no sign of a comeback ✂️';
   if (/runner|trailing/.test(r)) return 'The trailing stop locked in the run 🏃';

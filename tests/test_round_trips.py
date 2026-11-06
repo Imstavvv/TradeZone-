@@ -86,3 +86,15 @@ def test_the_endpoint_for_the_main_account_and_a_wrong_one():
         assert r["mode"] == "paper" and r["account"] == "main" and r["trips"][0]["status"] == "open"
         assert r["trips"][0]["unrealized"] == pytest.approx(10.0)
         assert c.get("/api/trades/trips?account=nope").status_code == 404
+
+
+def test_coins_moved_out_of_the_hold_stack_and_sold_are_a_normal_trade_not_a_short():
+    """The move isn't a fill, so the first record is a sale: it used to show as a short bought at the first sale's
+    price, and that first sale's profit was dropped."""
+    j = Journal(":memory:")
+    fill(j, 100, "SOL-USD", "sell", "partial", 0.1, 160, 0.1, pnl=1.6)
+    fill(j, 200, "SOL-USD", "sell", "close", 0.1, 165, 0, pnl=2.1)
+    t = j.round_trips("paper", held={})["trips"][0]
+    assert (t["side"], t["status"], t["sold_parts"]) == ("long", "closed", 2)
+    assert t["pnl"] == pytest.approx(3.7) and t["qty"] == pytest.approx(0.2)
+    assert t["avg_entry"] == pytest.approx(144.0) and t["entry_reason"] == "moved out of the hold stack"

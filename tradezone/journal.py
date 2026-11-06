@@ -98,7 +98,7 @@ class Journal:
             where.append("json_extract(payload, '$.symbol') = ?")
             args.append(symbol)
         with self._lock:
-            rows = self.conn.execute(f"SELECT payload FROM events WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT 5000",
+            rows = self.conn.execute(f"SELECT payload FROM events WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT 20000",
                                      args).fetchall()
         fills = [json.loads(r[0]) for r in reversed(rows)]
         trips: list[dict] = []
@@ -124,6 +124,13 @@ class Journal:
             sym, act = f.get("symbol"), f.get("action")
             after = float(f.get("position_after") or 0)
             t = cur.get(sym)
+            if t is None and act in ("partial", "reduce", "close"):
+                # a sale with no buy before it: coins moved OUT of the hold stack, then sold by the bots (the move
+                # isn't a fill). A normal trade, its entry worked out from each sale's result - not a short.
+                t = cur[sym] = start(f, qty=0.0, fee=0.0)
+                t["side"] = "long" if f.get("side") == "sell" else "short"
+                t["_in"], t["from_stack"] = [], True
+                t["entry_reason"] = "moved out of the hold stack"
             if act == "open" or t is None:
                 if t is not None:  # opened again while the records still showed it open (e.g. moved to the stack)
                     finish(t, "moved")
@@ -139,6 +146,9 @@ class Journal:
                 if act == "flip":
                     q -= abs(after)
                 t["_out"].append((q, float(f.get("price") or 0)))
+                if t.get("from_stack") and q > 0:  # what those coins were worth to the trading book
+                    sign = 1 if t["side"] == "long" else -1
+                    t["_in"].append((q, float(f.get("price") or 0) - sign * float(f.get("pnl") or 0) / q))
                 t["pnl"] += float(f.get("pnl") or 0)
                 t["fees"] += float(f.get("fee") or 0)
                 t["exit_reason"] = f.get("reason") or ""

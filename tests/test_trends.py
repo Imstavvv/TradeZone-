@@ -159,3 +159,27 @@ def test_kraken_feed_gives_last_prices_for_the_same_coin_check():
         feed.pairs = await fetch_pairs(feed.client)
         return await feed.last_prices(["BTC-USD", "DOGE-USD", "NOPE-USD"])
     assert run(go()) == {"BTC-USD": 60_000.0, "DOGE-USD": 0.2}
+
+
+def test_a_found_coin_still_held_is_watched_again_after_a_restart(tmp_path):
+    """It used to vanish from the watch list on a restart: no prices, so its stop couldn't fire and it couldn't
+    be sold. Now it's watched again (and handed back to the Trend Scout, so it's dropped once sold)."""
+    from tradezone.core.portfolio import Position
+    db = str(tmp_path / "tz.db")
+
+    def boot():
+        s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD"])
+        return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    d = boot()
+    run(d.start())
+    d.settings.symbols.append("PEPE-USD")  # found by the Trend Scout
+    d.portfolio.positions["PEPE-USD"] = Position(symbol="PEPE-USD", qty=1e6, avg_price=1e-5, last_price=1e-5)
+    d.bots["stacker"].books["paper"]["WIF-USD"] = {"qty": 3.0, "cost": 6.0, "buys": 1}  # moved into the hold stack
+    d.save_state()
+    d.bots["stacker"].save()
+    run(d.shutdown())
+    d2 = boot()
+    run(d2.start())
+    assert {"PEPE-USD", "WIF-USD"} <= set(d2.settings.symbols)
+    assert "PEPE-USD" in d2.bots["trends"].added
+    run(d2.shutdown())
