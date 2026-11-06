@@ -76,6 +76,7 @@ class PortfolioBot(Bot):
         self.last_fill_ts = now()
         p = self.portfolio
         was_flat = p.position(f.symbol).is_flat
+        opened_before = p.position(f.symbol).opened_ts
         closed = p.apply_fill(f)
         pos = p.position(f.symbol)
         exe = self.desk.bots.get("execution")
@@ -124,6 +125,10 @@ class PortfolioBot(Bot):
             "avg_price": pos.avg_price if not pos.is_flat else None,
             "reason": order.reason if order else "", "order_id": f.order_id, "fill_id": f.id,
             "broker": self.desk.broker.name,
+            # (for the trade pop-ups: what was paid, how long it was held, the new stop and target)
+            "entry_price": closed.entry_price if closed else None,
+            "held_s": (f.ts - opened_before) if closed and opened_before else None,
+            "stop": pos.stop_price if not pos.is_flat else None, "target": pos.take_profit if not pos.is_flat else None,
         })
         if closed:
             self.bump("closed_trades")

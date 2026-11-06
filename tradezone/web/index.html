@@ -260,6 +260,23 @@ body.simple #mode,body.simple #grokBadge,body.simple #conn{display:none}
 .sheet .row button{flex:1;min-height:46px;font-size:15px;border-radius:12px}
 .toasts{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top));z-index:50;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100% - 24px));pointer-events:none}
 .toast{padding:10px 14px;font-size:14px;animation:rise .2s ease-out;pointer-events:auto}
+/* ---- trade pop-ups ---- */
+.tradepops{position:fixed;right:16px;top:calc(76px + env(safe-area-inset-top));z-index:49;display:flex;flex-direction:column;gap:10px;width:min(380px,calc(100% - 32px));pointer-events:none}
+.tpop{display:flex;gap:12px;align-items:flex-start;padding:12px 12px 12px 14px;border-radius:16px;background:var(--panel,#fff);color:var(--text);
+  border:1px solid var(--line);border-left:6px solid var(--accent);box-shadow:0 18px 40px -16px rgba(21,21,40,.45);pointer-events:auto;cursor:pointer;
+  animation:tpopin .28s cubic-bezier(.2,.9,.3,1.2);font-size:14px;line-height:1.4;transition:opacity .25s,transform .25s}
+.tpop.out{opacity:0;transform:translateX(30px)}
+.tpop.open{border-left-color:#7c3aed}.tpop.win{border-left-color:var(--up)}.tpop.loss{border-left-color:var(--down)}
+.tpop .ti{font-size:24px;line-height:1}
+.tpop .tb{flex:1;min-width:0}.tpop .tb > div{color:var(--muted);overflow-wrap:anywhere}
+.tpop .tt{display:block;font-size:15.5px;margin-bottom:2px;color:var(--text)}
+.tpop .tx{background:none;border:0;color:var(--muted);font-size:16px;padding:4px 8px;min-height:0;min-width:0;cursor:pointer;margin:-4px -4px 0 0}
+@keyframes tpopin{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:none}}
+@media (max-width:700px){
+  .tradepops{left:12px;right:12px;width:auto;top:calc(64px + env(safe-area-inset-top))}
+  .tpop .tx{min-height:40px;min-width:40px}
+}
+@media (prefers-reduced-motion:reduce){.tpop{animation:none}}
 /* ---- simple view ---- */
 .viewtoggle{display:flex}
 .viewtoggle button{padding:4px 12px;font-size:12px;min-height:auto}
@@ -1224,6 +1241,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
   <div class="row"><button id="sdCancel">Cancel</button><button id="sdGo" class="golive">Send</button></div>
 </div></div>
 <div class="toasts" id="toasts"></div>
+<div class="tradepops" id="tradePops" aria-live="polite"></div>
 <div id="burst" aria-hidden="true"><b>SUPERNOVA!</b></div>
 <div id="flames" aria-hidden="true"><i style="--x:0.0;--d:0.83;--o:0.30;--w:101px;--h:103px"></i><i style="--x:6.7;--d:0.65;--o:1.07;--w:83px;--h:137px"></i><i style="--x:13.3;--d:0.64;--o:1.01;--w:62px;--h:105px"></i><i style="--x:20.0;--d:0.90;--o:0.14;--w:65px;--h:135px"></i><i style="--x:26.7;--d:0.90;--o:1.65;--w:67px;--h:114px"></i><i style="--x:33.3;--d:1.04;--o:1.17;--w:63px;--h:136px"></i><i style="--x:40.0;--d:1.01;--o:0.10;--w:74px;--h:102px"></i><i style="--x:46.7;--d:0.99;--o:0.27;--w:86px;--h:109px"></i><i style="--x:53.3;--d:0.98;--o:1.14;--w:95px;--h:143px"></i><i style="--x:60.0;--d:0.73;--o:1.16;--w:100px;--h:112px"></i><i style="--x:66.7;--d:0.86;--o:1.10;--w:64px;--h:136px"></i><i style="--x:73.3;--d:0.64;--o:0.41;--w:103px;--h:134px"></i><i style="--x:80.0;--d:0.90;--o:0.63;--w:97px;--h:129px"></i><i style="--x:86.7;--d:0.85;--o:0.50;--w:71px;--h:144px"></i><i style="--x:93.3;--d:1.15;--o:0.16;--w:79px;--h:133px"></i><i style="--x:100.0;--d:0.95;--o:0.69;--w:88px;--h:118px"></i><b style="--x:60.5;--d:2.68;--o:2.56;--s:-20"></b><b style="--x:74.7;--d:2.88;--o:2.44;--s:-28"></b><b style="--x:94.4;--d:2.69;--o:2.79;--s:20"></b><b style="--x:86.0;--d:3.28;--o:3.48;--s:8"></b><b style="--x:49.7;--d:4.49;--o:0.34;--s:-25"></b><b style="--x:92.7;--d:3.69;--o:3.32;--s:-27"></b><b style="--x:72.2;--d:3.27;--o:2.89;--s:13"></b><b style="--x:80.9;--d:3.21;--o:1.93;--s:12"></b><b style="--x:35.3;--d:4.85;--o:1.78;--s:9"></b><b style="--x:13.2;--d:2.65;--o:3.84;--s:-22"></b><b style="--x:72.9;--d:3.49;--o:4.58;--s:1"></b><b style="--x:9.7;--d:3.62;--o:2.75;--s:26"></b><b style="--x:15.1;--d:3.58;--o:2.75;--s:15"></b><b style="--x:41.9;--d:3.40;--o:4.42;--s:-16"></b><b style="--x:16.5;--d:2.94;--o:1.16;--s:-16"></b><b style="--x:3.2;--d:4.58;--o:0.91;--s:-12"></b><b style="--x:2.4;--d:3.55;--o:1.85;--s:6"></b><b style="--x:32.6;--d:2.81;--o:4.30;--s:30"></b></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
@@ -1376,6 +1394,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
           <div class="srow"><div class="ic">📉</div><div class="tx"><b id="setFgTxt">Falling-market guard: OFF</b><span id="setFgSub">New buys whatever the trend</span></div><button id="setFgBtn">Turn on</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
           <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>Light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
+          <div class="srow"><div class="ic">🔔</div><div class="tx"><b id="setPopTxt">Trade pop-ups: ON</b><span>A card at the top of the screen for every trade taken or closed (what, how much, why, profit or loss after fees) - this device remembers it</span></div><button id="setPopBtn">Turn off</button></div>
         </div>
         <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
           <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
@@ -2062,7 +2081,7 @@ function onEvent(e){
     const id = e.payload.fill_id;  // a fill delivered twice (e.g. while reconnecting) is shown once
     if (id && SHOWN_FILLS.has(id)) return;
     if (id) { SHOWN_FILLS.add(id); if (SHOWN_FILLS.size > 500) SHOWN_FILLS.delete(SHOWN_FILLS.values().next().value); }
-    addTradeRow(e.payload); celebrate(e.payload); pnlTrade(e.payload);
+    addTradeRow(e.payload); celebrate(e.payload); pnlTrade(e.payload); tradePop(e.payload);
   }
 }
 function renderStream(){
@@ -2503,10 +2522,64 @@ function celebrate(t){
   if (t.pnl == null) return;
   if (t.pnl > 0) {
     confetti(); powerUp(); arenaReact('cheer', 4500, ` +${money(t.pnl)}`); if (navigator.userActivation?.hasBeenActive) navigator.vibrate?.([12, 40, 12]);
-    const el = document.createElement('div'); el.className = 'toast party';
-    el.textContent = `🎉 ${t.symbol} closed with +${money(t.pnl)} profit!`; $('toasts').appendChild(el);
-    setTimeout(() => { el.style.transition = 'opacity .3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }, 4500);
-  } else { arenaReact('hurt'); toast(`${t.symbol} closed ${money(t.pnl)} · ${friendlyReason(t.reason)}. Small losses are part of the plan.`, 'info', 4500); }
+  } else { arenaReact('hurt'); }
+}
+// =================== trade pop-ups: every trade taken or closed, as a card at the top ===================
+function renderPopsSetting(){
+  const on = popsOn();
+  if ($('setPopTxt')) { $('setPopTxt').textContent = `Trade pop-ups: ${on ? 'ON' : 'OFF'}`; $('setPopBtn').textContent = on ? 'Turn off' : 'Turn on'; }
+}
+document.addEventListener('DOMContentLoaded', renderPopsSetting);
+setTimeout(() => {
+  renderPopsSetting();
+  $('setPopBtn').onclick = () => {
+    const on = !popsOn();
+    try { localStorage.setItem(POPS_KEY, on ? 'on' : 'off'); } catch {}
+    renderPopsSetting(); toast(on ? 'Trade pop-ups: on' : 'Trade pop-ups: off', 'ok');
+  };
+}, 0);
+const POPS_KEY = 'tz-trade-pops';
+function popsOn(){ try { return localStorage.getItem(POPS_KEY) !== 'off'; } catch { return true; } }
+function heldFor(s){
+  if (s == null || s < 0) return '';
+  if (s < 90) return 'under 2 min';
+  if (s < 3600) return Math.round(s / 60) + ' min';
+  if (s < 86400) return (s / 3600).toFixed(s < 36000 ? 1 : 0).replace(/\.0$/, '') + ' h';
+  return (s / 86400).toFixed(1).replace(/\.0$/, '') + ' days';
+}
+function tradePop(t){
+  if (!popsOn() || !t || !t.symbol || /moved by you between the hold stack/.test(t.reason || '')) return;
+  const coin = esc(t.symbol.split('-')[0]), closing = t.pnl != null, buying = t.side === 'buy';
+  let kind, icon, title, lines = [];
+  if (!closing) {
+    kind = 'open'; icon = buying ? (t.action === 'add' ? '➕' : '💰') : '📉';
+    title = `${buying ? (t.action === 'add' ? 'Bought more' : 'Bought') : 'Shorted'} ${coin}`;
+    lines.push(`${num(t.qty)} at ${px(t.price)} · <b>${money(t.notional)}</b>`);
+    if (t.reason) lines.push(esc(friendlyEntry(t.reason)));
+    const plan = [t.stop != null ? `stop ${px(t.stop)}` : '', t.target != null ? `target ${px(t.target)}` : ''].filter(Boolean).join(' · ');
+    if (plan) lines.push(plan);
+  } else {
+    const win = t.pnl >= 0, cost = t.entry_price ? Math.abs(t.qty) * t.entry_price : 0;
+    kind = win ? 'win' : 'loss'; icon = win ? '✅' : '🔻';
+    const part = t.action === 'partial' || t.action === 'reduce';
+    title = `${buying ? (part ? 'Bought back part of' : 'Bought back') : (part ? 'Sold part of' : 'Sold')} ${coin}`;
+    lines.push(`<b class="${win ? 'up' : 'down'}">${win ? '+' : '−'}${money(Math.abs(t.pnl))}${cost ? ` (${win ? '+' : '−'}${pct(Math.abs(t.pnl) / cost, 1)})` : ''}</b> after fees`);
+    lines.push(`${num(Math.abs(t.qty))} at ${px(t.price)}${t.entry_price ? ` · paid ${px(t.entry_price)}` : ''}${t.held_s != null ? ` · held ${heldFor(t.held_s)}` : ''}`);
+    if (t.reason) lines.push(esc(friendlyReason(t.reason)));
+  }
+  const box = $('tradePops');
+  while (box.children.length >= (innerWidth <= 700 ? 2 : 4)) box.firstElementChild.remove();  // (a phone keeps the balance in view)
+  const el = document.createElement('div');
+  el.className = `tpop ${kind}`; el.setAttribute('role', 'status');
+  el.innerHTML = `<div class="ti">${icon}</div><div class="tb"><b class="tt">${title}</b>${lines.map(l => `<div>${l}</div>`).join('')}</div>
+    <button class="tx" aria-label="Dismiss">✕</button>`;
+  const bye = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); };
+  el.querySelector('.tx').onclick = ev => { ev.stopPropagation(); bye(); };
+  el.onclick = () => { bye(); showPage(closing ? 'trades' : 'open'); };
+  box.appendChild(el);
+  let left = 8000, t0 = Date.now(), timer = setTimeout(bye, left);
+  el.onmouseenter = () => { clearTimeout(timer); left -= Date.now() - t0; };
+  el.onmouseleave = () => { t0 = Date.now(); timer = setTimeout(bye, Math.max(1500, left)); };
 }
 // a tiny tap on Android when pressing buttons (iPhone ignores this)
 document.addEventListener('click', e => { if (e.target.closest('button')) navigator.vibrate?.(8); }, {passive: true});

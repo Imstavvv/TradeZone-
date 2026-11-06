@@ -106,3 +106,18 @@ def test_profit_locked_is_only_claimed_when_selling_at_the_stop_beats_both_fees(
     assert view()["stop_net"] > 0
     pos.stop_price = None
     assert view()["stop_net"] is None
+
+
+def test_each_fill_tells_the_screen_what_it_needs_for_the_trade_pop_up():
+    desk = make()
+    logs = capture(desk, "trade.log")
+    pos = buy(desk)
+    opened = logs[-1]
+    assert opened["action"] == "open" and opened["pnl"] is None
+    assert opened["stop"] == pos.stop_price and opened["target"] == pos.take_profit and opened["entry_price"] is None
+    pos.opened_ts -= 3600  # held an hour
+    tick(desk, "BTC-USD", 39_000)  # through the stop
+    closed = logs[-1]
+    assert closed["action"] == "close" and closed["pnl"] < 0
+    assert closed["entry_price"] == pytest.approx(opened["price"]) and closed["held_s"] >= 3600
+    assert closed["stop"] is None and closed["target"] is None
