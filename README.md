@@ -800,6 +800,21 @@ A check on 16 windows per market (tuning / unseen):
 
 It lost 5-10% less when prices fell and earned a little more when they rose, but did slightly worse sideways on both halves (about $2 over 16 runs) - so it didn't beat "without it" everywhere and is **off by default**; a switch in Settings if you'd rather lose less in a fall. Even so, it's modest: in a fall it saves only a little, because the bots still buy as a slide begins (before the average turns down) and never-sell then holds those trades. Also tried: a 2-hour and an 8-hour average, and pausing all buying while half the coins fall - each lost to "without it" somewhere. Judged on less than the full 4 hours of history, it did worse sideways, which is why it waits. (An earlier guard that looked only at the last 30-240 minutes' change made no difference - see the underwater cap above.)
 
+### Losing money in falling markets: where it goes, and what was tried
+
+In a falling market almost the whole loss is **trades still held below what was paid** (never-sell holds them; they average 12-14% down, short of the 20% loss floor): 16 windows of $500, tuning / unseen half - total −$389 / −$256, of which held trades −$328 / −$258, trades already sold −$66 / −$3, the hold stack −$4 / −$5. About 30% of the balance ends up in them. Every fix tried cut that loss, and every one cost about as much profit when prices rise, because when a trade is opened no rule here can tell the start of a rise from the start of a fall:
+
+| 16 windows, tuning / unseen | Rising | Falling | Sideways |
+| --- | --- | --- | --- |
+| As it is | +$396 / +$173 | −$389 / −$256 | −$29 / −$23 |
+| Biggest trade 20% (was 35%) | +$267 / +$130 | −$322 / −$219 | −$27 / −$8 |
+| 1.8% risked per trade (was 2.5%) | +$345 / +$134 | −$329 / −$190 | −$15 / −$33 |
+| Underwater budget 20% (`TZ_UNDERWATER_BUDGET`) | +$273 / +$135 | −$296 / −$197 | (not run) |
+| Loss floor 15% (was 20%) | +$396 / +$173 | −$380 / −$249 | −$39 / −$23 |
+| Loss floor 10% | +$386 / +$175 | −$369 / −$239 | −$41 / −$45 |
+
+None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
+
 ### Tested on real price history: accumulating and the quick-flip slice are off
 
 Random prices can't show whether a strategy has an edge, so the whole real-money team (Kraken fees, every bot) was replayed on **real price history**: S&P 500 daily bars 1993-2021, Google daily bars 2004-2013 and EUR/USD hourly bars, with each real move scaled to the size of a crypto minute. That's real trends, quiet spells, shocks and volume, though not real crypto. Each change had to win on **both** halves of the data: tuned on the first half and checked on the second, which it had never seen.
