@@ -415,6 +415,12 @@ class Settings:
     # strategies the Quant runs beyond momentum / mean reversion / breakout. All ten exist (Settings -> Trading
     # strategies); on by default are the two that didn't cost profit on real price history
     strategies: list[str] = field(default_factory=lambda: ["macd", "obv"])
+    # dip buys led by mean reversion (RSI under 35): tested on real price history they went bad MORE often than
+    # buying at random, in rising, falling and sideways markets alike - they buy while the coin is still falling.
+    # "off" (as before) | "turn" (wait until the RSI and the price tick back up) | "trend" (only above the
+    # 50-bar average) | "both"; and the share of the vote mean reversion gets in a sideways market (was 0.7)
+    mr_buy_filter: str = "off"
+    mr_ranging_weight: float = 0.7
     pullback: bool = True  # the Pullback Hunter: buy the retest of a breakout
     ema_fast_period: int = 12  # the fast and slow moving averages behind momentum and MACD
     ema_slow_period: int = 26

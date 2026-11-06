@@ -232,7 +232,10 @@ class QuantBot(Bot):
         every = {k: v for k, fn in STRATEGIES.items() if self._on(k) and (v := fn(s)) is not None}
         parts, trust = self.families(every, coach)
         # 🧠 learn: a family whose strategies have been working counts for more
-        weights = {k: w * trust[k] for k, w in WEIGHTS[regime].items()}
+        base = dict(WEIGHTS[regime])
+        if regime is Regime.RANGING:
+            base["mean_reversion"] = self.settings.mr_ranging_weight
+        weights = {k: w * trust[k] for k, w in base.items()}
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
         self.scores[s.symbol] = {**every, **{f"family_{k}": v for k, v in parts.items()},  # type: ignore[dict-item]
                                  "ensemble": score, "regime": regime.value}
@@ -265,6 +268,12 @@ class QuantBot(Bot):
         top = max(parts, key=lambda k: abs(parts[k] * weights[k]))
         reason = f"{top} lead in {regime.value} regime (score {score:+.2f})"
         votes: dict[str, str] = {}
+        if not closing and side is Side.BUY and top == "mean_reversion" and (wait := self._dip_wait(s, before)):
+            if self.blocked.get(s.symbol) != wait:
+                self.blocked[s.symbol] = wait
+                self.bump("dip_buys_waited")
+                self.act(f"not buying the {s.symbol} dip yet: {wait}")
+            return  # (the stance holds: re-checked on the next bar)
         if not closing:
             if self.desk.in_focus(s.symbol):
                 return  # waits for a bigger balance (growth ladder): not proposed yet
@@ -293,6 +302,19 @@ class QuantBot(Bot):
         self.publish("signal.proposed", sig)
         self.bump("signals")
         self.act(f"proposed {side.value.upper()} {s.symbol} @ {s.price:,.2f} ({reason})")
+
+    def _dip_wait(self, s: Snapshot, before: Snapshot | None) -> str | None:
+        """Why a mean-reversion dip buy should wait, or None to go ahead."""
+        mode = self.settings.mr_buy_filter
+        if mode == "off":
+            return None
+        ind = s.indicators
+        if mode in ("trend", "both") and s.price < ind.get("sma50", 0.0):
+            return "it's below its 50-bar average - a dip in a downtrend"
+        if mode in ("turn", "both"):
+            if before is None or ind.get("rsi", 50) <= before.indicators.get("rsi", 50) or s.price <= before.price:
+                return "still falling - waiting for it to turn up"
+        return None
 
     def _on(self, name: str) -> bool:
         return name in ("momentum", "mean_reversion", "breakout") or name in self.settings.strategies
