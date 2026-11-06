@@ -9,7 +9,7 @@ from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
 
-SYMS = {"BTC-USD": 60_000.0, "SOL-USD": 150.0, "DOGE-USD": 0.2, "ARB-USD": 0.8, "XRP-USD": 0.6, "PEPE-USD": 0.00001,
+SYMS = {"BTC-USD": 60_000.0, "SOL-USD": 150.0, "LINK-USD": 15.0, "DOGE-USD": 0.2, "ARB-USD": 0.8, "XRP-USD": 0.6, "PEPE-USD": 0.00001,
         "ETH-USD": 3_000.0}
 
 
@@ -39,9 +39,25 @@ def test_a_small_balance_trades_smaller_coins_only():
     assert f["stage"] == 1 and f["max_positions"] is None and "DOGE-USD" in f["coins"] and "BTC-USD" not in f["coins"]
     qty, rej = buy(desk, "BTC-USD")
     assert qty == 0 and "joins when the balance reaches $1,000" in rej[-1]["reason"]
-    qty, rej = buy(desk, "SOL-USD")
+    qty, rej = buy(desk, "LINK-USD")  # a mid-size coin waits for $250...
     assert qty == 0 and "$250" in rej[-1]["reason"]
     assert buy(desk, "DOGE-USD")[0] > 0
+
+
+def test_sol_and_xrp_are_traded_at_any_balance_and_still_stacked():
+    desk = make(100.0)
+    assert desk.settings.always_trade == ["SOL", "XRP"]
+    assert {"SOL", "XRP"} <= set(desk.settings.stack_coins) and not desk.settings.is_stack_only("SOL-USD")
+    assert desk.in_focus("SOL-USD") is None and desk.in_focus("XRP-USD") is None
+    assert desk.in_focus("LINK-USD") is not None  # (other mid-size coins still follow the ladder)
+    assert buy(desk, "SOL-USD")[0] > 0
+    assert buy(desk, "XRP-USD")[0] > 0
+
+
+def test_always_traded_coins_are_always_watched():
+    s = Settings(feed="coinbase", symbols=["BTC-USD", "DOGE-USD"])
+    s.validate()
+    assert "SOL-USD" in s.symbols and "XRP-USD" in s.symbols
 
 
 def test_a_small_balance_can_hold_more_than_four_trades_now():

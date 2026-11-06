@@ -539,7 +539,8 @@ class TradingDesk:
         return {"on": s.focus_small_coins, "stage": stage, "allowed": sorted(allowed), "next_at": nxt,
                 "small_until": s.focus_small_until, "mid_until": s.focus_mid_until,
                 "max_positions": None, "equity": eq,  # (trades open at once: the risk level's limit, up to 20)
-                "coins": [x for x in s.symbols if s.coin_size(x) in allowed]}
+                "coins": [x for x in s.symbols if s.coin_size(x) in allowed or x.split("-")[0] in s.always_trade],
+                "always": list(s.always_trade)}
 
     def _underwater(self, pos, price: float) -> bool:
         """More than ``loser_cap_depth`` below break-even after fees. (With typical fees a trade starts about
@@ -580,6 +581,8 @@ class TradingDesk:
 
     def in_focus(self, symbol: str) -> str | None:
         """Why a NEW trade in ``symbol`` waits for a bigger balance, or None when it's in focus."""
+        if symbol.upper().replace("/", "-").split("-")[0] in self.settings.always_trade:
+            return None  # (traded at any balance)
         f = self.focus_status()
         size = self.settings.coin_size(symbol)
         if size in f["allowed"]:

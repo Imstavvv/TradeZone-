@@ -272,6 +272,9 @@ class Settings:
     focus_small_coins: bool = True
     focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins)
     focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...); above: all coins
+    # coins the bots may trade at any balance (skipping the ladder above) - and always watched. They can be
+    # stacked too: the hold stack and the trading each keep their own coins.
+    always_trade: list[str] = field(default_factory=lambda: ["SOL", "XRP"])
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
@@ -635,6 +638,11 @@ class Settings:
             self.symbols = list({"coinbase": CRYPTO_SYMBOLS, "kraken": CRYPTO_SYMBOLS,
                                  "alpaca": [*ALPACA_SYMBOLS, *self.alpaca_stocks]}.get(self.feed, MIXED_SYMBOLS))
         self.stack_coins = [c.strip().upper().split("-")[0] for c in self.stack_coins if c.strip()]
+        self.always_trade = [c.strip().upper().split("-")[0] for c in self.always_trade if c.strip()]
+        if self.feed in ("coinbase", "kraken"):  # always-traded coins are always watched
+            for c in self.always_trade:
+                if f"{c}-USD" not in self.symbols:
+                    self.symbols.append(f"{c}-USD")
         self.stack_only_coins = [c.strip().upper().split("-")[0] for c in self.stack_only_coins if c.strip()]
         if self.stack and self.feed in ("coinbase", "kraken"):  # watch a stack-only coin's price (the feed skips it if unlisted)
             for c in self.stack_only_coins:

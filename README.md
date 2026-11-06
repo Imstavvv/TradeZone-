@@ -1136,6 +1136,8 @@ A small balance can't spread across every coin: Kraken's minimum orders and the 
 | **$250 - $1,000** (`TZ_FOCUS_MID_UNTIL`) | + mid-size coins (SOL, XRP, ADA, AVAX, LINK, DOT, LTC, ...) | 6 |
 | **$1,000+** | every coin, including BTC and ETH | normal limit |
 
+**SOL and XRP at any balance** (`TZ_ALWAYS_TRADE`, default `SOL,XRP`): these two skip the ladder - the bots may trade them from the first dollar, and they're always watched (added to the coins list if missing). They're still **stacked** too: the hold stack keeps buying them slowly on the side, and the hold stack's coins and the trading's coins are kept apart (the bots never sell the stack's). Not tested on price history as a change: every SOL or XRP trade still goes through all the usual checks, stops and limits.
+
 Open trades are never closed because of the ladder; it only decides which *new* trades are taken. With Kraken prices, up to 8 small altcoins that Kraken lists and that trade at least $1M a day are added automatically (`TZ_MAX_SMALL_COINS`). The goal card on Home shows the current stage. `TZ_FOCUS_SMALL_COINS=false` trades every coin from the start. Smaller coins swing harder in both directions: meme coins still trade smaller and with wider stops, and every "can it be sold?" check still applies.
 
 ### Aggressive risk (real money, opt-in)
