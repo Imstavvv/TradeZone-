@@ -813,6 +813,8 @@ In a falling market almost the whole loss is **trades still held below what was 
 | Loss floor 15% (was 20%) | +$396 / +$173 | −$380 / −$249 | −$39 / −$23 |
 | Loss floor 10% | +$386 / +$175 | −$369 / −$239 | −$41 / −$45 |
 
+**Spreading wider (more, smaller trades).** On average the bots hold about 2 coins and keep 30-41% of the balance invested - one big trade fills the underwater cap. Smaller trades with a looser cap made 27-34% more trades and up to 27% more on the unseen half when prices rose, but never beat "as it is" on the tuning half, and lost more when prices fell (biggest trade 25% / cap 30%: +$391 / +$219 rising, −$481 / −$351 falling; 15% / 30%: +$274 / +$164, −$393 / −$271; 20% / 25-40%: +$325-346 / +$197-221, −$421-500 / −$288-341). More money working is more money caught in a fall.
+
 None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
