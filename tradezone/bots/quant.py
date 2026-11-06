@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections import deque
 
 from ..core.bus import Event
 from ..core.models import Regime, Side, Signal, Snapshot
@@ -219,8 +220,49 @@ class QuantBot(Bot):
         self.act(f"VOLUME SNIPE {sym} @ {snap.price:,.6g}: {vr:.1f}x volume, +{move:.1%}")
         return True
 
+    def _vb_record(self, s: Snapshot) -> tuple[float | None, float | None]:
+        """Keep each coin's longer price and volume history (warm-up bars too); returns (prior high, prior avg volume)."""
+        st = self.settings
+        book = self.__dict__.setdefault("_vb", {})
+        px, vol = book.setdefault(s.symbol, (deque(maxlen=st.vb_high_bars), deque(maxlen=st.vb_volume_bars)))
+        hi = max(px) if len(px) >= st.vb_high_bars else None
+        av = sum(vol) / len(vol) if len(vol) >= st.vb_volume_bars else None
+        px.append(s.price)
+        v = s.indicators.get("volume")
+        if v is not None:
+            vol.append(float(v))
+        return hi, av
+
+    def _vol_breakout(self, s: Snapshot, hi: float | None, av: float | None) -> bool:
+        """Volume breakout: a new 4-hour high on clearly more volume than usual."""
+        st, sym = self.settings, s.symbol
+        wait = self.__dict__.setdefault("_vb_wait", {})
+        if wait.get(sym, 0) > 0:
+            wait[sym] -= 1
+            return False
+        if not st.vol_breakout or hi is None or not av or av <= 0:
+            return False
+        v = s.indicators.get("volume")
+        if v is None or s.price <= hi or v < st.vb_volume_ratio * av:
+            return False
+        if not self.portfolio.position(sym).is_flat or self.desk.in_focus(sym) or self.settings.is_stack_only(sym):
+            return False
+        wait[sym] = st.vb_cooldown_bars
+        ratio = v / av
+        self.stance[sym] = self.emitted[sym] = 1
+        self.blocked.pop(sym, None)
+        self._bars_since[sym] = 0
+        self.publish("signal.proposed", Signal(
+            sym, Side.BUY, round(min(1.0, 0.55 + 0.05 * min(ratio, 6.0)), 3),
+            f"volume breakout: {sym} at a new {st.vb_high_bars // 60}-hour high on {ratio:.1f}x its usual volume",
+            self.name, votes={"breakout": "yes", "volume": "yes"}))
+        self.bump("volume_breakouts")
+        self.act(f"VOLUME BREAKOUT {sym} @ {s.price:,.6g}: new {st.vb_high_bars // 60} h high, {ratio:.1f}x volume")
+        return True
+
     def on_snapshot(self, ev: Event) -> None:
         s: Snapshot = ev.payload
+        hi, av = self._vb_record(s)
         if s.historical:
             return  # warm-up data: never trade on the past
         before = self.last_snap.get(s.symbol)
@@ -242,6 +284,8 @@ class QuantBot(Bot):
         if self.settings.is_stack_only(s.symbol) and self.portfolio.position(s.symbol).is_flat:
             return  # a hold-stack-only coin: scored (the Stacker reads it), never a new trade
         if self._surge_snipe(s, before):  # (after the scores: the Coach learns from this bar's readings)
+            return
+        if self._vol_breakout(s, hi, av):
             return
 
         th = coach.bar() if coach is not None else self.settings.risk.min_signal_strength

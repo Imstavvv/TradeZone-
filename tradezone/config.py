@@ -437,6 +437,15 @@ class Settings:
     # volume snipes: any crypto or meme coin whose bar trades several times its usual volume while the price
     # jumps up is bought on that bar (then the usual checks: Risk, the advisors, fees, the stop)
     surge_snipe: bool = True
+    # ---- volume breakout: the price beats its highest close of the last vb_high_bars on at least vb_volume_ratio
+    # times its average volume of the last vb_volume_bars. Found by scoring candidate buy signals against random
+    # entries on real price history: the only one ahead of random in rising, falling and sideways markets alike,
+    # on both halves of the data, and its neighbours (3-6 h, 1.2-1.5x) were too. Off until the full replay says so.
+    vol_breakout: bool = False
+    vb_high_bars: int = 240
+    vb_volume_bars: int = 60
+    vb_volume_ratio: float = 1.3
+    vb_cooldown_bars: int = 30
     surge_volume_ratio: float = 4.0  # this many times the usual volume (3x and 2.5x tested worse on unseen data)...
     surge_min_move: float = 0.003  # ...and the bar up at least this much
     surge_max_rsi: float = 80.0  # not when it's already wildly overbought

@@ -153,6 +153,7 @@ class ScoutBot(Bot):
             "swing_high": swing_high if swing_high is not None else max(high, t.price),
             # this bar's traded volume vs the recent average (None when the feed doesn't report volume)
             "volume_ratio": volume / avg_vol if avg_vol > 0 else None,
+            "volume": volume,  # (this bar's raw volume: the volume breakout keeps its own longer average)
             **self._more(b, t.price, macd),
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
