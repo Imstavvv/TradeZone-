@@ -841,6 +841,8 @@ In a falling market almost the whole loss is **trades still held below what was 
 
 Each won one half and lost the other somewhere, so they stay off.
 
+**Locking profit in sooner** (so a winner can't turn into a loser): break-even + fees at half or three-quarters of the usual gain (`TZ_FLIP_BREAKEVEN_R`, 1.0), keeping 70% of the best gain instead of 50% (`TZ_PROFIT_LOCK_PCT`), stops never under the fees (`TZ_FEE_RULE_STOPS`). The closest, locking at half the gain, was a little better rising (+$397 / +$182 vs +$396 / +$173) and no worse falling (−$385 / −$256 vs −$389 / −$256), but a little worse sideways (−$32 / −$24 vs −$29 / −$23: an earlier lock sells trades that would have reached their target). In these replays no trade that was in profit after fees ended as a realized loss anyway (every sale in rising and sideways markets was a win), so nothing changed.
+
 None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
