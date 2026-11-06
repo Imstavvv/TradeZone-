@@ -15,7 +15,7 @@ import httpx
 
 from tests.helpers import run
 from tests.test_trends import MEMES, TRENDING
-from tradezone.config import Settings
+from tradezone.config import ALPACA_STOCKS, Settings
 from tradezone.desk import TradingDesk
 from tradezone.journal import Journal
 from tradezone.market.alpaca import AlpacaFeed
@@ -108,7 +108,7 @@ class AlpacaAccount:
 
 
 def alpaca_desk(cash=5_000.0):
-    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", starting_cash=cash, live_venue="alpaca",
+    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", starting_cash=cash, live_venue="alpaca", discover_stocks=True, alpaca_stocks=list(ALPACA_STOCKS),
                  symbols=["BTC-USD", "SPY", "AAPL"])
     feed = AlpacaLike(s.symbols)
     d = TradingDesk(s, feed=feed, journal=Journal(":memory:"), live_broker=AlpacaAccount(feed))
@@ -153,7 +153,7 @@ def test_stocks_that_stop_qualifying_are_dropped_unless_held():
 def test_no_stock_search_under_1000_or_without_the_account_linked():
     small = alpaca_desk(cash=500.0)  # the growth ladder: stocks join from $1,000
     assert not [x for x in run(small.bots["trends"].refresh())["added"] if "-" not in x]
-    s = Settings(feed="alpaca", alpaca_key="k", alpaca_secret="s", symbols=["BTC-USD", "SPY"], starting_cash=5_000.0)
+    s = Settings(feed="alpaca", alpaca_key="k", alpaca_secret="s", symbols=["BTC-USD", "SPY"], starting_cash=5_000.0, discover_stocks=True, alpaca_stocks=list(ALPACA_STOCKS))
     d = TradingDesk(s, feed=AlpacaLike(s.symbols), journal=Journal(":memory:"))  # practice data keys only
     gecko(d)
     run(d.bots["trends"].refresh())
@@ -211,7 +211,7 @@ def test_the_alpaca_feed_prices_what_the_scouts_add_and_reads_history_screener_a
 
 def test_the_reporter_reads_alpaca_news_for_stocks_and_coins():
     handler, _ = fake_alpaca_data()
-    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", symbols=["BTC-USD", "TSLA"])
+    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", symbols=["BTC-USD", "TSLA"], discover_stocks=True, alpaca_stocks=list(ALPACA_STOCKS))
     feed = AlpacaFeed(s.symbols, "k", "s", client=httpx.AsyncClient(base_url="https://data.alpaca.markets",
                                                                     transport=httpx.MockTransport(handler)))
     d = TradingDesk(s, feed=feed, journal=Journal(":memory:"))

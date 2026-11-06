@@ -44,7 +44,7 @@ def exit_reason(desk, sym, force=False):
 
 
 def test_the_alpaca_team_trades_the_tested_stocks_next_to_its_crypto_and_never_shorts_by_default():
-    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s")
+    s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", alpaca_stocks=list(ALPACA_STOCKS))
     s.validate()
     assert [x for x in s.symbols if "-" not in x] == ALPACA_STOCKS and "BTC-USD" in s.symbols
     assert s.shorting == "off"

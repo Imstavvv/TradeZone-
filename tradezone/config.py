@@ -176,7 +176,7 @@ class Settings:
     max_discovered: int = 100  # coins the Trend Scout may add to the watchlist (each still needs enough volume)
     history_pause_s: float = 1.1  # between price-history requests for newly found coins (Kraken allows ~1 a second)
     # stocks (Alpaca accounts): the day's busiest established stocks from Alpaca's screener
-    discover_stocks: bool = True
+    discover_stocks: bool = False  # all the cash goes to crypto: no stocks found or traded (TZ_DISCOVER_STOCKS=true brings them back)
     max_discovered_stocks: int = 10
     stock_min_price: float = 10.0  # no penny stocks
     stock_min_dollar_volume: float = 50_000_000.0  # at least $50M traded today: easy to buy and sell
@@ -187,7 +187,7 @@ class Settings:
     # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
     stack: bool = True
     # ---- Alpaca: US stocks next to the crypto, and the day-trade rule ----
-    alpaca_stocks: list[str] = field(default_factory=lambda: list(ALPACA_STOCKS))  # traded on the Alpaca feed
+    alpaca_stocks: list[str] = field(default_factory=list)  # stocks traded on the Alpaca feed (none: crypto only; TZ_ALPACA_STOCKS=SPY,QQQ,... to add)
     # US rule: under $25,000, at most 3 day trades (buy and sell the same stock the same day) in 5 trading
     # days - Alpaca refuses the 4th (and repeat breaches lock the account for 90 days). The bots stop
     # day-trading stocks at this many, keeping the last one for your own Close all / Emergency stop.
@@ -221,7 +221,7 @@ class Settings:
     stack_min_buy_usd: float = 5.0  # smallest purchase (or the venue's minimum order, if bigger)
     stack_max_buy_usd: float = 25.0  # largest single purchase
     stack_max_rsi: float = 55.0  # prefer buying a coin that isn't running hot
-    stack_keep_cash: float = 0.25  # always leave at least this share of the trading balance free
+    stack_keep_cash: float = 0.0  # leave at least this share of the trading balance free (0: all the cash goes to crypto)
     stack_max_share: float = 0.5  # the stack never grows past this share of everything
     flip_volume_ratio: float = 2.0  # a flip needs a move on at least 2x the usual volume
     flip_min_samples: int = 12  # trades an hour needs before it's rated good or bad
@@ -327,7 +327,7 @@ class Settings:
     dip_step_pct: float = 0.06  # at least this far below the average price paid (meme coins: twice as far)...
     dip_add_fraction: float = 0.5  # ...buy this share of what's held...
     dip_max_adds: int = 2  # ...at most this many times per trade...
-    dip_keep_cash: float = 0.25  # ...always leaving this share of the balance in cash  # ...and then a meme coin position is at most this share of the usual biggest
+    dip_keep_cash: float = 0.0  # ...always leaving this share of the balance in cash (0: all the cash goes to crypto)  # ...and then a meme coin position is at most this share of the usual biggest
     profit_over_fees: float = 1.0  # a profit-taking sale keeps at least this many times the fees (after them)
     fee_rule_rescue: bool = True  # ...also for a losing trade that came back (closed only once it beats the fees)
     # ...and a stop already in profit is raised to where it would keep more than the fees. Off: on real price

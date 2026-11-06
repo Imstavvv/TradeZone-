@@ -554,7 +554,7 @@ It buys when all of these hold:
 - no advisor objects (a flash crash, Bitcoin falling hard, a dead market);
 - trading isn't paused or stopped for the day.
 
-It buys **half as much again** (`TZ_DIP_ADD_FRACTION`), **at most twice per trade** (`TZ_DIP_MAX_ADDS`), never past the normal biggest position, and always leaves **a quarter of the balance in cash** (`TZ_DIP_KEEP_CASH`). It only runs while never-sell is on (otherwise losing trades are cut). `TZ_DIP_BUY=false` turns it off.
+It buys **half as much again** (`TZ_DIP_ADD_FRACTION`), **at most twice per trade** (`TZ_DIP_MAX_ADDS`), never past the normal biggest position, and may use all the cash (`TZ_DIP_KEEP_CASH`, 0; it used to keep a quarter back - you asked for all the cash to go to crypto). It only runs while never-sell is on (otherwise losing trades are cut). `TZ_DIP_BUY=false` turns it off.
 
 Tested (runs of $500): on real price history it rarely triggered: no change on the first half, +$12 on the second (+$509 vs +$496). On random prices, where coins keep falling, it made the worst run deeper (-$97 vs -$78; total $2,855 vs $2,865). Buying more of a falling coin lowers the price you need to get back to, but puts more money into the coin. If the coin keeps falling, the loss grows.
 
@@ -756,7 +756,7 @@ The full list of settings, with every default, is in `.env.example`.
 
 ### The Alpaca team: stocks next to crypto, no shorting, the day-trade rule
 
-A linked Alpaca account runs its own bot team on Alpaca's crypto **and five big US stocks/ETFs** (SPY, QQQ, AAPL, NVDA, MSFT: liquid, fractional, no commission). Stocks trade only in US market hours; crypto around the clock. Under a $1,000 balance the growth ladder keeps the team on smaller coins (stocks join from $1,000).
+A linked Alpaca account runs its own bot team on **Alpaca's crypto only** - all the cash goes to crypto. Stocks can be switched back on: five big US stocks/ETFs (`TZ_ALPACA_STOCKS=SPY,QQQ,AAPL,NVDA,MSFT`: liquid, fractional, no commission) and the stock search (`TZ_DISCOVER_STOCKS=true`); stocks trade only in US market hours, crypto around the clock. Under a $1,000 balance the growth ladder keeps the team on smaller coins (stocks join from $1,000).
 
 Tested like everything else, on real price history in rising, falling and sideways markets ($2,000 account, 8 windows each, tuning half / unseen half). Only daily stock history was available here, replayed minute by minute at normal intraday stock volatility, so treat it as a careful estimate rather than proof:
 
@@ -1043,7 +1043,7 @@ The Stacker slowly builds a long-term hold of **SOL, XRP, DOGE, ETH and Onyxcoin
 - **Funding:** a small budget builds up over time: **1% of the trading balance a day** (`TZ_STACK_DAILY_PCT`, or a fixed `TZ_STACK_DAILY_USD`) plus **a quarter of every winning trade's profit** (`TZ_STACK_PROFIT_SHARE`).
 - **Buying:** once the budget covers the exchange's smallest order (at least $5, `TZ_STACK_MIN_BUY_USD`; up to $25 a buy, `TZ_STACK_MAX_BUY_USD`), it buys one coin: whichever is furthest below its share of the stack. It prefers a coin that isn't running hot (RSI under 55); if every coin has been hot for 6 hours, it buys anyway, because the point is buying slowly, not timing.
 - **Never sold, no stop-loss.** Held coins are not part of the trading book: no bot ever sells them, and Close all trades and Emergency stop leave them alone. On a real-money account they sit in your exchange account like coins you bought yourself, and the records' check leaves them alone. They're yours to keep, or to sell yourself.
-- **Not at the trading team's expense.** It only spends free cash, always leaves at least a quarter of the trading balance free (`TZ_STACK_KEEP_CASH`), stops growing past half of everything (`TZ_STACK_MAX_SHARE`), and waits while trading is paused or stopped. Money moved into the stack is shown as moved, not as a trading loss, so the trading balance, its profit and its loss limits stay honest.
+- **Not at the trading team's expense.** It only spends free cash - all of it if need be (`TZ_STACK_KEEP_CASH`, 0; it used to leave a quarter free) - stops growing past half of everything (`TZ_STACK_MAX_SHARE`), and waits while trading is paused or stopped. Money moved into the stack is shown as moved, not as a trading loss, so the trading balance, its profit and its loss limits stay honest.
 - **Seeing it:** the **Hold stack** card shows each coin's amount, what it cost and what it's worth now; the home screen adds "plus $X in your hold stack" under the balance. **Pause stacking** stops new purchases (what you hold stays held), and stays paused after a restart. Practice money and real money keep separate stacks.
 
 Coins held without a stop can fall a long way. Buying slowly over time spreads that risk out but doesn't remove it.
