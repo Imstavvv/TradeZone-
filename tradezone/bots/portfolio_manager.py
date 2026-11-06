@@ -139,7 +139,7 @@ class PortfolioBot(Bot):
             self.act(f"closed {closed.side} {closed.qty:g} {closed.symbol} P&L {closed.pnl:+,.2f}")
         else:
             self.act(f"opened/added {f.symbol} now {pos.qty:g} @ {pos.avg_price:,.2f}")
-        self.publish("portfolio.update", p.to_dict())
+        self.publish("portfolio.update", self.desk.portfolio_view())
 
     def on_order_update(self, ev: Event) -> None:
         o = ev.payload
@@ -572,7 +572,7 @@ class PortfolioBot(Bot):
                 "unrealized_pnl": round(p.unrealized_pnl, 2),
             }
         )
-        self.publish("portfolio.update", p.to_dict())
+        self.publish("portfolio.update", self.desk.portfolio_view())
         if self._cycles % self.RECONCILE_EVERY == 0:
             await self.reconcile_positions()
             acct = await self.desk.broker.account()

@@ -1548,6 +1548,8 @@ setTheme(document.documentElement.dataset.theme, false);  // (set before the pag
 // a colour from the theme (charts follow the stylesheet)
 const tok = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const pct = (v, d=2) => v==null ? '—' : (v*100).toFixed(d) + '%';
+// profit locked in = selling at the stop keeps a profit after BOTH fees (not merely a stop above the buy price)
+const lockedIn = x => x.stop_price != null && (x.stop_net != null ? x.stop_net > 0 : (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0);
 const num = v => v==null ? '—' : Math.abs(v) >= 1000 ? v.toLocaleString(undefined,{maximumFractionDigits:2}) : (+v).toPrecision(6).replace(/\.?0+$/,'');
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
 const time = ts => new Date(ts*1000).toLocaleTimeString();
@@ -1931,7 +1933,7 @@ function render(){
 
   $('positions').innerHTML = table(['Symbol','Qty','Entry','Last','Stop','Target','Value','Unrealized'], p.positions.map(x => [
     `<b>${esc(x.symbol)}</b>`, `<span class="${cls(x.qty)}">${num(x.qty)}</span>`, num(x.avg_price), num(x.last_price),
-    x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0 ? `<span class="up" title="profit locked: can't close at a loss">🔒 ${num(x.stop_price)}</span>` : num(x.stop_price), num(x.take_profit), money(x.market_value), `<span class="${cls(x.unrealized_pnl)}">${money(x.unrealized_pnl)}</span>`]), 'No open positions');
+    lockedIn(x) ? `<span class="up" title="profit locked: selling at this stop keeps a profit after fees">🔒 ${num(x.stop_price)}</span>` : num(x.stop_price), num(x.take_profit), money(x.market_value), `<span class="${cls(x.unrealized_pnl)}">${money(x.unrealized_pnl)}</span>`]), 'No open positions');
 
   $('board').innerHTML = table(['Symbol','Price','Regime','Momentum','Mean rev.','Breakout','Ensemble'], syms.map(s => {
     const sc = st.scores[s] || {}, rg = st.regimes[s];
@@ -2375,7 +2377,7 @@ function renderBadges(st){
   out.push(d > 0.002 ? '😎 Great day' : d > 0 ? '🙂 Up today' : d < -0.002 ? '🥶 Rough day - stops are on duty' : '😌 Steady');
   const streak = winStreak();
   if (streak >= 2) out.push(`🔥 ${streak} wins in a row`);
-  const locked = p.positions.filter(x => x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0).length;
+  const locked = p.positions.filter(x => lockedIn(x)).length;
   if (locked) out.push(`🔒 ${locked} profit${locked > 1 ? 's' : ''} locked in`);
   if (st.executive && st.executive.median_ms != null) out.push(`⚡ decides in ${st.executive.median_ms < 1 ? '<1' : Math.round(st.executive.median_ms)} ms`);
   $('sBadges').innerHTML = out.map(b => `<span class="badge2">${esc(b)}</span>`).join('');
@@ -2713,7 +2715,7 @@ function renderOverview(st){
 function ptradeRows(list, named){
   return list.map(x => {
     const upl = x.unrealized_pnl, cost = Math.abs(x.qty * x.avg_price), r = cost ? upl / cost : 0;
-    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
+    const locked = lockedIn(x);
     const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
       : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
     return `<div class="ptrade"><div class="s">${esc(x.symbol)}${named && x.acct_label ? ` <span class="accbadge">${esc(x.acct_label)}</span>` : ''}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
@@ -3140,7 +3142,7 @@ function renderOpen(st){
     ${realW ? `<div><span>Real money</span><b>${money(realW)}</b></div>` : ''}` : '');
   setHTML($('openList'), rows.length ? rows.map(x => {
     const u = x.unrealized_pnl, c = Math.abs(x.qty * x.avg_price), r = c ? u / c : 0;
-    const locked = x.stop_price != null && (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0;
+    const locked = lockedIn(x);
     const prot = locked ? `🔒 Profit locked · stop ${px(x.stop_price)}` : x.stop_price != null ? `Safety stop ${px(x.stop_price)}` : '';
     const held = (x.net ?? u) < 0 && x.never_sell ? '<div class="o3 warn">🛑 Held until it is back in profit after fees - never sold at a loss</div>' : '';
     const [coin, quote] = x.symbol.split('-');

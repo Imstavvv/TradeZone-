@@ -93,3 +93,16 @@ def test_winners_are_still_protected_from_the_normal_plan():
 def test_it_can_be_switched_off():
     pos = buy(make(wide_stop=False))
     assert pos.stop_price == pytest.approx(pos.avg_price * 0.97, rel=1e-3)
+
+
+def test_profit_locked_is_only_claimed_when_selling_at_the_stop_beats_both_fees():
+    desk = make()
+    pos = buy(desk)
+    view = lambda: next(x for x in desk.portfolio_view()["positions"] if x["symbol"] == "BTC-USD")  # noqa: E731
+    assert view()["stop_net"] < 0  # the safety stop: a loss
+    pos.stop_price = pos.avg_price * 1.001  # just above the buy price - but under the fees
+    assert view()["stop_net"] < 0
+    pos.stop_price = pos.avg_price * 1.03  # well past both fees
+    assert view()["stop_net"] > 0
+    pos.stop_price = None
+    assert view()["stop_net"] is None

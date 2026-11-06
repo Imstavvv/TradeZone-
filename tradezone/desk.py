@@ -1369,6 +1369,16 @@ class TradingDesk:
         self.journal.commit()
 
     # -- views -----------------------------------------------------------
+    def portfolio_view(self) -> dict:
+        """The book for the screen: each open trade also says what selling at its stop would really leave
+        after both fees (so "profit locked" is only claimed when it truly is)."""
+        out = self.portfolio.to_dict()
+        by = {p.symbol: p for p in self.portfolio.open_positions}
+        for x in out["positions"]:
+            p = by.get(x["symbol"])
+            x["stop_net"] = self.settings.net_if_sold(p, p.stop_price) if p is not None and p.stop_price else None
+        return out
+
     def state(self) -> dict:
         sentinel = self.bots["sentinel"]
         execution = self.bots["execution"]
@@ -1395,7 +1405,7 @@ class TradingDesk:
             "cycles": self.cycles,
             "uptime": time.time() - self.started_at,
             "prices": self.prices,
-            "portfolio": self.portfolio.to_dict(),
+            "portfolio": self.portfolio_view(),
             "pnl_point": [time.time(), self.lifetime_pnl()],
             "cashout": self.cashout_summary(),
             "focus": self.focus_status(),
