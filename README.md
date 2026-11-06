@@ -817,6 +817,17 @@ In a falling market almost the whole loss is **trades still held below what was 
 
 **Waiting longer at the bid for the lower maker fee** (`TZ_MAKER_WAIT_S`, 20 s): fees are close to half the profit, so 1-10 minutes were tried (after fixing a bug that dropped any maker buy left waiting past 60 s). 3-5 minutes saved about $20 in fees and earned 1-4% more when prices rose (+$399-414 / +$175-177 vs +$396 / +$173), but lost more when they fell (−$404 vs −$389 on the tuning half): a bid left waiting fills precisely when the price is dropping through it. It stays at 20 s.
 
+**Better buy signals.** Every buy taken was scored against buying at a random moment (did the price rise 1.5% before falling 3%?). Overall the bots' buys barely beat random; dips led by **mean reversion** (RSI under 35, the most common lead sideways) went bad *more* often than random buys in all three markets (rising 16% / 26% vs 10% / 12%; falling 54% / 59% vs 44% / 33%; sideways 30% / 31% vs 20% / 21%), while pullback and breakout buys held up. Filters for those dips (`TZ_MR_BUY_FILTER`: wait for the turn, only above the 50-bar average, or both; `TZ_MR_RANGING_WEIGHT`, its sideways share of the vote, 0.7):
+
+| 16 windows, tuning / unseen | Rising | Falling |
+| --- | --- | --- |
+| As it is | +$396 / +$173 | −$389 / −$256 |
+| Wait for the turn | +$414 / +$187 | −$358 / −$287 |
+| Only above the 50-bar average | +$414 / +$157 | −$355 / −$247 |
+| Half the vote (0.35) | +$438 / +$174 | −$371 / −$301 |
+
+Each won one half and lost the other somewhere, so they stay off.
+
 None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
