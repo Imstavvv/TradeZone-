@@ -1,6 +1,9 @@
 <!doctype html>
 <html lang="en">
 <head>
+<script>(function(){var t;try{t=localStorage.getItem('tz_theme')}catch(e){}  /* the look, before anything is drawn (no white flash) */
+if(t!=='light'&&t!=='dark'&&t!=='heater')t=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+document.documentElement.dataset.theme=t;})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f5f6fb">
@@ -18,11 +21,7 @@ body{margin:0;font:13px/1.45 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Ro
 header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 18px}
 .brand{display:flex;align-items:center;gap:10px}
 .brand .logo{width:28px;height:28px}
-.badge.live{border-color:#7f1d1d}
-.badge.paper{border-color:#164e63}
-.badge.halt{border-color:#ef4444;animation:pulse 1.2s infinite}
-.badge.pause{border-color:#78350f}
-.badge.run{border-color:#14532d}
+.badge.halt{animation:pulse 1.2s infinite}
 @keyframes pulse{50%{opacity:.55}}
 .controls{display:flex;gap:8px;flex-wrap:wrap}
 button{padding:6px 12px;font:inherit;cursor:pointer}
@@ -84,8 +83,6 @@ button.gopaper{border-color:#0e7490}
 .modal .actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 button:disabled{opacity:.45;cursor:not-allowed}
 .banner{grid-column:1/-1;padding:10px 14px;font-weight:600;display:none}
-.badge.grok-on{border-color:#525252}
-.badge.grok-err{border-color:#7f1d1d}
 form.row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 form.row input,form.row select{padding:6px 8px;font:inherit;min-width:0;flex:1 1 120px}
 form.row label{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px;flex:1 1 100%}
@@ -711,7 +708,6 @@ th,td{border-bottom-color:var(--line)}
 .stream .tag.risk{background:#fef3c7;color:#b45309}
 .stream .tag.alert{background:#ffe4e6;color:#be123c}
 .stream .tag.thought{background:#f1f2f8;color:#64748b}
-@keyframes fadein{from{background:#f3f0ff}to{background:transparent}}
 .act-open{color:#2563eb}
 .act-close,.act-partial{color:#7c3aed}
 .act-add,.act-reduce,.act-flip{color:#b45309}
@@ -808,7 +804,8 @@ body.is-live .hero .bal{text-shadow:none}
 .welcome .steps i.on{background:var(--accent);box-shadow:none}
 .where summary{color:var(--text)}
 #burst b{font-family:var(--sans);color:#fff;text-shadow:0 8px 40px rgba(124,58,237,.7)}
-.pagehead h2 .pe{-webkit-text-fill-color:initial;background:none;margin-right:2px}  /* the emoji keeps its colours */
+.pagehead h2 .pe{-webkit-text-fill-color:initial;background:none;margin-right:2px}
+/* the emoji keeps its colours */
 .badge.live,.badge.paper,.badge.halt,.badge.pause,.badge.run,.badge.grok-on,.badge.grok-err{border-color:transparent}
 /* the Open tab and the account tabs */
 .opensum span{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.06em}
@@ -826,6 +823,101 @@ body.is-live .hero .bal{text-shadow:none}
 @media (max-width:380px){
   .hero .bal{font-size:38px}
 }
+/* =================== DARK and 🔥 HEATER modes (the toggle: ☀️ / 🌙 / 🔥) ===================
+   Same layout and rules as the light theme; only the colours change. Heater is a dark, fiery mode
+   with flames along the bottom of the screen and embers rising - it's a look, not a trading setting. */
+:root[data-theme="dark"]{--bg:#0c0e18;--panel:#151827;--panel2:#1b1f31;--line:#282c42;--text:#eef0fa;--muted:#9a9fbb;--grid:#23273b;--zero:#3c415d;--tint:#241f42;--soft-fg:#c4b5fd;--header-bg:rgba(12,14,24,.86);--up:#34d399;--down:#fb7185;--warn:#fbbf24;--gold:#a78bfa;--ink:#eef0fa;--card-shadow:0 1px 2px rgba(0,0,0,.35),0 12px 30px -16px rgba(0,0,0,.7);color-scheme:dark}
+:root[data-theme="heater"]{--bg:#110604;--panel:#1c0b07;--panel2:#26110a;--line:#3e1b10;--text:#fff3ea;--muted:#d9a78e;--accent:#f97316;--accent2:#facc15;--pink:#fb7185;--violet:#f97316;--grid:#2e150d;--zero:#5e2b18;--tint:#3a1709;--soft-fg:#fdba74;--header-bg:rgba(17,6,4,.86);--up:#4ade80;--down:#fb7185;--warn:#fde047;--gold:#fb923c;--ink:#fff3ea;--practice:linear-gradient(135deg,#9a3412 0%,#ea580c 50%,#f59e0b 100%);--live:linear-gradient(135deg,#881337 0%,#e11d48 50%,#f97316 100%);--vib:linear-gradient(90deg,#fde047,#f97316 45%,#ef4444);--card-shadow:0 1px 2px rgba(0,0,0,.4),0 14px 34px -16px rgba(0,0,0,.8),0 0 0 1px rgba(249,115,22,.04);color-scheme:dark}
+:root:is([data-theme="dark"],[data-theme="heater"]) body::before{background:radial-gradient(45% 35% at 8% -5%,rgba(124,58,237,.18),transparent 70%),
+             radial-gradient(40% 30% at 95% 0%,rgba(236,72,153,.12),transparent 70%),
+             radial-gradient(50% 40% at 50% 105%,rgba(6,182,212,.10),transparent 70%)}
+:root[data-theme="heater"] body::before{background:radial-gradient(60% 45% at 50% 115%,rgba(249,115,22,.32),transparent 70%),
+             radial-gradient(40% 30% at 10% 0%,rgba(220,38,38,.16),transparent 70%),
+             radial-gradient(40% 30% at 95% 5%,rgba(250,204,21,.10),transparent 70%)}
+/* surfaces that were white */
+:root:is([data-theme="dark"],[data-theme="heater"]) header{background:var(--header-bg)}
+:where(:root[data-theme="dark"],:root[data-theme="heater"]) button{background:var(--panel2);color:var(--text);border-color:var(--line);box-shadow:none}  /* (as weak as the plain button: every other button style still wins) */
+:where(:root[data-theme="dark"],:root[data-theme="heater"]) button:where(:not(.gopaper,.golive,.danger)):hover{background:var(--tint);border-color:var(--accent)}
+:root:is([data-theme="dark"],[data-theme="heater"]) button.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .viewtoggle{background:var(--panel2)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .viewtoggle button{background:none}
+:root:is([data-theme="dark"],[data-theme="heater"]) .viewtoggle button.on{background:var(--tint);color:var(--text);box-shadow:none}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.tab,.chip){background:var(--panel2);color:var(--muted)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.tab.on,.chip.on){background:var(--tint);color:var(--soft-fg);border-color:transparent}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.txt,.pastebox input,.modal input,form.row input,form.row select,.tl-bar select,.welcome input.code){background:var(--panel2);color:var(--text);border-color:var(--line)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.sheet .panel2,.modal .box,.toast,.pnltip){background:var(--panel);color:var(--text)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .toast{border-color:var(--line)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.modal,.sheet){background:rgba(0,0,0,.55)}
+@media (max-width:700px){
+  :root:is([data-theme="dark"],[data-theme="heater"]) .bottomnav{background:var(--header-bg);border-top-color:var(--line)}
+}
+:root:is([data-theme="dark"],[data-theme="heater"]) .bottomnav a.on{background:var(--tint);color:var(--soft-fg)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .tabbar a.on{color:var(--soft-fg);border-bottom-color:var(--soft-fg)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.srow .ic,.rule .ic){background:var(--tint)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .strat.on,:root:is([data-theme="dark"],[data-theme="heater"]) .pstep.done{background:var(--tint);border-color:var(--accent)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .mate2 .say{background:var(--tint);color:var(--soft-fg)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.bot .act,.node .now){color:#b9bdd6}
+:root[data-theme="heater"] :is(.bot .act,.node .now){color:#e9c2ad}
+:root:is([data-theme="dark"],[data-theme="heater"]) .node.exec{background:linear-gradient(180deg,rgba(250,204,21,.10),var(--panel2));border-color:rgba(250,204,21,.35)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .scard h4 a{color:var(--soft-fg)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .acc.live{border-color:rgba(251,113,133,.6);box-shadow:0 0 0 3px rgba(251,113,133,.12)}
+/* the soft coloured labels, for a dark page */
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.badge,.accbadge){background:var(--panel2);color:var(--muted)}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.badge.live,.accbadge.live,.badge.grok-err,.stream .tag.alert){background:rgba(244,63,94,.18);color:#fda4af}
+:root:is([data-theme="dark"],[data-theme="heater"]) .accbadge.stop{background:rgba(239,68,68,.2);color:#fca5a5}
+:root:is([data-theme="dark"],[data-theme="heater"]) .badge.paper{background:rgba(14,165,233,.18);color:#7dd3fc}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.badge.pause,.pill.volatile,.stream .tag.risk){background:rgba(245,158,11,.18);color:#fcd34d}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.badge.run,.pill.trending,.stream .tag.trade){background:rgba(16,185,129,.18);color:#6ee7b7}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.badge.grok-on,.stream .tag.signal,.tagchip){background:rgba(124,58,237,.22);color:#c4b5fd}
+:root:is([data-theme="dark"],[data-theme="heater"]) .pill.ranging{background:rgba(59,130,246,.2);color:#93c5fd}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.pill.unknown,.stream .tag,.stream .tag.thought){background:var(--panel2);color:var(--muted)}
+:root:is([data-theme="dark"],[data-theme="heater"]) .banner{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.35);color:#fcd34d}
+:root:is([data-theme="dark"],[data-theme="heater"]) .banner.info{background:rgba(6,182,212,.12);border-color:rgba(6,182,212,.35);color:#a5f3fc}
+:root:is([data-theme="dark"],[data-theme="heater"]) .banner.crit{background:rgba(244,63,94,.14);border-color:rgba(244,63,94,.4);color:#fecdd3}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.okbox,.mission){background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.35);color:#a7f3d0}
+:root:is([data-theme="dark"],[data-theme="heater"]) .lvl-critical{color:#fda4af}
+:root:is([data-theme="dark"],[data-theme="heater"]) .lvl-warning{color:#fcd34d}
+:root:is([data-theme="dark"],[data-theme="heater"]) .act-open{color:#93c5fd}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.act-close,.act-partial){color:#c4b5fd}
+:root:is([data-theme="dark"],[data-theme="heater"]) :is(.act-add,.act-reduce,.act-flip){color:#fcd34d}
+@keyframes fadein{from{background:var(--tint)}to{background:transparent}}
+:root:is([data-theme="dark"],[data-theme="heater"]) .lockscreen{background:radial-gradient(50% 40% at 50% 15%,rgba(124,58,237,.25),transparent 70%),
+  radial-gradient(40% 30% at 85% 85%,rgba(236,72,153,.15),transparent 70%),var(--bg)}
+:root[data-theme="heater"] .lockscreen{background:radial-gradient(60% 45% at 50% 110%,rgba(249,115,22,.4),transparent 70%),
+  radial-gradient(40% 30% at 50% 10%,rgba(220,38,38,.2),transparent 70%),var(--bg)}
+/* 🔥 heater: fire where the violet was, a glowing balance, flames and embers */
+:root[data-theme="heater"] button.gopaper{background:linear-gradient(135deg,#f97316,#dc2626);color:#fff;border-color:transparent;box-shadow:0 8px 20px -8px rgba(249,115,22,.8)}
+:root[data-theme="heater"] button.golive{background:linear-gradient(135deg,#fde047,#f97316);color:#2a0d02;border-color:transparent;box-shadow:0 8px 20px -8px rgba(250,204,21,.7)}
+:root[data-theme="heater"] button.danger{background:linear-gradient(135deg,#ef4444,#991b1b);color:#fff;border-color:transparent}
+:root[data-theme="heater"] .hero{box-shadow:0 24px 50px -22px rgba(249,115,22,.9);animation:heat 2.8s ease-in-out infinite}
+:root[data-theme="heater"] body.is-live .hero{box-shadow:0 24px 50px -22px rgba(225,29,72,.9)}
+@keyframes heat{50%{box-shadow:0 24px 60px -18px rgba(250,204,21,.85),0 0 0 1px rgba(253,224,71,.25)}}
+:root[data-theme="heater"] .hero .actions2 button.gopaper{background:#fff;color:#c2410c}
+:root[data-theme="heater"] .hero .actions2 button.golive{background:#fff;color:#be123c}
+:root[data-theme="heater"] .brand .logo,:root[data-theme="heater"] .lockscreen .logo,:root[data-theme="heater"] .fronthead .logo{background:radial-gradient(circle at 50% 85%,#fff7ae,#fde047 25%,#f97316 55%,#b91c1c 85%);box-shadow:0 0 18px rgba(249,115,22,.7);animation:emberglow 1.6s ease-in-out infinite alternate}
+@keyframes emberglow{to{box-shadow:0 0 26px rgba(250,204,21,.9);filter:brightness(1.1)}}
+:root[data-theme="heater"] .arena{background:radial-gradient(70% 90% at 15% 110%,rgba(249,115,22,.65),transparent 60%),radial-gradient(50% 70% at 90% 0%,rgba(220,38,38,.45),transparent 60%),linear-gradient(135deg,#2a0a05,#4a1206)}
+:root[data-theme="heater"] .node.flash,:root[data-theme="heater"] .mate2.busy{box-shadow:0 0 0 2px #f97316,0 0 22px -4px rgba(249,115,22,.9)}
+#flames{position:fixed;left:0;right:0;bottom:0;height:130px;pointer-events:none;z-index:-1;display:none;overflow:hidden}
+:root[data-theme="heater"] #flames{display:block}
+#flames::before{content:"";position:absolute;left:0;right:0;bottom:0;height:70px;background:linear-gradient(transparent,rgba(249,115,22,.35) 60%,rgba(220,38,38,.45))}
+#flames i{position:absolute;bottom:-26px;left:calc(var(--x) * 1%);width:var(--w,80px);height:var(--h,130px);margin-left:calc(var(--w,80px) / -2);border-radius:50% 50% 22% 22% / 62% 62% 38% 38%;transform-origin:50% 100%;opacity:.8;filter:blur(7px);mix-blend-mode:screen;background:radial-gradient(ellipse at 50% 88%,#fff7ae 0%,#fde047 16%,#fb923c 40%,rgba(220,38,38,.7) 66%,transparent 74%);animation:flicker calc(var(--d) * 1s) ease-in-out infinite alternate;animation-delay:calc(var(--o) * -1s)}
+@keyframes flicker{0%{transform:scale(1,.82) translateY(0) skewX(-2deg)}40%{transform:scale(.86,1.12) translateY(-7px) skewX(3deg)}
+  70%{transform:scale(1.05,.95) translateY(-3px) skewX(-3deg)}100%{transform:scale(.92,1.08) translateY(-5px) skewX(2deg)}}
+#flames b{position:absolute;bottom:6px;left:calc(var(--x) * 1%);width:4px;height:4px;border-radius:50%;background:#fdba74;box-shadow:0 0 8px 2px rgba(249,115,22,.9);opacity:0;animation:ember calc(var(--d) * 1s) linear infinite;animation-delay:calc(var(--o) * -1s)}
+@keyframes ember{0%{transform:translate(0,0) scale(1);opacity:0}12%{opacity:1}100%{transform:translate(calc(var(--s) * 1px),-150px) scale(.4);opacity:0}}
+@media (max-width:700px){
+  #flames{bottom:calc(58px + env(safe-area-inset-bottom));height:100px}
+  #flames i{--w:60px;--h:100px}
+}
+/* the switch */
+.themepick{display:flex;gap:6px}
+.themepick button{width:42px;height:40px;padding:0;font-size:18px}
+.themepick button.on{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.themebtn{width:36px;height:36px;padding:0;border-radius:50%;font-size:17px;line-height:1;display:grid;place-items:center;flex:none}
+@media (max-width:700px){
+  .themebtn{width:34px;height:34px;min-height:34px}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
@@ -835,7 +927,7 @@ body.is-live .hero .bal{text-shadow:none}
 <body>
 <header id="top">
   <div class="brand"><div class="logo"></div>TradeZone <span id="mode" class="badge">—</span><span id="status" class="badge">CONNECTING</span><span id="grokBadge" class="badge">GROK OFF</span><span id="conn" class="muted"></span>
-    <div class="viewtoggle" id="viewToggle" style="margin-left:auto"><button data-view="simple">Simple</button><button data-view="pro">Pro</button></div></div>
+    <div class="viewtoggle" id="viewToggle" style="margin-left:auto"><button data-view="simple">Simple</button><button data-view="pro">Pro</button></div><button class="themebtn" id="themeBtn" aria-label="Change the look">☀️</button></div>
   <div class="controls">
     <button id="btnMode" class="golive" data-long="Go LIVE" data-short="Go LIVE">Go LIVE</button>
     <button id="btnGrok" data-long="Test Grok" data-short="Grok">Test Grok</button>
@@ -1021,6 +1113,7 @@ body.is-live .hero .bal{text-shadow:none}
 </div></div>
 <div class="toasts" id="toasts"></div>
 <div id="burst" aria-hidden="true"><b>SUPERNOVA!</b></div>
+<div id="flames" aria-hidden="true"><i style="--x:0.0;--d:0.83;--o:0.30;--w:101px;--h:103px"></i><i style="--x:6.7;--d:0.65;--o:1.07;--w:83px;--h:137px"></i><i style="--x:13.3;--d:0.64;--o:1.01;--w:62px;--h:105px"></i><i style="--x:20.0;--d:0.90;--o:0.14;--w:65px;--h:135px"></i><i style="--x:26.7;--d:0.90;--o:1.65;--w:67px;--h:114px"></i><i style="--x:33.3;--d:1.04;--o:1.17;--w:63px;--h:136px"></i><i style="--x:40.0;--d:1.01;--o:0.10;--w:74px;--h:102px"></i><i style="--x:46.7;--d:0.99;--o:0.27;--w:86px;--h:109px"></i><i style="--x:53.3;--d:0.98;--o:1.14;--w:95px;--h:143px"></i><i style="--x:60.0;--d:0.73;--o:1.16;--w:100px;--h:112px"></i><i style="--x:66.7;--d:0.86;--o:1.10;--w:64px;--h:136px"></i><i style="--x:73.3;--d:0.64;--o:0.41;--w:103px;--h:134px"></i><i style="--x:80.0;--d:0.90;--o:0.63;--w:97px;--h:129px"></i><i style="--x:86.7;--d:0.85;--o:0.50;--w:71px;--h:144px"></i><i style="--x:93.3;--d:1.15;--o:0.16;--w:79px;--h:133px"></i><i style="--x:100.0;--d:0.95;--o:0.69;--w:88px;--h:118px"></i><b style="--x:60.5;--d:2.68;--o:2.56;--s:-20"></b><b style="--x:74.7;--d:2.88;--o:2.44;--s:-28"></b><b style="--x:94.4;--d:2.69;--o:2.79;--s:20"></b><b style="--x:86.0;--d:3.28;--o:3.48;--s:8"></b><b style="--x:49.7;--d:4.49;--o:0.34;--s:-25"></b><b style="--x:92.7;--d:3.69;--o:3.32;--s:-27"></b><b style="--x:72.2;--d:3.27;--o:2.89;--s:13"></b><b style="--x:80.9;--d:3.21;--o:1.93;--s:12"></b><b style="--x:35.3;--d:4.85;--o:1.78;--s:9"></b><b style="--x:13.2;--d:2.65;--o:3.84;--s:-22"></b><b style="--x:72.9;--d:3.49;--o:4.58;--s:1"></b><b style="--x:9.7;--d:3.62;--o:2.75;--s:26"></b><b style="--x:15.1;--d:3.58;--o:2.75;--s:15"></b><b style="--x:41.9;--d:3.40;--o:4.42;--s:-16"></b><b style="--x:16.5;--d:2.94;--o:1.16;--s:-16"></b><b style="--x:3.2;--d:4.58;--o:0.91;--s:-12"></b><b style="--x:2.4;--d:3.55;--o:1.85;--s:6"></b><b style="--x:32.6;--d:2.81;--o:4.30;--s:30"></b></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
 <div class="modal" id="grokModal"><div class="box" style="border-color:#a3a3a3;max-width:560px">
   <div style="display:flex;align-items:center;gap:10px"><div class="avatar" style="background:#e5e5e5">G</div>
@@ -1156,6 +1249,7 @@ body.is-live .hero .bal{text-shadow:none}
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap</b><span id="setLcSub">No new buys while trades below break-even tie up 15% of the balance</span></div><button id="setLcBtn">Turn off</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
+          <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>Light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
         </div>
         <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
           <div class="srow"><div class="ic">✅</div><div class="tx"><b>This device is logged in</b><span>It stays logged in for a year - no password, no Face ID</span></div><span></span></div>
@@ -1303,6 +1397,28 @@ try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept th
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (v, d=2) => v==null ? '—' : (v<0?'-':'') + '$' + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
+// ---- the look: ☀️ light / 🌙 dark / 🔥 heater (remembered on this device; first time: the phone's own setting) ----
+const THEMES = {light: ['☀️', 'Light', '#f5f6fb'], dark: ['🌙', 'Dark', '#0c0e18'], heater: ['🔥', 'Heater', '#110604']};
+const NEXT_THEME = {light: 'dark', dark: 'heater', heater: 'light'};
+function setTheme(t, save = true){
+  if (!THEMES[t]) t = 'light';
+  document.documentElement.dataset.theme = t;
+  if (save) { try { localStorage.setItem('tz_theme', t); } catch {} }
+  $('themeBtn').textContent = THEMES[t][0];
+  $('themeBtn').title = `Look: ${THEMES[t][1]} - tap for ${THEMES[NEXT_THEME[t]][1]}`;
+  document.querySelector('meta[name="theme-color"]').content = THEMES[t][2];
+  $('setThemeTxt').textContent = `Look: ${THEMES[t][1]}`;
+  document.querySelectorAll('#themePick button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  $('burst').querySelector('b').textContent = t === 'heater' ? '🔥 ON FIRE!' : 'SUPERNOVA!';
+  if (S.state) render();  // the charts take the new colours
+}
+$('themeBtn').onclick = () => setTheme(NEXT_THEME[document.documentElement.dataset.theme] || 'dark');
+$('themePick').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) setTheme(b.dataset.t); });
+window.matchMedia && matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', ev => {
+  let saved = null; try { saved = localStorage.getItem('tz_theme'); } catch {}
+  if (!saved) setTheme(ev.matches ? 'dark' : 'light', false);  // no choice made yet: follow the phone
+});
+setTheme(document.documentElement.dataset.theme, false);  // (set before the page was drawn)
 // a colour from the theme (charts follow the stylesheet)
 const tok = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 const pct = (v, d=2) => v==null ? '—' : (v*100).toFixed(d) + '%';
