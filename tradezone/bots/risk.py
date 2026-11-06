@@ -81,10 +81,12 @@ class RiskBot(Bot):
 
     def on_snapshot(self, ev: Event) -> None:
         self.snapshots[ev.payload.symbol] = ev.payload
+        # (kept whether or not the falling-market guard is on, so switching it on works at once)
         st = self.settings
-        if st.falling_guard != "off":
-            px = self.long_px.setdefault(ev.payload.symbol, deque(maxlen=st.falling_window + st.falling_slope_bars))
-            px.append(ev.payload.price)
+        px = self.long_px.get(ev.payload.symbol)
+        if px is None or px.maxlen != st.falling_window + st.falling_slope_bars:
+            px = self.long_px[ev.payload.symbol] = deque(px or (), maxlen=st.falling_window + st.falling_slope_bars)
+        px.append(ev.payload.price)
 
     def _falling(self, symbol: str) -> bool | None:
         """True when the coin is below its long average and that average is lower than it was; None: too little history."""
@@ -376,8 +378,9 @@ class RiskBot(Bot):
         qty = min(qty, equity * cap / price)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
+        budget_left = float("inf")
         if s.underwater_budget > 0 and sig.side is Side.BUY:  # the new trade starts below break-even too
-            left = equity * s.underwater_budget - self.desk.underwater_cost()
+            left = budget_left = equity * s.underwater_budget - self.desk.underwater_cost()
             if left <= 0:
                 return self.reject(sig, f"underwater budget: {s.underwater_budget:.0%} of the balance is already in "
                                         "trades below break-even - no new buys until some recover")
@@ -401,7 +404,7 @@ class RiskBot(Bot):
         if checker is not None and sig.side is Side.BUY:
             least = checker.min_qty(sig.symbol, price) * 1.02
             if 0 < qty < least and least * price <= min(equity * limits.max_position_pct, self.desk.free_cash() * 0.995) \
-                    and least * (size_dist + cost) <= 1.5 * equity * limits.risk_per_trade:
+                    and least * (size_dist + cost) <= 1.5 * equity * limits.risk_per_trade and least * price <= budget_left:
                 qty = least
         # never buy a coin that can't be sold again (venue lists it for selling, big enough, liquid enough)
         if checker is not None and s.is_crypto(sig.symbol) and sig.side is Side.BUY:

@@ -87,3 +87,38 @@ def test_market_mode_waits_for_most_coins_to_fall():
     assert "market is falling" not in (idea(d, "SOL-USD") or "")  # 1 of 3 falling
     feed(d, "ETH-USD", falling(3_000.0))
     assert "market is falling" in (idea(d, "SOL-USD") or "")  # 2 of 3
+
+
+def test_switching_it_on_works_at_once_on_the_history_already_seen():
+    d = make()  # off while the prices come in
+    feed(d, "SOL-USD", falling(150.0))
+    d.set_falling_guard(True)
+    assert "downtrend" in (idea(d, "SOL-USD") or "")
+
+
+def test_the_switch_works_from_the_app_and_survives_a_restart(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from tradezone.server import create_app
+    db = str(tmp_path / "tz.db")
+    s = Settings(feed="sim", symbols=list(SYMS), starting_cash=1_000.0)
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    with TestClient(create_app(d, run_desk=False)) as c:
+        assert c.post("/api/falling-guard", json={"on": True}).json()["falling_guard"] == "coin"
+        assert c.get("/api/state").json()["falling_guard"] == "coin"
+    s2 = Settings(feed="sim", symbols=list(SYMS), starting_cash=1_000.0)
+    d2 = TradingDesk(s2, feed=SimulatedFeed(s2.symbols), journal=Journal(db))
+    run(d2.start())
+    assert d2.settings.falling_guard == "coin"
+    run(d2.shutdown())
+
+
+def test_the_underwater_budget_shrinks_a_new_buy_to_fit():
+    d = make(underwater_budget=0.20)
+    feed(d, "SOL-USD", [150.0] * 5)  # (indicators for the sizing)
+    approved = capture(d, "order.approved")
+    rej = capture(d, "signal.rejected")
+    d.bots["risk"].evaluate(Signal("SOL-USD", Side.BUY, 0.99, "test", "quant", kind=SignalKind.ENTRY))
+    run(d.bus.drain())
+    assert approved, rej
+    assert approved[-1].qty * d.prices["SOL-USD"] <= 0.20 * d.portfolio.equity + 1e-6
