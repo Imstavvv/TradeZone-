@@ -61,7 +61,7 @@ Safety properties:
 | --- | --- |
 | 🏠 **Home** | The bots and all the trading: starship Nova, your balance and the trading buttons, the live profit & loss chart, Today's hunt, open trades, the bot crew |
 | 📣 **Activity** | What's happening (live), what the world is saying (news), team rules, what the team has learned |
-| 📈 **Trades** | The live profit & loss chart, latest results and the full trade log (filter, export) |
+| 📈 **Trades** | The live profit & loss chart, **every trade as one card** (buy to sale, with totals and filters), and the full trade log (filter, export) |
 | 💰 **Money** | Real-money account, Grok AI helper, crypto wallets and sending money |
 | ⚙️ **Settings** | Logging in (another device, log out), your goal, devices logged in |
 
@@ -100,6 +100,7 @@ The dashboard streams everything the team does the moment it happens, over a Web
 
 * **Bot floor:** the 35 bots in the order a trade flows through them (Scout → Trend Scout → Reporter → the 10 advisors → Strategist → Quant → Grok → Risk Manager → **Executive** → Executor → Portfolio Manager → Skimmer → Flipper → Dip Buyer → Stacker → Speed Monitor → Housekeeper → Sentinel → Coach → Target Learner → Trade Reviewer). The header shows the Executive's stance and decision speed. Each tile shows what the bot is doing right now, how busy it is (actions/min, total), when it last acted, and **lights up in its colour** whenever it acts. Tap a tile (or a bot card) for that bot's full log of its last 200 actions, which keeps updating while open.
 * **Live activity:** every bot "thought" (e.g. *no consensus to buy AAPL: momentum against*) and every team event (signals with their votes, Grok verdicts, Risk approvals and rejections with the reason, orders, fills, stop moves, alerts). Filter by Trades, Signals, Risk, Alerts, Bot thoughts or any single bot.
+* **Your trades:** every trade as one card, from buy to sale, built from its fills: what was bought and at what average price, what it sold for (and how the price moved), the result after **all** fees in $ and %, how long it was held, how many buys (Dip Buyer adds) and in how many parts it was sold, the fees, and why it was bought and why it was sold in everyday words ("Breakout: the price broke out of its range", "Safety stop reached"). Tap a card for each fill. Open trades show where they stand now (after fees); a trade moved into the hold stack says so (that isn't a sale). At the top: trades closed, win rate, the result after fees, average win and loss, best and worst, average time held. Filter by wins / losses / open, today / 7 days / 30 days / all, practice / real money, and account.
 * **Trade log:** every fill, stored permanently in the journal and shown live as it happens. Each entry has paper/live, symbol, open/close/partial/add, side, quantity, price, fee, realized P&L and **why**: the full reason, including consensus votes, stop placement and risk, or "stop hit at…". Filter by mode and symbol, load more, and **Export CSV** for spreadsheets or taxes. Totals (fills, realized P&L, fees, win rate) follow the filter.
 
 ## Autonomous operation

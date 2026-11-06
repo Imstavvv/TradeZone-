@@ -437,6 +437,24 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
                      limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)):
         return _clean(desk.journal.trades(mode or None, symbol or None, limit, offset))
 
+    @app.get("/api/trades/trips", dependencies=[Depends(check_token)])
+    async def trade_trips(mode: str | None = None, symbol: str | None = None, account: str | None = None,
+                          days: float = Query(0, ge=0, le=3650)):
+        """Every trade from buy to sale (the Trades tab), for one account and one book."""
+        try:
+            d = desk if not account or account == "main" else desk.fleet.desk(account)
+        except Exception:
+            raise HTTPException(404, "no such account") from None
+        mode = mode if mode in ("paper", "live") else d.mode
+        book = d.live_portfolio if mode == "live" else d.paper_portfolio
+        held = {} if book is None else {
+            p.symbol: {"qty": p.qty, "last_price": p.last_price, "unrealized_pnl": p.unrealized_pnl,
+                       "net": d.settings.net_if_sold(p, p.last_price)} for p in book.open_positions}
+        import time as _t
+        since = _t.time() - days * 86_400 if days else 0.0
+        return _clean({**d.journal.round_trips(mode, symbol or None, since, held), "mode": mode,
+                       "account": account or "main"})
+
     @app.get("/api/trades.csv", dependencies=[Depends(check_token)])
     async def trades_csv(mode: str | None = None, symbol: str | None = None):
         # the session cookie authorises the download link; tokens never go in URLs

@@ -582,6 +582,30 @@ button.ghost:hover{color:var(--text)}
 @media (max-width:700px){
   .acctpick{flex-wrap:nowrap;overflow-x:auto;margin:0 -12px 10px;padding:0 12px}
 }
+/* ---- the Trades tab: one card per trade ---- */
+.trip{border:1px solid var(--line);border-radius:14px;background:var(--panel2);margin-top:8px;overflow:hidden;font-variant-numeric:tabular-nums}
+.trip.win{box-shadow:inset 4px 0 0 var(--up)}.trip.loss{box-shadow:inset 4px 0 0 var(--down)}
+.trip.open{box-shadow:inset 4px 0 0 var(--accent)}.trip.moved{box-shadow:inset 4px 0 0 var(--muted)}
+.trip summary{list-style:none;cursor:pointer;padding:12px 14px 12px 18px}
+.trip summary::-webkit-details-marker{display:none}
+.trip .t1{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:start}
+.trip .who{display:flex;align-items:center;gap:6px 8px;flex-wrap:wrap;min-width:0}
+.trip .sym b{font-size:16px;font-weight:800;letter-spacing:-.01em}
+.trip .res{font-size:17px;font-weight:800;text-align:right;white-space:nowrap}
+.trip .res i{font-style:normal;font-size:12.5px;font-weight:700;margin-left:8px;opacity:.85}
+.trip .res em{font-style:normal;font-size:11px;font-weight:700;color:var(--muted);margin-right:6px;text-transform:uppercase;letter-spacing:.05em}
+.trip .t2{margin-top:5px;font-size:14px}
+.trip .t3{margin-top:3px;font-size:12px;color:var(--muted)}
+.trip .t4{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text)}
+.trip[open] summary{border-bottom:1px dashed var(--line)}
+.trip .legs{padding:8px 14px 12px 18px}
+.trip .leg{display:grid;grid-template-columns:auto auto 1fr auto;gap:4px 10px;align-items:baseline;padding:5px 0;font-size:12.5px;border-bottom:1px dashed var(--line)}
+.trip .leg:last-child{border-bottom:none}
+.trip .leg .lr{grid-column:1/-1;font-size:11.5px;word-break:break-word}
+.trip .leg b{text-transform:capitalize}
+#tripSum i{display:block;font-style:normal;font-size:11.5px;color:var(--muted);margin-top:2px}
+#tripSum b{font-size:18px}
+#tripSum b.pair{display:flex;flex-wrap:wrap;gap:0 12px;font-size:16px}
 /* ---- the Open tab ---- */
 .opensum{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
 .opensum div{padding:8px 10px;min-width:0}
@@ -1234,7 +1258,13 @@ body.is-live .hero .bal{text-shadow:none}
       <div class="scard" data-page="home"><h4>Your open trades <a data-goto="open">Every account ›</a></h4><div class="muted small" id="sOpenN"></div><div id="sOpen"></div></div>
       <div class="scard full" data-page="activity" id="sec-happening"><h4>What's happening <a data-jump="sec-activity" data-pro="1">Every detail ›</a></h4><div id="sHappen"></div></div>
       <div class="scard" data-page="activity" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
-      <div class="scard full" data-page="trades"><h4>Latest results</h4><div id="sResults"></div></div>
+      <div class="scard full" data-page="trades" id="sec-trips"><h4>Your trades <span class="muted small" id="tripN"></span></h4>
+        <div class="opensum" id="tripSum"></div>
+        <div class="openbar"><div class="tabs" id="tripRes"><span class="tab on" data-r="all">All</span><span class="tab" data-r="win">Wins</span><span class="tab" data-r="loss">Losses</span><span class="tab" data-r="open">Open</span></div>
+          <div class="tabs" id="tripDays"><span class="tab" data-d="1">Today</span><span class="tab on" data-d="7">7 days</span><span class="tab" data-d="30">30 days</span><span class="tab" data-d="0">All</span></div></div>
+        <div class="openbar"><div class="tabs" id="tripAcct"></div><div class="tabs" id="tripBook"><span class="tab" data-m="paper">Practice</span><span class="tab" data-m="live">Real money</span></div></div>
+        <div id="tripList"></div>
+        <div class="btnrow" style="justify-content:center"><button id="tripMore" hidden>Show more trades</button></div></div>
       <div class="scard full" data-page="home"><h4>Meet your bot crew <a id="sGrokLink">Grok AI ›</a></h4><div class="crew" id="sTeam"></div>
         <div class="muted" style="font-size:12px;margin-top:10px">Tap a bot to see what it's doing. A glowing ring means it just acted.</div></div>
       <div class="scard" data-page="activity" id="sec-rules"><h4>📜 Team rules</h4><div id="sRules"></div>
@@ -1917,6 +1947,7 @@ function onEvent(e){
   if (ORDER.includes(e.source)) flash(e.source, e.topic === 'alert' ? e.payload.level : 'info');
   pushStream(streamItem('event', e));
   if (e.topic === 'trade.log') {
+    if (S.page === 'trades') { clearTimeout(TRIP.timer); TRIP.timer = setTimeout(loadTrips, 1500); }  // a fill: the trade cards follow
     const id = e.payload.fill_id;  // a fill delivered twice (e.g. while reconnecting) is shown once
     if (id && SHOWN_FILLS.has(id)) return;
     if (id) { SHOWN_FILLS.add(id); if (SHOWN_FILLS.size > 500) SHOWN_FILLS.delete(SHOWN_FILLS.values().next().value); }
@@ -2373,19 +2404,96 @@ function ago(ts){
   if (s < 86400) return Math.round(s / 3600) + ' h ago';
   return new Date(ts * 1000).toLocaleDateString([], {month: 'short', day: 'numeric'});
 }
+// why a trade was bought, in everyday words
+function friendlyEntry(r){
+  r = String(r || '');
+  const rules = [[/^pullback:/, 'Pullback: retested its breakout level and held 🎣'], [/snipe/i, 'Snipe: a meme coin broke out 🎯'],
+    [/volume surge|surge/i, 'Volume surge: trading jumped and the price turned up 📢'], [/^flip|flipper/i, 'Flip: a quick in-and-out ⏱️'],
+    [/dip buy/, 'Dip Buyer: bought more lower down 🔁'], [/^breakout lead/, 'Breakout: the price broke out of its range 🚀'],
+    [/^momentum lead/, 'Momentum: a strong move picking up speed 📈'], [/^mean_reversion lead/, "Buying a dip that's turning back up 🛒"],
+    [/^(macd|obv|vwap|trend|roc|bollinger|stochastic)/i, 'Trend signal: the indicators lined up 📊'], [/stack/, 'Hold stack purchase 🪙']];
+  for (const [rx, t] of rules) if (rx.test(r)) return t;
+  return friendlyReason(r);
+}
+// ---- the Trades tab: one card per trade, from buy to sale ----
+const TRIP = {res: 'all', days: 7, mode: null, acct: 'main', shown: 30, data: null, timer: null, loading: false};
+function dur2(s){
+  s = Math.max(0, s || 0);
+  return s < 3600 ? `${Math.max(1, Math.round(s / 60))}m` : s < 86_400 ? `${Math.floor(s / 3600)}h ${Math.round(s % 3600 / 60)}m` : `${Math.floor(s / 86_400)}d ${Math.round(s % 86_400 / 3600)}h`;
+}
+async function loadTrips(){
+  if (TRIP.loading || !S.state) return; TRIP.loading = true;
+  TRIP.mode = TRIP.mode || S.state.mode;
+  try {
+    TRIP.data = await api(`/api/trades/trips?mode=${TRIP.mode}&account=${encodeURIComponent(TRIP.acct)}&days=${TRIP.days}`);
+    renderTrips();
+  } catch {} finally { TRIP.loading = false; }
+}
+function renderTrips(){
+  const d = TRIP.data; if (!d) return;
+  const st = d.stats, sign = v => (v >= 0 ? '+' : '-') + money(Math.abs(v));
+  document.querySelectorAll('#tripRes .tab').forEach(t => t.classList.toggle('on', t.dataset.r === TRIP.res));
+  document.querySelectorAll('#tripDays .tab').forEach(t => t.classList.toggle('on', +t.dataset.d === TRIP.days));
+  document.querySelectorAll('#tripBook .tab').forEach(t => t.classList.toggle('on', t.dataset.m === d.mode));
+  const accts = (S.state && S.state.accounts) || [];
+  setHTML($('tripAcct'), accts.length > 1 ? accts.map(a => `<span class="tab ${TRIP.acct === a.id ? 'on' : ''}" data-a="${esc(a.id)}">${esc(a.label)}</span>`).join('') : '');
+  setHTML($('tripSum'), `<div><span>Trades closed</span><b>${st.closed}</b>${st.open ? `<i>${st.open} open</i>` : ''}</div>
+    <div><span>Won</span><b>${st.win_rate == null ? '—' : Math.round(st.win_rate * 100) + '%'}</b><i>${st.wins} won · ${st.losses} lost</i></div>
+    <div><span>Result after fees</span><b class="${cls(st.net)}">${st.closed ? sign(st.net) : '—'}</b>${st.banked_open ? `<i>+ ${sign(st.banked_open)} banked from open trades</i>` : ''}</div>
+    <div><span>Average win · loss</span><b class="pair"><span class="up">${st.avg_win == null ? '—' : sign(st.avg_win)}</span><span class="down">${st.avg_loss == null ? '—' : sign(st.avg_loss)}</span></b></div>
+    <div><span>Best · worst</span><b class="pair"><span class="${cls(st.best)}">${st.best == null ? '—' : sign(st.best)}</span><span class="${cls(st.worst)}">${st.worst == null ? '—' : sign(st.worst)}</span></b></div>
+    <div><span>Average time held</span><b>${st.avg_hold_s == null ? '—' : dur2(st.avg_hold_s)}</b><i>fees ${money(st.fees)}</i></div>`);
+  const pick = {all: () => true, win: t => t.status === 'closed' && t.pnl > 0, loss: t => t.status === 'closed' && t.pnl <= 0, open: t => t.status !== 'closed'};
+  const rows = d.trips.filter(pick[TRIP.res]);
+  $('tripN').textContent = d.total ? `${rows.length}${rows.length === d.total ? '' : ' of ' + d.total}` : '';
+  const live = d.mode === 'live';
+  setHTML($('tripList'), rows.length ? rows.slice(0, TRIP.shown).map(t => {
+    const coin = t.symbol.split('-'), short = t.side === 'short';
+    const move = t.avg_exit != null ? (t.avg_exit / t.avg_entry - 1) * (short ? -1 : 1) : t.now_price ? (t.now_price / t.avg_entry - 1) * (short ? -1 : 1) : null;
+    const kind = t.status === 'closed' ? (t.pnl > 0 ? 'win' : 'loss') : t.status;
+    const res = t.status === 'closed' ? `<span class="res ${cls(t.pnl)}">${sign(t.pnl)}<i>${t.pct == null ? '' : (t.pct >= 0 ? '+' : '') + pct(t.pct, 1)}</i></span>`
+      : t.status === 'open' ? `<span class="res ${cls(t.net_now ?? t.unrealized)}"><em>now</em>${t.net_now != null ? sign(t.net_now) : t.unrealized != null ? sign(t.unrealized) : '—'}</span>`
+      : '<span class="res muted"><em>moved to the hold stack</em></span>';
+    const sold = t.avg_exit != null ? ` → ${short ? 'bought back' : 'sold'} at ${px(t.avg_exit)}` : t.now_price ? ` · now ${px(t.now_price)}` : '';
+    const meta = [t.status === 'closed' ? `held ${dur2(t.held_s)}` : `open ${dur2(t.held_s)}`, t.adds ? `${t.adds + 1} buys` : '',
+      t.sold_parts > 1 ? `sold in ${t.sold_parts} parts` : t.status !== 'closed' && t.sold_parts ? `${t.sold_parts} part${t.sold_parts > 1 ? 's' : ''} sold` : '',
+      `fees ${money(t.fees)}`, tradeWhen(t.closed || t.opened)].filter(Boolean).join(' · ');
+    const legs = t.legs.map(l => `<div class="leg"><span class="muted">${tradeWhen(l.ts)}</span><b class="${l.kind === 'sell' || l.kind === 'buy back' ? 'down' : 'up'}">${esc(l.kind)}</b>
+      <span>${num(Math.abs(l.qty))} at ${px(l.price)}</span><span class="${cls(l.pnl)}">${l.pnl == null ? '' : sign(l.pnl)}</span>
+      ${l.reason ? `<div class="lr muted">${esc(l.reason)}</div>` : ''}</div>`).join('');
+    return `<details class="trip ${kind}"><summary>
+      <div class="t1"><span class="who"><span class="sym"><b>${esc(coin[0])}</b><span class="muted">${coin[1] ? '-' + esc(coin[1]) : ''}</span></span>
+        ${short ? '<span class="accbadge">short</span>' : ''}${live ? '<span class="accbadge live">● LIVE</span>' : ''}${t.status === 'open' ? '<span class="accbadge">open</span>' : ''}</span>${res}</div>
+      <div class="t2">${short ? 'Sold short' : 'Bought'} ${num(t.qty)} at ${px(t.avg_entry)}${sold}${move == null ? '' : ` <span class="${cls(move)}">(price ${move >= 0 ? '+' : ''}${pct(move, 1)})</span>`}</div>
+      <div class="t3">${meta}</div>
+      <div class="t4"><span>💡 ${esc(friendlyEntry(t.entry_reason))}</span>${t.exit_reason ? `<span>🏁 ${esc(friendlyReason(t.exit_reason))}</span>` : ''}</div>
+    </summary><div class="legs">${legs}</div></details>`;
+  }).join('') : `<div class="emptyhint">${d.total ? 'No trades match this filter.' : 'No trades in this period yet - they appear here as the bots trade.'}</div>`);
+  $('tripMore').hidden = rows.length <= TRIP.shown;
+}
+$('tripRes').addEventListener('click', e => { const t = e.target.closest('[data-r]'); if (!t) return; TRIP.res = t.dataset.r; TRIP.shown = 30; renderTrips(); });
+$('tripDays').addEventListener('click', e => { const t = e.target.closest('[data-d]'); if (!t) return; TRIP.days = +t.dataset.d; TRIP.shown = 30; loadTrips(); });
+$('tripBook').addEventListener('click', e => { const t = e.target.closest('[data-m]'); if (!t) return; TRIP.mode = t.dataset.m; loadTrips(); });
+$('tripAcct').addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t) return; TRIP.acct = t.dataset.a; loadTrips(); });
+$('tripMore').onclick = () => { TRIP.shown += 30; renderTrips(); };
+setInterval(() => { if (S.page === 'trades' && S.view === 'simple' && !document.hidden) loadTrips(); }, 20_000);  // open trades' standing
 function friendlyReason(r){
   r = String(r || '');
   if (/skimmer: banked .* spike/.test(r)) return 'Skimmer sold part into a price spike 🏄';
   if (/skimmer: banked .* halfway/.test(r)) return 'Skimmer banked a slice halfway to the target 🏄';
   if (/skimmer: day-trade time limit/.test(r)) return "Skim's time was up - banked the profit 🏄";
   if (/^skim:/.test(r)) return 'Quick skim hit its target 🏄';
-  if (/letting the rest run/.test(r)) return 'Hit the +15% target - banked part, the rest is a runner 🏃';
+  if (/letting the rest run/.test(r)) return 'Hit its profit target - banked part, the rest is a runner 🏃';
   if (/partial take-profit/.test(r)) return 'Banked half the profit at the first target';
   if (/stop hit/.test(r)) return 'Safety stop reached';
   if (/take-profit hit/.test(r)) return 'Profit target reached';
   if (/kill switch|manual kill/.test(r)) return 'Emergency stop';
   if (/flatten/.test(r)) return 'You closed it';
   if (/switching to/.test(r)) return 'Closed when switching money mode';
+  if (/patient rescue|back to \+/.test(r)) return 'Came back above break-even - sold before it could slip again 🛟';
+  if (/patient cut|patient exit|no comeback/.test(r)) return 'Cut early: no sign of a comeback ✂️';
+  if (/runner|trailing/.test(r)) return 'The trailing stop locked in the run 🏃';
+  if (/ lead in \w+ regime/.test(r)) return 'The signals turned - sold 🔄';
   const lead = r.split(' | ')[0].replace(/\(score [^)]*\)/, '').replace(/; consensus.*/, '');
   return lead.length > 70 ? lead.slice(0, 70) + '…' : lead;
 }
@@ -2544,12 +2652,6 @@ function renderSimple(st){
   $('sHappen').innerHTML = lines.length ? lines.map(([ic, c, t, ts]) =>
     `<div class="happen"><div class="ic" style="background:${c}">${ic}</div><div>${esc(t)}</div><div class="tm">${ago(ts)}</div></div>`).join('')
     : '<div class="emptyhint">Quiet so far. The bots are watching the markets and will report here.</div>';
-  // latest results
-  const closes = TL.items.filter(t => t.pnl != null).slice(0, 5);
-  $('sResults').innerHTML = closes.length ? closes.map(t => `<div class="happen"><div class="ic" style="background:${t.pnl >= 0 ? 'var(--up)' : 'var(--down)'}">${t.pnl >= 0 ? '▲' : '▼'}</div>
-      <div>${t.action === 'partial' ? 'Half of ' : ''}${esc(t.symbol)} <b class="${cls(t.pnl)}">${t.pnl >= 0 ? '+' : '-'}${money(Math.abs(t.pnl))}</b>
-      <div class="muted small">${esc(friendlyReason(t.reason))}</div></div><div class="tm">${ago(t.ts)}</div></div>`).join('')
-    : '<div class="emptyhint">No finished trades yet.</div>';
   // the team
   const now = Date.now() / 1000;
   const team = ORDER.map(nm => st.bots.find(b => b.name === nm)).filter(Boolean);
@@ -3115,7 +3217,7 @@ function showPage(pg, {push = true} = {}){
   document.querySelectorAll('#bottomnav a, #tabbar a').forEach(a => a.classList.toggle('on', a.dataset.pg === pg));
   if (push && simple && location.hash !== '#/' + pg) history.pushState(null, '', pg === 'home' ? location.pathname : '#/' + pg);
   window.scrollTo({top: 0});
-  if (pg === 'trades' && S.state) loadTrades(true);
+  if (pg === 'trades' && S.state) { loadTrades(true); loadTrips(); }
   if (S.state) render();
 }
 window.addEventListener('popstate', () => { if (S.view === 'simple') showPage(pageFromHash(), {push: false}); });

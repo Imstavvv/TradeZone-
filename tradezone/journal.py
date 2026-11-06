@@ -82,6 +82,109 @@ class Journal:
         return {"total": total, "realized_pnl": pnl, "fees": fees, "closing_fills": closes or 0,
                 "winning_fills": wins or 0, "items": [json.loads(r[0]) for r in rows]}
 
+    def round_trips(self, mode: str, symbol: str | None = None, since: float = 0.0,
+                    held: dict[str, dict] | None = None, limit: int = 150, now: float | None = None) -> dict[str, Any]:
+        """Every trade from buy to sale, built from the fills: what was bought, at what average price, how it
+        was sold (in parts or at once), the result after all fees, how long it was held and why.
+
+        ``held``: what the account holds now (symbol -> {qty, last_price, unrealized_pnl, net}); a trade the
+        records still show open that isn't held any more was moved to the hold stack (that isn't a sale)."""
+        import time as _t
+        now = now or _t.time()
+        known = held is not None  # (without it, a trade still open in the records is simply shown open)
+        held = held or {}
+        where, args = ["topic = 'trade.log'", "mode = ?"], [mode]
+        if symbol:
+            where.append("json_extract(payload, '$.symbol') = ?")
+            args.append(symbol)
+        with self._lock:
+            rows = self.conn.execute(f"SELECT payload FROM events WHERE {' AND '.join(where)} ORDER BY id DESC LIMIT 5000",
+                                     args).fetchall()
+        fills = [json.loads(r[0]) for r in reversed(rows)]
+        trips: list[dict] = []
+        cur: dict[str, dict] = {}
+
+        def start(f: dict, qty: float | None = None, fee: float | None = None) -> dict:
+            q = abs(qty if qty is not None else float(f.get("qty") or 0))
+            return {"symbol": f["symbol"], "mode": mode, "side": "long" if f.get("side") == "buy" else "short",
+                    "opened": float(f.get("ts") or 0), "closed": None, "legs": [],
+                    "_in": [(q, float(f.get("price") or 0))], "_out": [], "pnl": 0.0,
+                    "fees": float(fee if fee is not None else (f.get("fee") or 0)), "entry_reason": f.get("reason") or "",
+                    "exit_reason": "", "adds": 0}
+
+        def leg(t: dict, f: dict, kind: str) -> None:
+            t["legs"].append({"ts": f.get("ts"), "kind": kind, "qty": f.get("qty"), "price": f.get("price"),
+                              "pnl": f.get("pnl"), "reason": f.get("reason") or ""})
+
+        def finish(t: dict, status: str) -> None:
+            t["status"] = status
+            trips.append(t)
+
+        for f in fills:
+            sym, act = f.get("symbol"), f.get("action")
+            after = float(f.get("position_after") or 0)
+            t = cur.get(sym)
+            if act == "open" or t is None:
+                if t is not None:  # opened again while the records still showed it open (e.g. moved to the stack)
+                    finish(t, "moved")
+                t = cur[sym] = start(f)
+                leg(t, f, "buy" if f.get("side") == "buy" else "sell")
+            elif act == "add":
+                t["_in"].append((abs(float(f.get("qty") or 0)), float(f.get("price") or 0)))
+                t["fees"] += float(f.get("fee") or 0)
+                t["adds"] += 1
+                leg(t, f, "add")
+            else:  # partial / reduce / close / flip: a sale (or buy-back of a short)
+                q = abs(float(f.get("qty") or 0))
+                if act == "flip":
+                    q -= abs(after)
+                t["_out"].append((q, float(f.get("price") or 0)))
+                t["pnl"] += float(f.get("pnl") or 0)
+                t["fees"] += float(f.get("fee") or 0)
+                t["exit_reason"] = f.get("reason") or ""
+                leg(t, f, "sell" if t["side"] == "long" else "buy back")
+                if act == "flip" or abs(after) < 1e-12:
+                    t["closed"] = float(f.get("ts") or 0)
+                    finish(t, "closed")
+                    del cur[sym]
+                    if act == "flip":  # the rest opens the other way
+                        cur[sym] = start(f, qty=after, fee=0.0)
+        for sym, t in cur.items():
+            h = held.get(sym)
+            if h and abs(float(h.get("qty") or 0)) > 1e-12:
+                t.update(now_price=h.get("last_price"), unrealized=h.get("unrealized_pnl"), net_now=h.get("net"))
+                finish(t, "open")
+            else:
+                finish(t, "moved" if known else "open")
+        for t in trips:
+            qin = sum(q for q, _ in t["_in"]) or 1e-12
+            qout = sum(q for q, _ in t["_out"])
+            cost = sum(q * p for q, p in t["_in"])
+            t["qty"] = qin
+            t["avg_entry"] = cost / qin
+            t["avg_exit"] = sum(q * p for q, p in t["_out"]) / qout if qout > 0 else None
+            t["sold_parts"] = len(t["_out"])
+            t["pct"] = t["pnl"] / cost if cost > 0 and t["status"] == "closed" else None
+            t["held_s"] = (t["closed"] or now) - t["opened"]
+            t["last"] = t["closed"] or (t["legs"][-1]["ts"] if t["legs"] else t["opened"])
+            del t["_in"], t["_out"]
+        shown = sorted((t for t in trips if t["last"] >= since), key=lambda t: -t["last"])
+        closed = [t for t in shown if t["status"] == "closed"]
+        wins = [t for t in closed if t["pnl"] > 0]
+        losses = [t for t in closed if t["pnl"] <= 0]
+        gw, gl = sum(t["pnl"] for t in wins), sum(t["pnl"] for t in losses)
+        stats = {"closed": len(closed), "wins": len(wins), "losses": len(losses),
+                 "win_rate": len(wins) / len(closed) if closed else None, "net": gw + gl,
+                 "banked_open": sum(t["pnl"] for t in shown if t["status"] != "closed"),
+                 "avg_win": gw / len(wins) if wins else None, "avg_loss": gl / len(losses) if losses else None,
+                 "best": max(closed, key=lambda t: t["pnl"])["pnl"] if closed else None,
+                 "worst": min(closed, key=lambda t: t["pnl"])["pnl"] if closed else None,
+                 "fees": sum(t["fees"] for t in shown),
+                 "avg_hold_s": sum(t["held_s"] for t in closed) / len(closed) if closed else None,
+                 "profit_factor": gw / -gl if gl < 0 else None,
+                 "open": sum(t["status"] == "open" for t in shown)}
+        return {"trips": shown[:limit], "stats": stats, "total": len(shown)}
+
     def record_equity(self, ts: float, equity: float, mode: str | None = None, pnl: float | None = None) -> None:
         with self._lock:
             self.conn.execute("INSERT INTO equity(ts, equity, mode, pnl) VALUES (?,?,?,?)", (ts, equity, mode, pnl))
