@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <script>(function(){var t;try{t=localStorage.getItem('tz_theme')}catch(e){}  /* the look, before anything is drawn (no white flash) */
-if(t!=='light'&&t!=='dark'&&t!=='heater')t=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+try{if(localStorage.getItem('tz_theme_v')!=='olympus'){t='olympus';localStorage.setItem('tz_theme','olympus');localStorage.setItem('tz_theme_v','olympus')}}catch(e){}  /* (the gods-and-goddesses look, once - pick another any time) */
+if(t!=='light'&&t!=='dark'&&t!=='heater'&&t!=='olympus')t='olympus';
 document.documentElement.dataset.theme=t;})();</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1051,6 +1052,56 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
   *,*::before,*::after{animation:none !important;transition:none !important}
   .ticker .run{padding-left:0}
 }
+/* =================== 🏛️ OLYMPUS: gods and goddesses ===================
+   Ivory marble, gold and Aegean blue: a gold Greek-key band on the balance, carved-stone serif titles,
+   soft divine light from above, laurel gold for winners. Inline CSS / SVG only (the security policy allows
+   no outside fonts or images): the serif comes from the device. */
+:root[data-theme="olympus"]{--bg:#f6f1e6;--panel:#fffdf7;--panel2:#f4ecda;--line:#e3d4b0;--text:#1b1a2e;--muted:#5a5444;
+  --accent:#9a6b00;--accent2:#1e40af;--pink:#b4235a;--violet:#1e40af;--grid:#ece3cc;--zero:#cbbd97;--tint:#f3e6c2;--soft-fg:#7a5200;
+  --header-bg:rgba(250,246,236,.9);--up:#047857;--down:#b91c1c;--warn:#92400e;--gold:#a16207;--ink:#1b1a2e;
+  --practice:linear-gradient(135deg,#172554 0%,#1e3a8a 45%,#3730a3 100%);--live:linear-gradient(135deg,#7f1d1d 0%,#991b1b 50%,#78350f 100%);
+  --vib:linear-gradient(90deg,#7a5200,#a16207 45%,#1e3a8a);
+  --serif:"Cinzel","Trajan Pro","Optima","Palatino Linotype","Book Antiqua",Palatino,Georgia,"Times New Roman",serif;
+  --meander:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='14' viewBox='0 0 28 14'%3E%3Cpath d='M0 12.5h12.5V1.5H3.5v7h5v-3h-2M14 1.5h12.5v11h-9v-7h5v3h-2' fill='none' stroke='%23e9c46a' stroke-width='1.5'/%3E%3C/svg%3E");
+  --card-shadow:0 1px 2px rgba(120,90,20,.12),0 14px 32px -18px rgba(90,64,10,.35);color-scheme:light}
+/* marble: faint grey veins on ivory, and light falling from the heavens */
+:root[data-theme="olympus"] body{background:var(--bg)}
+:root[data-theme="olympus"] body::before{background:
+  radial-gradient(60% 40% at 50% -10%,rgba(255,236,170,.75),transparent 70%),
+  linear-gradient(115deg,transparent 0 38%,rgba(150,140,120,.07) 39%,transparent 41% 62%,rgba(150,140,120,.05) 63%,transparent 65%),
+  linear-gradient(35deg,transparent 0 55%,rgba(150,140,120,.06) 56%,transparent 58%),
+  linear-gradient(160deg,transparent 0 20%,rgba(150,140,120,.05) 21%,transparent 23%)}
+:root[data-theme="olympus"] header{background:var(--header-bg);border-bottom:1px solid var(--line)}
+/* carved-stone titles */
+:root[data-theme="olympus"] :is(.brand,.pagehead h2,.scard h4,.panel h2,.sheet h3,.modal h3){font-family:var(--serif);letter-spacing:.04em}
+:root[data-theme="olympus"] .pagehead h2{font-weight:700;font-size:28px;text-transform:uppercase;letter-spacing:.08em}
+:root[data-theme="olympus"] .scard h4{text-transform:uppercase;letter-spacing:.07em;font-size:14.5px;color:#3b2f12}
+:root[data-theme="olympus"] .brand{color:#3b2f12}
+/* panels: marble tablets with a fine gold edge */
+:root[data-theme="olympus"] :is(.scard,.panel){background:var(--panel);border:1px solid var(--line);box-shadow:var(--card-shadow),inset 0 0 0 1px rgba(233,196,106,.25)}
+/* the balance: lapis and gold, a Greek-key band along the top and bottom */
+:root[data-theme="olympus"] .hero{background:var(--meander) top left / 28px 14px repeat-x,var(--meander) bottom left / 28px 14px repeat-x,
+var(--practice);
+  border:2px solid #c9a227;box-shadow:inset 0 0 60px rgba(233,196,106,.22),0 0 0 4px rgba(233,196,106,.25),0 18px 40px -18px rgba(23,37,84,.6);padding-top:30px;padding-bottom:28px}
+:root[data-theme="olympus"] body.is-live .hero{background:var(--meander) top left / 28px 14px repeat-x,var(--meander) bottom left / 28px 14px repeat-x,
+var(--live)}
+:root[data-theme="olympus"] .hero .bal{font-family:var(--serif);letter-spacing:.01em;text-shadow:0 2px 0 rgba(0,0,0,.25),0 0 24px rgba(233,196,106,.35)}
+/* buttons: gilded */
+:root[data-theme="olympus"] button.gopaper{background:linear-gradient(135deg,#78350f,#92400e 50%,#713f12);border:1px solid #c9a227;color:#fff}
+:root[data-theme="olympus"] button.golive{background:linear-gradient(135deg,#7f1d1d,#991b1b);border:1px solid #c9a227;color:#fff}
+:root[data-theme="olympus"] :is(.tab.on,.chip.on){background:#1e3a8a;color:#fff;border-color:#c9a227}
+:root[data-theme="olympus"] :is(.tab.on,.chip.on) .down{color:#fecaca}:root[data-theme="olympus"] :is(.tab.on,.chip.on) .up{color:#bbf7d0}
+:root[data-theme="olympus"] .tabbar a.on{color:#7a5200;border-bottom-color:#c9a227}
+:root[data-theme="olympus"] .bottomnav a.on{background:var(--tint);color:#7a5200}
+:root[data-theme="olympus"] .navn{background:#1e3a8a}
+:root[data-theme="olympus"] .viewtoggle button.on{background:#fff;color:#3b2f12;box-shadow:0 0 0 1px #c9a227}
+/* the trade cards: laurel gold for a win, Aegean blue for a buy */
+:root[data-theme="olympus"] .tpop{background:var(--panel);border-color:var(--line)}
+:root[data-theme="olympus"] .tpop.open{border-left-color:#1e40af}
+:root[data-theme="olympus"] .tpop.win{border-left-color:#c9a227}
+:root[data-theme="olympus"] .tpop .tt{font-family:var(--serif);letter-spacing:.03em}
+:root[data-theme="olympus"] .toast{border-left-color:#c9a227}
+@media (max-width:700px){:root[data-theme="olympus"] .pagehead h2{font-size:23px}}
 </style>
 </head>
 <body>
@@ -1393,7 +1444,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
           <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (20%)</b><span id="setLfSub">A trade 20% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
           <div class="srow"><div class="ic">📉</div><div class="tx"><b id="setFgTxt">Falling-market guard: OFF</b><span id="setFgSub">New buys whatever the trend</span></div><button id="setFgBtn">Turn on</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
-          <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>Light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
+          <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>🏛️ Olympus (gods and goddesses: marble and gold), light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="olympus" aria-label="Olympus">🏛️</button><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
           <div class="srow"><div class="ic">🔔</div><div class="tx"><b id="setPopTxt">Trade pop-ups: ON</b><span>A card at the top of the screen for every trade taken or closed (what, how much, why, profit or loss after fees) - this device remembers it</span></div><button id="setPopBtn">Turn off</button></div>
         </div>
         <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
@@ -1542,11 +1593,11 @@ try { localStorage.removeItem('tz_token'); } catch {}  // older versions kept th
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = (v, d=2) => v==null ? '—' : (v<0?'-':'') + '$' + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d});
-// ---- the look: ☀️ light / 🌙 dark / 🔥 heater (remembered on this device; first time: the phone's own setting) ----
-const THEMES = {light: ['☀️', 'Light', '#f5f6fb'], dark: ['🌙', 'Dark', '#0c0e18'], heater: ['🔥', 'Heater', '#110604']};
-const NEXT_THEME = {light: 'dark', dark: 'heater', heater: 'light'};
+// ---- the look: 🏛️ Olympus / ☀️ light / 🌙 dark / 🔥 heater (remembered on this device) ----
+const THEMES = {olympus: ['🏛️', 'Olympus', '#f6f1e6'], light: ['☀️', 'Light', '#f5f6fb'], dark: ['🌙', 'Dark', '#0c0e18'], heater: ['🔥', 'Heater', '#110604']};
+const NEXT_THEME = {olympus: 'light', light: 'dark', dark: 'heater', heater: 'olympus'};
 function setTheme(t, save = true){
-  if (!THEMES[t]) t = 'light';
+  if (!THEMES[t]) t = 'olympus';
   document.documentElement.dataset.theme = t;
   if (save) { try { localStorage.setItem('tz_theme', t); } catch {} }
   $('themeBtn').textContent = THEMES[t][0];
@@ -1554,14 +1605,14 @@ function setTheme(t, save = true){
   document.querySelector('meta[name="theme-color"]').content = THEMES[t][2];
   $('setThemeTxt').textContent = `Look: ${THEMES[t][1]}`;
   document.querySelectorAll('#themePick button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
-  $('burst').querySelector('b').textContent = t === 'heater' ? '🔥 ON FIRE!' : 'SUPERNOVA!';
+  $('burst').querySelector('b').textContent = t === 'heater' ? '🔥 ON FIRE!' : t === 'olympus' ? '⚡ GODLIKE!' : 'SUPERNOVA!';
   if (S.state) render();  // the charts take the new colours
 }
 $('themeBtn').onclick = () => setTheme(NEXT_THEME[document.documentElement.dataset.theme] || 'dark');
 $('themePick').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) setTheme(b.dataset.t); });
 window.matchMedia && matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', ev => {
   let saved = null; try { saved = localStorage.getItem('tz_theme'); } catch {}
-  if (!saved) setTheme(ev.matches ? 'dark' : 'light', false);  // no choice made yet: follow the phone
+  if (!saved) setTheme('olympus', false);
 });
 setTheme(document.documentElement.dataset.theme, false);  // (set before the page was drawn)
 // a colour from the theme (charts follow the stylesheet)
