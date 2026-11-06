@@ -534,6 +534,14 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         audit(request, f"never sell at a loss: {'on' if body.on else 'off'}", "warning")
         return out
 
+    @app.post("/api/loser-cap", dependencies=[Depends(check_token)])
+    async def loser_cap(body: StrategyBody, request: Request):
+        out = desk.set_loser_cap(body.on)
+        for d in desk.fleet.desks.values():
+            d.set_loser_cap(body.on)
+        audit(request, f"underwater cap: {'on' if body.on else 'off'}", "warning")
+        return _clean(out)
+
     @app.post("/api/strategies/{key}", dependencies=[Depends(check_token)])
     async def set_strategy(key: str, body: StrategyBody, request: Request):
         try:

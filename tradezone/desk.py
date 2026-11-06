@@ -535,6 +535,25 @@ class TradingDesk:
                 "max_positions": None, "equity": eq,  # (trades open at once: the risk level's limit, up to 20)
                 "coins": [x for x in s.symbols if s.coin_size(x) in allowed]}
 
+    def _underwater(self, pos, price: float) -> bool:
+        """More than ``loser_cap_depth`` below break-even after fees. (With typical fees a trade starts about
+        there, so in practice: trades that haven't yet made back their fees count - that is what was tested.)"""
+        return self.settings.net_if_sold(pos, price) < -self.settings.loser_cap_depth * abs(pos.qty * pos.avg_price)
+
+    def underwater_block(self) -> str | None:
+        """The underwater cap: why new buys wait (too much is tied up in trades held below break-even), or None."""
+        s = self.settings
+        if s.loser_cap <= 0:
+            return None
+        p = self.portfolio
+        stuck = sum(abs(x.qty * x.avg_price) for x in p.open_positions
+                    if (px := self.prices.get(x.symbol)) and self._underwater(x, px))
+        equity = max(p.equity, 1e-9)
+        if stuck >= s.loser_cap * equity:
+            return (f"underwater cap: {stuck / equity:.0%} of the balance is in trades held below break-even "
+                    f"(cap {s.loser_cap:.0%}) - no new buys until some recover")
+        return None
+
     def in_focus(self, symbol: str) -> str | None:
         """Why a NEW trade in ``symbol`` waits for a bigger balance, or None when it's in focus."""
         f = self.focus_status()
@@ -718,6 +737,8 @@ class TradingDesk:
             self.settings.live_max_capital = float(cap.get("usd", 0.0))
         if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
             self.settings.never_sell_at_loss = bool(ns.get("on"))
+        if (lc := self.store.load("loser_cap")) is not None and "TZ_LOSER_CAP" not in os.environ:
+            self.settings.loser_cap = float(lc.get("cap", 0.0))
         for k, on in (self.store.load("finders") or {}).items():
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
@@ -891,7 +912,8 @@ class TradingDesk:
         "pullback": True, "flipper": True, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
-        "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22}
+        "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.15,
+        "loser_cap_depth": 0.005}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()
@@ -941,6 +963,7 @@ class TradingDesk:
         self.store.save("strategies", {"on": self.settings.strategies})
         self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
+        self.store.save("loser_cap", {"cap": self.settings.loser_cap})
         self.store.save("protocol", {"best": True, "ts": time.time()})
         self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
         return self.protocol_status()
@@ -963,6 +986,22 @@ class TradingDesk:
                                                                      if on else "OFF - stops and early cuts sell losers"),
                                         "operator"))
         return {"never_sell_at_loss": self.settings.never_sell_at_loss}
+
+    def set_loser_cap(self, on: bool) -> dict:
+        """The underwater cap on (the tested 15%) or off (new buys whatever is held below break-even)."""
+        self.settings.loser_cap = float(self.BEST["loser_cap"]) if on else 0.0  # type: ignore[arg-type]
+        self.store.save("loser_cap", {"cap": self.settings.loser_cap})
+        self.bus.publish("alert", Alert("info", "Underwater cap: " + (
+            f"ON - no new buys while trades held below break-even tie up {self.settings.loser_cap:.0%} of the balance"
+            if on else "OFF - new buys whatever is held below break-even"), "operator"))
+        return self.loser_cap_status()
+
+    def loser_cap_status(self) -> dict:
+        s, p = self.settings, self.portfolio
+        stuck = sum(abs(x.qty * x.avg_price) for x in p.open_positions
+                    if (px := self.prices.get(x.symbol)) and self._underwater(x, px))
+        return {"cap": s.loser_cap, "stuck": stuck, "share": stuck / p.equity if p.equity > 0 else 0.0,
+                "blocking": self.underwater_block() is not None}
 
     def set_risk_profile(self, profile: str, confirm: str = "") -> dict:
         """Normal or Aggressive (real money only). Turning Aggressive on needs the word RISK typed."""
@@ -1230,6 +1269,7 @@ class TradingDesk:
             "finders": self.bots["reviewer"].summary(),  # type: ignore[attr-defined]
             "strategies": self.strategy_info(),
             "never_sell_at_loss": self.settings.never_sell_at_loss,
+            "loser_cap": self.loser_cap_status(),
             "protocol": self.protocol_status(),
             "held_losers": [{"symbol": p.symbol, "pnl": self.settings.net_if_sold(p, p.last_price or p.avg_price),
                              "pct": ((p.last_price or p.avg_price) / p.avg_price - 1) * (1 if p.qty > 0 else -1)}

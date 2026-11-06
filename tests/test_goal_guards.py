@@ -11,7 +11,7 @@ from tradezone.market.simulated import SimulatedFeed
 
 
 def make():
-    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD"], starting_cash=10_000.0)
+    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD"], starting_cash=10_000.0, loser_cap=0.0)
     s.risk.symbol_cooldown_s = 0
     s.risk.max_position_pct = s.risk.max_gross_exposure = 5.0  # let the size come from the risk, not the caps
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))

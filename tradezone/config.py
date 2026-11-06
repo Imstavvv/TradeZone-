@@ -267,6 +267,13 @@ class Settings:
     never_sell_meme_size: float = 0.5
     # Dip Buyer: buy more of a coin held at a loss once it has dipped further and turns up (lower average price)
     dip_buy: bool = True
+    # ---- underwater cap: while trades held below break-even already tie up this share of the balance, no new
+    # buys (and no averaging down) until some recover - so a slide can't swallow the whole balance (0 = off).
+    # Tested on real price history in rising, falling and sideways markets: about half the loss when prices
+    # fall, less lost sideways, but less profit when prices only rise (switch it off in Settings for that).
+    loser_cap: float = 0.15
+    loser_cap_depth: float = 0.005  # a trade counts once it's this far below break-even after fees (tested:
+                                    # 0, 0.5%, 1%; and by price drop alone 0.5-2% - this did best on unseen data)
     dip_step_pct: float = 0.06  # at least this far below the average price paid (meme coins: twice as far)...
     dip_add_fraction: float = 0.5  # ...buy this share of what's held...
     dip_max_adds: int = 2  # ...at most this many times per trade...

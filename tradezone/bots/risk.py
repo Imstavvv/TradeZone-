@@ -180,6 +180,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and (why := self.desk.underwater_block()):
+            return self.reject(sig, why)  # (before the Dip Buyer's adds: averaging down counts too)
         if sig.qty and sig.source == "flipper" and sig.side is Side.BUY and pos.qty > 0:
             return self._buy_back(sig, price)  # the Flipper buying back a slice it sold higher
         if sig.qty and sig.source == "dipbuyer" and sig.side is Side.BUY and pos.qty > 0:

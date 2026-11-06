@@ -14,7 +14,7 @@ SYMS = {"BTC-USD": 60_000.0, "SOL-USD": 150.0, "DOGE-USD": 0.2, "ARB-USD": 0.8, 
 
 
 def make(cash):
-    s = Settings(feed="sim", symbols=list(SYMS), starting_cash=cash)
+    s = Settings(feed="sim", symbols=list(SYMS), starting_cash=cash, loser_cap=0.0)  # (the underwater cap: own tests)
     s.risk.symbol_cooldown_s = 0
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
 

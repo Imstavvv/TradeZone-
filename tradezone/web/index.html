@@ -1123,6 +1123,7 @@ button.ghost:hover{color:var(--text)}
         <div class="scard" data-page="settings"><h4>🏆 Your goal</h4>
           <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
+          <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap</b><span id="setLcSub">No new buys while trades below break-even tie up 15% of the balance</span></div><button id="setLcBtn">Turn off</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
         </div>
         <div class="scard" data-page="settings"><h4>🔐 Logging in</h4>
@@ -2367,6 +2368,7 @@ function renderSimple(st){
   renderStack(st.stack);
   renderStrategies(st.strategies);
   renderNeverSell(st);
+  renderLoserCap(st);
   renderProtocol(st.protocol);
 }
 function renderProtocol(pr){
@@ -2375,7 +2377,7 @@ function renderProtocol(pr){
   $('protoN').textContent = `${done} of ${pr.steps.length} done`;
   const nice = {strategies: 'strategies', snipe: 'meme breakout snipes', surge_snipe: 'volume snipes', pullback: 'Pullback Hunter', flipper: 'Flipper',
     accumulate: 'accumulating', flip_bank_fraction: 'quick-flip slices', flip_max_skims: 'skims', maker_exits: 'maker exits', fee_rule_stops: 'fee rule on stops',
-    never_sell_at_loss: 'never sell at a loss', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
+    never_sell_at_loss: 'never sell at a loss', loser_cap: 'underwater cap', loser_cap_depth: 'underwater cap depth', dip_buy: 'Dip Buyer', learn_targets: 'Target Learner', learn_sources: 'Trade Reviewer', full_cash: 'whole cash trades'};
   setHTML($('protoSteps'), pr.steps.map((x, i) => `<div class="pstep ${x.done ? 'done' : ''}"><span class="ok">${x.done ? '✅' : ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣'][i]}</span>
     <div><b>${esc(x.title)}</b><div class="q">${esc(x.text)}${x.key === 'best' && pr.off.length ? ': ' + pr.off.map(o => esc(nice[o.key] || o.key) + (o.server ? ' (set on the server)' : '')).join(', ') : ''}</div></div></div>`).join(''));
   if (document.activeElement !== $('protoCap')) $('protoCap').value = pr.cap ? String(pr.cap) : '';
@@ -2404,6 +2406,23 @@ $('setNsBtn').onclick = async () => {
                  : 'Stop-losses and early cuts will sell losing trades again, to limit each loss.';
   if (!await ask(on ? 'Never sell at a loss?' : 'Cut losing trades again?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: on})) return;
   try { await api('/api/never-sell', {on}); toast(on ? 'Never sell at a loss: on' : 'Stops and cuts: on'); } catch {}
+};
+function renderLoserCap(st){
+  const c = st.loser_cap; if (!c) return;
+  const on = c.cap > 0;
+  $('setLcTxt').textContent = `Underwater cap: ${on ? `ON (${Math.round(c.cap * 100)}%)` : 'OFF'}`;
+  $('setLcSub').textContent = on
+    ? (c.blocking ? `Waiting: ${Math.round(c.share * 100)}% of the balance is in trades not yet back above break-even - new buys resume as they recover`
+                  : `No new buys while trades not yet back above break-even tie up ${Math.round(c.cap * 100)}% of the balance (now ${Math.round(c.share * 100)}%). Tested: about half the loss when prices fall; less profit when they only rise`)
+    : 'New buys whatever is held below break-even: more profit when prices rise, bigger losses when they fall';
+  $('setLcBtn').textContent = on ? 'Turn off' : 'Turn on';
+}
+$('setLcBtn').onclick = async () => {
+  const on = !(S.state && S.state.loser_cap && S.state.loser_cap.cap > 0);
+  const msg = on ? 'New buys wait while trades that are not yet back above break-even tie up 15% of the balance. Tested on real price history: about half the loss when prices fall, less lost sideways - and less profit when prices only rise.'
+                 : 'The bots will keep buying even while earlier trades are underwater. Tested: more profit when prices only rise, but about twice the loss when they fall, because with never-sell on the losing trades are held.';
+  if (!await ask(on ? 'Turn the underwater cap on?' : 'Turn the underwater cap off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
+  try { await api('/api/loser-cap', {on}); toast(on ? 'Underwater cap: on' : 'Underwater cap: off'); } catch {}
 };
 function renderStrategies(list){
   if (!list) return;

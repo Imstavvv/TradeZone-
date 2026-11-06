@@ -715,6 +715,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | --- | --- | --- |
 | **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) | **on** | Settings → Your goal, `TZ_NEVER_SELL_AT_LOSS` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
+| **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your goal, `TZ_LOSER_CAP` |
 | Stop-loss 33% from the buy price | on, but with never-sell on it only sells once the trade is back above break-even | `TZ_WIDE_STOP` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
 | Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
@@ -737,6 +738,17 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Aggressive / Bold risk levels | opt-in | Settings → Your goal |
 
 The full list of settings, with every default, is in `.env.example`.
+
+### Tested in rising, falling and sideways markets: the underwater cap
+
+Every earlier test window turned out to be a **rising** market: the real price history behind the replays (S&P 500, Google, EUR/USD) mostly went up, so the settings above had only been proven where prices recover. Falling and sideways markets were added, built from the same real moves (mirrored, so the same swings run downhill; or with the drift taken out), and the bots were re-tested with the 300 bars of history they get at start-up. 16 windows of $500 each per market, on the half used for tuning and the half kept unseen:
+
+| | Rising | Falling | Sideways | All three |
+| --- | --- | --- | --- | --- |
+| Before (tuned / unseen) | +$469 / +$317 | −$743 / −$514 | −$37 / −$77 | −$311 / −$274 |
+| **Underwater cap 15%** | +$396 / +$173 | −$393 / −$262 | −$29 / −$23 | **−$25 / −$112** |
+
+With never-sell-at-a-loss on, a slide otherwise pulled almost the whole balance into losing trades that are then held all the way down (the "100% win rate" hides them: they're never closed). The cap stops new buys, and the Dip Buyer's adds, while trades more than 0.5% below break-even after fees tie up 15% of the balance; buying resumes as they recover. **The cost is real: less profit when prices only rise** (about a sixth less on the tuning half, about half on the unseen half). It's a switch in Settings → Your goal. Also tried and dropped: a downtrend guard (no buys while a coin or the market fell over the last 30-240 minutes - it made almost no difference: these slides are slow grinds that hours of history can't tell from noise), caps of 10-25%, and counting a trade by its price drop alone (0.5-2%). Turning never-sell off lost less in falling markets in a quick check (8 windows), but it sells at a loss, which you asked the bots not to do.
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
 

@@ -23,7 +23,8 @@ class FeeLiveBroker(FakeLiveBroker):
 
 def make(quick=True, **kw):
     s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", crypto_fee_bps=40.0,
-                 symbols=["BTC-USD", "ETH-USD", "PEPE-USD"], live_quick_flips=quick, **{"wide_stop": False, **kw})
+                 symbols=["BTC-USD", "ETH-USD", "PEPE-USD"], live_quick_flips=quick,
+                 **{"wide_stop": False, "loser_cap": 0.0, **kw})
     s.risk.symbol_cooldown_s = 0
     desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"), live_broker=FeeLiveBroker())
     prime(desk, "BTC-USD", 50_000.0, atr=250.0)
