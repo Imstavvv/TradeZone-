@@ -38,14 +38,13 @@ def idea(desk, sym, side=Side.BUY, force=False):
     return out[-1]["reason"] if out else None
 
 
-def test_on_by_default_as_part_of_the_tested_best_settings():
+def test_off_by_default_and_not_part_of_the_tested_best_settings():
     d = make()
-    assert d.settings.falling_guard == "coin" and d.BEST["falling_guard"] == "coin"
-    assert "falling_guard" not in [x["key"] for x in d.protocol_status()["off"]]
+    assert d.settings.falling_guard == "off" and "falling_guard" not in d.BEST
 
 
 def test_switched_off_it_never_blocks_and_the_choice_is_saved():
-    d = make()
+    d = make(falling_guard="coin")
     d.set_falling_guard(False)
     assert d.settings.falling_guard == "off" and d.store.load("falling_guard") == {"mode": "off"}
     feed(d, "SOL-USD", falling(150.0))

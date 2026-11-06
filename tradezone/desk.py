@@ -1031,8 +1031,7 @@ class TradingDesk:
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.15,
-        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20,
-        "falling_guard": "coin"}
+        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()
@@ -1084,7 +1083,6 @@ class TradingDesk:
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap})
         self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
-        self.store.save("falling_guard", {"mode": self.settings.falling_guard})
         self.store.save("protocol", {"best": True, "ts": time.time()})
         self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
         return self.protocol_status()
@@ -1119,7 +1117,7 @@ class TradingDesk:
 
     def set_falling_guard(self, on: bool) -> dict:
         """The falling-market guard on (no new buys of a coin in a downtrend) or off."""
-        self.settings.falling_guard = str(self.BEST["falling_guard"]) if on else "off"
+        self.settings.falling_guard = "coin" if on else "off"
         self.store.save("falling_guard", {"mode": self.settings.falling_guard})
         self.bus.publish("alert", Alert("info", "Falling-market guard: " + (
             "ON - no new buys of a coin while it's below its 4-hour average and that average is falling"

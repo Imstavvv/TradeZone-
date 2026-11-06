@@ -725,7 +725,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your goal, `TZ_MAX_LOSS_PCT` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
 | **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your goal, `TZ_LOSER_CAP` |
-| **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | **on** | Settings → Your goal, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
+| **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | off (optional) | Settings → Your goal, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
 | Stop-loss 20% from the buy price (was 33%) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
 | Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
@@ -782,7 +782,7 @@ Every earlier test window turned out to be a **rising** market: the real price h
 
 With never-sell-at-a-loss on, a slide otherwise pulled almost the whole balance into losing trades that are then held all the way down (the "100% win rate" hides them: they're never closed). The cap stops new buys, and the Dip Buyer's adds, while trades more than 0.5% below break-even after fees tie up 15% of the balance; buying resumes as they recover. **The cost is real: less profit when prices only rise** (about a sixth less on the tuning half, about half on the unseen half). It's a switch in Settings → Your goal. Also tried and dropped: a downtrend guard (no buys while a coin or the market fell over the last 30-240 minutes - it made almost no difference: these slides are slow grinds that hours of history can't tell from noise), caps of 10-25%, and counting a trade by its price drop alone (0.5-2%). Turning never-sell off lost less in falling markets in a quick check (8 windows), but it sells at a loss, which you asked the bots not to do.
 
-### Tested in rising, falling and sideways markets: the falling-market guard
+### Tested in rising, falling and sideways markets: the falling-market guard (off - optional)
 
 No new buys of a coin while it's below its 4-hour average **and** that average is lower than an hour ago; it waits for a full 4 hours of prices before judging (the app loads 5 hours at start-up). Selling, stops and your own buys are never blocked. Replayed with the 300 bars the app loads first, 6 windows of $500 per market (tuning / unseen half):
 
@@ -791,7 +791,14 @@ No new buys of a coin while it's below its 4-hour average **and** that average i
 | Without it | +$150 / +$41 | −$125 / −$97 | −$6 / −$17 |
 | **With it** | **+$169 / +$61** | **−$124 / −$92** | **−$3 / −$10** |
 
-Better in all three markets on both halves, but honestly modest: in a fall it saves only a little, because the bots still buy as a slide begins (before the average turns down) and never-sell then holds those trades. Also tried: a 2-hour and an 8-hour average, and pausing all buying while half the coins fall - each lost to "without it" somewhere. Judged on less than the full 4 hours of history, it did worse sideways, which is why it waits. (An earlier guard that looked only at the last 30-240 minutes' change made no difference - see the underwater cap above.)
+A check on 16 windows per market (tuning / unseen):
+
+| 16 windows | Rising | Falling | Sideways |
+| --- | --- | --- | --- |
+| Without it | +$396 / +$173 | −$389 / −$256 | −$29 / −$23 |
+| With it | +$415 / +$175 | **−$371 / −$230** | −$30 / −$25 |
+
+It lost 5-10% less when prices fell and earned a little more when they rose, but did slightly worse sideways on both halves (about $2 over 16 runs) - so it didn't beat "without it" everywhere and is **off by default**; a switch in Settings if you'd rather lose less in a fall. Even so, it's modest: in a fall it saves only a little, because the bots still buy as a slide begins (before the average turns down) and never-sell then holds those trades. Also tried: a 2-hour and an 8-hour average, and pausing all buying while half the coins fall - each lost to "without it" somewhere. Judged on less than the full 4 hours of history, it did worse sideways, which is why it waits. (An earlier guard that looked only at the last 30-240 minutes' change made no difference - see the underwater cap above.)
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
 

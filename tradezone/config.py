@@ -200,9 +200,10 @@ class Settings:
     # ---- falling-market guard: no new buys while prices are clearly falling ----
     # "off" | "coin" (that coin is below its 4-hour average and the average is sloping down) |
     # "market" (most watched coins are doing that at once). Exits, stops and your own buys are never affected.
-    # Tested on real price history (300 bars loaded first, as the app does) in rising, falling and sideways
-    # markets: "coin" did better in all three on both halves of the data; it waits for a full 4 hours of prices.
-    falling_guard: str = "coin"
+    # Tested on real price history (300 bars loaded first, as the app does), 16 windows per market: "coin" earned
+    # a little more when prices rose and lost 5-10% less when they fell, but did slightly worse sideways
+    # (about $2 over 16 runs) - so it is off by default. It waits for a full 4 hours of prices.
+    falling_guard: str = "off"
     falling_window: int = 240  # bars (1-minute) behind the long average
     falling_slope_bars: int = 60  # how far back the average's slope is measured
     falling_min_drop: float = 0.0  # how far below its average the price must be to count (0.002 = 0.2%)
