@@ -546,6 +546,20 @@ class TradingDesk:
         there, so in practice: trades that haven't yet made back their fees count - that is what was tested.)"""
         return self.settings.net_if_sold(pos, price) < -self.settings.loser_cap_depth * abs(pos.qty * pos.avg_price)
 
+    def _past_grace(self, pos) -> bool:
+        """Open long enough to count toward the underwater cap (measured on the market's clock)."""
+        grace = self.settings.loser_cap_grace_min * 60
+        if grace <= 0:
+            return True
+        seen = self.__dict__.setdefault("_uw_seen", {})
+        key = (pos.opened_ts, pos.qty > 0)
+        if seen.get(pos.symbol, (None,))[0] != key:  # (a new trade in this coin: its clock starts now)
+            seen[pos.symbol] = (key, self._mkt_ts())
+        return self._mkt_ts() - seen[pos.symbol][1] >= grace
+
+    def _mkt_ts(self) -> float:
+        return getattr(self, "_last_tick_ts", 0.0) or time.time()
+
     def underwater_block(self) -> str | None:
         """The underwater cap: why new buys wait (too much is tied up in trades held below break-even), or None."""
         s = self.settings
@@ -553,7 +567,7 @@ class TradingDesk:
             return None
         p = self.portfolio
         stuck = sum(abs(x.qty * x.avg_price) for x in p.open_positions
-                    if (px := self.prices.get(x.symbol)) and self._underwater(x, px))
+                    if (px := self.prices.get(x.symbol)) and self._underwater(x, px) and self._past_grace(x))
         equity = max(p.equity, 1e-9)
         if stuck >= s.loser_cap * equity:
             return (f"underwater cap: {stuck / equity:.0%} of the balance is in trades held below break-even "
@@ -920,6 +934,8 @@ class TradingDesk:
             self.live_broker.on_prices(ticks)
         for t in ticks:
             self.bus.publish("market.tick", t, source=self.feed.name)
+        if ticks:
+            self._last_tick_ts = max(t.ts for t in ticks)
         await self.bus.drain()
         for bot in self.bots.values():
             if not bot.enabled:

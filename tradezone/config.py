@@ -307,6 +307,9 @@ class Settings:
     loser_cap: float = 0.15
     loser_cap_depth: float = 0.005  # a trade counts once it's this far below break-even after fees (tested:
                                     # 0, 0.5%, 1%; and by price drop alone 0.5-2% - this did best on unseen data)
+    # a brand-new trade starts below break-even (it hasn't earned back its fees yet): it only counts toward the
+    # cap once it has been open this many minutes (0 = from the start)
+    loser_cap_grace_min: float = 0.0
     dip_step_pct: float = 0.06  # at least this far below the average price paid (meme coins: twice as far)...
     dip_add_fraction: float = 0.5  # ...buy this share of what's held...
     dip_max_adds: int = 2  # ...at most this many times per trade...
