@@ -1988,11 +1988,13 @@ function renderHunt(st){
 function trendLine(t){
   if (!t) return '';
   const big = v => v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`;
-  if (!t.trending.length && !t.added.length) return t.error ? `<div class="muted" style="font-size:12px;margin-top:6px">🔥 Trend Scout: ${esc(t.error)}</div>` : '';
+  const stocks = t.stocks || [];
+  if (!t.trending.length && !t.added.length && !stocks.length) return t.error ? `<div class="muted" style="font-size:12px;margin-top:6px">🔥 Trend Scout: ${esc(t.error)}</div>` : '';
   return `<div class="hwhy"><b>🔥 Trending now</b>${t.trending.slice(0, 6).map(x =>
-      `<div><span>${esc(x.symbol.split('-')[0])} <span class="muted">${esc(x.name || '')}</span></span><span class="muted">${big(x.market_cap)}</span></div>`).join('') || '<div class="muted">nothing tradeable trending right now</div>'}
+      `<div><span>${esc(x.symbol.split('-')[0])} <span class="muted">${esc(x.name || '')}</span></span><span class="muted">${x.stock ? `+${(x.up_today || 0).toFixed(1)}% today` : big(x.market_cap)}</span></div>`).join('') || '<div class="muted">nothing tradeable trending right now</div>'}
     ${(t.pump || []).length ? `<div class="muted" style="font-size:12px;margin-top:4px">🚀 Launched on pump.fun, now on your exchange: ${t.pump.map(x => esc(x.split('-')[0])).join(', ')}</div>` : ''}
-    <div class="muted" style="font-size:12px;margin-top:4px">${t.qualified} meme coins over ${big(t.min_market_cap)} with promising volume · ${t.added.length} plugged in by the Trend Scout</div></div>`;
+    ${stocks.length ? `<div class="muted small" style="margin-top:4px">📈 Busy stocks found today: ${stocks.map(x => `${esc(x.symbol)} (${big(x.dollar_volume)} traded)`).join(', ')}</div>` : ''}
+    <div class="muted" style="font-size:12px;margin-top:4px">${t.qualified} meme coins over ${big(t.min_market_cap)} with promising volume · ${t.added.length + stocks.length} plugged in by the Trend Scout</div></div>`;
 }
 function renderNews(n){
   if (!n) return;

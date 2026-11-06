@@ -174,6 +174,11 @@ class Settings:
     discovery_min_volume: float = 100_000.0  # ...trading at least this much a day...
     discovery_min_turnover: float = 0.05  # ...and at least 5% of the market cap changing hands a day
     max_discovered: int = 20  # coins the Trend Scout may add to the watchlist
+    # stocks (Alpaca accounts): the day's busiest established stocks from Alpaca's screener
+    discover_stocks: bool = True
+    max_discovered_stocks: int = 10
+    stock_min_price: float = 10.0  # no penny stocks
+    stock_min_dollar_volume: float = 50_000_000.0  # at least $50M traded today: easy to buy and sell
     discovery_every_min: float = 30.0
     trending_nudge: float = 0.05  # conviction boost for buying a coin that's trending
     # ---- Flipper: flip trades and the best times to flip ----
@@ -364,6 +369,7 @@ class Settings:
     meme_max_hold_hours: float = 6.0
     # ---- Reporter: world & crypto news (public RSS feeds + Fear & Greed index, no account) ----
     news: bool = True
+    news_alpaca: bool = True  # Alpaca accounts: its news service too (headlines tagged with their stocks / coins)
     news_feeds: list[str] = field(default_factory=list)  # empty = built-in list (CoinDesk, Cointelegraph, BBC, ...)
     # ---- Skimmer: quick day-trade skims + profit-taking on every open trade ----
     skimmer: bool = True

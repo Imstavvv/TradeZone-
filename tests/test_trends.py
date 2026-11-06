@@ -90,11 +90,11 @@ def test_coins_that_stop_qualifying_are_dropped_unless_held():
     assert ("PEPE-USD" in desk.settings.symbols) == held  # still watched while the bots hold it
 
 
-def test_it_needs_the_exchanges_own_prices():
+def test_it_needs_to_know_what_the_exchange_lists():
     s = Settings(feed="coinbase", symbols=["BTC-USD"])
-    desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))  # (prices without a listing)
     assert run(desk.bots["trends"].refresh()) == {"added": [], "dropped": []}
-    assert "Kraken" in desk.bots["trends"].last_error
+    assert "which coins the exchange lists" in desk.bots["trends"].last_error
 
 
 PUMP = [  # CoinGecko /coins/markets?category=pump-fun

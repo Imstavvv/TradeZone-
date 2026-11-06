@@ -133,6 +133,26 @@ class AlpacaBroker(Broker):
         except Exception as exc:
             log.warning("alpaca clock fetch failed: %s", exc)
 
+    async def asset(self, symbol: str) -> dict | None:
+        """Alpaca's listing for a stock (tradable, fractionable, exchange, name) - cached for a day."""
+        import time as _t
+        cache = self.__dict__.setdefault("_assets", {})
+        hit = cache.get(symbol)
+        if hit and _t.time() - hit[0] < 86_400:
+            return hit[1]
+        try:
+            r = await self.client.get(f"/v2/assets/{symbol}")
+            if r.status_code == 404:
+                info = None
+            else:
+                r.raise_for_status()
+                info = r.json()
+        except Exception as exc:
+            log.warning("alpaca asset %s failed: %s", symbol, exc)
+            return None
+        cache[symbol] = (_t.time(), info)
+        return info
+
     def market_open(self) -> bool | None:
         """Alpaca's answer if it's recent (10 minutes), else None (then the plain weekday 9:30-16:00 rule)."""
         import time as _t

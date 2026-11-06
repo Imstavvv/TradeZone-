@@ -59,6 +59,7 @@ class CoinbaseFeed(MarketFeed):
         self._rr = 0  # round-robin index for REST fallback
         self.mode = "rest"
         self.dropped: list[str] = []
+        self.listed: set[str] = set()  # every product Coinbase trades (the Trend Scout picks new coins from it)
 
     # ---------------------------------------------------------------- stream
     async def check_products(self) -> list[str]:
@@ -76,6 +77,7 @@ class CoinbaseFeed(MarketFeed):
             return []
         if not listed:
             return []
+        self.listed = listed
         dropped = [sym for sym in self.symbols if sym not in listed]
         if dropped and len(dropped) < len(self.symbols):
             self.symbols[:] = [sym for sym in self.symbols if sym in listed]  # same list as settings.symbols
@@ -171,6 +173,15 @@ class CoinbaseFeed(MarketFeed):
         return await self._poll_rest()
 
     # --------------------------------------------------------------- history
+    async def last_prices(self, symbols: list[str]) -> dict[str, float]:
+        """The latest price of each (one request per coin - only used for a handful of new candidates)."""
+        out = {}
+        for sym in symbols[:25]:
+            t = await self._one(sym)
+            if t is not None:
+                out[sym] = t.price
+        return out
+
     async def history(self, symbol: str, granularity: int, limit: int = 300) -> list[dict] | None:
         """Recent completed candles, oldest first: dicts with ts, low, high, open, close, volume."""
         if granularity not in CANDLE_GRANULARITIES:

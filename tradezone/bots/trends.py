@@ -12,8 +12,8 @@ Every half hour it asks CoinGecko (free public market data, no account) for:
 pump.fun is full of copycat coins that reuse a famous ticker, so a discovered coin is only plugged in when its
 CoinGecko price matches the exchange's price for that ticker (within 5%): the same coin, not a namesake.
 
-Every one of them that the venue lists against USD (Kraken, with Kraken prices) is added to what the
-bots watch and trade, with its recent price history loaded so the bots can act at once. Meme coins get
+Every one of them that this account's exchange lists against USD (Kraken's pairs, Coinbase's products,
+Alpaca's coins - and that the account itself can trade) is added to what the bots watch and trade, with its recent price history loaded so the bots can act at once. Meme coins get
 the meme-coin rules (smaller bets, wider stops). Trending coins get a small conviction boost. Coins that
 stop qualifying are dropped again, but never while the bots hold them.
 
@@ -21,6 +21,12 @@ What stays the same: a coin is only bought if the "can it be sold?" checks pass 
 selling, a tight bid/ask gap, enough daily trading for the position), so a thin coin is watched but not
 bought. Coins that only trade on decentralised exchanges can't be bought here: TradeZone trades through
 the exchange account, and DEX-only tokens carry a high risk of tokens that can't be sold.
+
+**Stocks (Alpaca accounts):** every half hour it also reads Alpaca's screener - the day's most-traded US
+stocks and biggest risers - and adds the established ones: a share price of at least $10, at least $50M
+traded today, listed on a main US exchange, fractional shares allowed, and never a leveraged or inverse
+fund (those can lose most of their value in days). Big risers get the same small boost as trending coins.
+Stocks that stop qualifying are dropped again, never while held.
 """
 
 from __future__ import annotations
@@ -65,6 +71,9 @@ class TrendBot(Bot):
         self.qualified: dict[str, dict] = {}  # meme coins that pass the market-cap / volume bar (and are listed)
         self.added: dict[str, float] = {}  # symbols this bot added to the watchlist -> when
         self.pump: set[str] = set()  # of those, coins launched on pump.fun
+        self.stocks_added: dict[str, float] = {}  # stocks this bot added -> when
+        self.stock_info: dict[str, dict] = {}  # why each qualifies: price, dollar volume, % up today
+        self.stock_error = ""
         self.last_refresh = 0.0
         self.last_error = ""
         self._task: asyncio.Task | None = None
@@ -137,10 +146,12 @@ class TrendBot(Bot):
         s = self.settings
         self.last_refresh = now()
         self.bump("scans")
-        pairs = getattr(self.desk.feed, "pairs", None) or {}
-        if self.desk.feed.name != "kraken" or not pairs:
-            self.last_error = "needs the exchange's own prices (Kraken) to know which coins can be traded"
-            return {"added": [], "dropped": []}
+        pairs = self.listed()
+        stocks = await self.refresh_stocks()
+        if not pairs:
+            if not stocks["checked"]:
+                self.last_error = "this account's prices don't say which coins the exchange lists yet"
+            return {"added": stocks["added"], "dropped": stocks["dropped"]}
         try:
             memes, trending = await self.fetch_memes(), await self.fetch_trending()
             pump = await self.fetch_pump() if s.discover_pump else []
@@ -191,21 +202,111 @@ class TrendBot(Bot):
             added.append(sym)
         dropped = []
         for sym in list(self.added):
-            if sym in qualified or sym in trend or not self.portfolio.position(sym).is_flat:
-                continue  # still qualifies, or the bots hold it: keep watching
+            if sym in qualified or sym in trend or self._busy(sym):
+                continue  # still qualifies, or the bots hold it (or an order / the hold stack): keep watching
             if sym in s.symbols:
                 s.symbols.remove(sym)
             del self.added[sym]
             dropped.append(sym)
+        self.trending.update(stocks["trend"])
+        added, dropped = added + stocks["added"], dropped + stocks["dropped"]
         if added:
-            await self._load_history(added)
-            self.act(f"plugged in {len(added)} coin(s): {', '.join(added)}")
+            await self._load_history([x for x in added if x not in stocks["added"]])
+            self.act(f"plugged in {len(added)} coin(s) / stock(s): {', '.join(added)}")
         if dropped:
             self.act(f"dropped {', '.join(dropped)} (no longer trending / below the volume bar)")
         self.bump("added", len(added))
         self.bump("dropped", len(dropped))
         self.metrics["trending"] = len(trend)
         return {"added": added, "dropped": dropped}
+
+    def _busy(self, sym: str) -> bool:
+        """Still needed: held, an order on it still filling, or in the hold stack (its value needs the price)."""
+        if not self.portfolio.position(sym).is_flat:
+            return True
+        exe = self.desk.bots.get("execution")
+        if exe is not None and (exe.working_for(sym) is not None or abs(exe.unbooked.get(sym, 0.0)) > 1e-12):
+            return True
+        st = self.desk.bots.get("stacker")
+        return st is not None and any(sym in book for book in st.books.values())
+
+    def listed(self) -> set[str]:
+        """The coins this account's exchange lists against USD, and the account can trade."""
+        from ..config import ALPACA_CRYPTO
+        feed = self.desk.feed
+        if feed.name == "kraken":
+            out = set(getattr(feed, "pairs", None) or {})
+        elif feed.name == "coinbase":
+            out = {x for x in getattr(feed, "listed", set()) if x.endswith("-USD")}
+        elif feed.name == "alpaca":
+            out = {f"{c}-USD" for c in ALPACA_CRYPTO}
+        else:
+            return set()
+        broker = self.desk.live_broker  # e.g. Uphold trades on Coinbase prices: only what Uphold also lists
+        if broker is not None:
+            out = {x for x in out if broker.supports(x) is not False}
+        return out
+
+    LEVERAGED = ("ultra", "2x", "3x", "-1x", "-2x", "-3x", "leveraged", "inverse", "bear ", " bull ", "short ")
+    MAIN_EXCHANGES = frozenset({"NYSE", "NASDAQ", "ARCA", "AMEX", "BATS", "NYSEARCA"})
+
+    async def refresh_stocks(self) -> dict:
+        """Alpaca accounts: find established stocks that are busy today; drop the ones that stopped qualifying."""
+        s, feed = self.settings, self.desk.feed
+        out: dict = {"added": [], "dropped": [], "trend": {}, "checked": False}
+        self.stock_error = ""
+        broker = self.desk.live_broker
+        if not (s.discover_stocks and s.alpaca_stocks and hasattr(feed, "most_actives")):
+            return out
+        if broker is None or not hasattr(broker, "asset"):
+            self.stock_error = "finding stocks needs the Alpaca account linked (to check each one can be traded)"
+            return out
+        if self.desk.in_focus(s.alpaca_stocks[0]):
+            return out  # (the growth ladder: stocks join from $1,000)
+        try:
+            actives, gainers = await feed.most_actives(50), await feed.movers(20)
+            base = set(s.symbols) - set(self.stocks_added)
+            cands = [x for x in dict.fromkeys([*actives, *gainers, *self.stocks_added])
+                     if x.isalpha() and len(x) <= 5 and x not in base]
+            snaps = await feed.snapshots(cands)
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            self.stock_error = f"Alpaca screener: {type(exc).__name__}: {exc}"[:200]
+            log.warning("stock scan failed: %s", exc)
+            return out
+        out["checked"] = True
+        ok: dict[str, dict] = {}
+        for sym in cands:
+            sn = snaps.get(sym)
+            if not sn or sn["price"] < s.stock_min_price or sn["dollar_volume"] < s.stock_min_dollar_volume:
+                continue
+            info = await broker.asset(sym)
+            name = str((info or {}).get("name") or "")
+            if not info or not info.get("tradable") or not info.get("fractionable") or info.get("status", "active") != "active" \
+                    or str(info.get("exchange", "")).upper() not in self.MAIN_EXCHANGES \
+                    or any(w in f" {name.lower()} " for w in self.LEVERAGED):
+                continue
+            ok[sym] = {"name": name, "price": sn["price"], "dollar_volume": sn["dollar_volume"],
+                       "up_today": gainers.get(sym)}
+        self.stock_info = ok
+        keep = sorted(ok, key=lambda x: -ok[x]["dollar_volume"])[:s.max_discovered_stocks]
+        for sym in keep:
+            if sym not in s.symbols:
+                s.symbols.append(sym)  # the same list the feed, broker and bots use
+                self.stocks_added[sym] = now()
+                out["added"].append(sym)
+        for sym in list(self.stocks_added):
+            if sym in keep or self._busy(sym):
+                continue  # still qualifies, or the bots hold it (or an order on it is still filling)
+            if sym in s.symbols:
+                s.symbols.remove(sym)
+            del self.stocks_added[sym]
+            out["dropped"].append(sym)
+        risers = sorted((x for x in keep if ok[x]["up_today"]), key=lambda x: -(ok[x]["up_today"] or 0))
+        out["trend"] = {x: {"name": ok[x]["name"], "rank": 100 + i, "up_today": ok[x]["up_today"], "stock": True}
+                        for i, x in enumerate(risers)}
+        if out["added"]:
+            await self._load_history(out["added"])
+        return out
 
     async def _load_history(self, symbols: list[str]) -> None:
         scout = self.desk.bots.get("scout")
@@ -238,8 +339,10 @@ class TrendBot(Bot):
 
     def summary(self) -> dict:
         return {"trending": [{"symbol": k, **v} for k, v in sorted(self.trending.items(), key=lambda x: x[1]["rank"])],
-                "qualified": len(self.qualified), "added": sorted(self.added), "error": self.last_error,
+                "qualified": len(self.qualified), "added": sorted(self.added), "error": self.last_error or self.stock_error,
                 "pump": sorted(self.pump),
+                "stocks": [{"symbol": k, **v} for k, v in sorted(self.stock_info.items(), key=lambda x: -x[1]["dollar_volume"])
+                           if k in self.stocks_added],
                 "min_market_cap": self.settings.discovery_min_mcap}
 
     async def close(self) -> None:

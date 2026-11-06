@@ -49,6 +49,9 @@ POSITIVE = {
     "rally": 0.6, "surge": 0.6, "soars": 0.7, "jumps": 0.4, "gains": 0.3, "bullish": 0.5, "adoption": 0.5,
     "partnership": 0.4, "rate cut": 0.7, "cuts rates": 0.7, "upgrade": 0.4, "listing": 0.4, "lists": 0.3,
     "rebound": 0.4, "recovery": 0.3, "beats expectations": 0.5, "stimulus": 0.4, "ceasefire": 0.5, "deal": 0.2,
+    # company news (stocks)
+    "beats estimates": 0.5, "tops estimates": 0.5, "raises guidance": 0.6, "record revenue": 0.6, "buyback": 0.4,
+    "upgraded": 0.4, "price target raised": 0.4,
 }
 NEGATIVE = {
     "hack": 1.0, "hacked": 1.0, "exploit": 0.9, "stolen": 0.9, "drained": 0.9, "lawsuit": 0.7, "sues": 0.7,
@@ -57,6 +60,9 @@ NEGATIVE = {
     "sell-off": 0.6, "selloff": 0.6, "liquidations": 0.5, "bearish": 0.5, "outage": 0.6, "halts": 0.6,
     "rate hike": 0.7, "raises rates": 0.7, "hotter-than-expected": 0.6, "inflation surges": 0.6, "recession": 0.6,
     "war": 0.6, "invasion": 0.8, "missile": 0.6, "sanctions": 0.5, "tariff": 0.4, "tariffs": 0.4, "default": 0.5,
+    # company news (stocks)
+    "recall": 0.6, "recalls": 0.6, "probe": 0.5, "investigation": 0.5, "misses estimates": 0.5, "cuts guidance": 0.6,
+    "lowers guidance": 0.6, "downgrade": 0.4, "downgraded": 0.4, "layoffs": 0.3, "price target cut": 0.4,
 }
 COINS = {
     "BTC": r"bitcoin|btc", "ETH": r"ethereum|ether\b|eth", "SOL": r"solana|sol\b", "XRP": r"xrp|ripple",
@@ -170,6 +176,12 @@ class NewsBot(Bot):
         for url, text in zip(feeds, texts, strict=True):
             if text:
                 new += self.add_items(parse_feed(text, url.split("/")[2].replace("www.", "")))
+        feed = self.desk.feed
+        if self.settings.news_alpaca and hasattr(feed, "news"):  # headlines tagged with the stocks/coins they're about
+            try:
+                new += self.add_items(await feed.news(list(self.settings.symbols)))
+            except Exception as exc:  # the RSS news still counts
+                self.last_error = f"alpaca news: {type(exc).__name__}"
         fg = await self._get(FEAR_GREED_URL)
         if fg:
             try:
@@ -191,7 +203,7 @@ class NewsBot(Bot):
             self._seen.add(key)
             text = it["title"]
             score = score_headline(text)
-            coins = coins_in(text)
+            coins = list(dict.fromkeys([*coins_in(text), *self._tagged(it), *self._watched_in(text)]))
             crypto = bool(coins) or bool(CRYPTO_WORDS.search(text))
             self.headlines.append({**it, "score": score, "coins": coins, "crypto": crypto})
             new += 1
@@ -200,6 +212,34 @@ class NewsBot(Bot):
         if len(self._seen) > 5000:
             self._seen = {h["title"].lower() for h in self.headlines}
         return new
+
+    def _tagged(self, it: dict) -> list[str]:
+        """Tickers a news service tagged the headline with (BTCUSD -> BTC; stocks as they are), if watched."""
+        watched = {x.upper().replace("/", "-").split("-")[0] for x in self.settings.symbols}
+        out = []
+        for t in it.get("symbols") or []:
+            t = str(t).upper()
+            coin = t[:-3] if t.endswith("USD") and t[:-3] in watched and t not in watched else t
+            if coin in watched:
+                out.append(coin)
+        return out
+
+    def _watched_in(self, text: str) -> list[str]:
+        """Newly found coins (not in the built-in list) named in a headline: $TICKER, or the coin's full name."""
+        trends = self.desk.bots.get("trends")
+        names = {}
+        for src in (getattr(trends, "qualified", {}), getattr(trends, "trending", {})):
+            for sym, info in src.items():
+                if "-" in sym:
+                    names[sym.split("-")[0]] = str((info or {}).get("name") or "")
+        out = []
+        for coin, name in names.items():
+            if coin in COINS:
+                continue
+            if re.search(rf"\${re.escape(coin)}\b", text, re.IGNORECASE) or \
+                    (len(name) >= 4 and re.search(rf"(?<![\w-]){re.escape(name)}(?![\w-])", text)):
+                out.append(coin)
+        return out
 
     # ------------------------------------------------------------ the read-out
     def _weight(self, h: dict) -> float:

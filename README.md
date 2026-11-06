@@ -20,7 +20,7 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | **Reporter** 📰 | World and market news | Reads crypto, world and business news and the Fear & Greed index; bad news on a coin blocks buying it, scary world news makes trades smaller (see [News](#news-what-the-world-is-saying)) |
 | **Skimmer** 🏄 | Profit taking and day-trade skims | Takes profits of every size (see [The Skimmer](#the-skimmer-profits-big-and-small)) |
 | **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
-| **Trend Scout** 🔥 | Discovery | Meme coins and pump.fun coins over $50k market cap with plenty of volume, and trending coins, that your exchange lists (same coin checked by price) |
+| **Trend Scout** 🔥 | Discovery | Meme coins and pump.fun coins over $50k market cap with plenty of volume, and trending coins, that your exchange lists (same coin checked by price) - on every account (Kraken, Coinbase/Uphold, Alpaca); and on Alpaca the day's busiest established stocks |
 | **Pullback Hunter** 🎣 | Entries | Buys the retest of a breakout |
 | **Flipper** ⏱️ | Flips and timing | Volume flips, and learns the best and worst hours to trade |
 | **Dip Buyer** 🔁 | Held losers | While never-sell holds a losing trade, buys more on a further dip that turns up, so it gets back to profit sooner |
@@ -491,6 +491,12 @@ Each one can be switched off on the bot floor (Pro view).
 
 ### 🔥 The Trend Scout: every meme coin worth trading, and what's trending
 
+**On every account.** It used to need Kraken's prices; now it knows what each account's exchange lists - Kraken's pairs, Coinbase's products (Uphold accounts also check Uphold lists the coin), Alpaca's coins - so every linked account finds new coins for its own team. The same-coin price check runs on all three.
+
+**Stocks, on Alpaca accounts.** Every half hour it reads Alpaca's free screener (the day's most-traded stocks and biggest risers) and adds up to 10 established ones: a share price of $10 or more, at least $50M traded (today or yesterday - early in the morning hardly anything has traded yet), listed on a main US exchange, fractional shares allowed, and never a leveraged or inverse fund. Its price history is loaded so the bots can trade it at once; big risers get the same small conviction boost as trending coins; a stock that stops qualifying is dropped, never while held. Stocks join from a $1,000 balance (the growth ladder). **Not tested on price history** (no history of which stocks were busy on which day was available here): it only picks big, liquid names, and every trade still goes through all the usual checks and limits.
+
+**News for stocks and new coins.** On Alpaca accounts the Reporter also reads Alpaca's news, where each headline is tagged with the tickers it's about, so a recall, a probe or an earnings beat counts for that stock. Coins the Trend Scout found are matched in the other feeds by their $TICKER or full name. Company words were added to the scoring (beats / misses estimates, guidance raised / cut, recalls, probes, upgrades / downgrades).
+
 The 14th bot plugs the team into the coins where the action is. Every **30 minutes** (`TZ_DISCOVERY_EVERY_MIN`) it reads CoinGecko's free public market data (no account needed):
 
 * **meme coins** with a market cap of at least **$50k** (`TZ_DISCOVERY_MIN_MCAP`) and **promising volume**: at least **$100k** traded in 24 h (`TZ_DISCOVERY_MIN_VOLUME`) and at least **5%** of the market cap changing hands a day (`TZ_DISCOVERY_MIN_TURNOVER`), so dead coins are skipped;
@@ -724,7 +730,9 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Moving take-profit past +10% | on | `TZ_TP_STEP` |
 | Strategies: momentum, buying dips, breakouts, **MACD**, **on-balance volume** | on (5 of 10; the other 5 tested worse) | Settings → Trading strategies, `TZ_STRATEGIES` |
 | Meme breakout snipes, volume snipes (4× volume), Pullback Hunter, Flipper | on | Settings → Trading strategies |
-| Trend Scout: meme coins and **pump.fun** coins over $50k with plenty of volume, trending coins | on (only coins your exchange lists, same coin checked) | `TZ_DISCOVER_COINS`, `TZ_DISCOVER_PUMP` |
+| Trend Scout: meme coins and **pump.fun** coins over $50k with plenty of volume, trending coins, on every account | on (only coins your exchange lists, same coin checked) | `TZ_DISCOVER_COINS`, `TZ_DISCOVER_PUMP` |
+| Stock discovery (Alpaca): the day's busiest stocks, $10+, $50M+ traded, main exchanges, no leveraged/inverse funds | on (not tested on price history - see below) | `TZ_DISCOVER_STOCKS`, `TZ_MAX_DISCOVERED_STOCKS` |
+| News per stock and coin from Alpaca's news service | on (Alpaca accounts) | `TZ_NEWS_ALPACA` |
 | Up to 20 trades at once, up to 5 meme coins | on | `TZ_MAX_OPEN_POSITIONS`, `TZ_MAX_MEME_POSITIONS` |
 | Hold stack (SOL, XRP, DOGE, ETH and Onyxcoin XCN bought slowly on the side, never sold) | on | `TZ_STACK` |
 | Learning: Coach, Flipper hours, Fee Auditor, Target Learner, Trade Reviewer | on | `TZ_COACH_LEARNING`, `TZ_LEARN_TARGETS`, `TZ_LEARN_SOURCES` |
