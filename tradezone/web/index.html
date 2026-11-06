@@ -582,6 +582,11 @@ button.ghost:hover{color:var(--text)}
 @media (max-width:700px){
   .acctpick{flex-wrap:nowrap;overflow-x:auto;margin:0 -12px 10px;padding:0 12px}
 }
+/* ---- the balance: exact, current, and says so ---- */
+.hero .bal{font-variant-numeric:tabular-nums;transition:opacity .3s}
+.hero .bal.stale{opacity:.55}
+.hero .fresh{font-size:12.5px;font-weight:600;color:#fff;margin:-2px 0 6px;min-height:16px}
+.hero .fresh.stale{color:#fde68a}
 /* ---- the Stack tab ---- */
 .stackbar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);margin:12px 0 6px}
 .stackbar i{display:block;height:100%}.stackbar i.empty{width:100%}
@@ -1282,6 +1287,7 @@ button.danger{background:linear-gradient(135deg,#e11d48,#be123c)}
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
       <div class="bal" id="sBal">—</div>
+      <div class="fresh" id="sFresh" aria-live="polite"></div>
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
       <a class="since stacklink" id="sStack" data-goto="stack" href="#/stack" style="display:none"></a>
@@ -1796,10 +1802,23 @@ function connect(){
     }
     if (S.state && S.state.mode !== msg.data.mode) S.equity = [msg.data.portfolio.equity];  // new book, new curve
     S.state = msg.data;
+    S.stateAt = Date.now();
     render();
+    freshness();
   };
 }
 
+// Is the balance current? Updates come every second; when they stop, say so and dim it (never a stale figure as live)
+function freshness(){
+  const el = $('sFresh'), bal = $('sBal'); if (!el) return;
+  if (!S.stateAt) { el.textContent = ''; return; }
+  const age = (Date.now() - S.stateAt) / 1000;
+  const stale = age >= 10;
+  bal.classList.toggle('stale', stale);
+  el.classList.toggle('stale', stale);
+  el.textContent = stale ? `⚠ not updated for ${Math.round(age)}s - reconnecting…` : age < 4 ? '● live · up to the second' : `● updated ${Math.round(age)}s ago`;
+}
+setInterval(freshness, 1000);
 // A phone that slept or changed networks can leave the live connection dead without ever saying so: the
 // balance would freeze. The server sends an update every second or two, so silence means reconnect.
 function liveWatchdog(maxQuietMs = 20000){
@@ -2204,14 +2223,17 @@ setInterval(() => { if (document.visibilityState === 'visible' && S.state) loadS
 // =================== Simple view: the friendly home screen ===================
 const REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 const FIRST_PRICE = {};
-function countTo(el, value){  // animate the balance like a scoreboard
+function countTo(el, value){  // the balance: always lands on the exact amount, quickly
   const from = el._v ?? value; el._v = value;
-  if (from !== value) { el.classList.remove('bump-up', 'bump-down'); void el.offsetWidth; el.classList.add(value > from ? 'bump-up' : 'bump-down'); }
-  if (REDUCED || from === value) { el.textContent = money(value); return; }
-  const t0 = performance.now(), dur = 650;
+  const move = Math.abs(value - from);
   cancelAnimationFrame(el._raf);
+  // a flash only for a change worth noticing ($1 or 0.1%), not every cent of a price tick
+  if (move >= Math.max(1, Math.abs(from) * 0.001)) { el.classList.remove('bump-up', 'bump-down'); void el.offsetWidth; el.classList.add(value > from ? 'bump-up' : 'bump-down'); }
+  // small moves (and reduced motion) show the new amount at once - no in-between figures
+  if (REDUCED || move < Math.max(0.5, Math.abs(from) * 0.0002)) { el.textContent = money(value); return; }
+  const t0 = performance.now(), dur = 250;  // (updates come every second: a short glide, then the exact figure)
   const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
-    el.textContent = money(from + (value - from) * e); if (k < 1) el._raf = requestAnimationFrame(step); };
+    el.textContent = money(k < 1 ? from + (value - from) * e : value); if (k < 1) el._raf = requestAnimationFrame(step); };
   el._raf = requestAnimationFrame(step);
 }
 function renderTicker(st){
