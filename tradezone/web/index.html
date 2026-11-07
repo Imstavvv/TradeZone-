@@ -1115,6 +1115,12 @@ var(--live)}
 :root[data-theme="olympus"] .tpop .tt{font-family:var(--serif);letter-spacing:.03em}
 :root[data-theme="olympus"] .toast{border-left-color:#c9a227}
 @media (max-width:700px){:root[data-theme="olympus"] .pagehead h2{font-size:23px}}
+.recbox{margin:12px 0;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--panel,#fff)}
+.recbox h3{margin:0 0 4px;font-size:16px}
+.recbox .rrow{display:grid;grid-template-columns:minmax(0,1.2fr) auto 22px minmax(0,2fr);gap:4px 10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line)}
+.recbox .rlab{color:var(--muted)}.recbox .rnote{color:var(--muted);font-size:12.5px}
+.recbox .rflag{text-align:center;font-weight:800}.recbox .rflag.good{color:var(--up)}.recbox .rflag.warn{color:#b45309}.recbox .rflag.bad{color:var(--down)}
+@media (max-width:700px){.recbox .rrow{grid-template-columns:minmax(0,1fr) auto 22px}.recbox .rnote{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -1440,6 +1446,7 @@ var(--live)}
       <div class="scard" data-page="activity" id="sec-news"><h4>📰 What the world is saying</h4><div id="sNews"></div></div>
       <div class="scard full" data-page="trades" id="sec-trips"><h4>Your trades <span class="muted small" id="tripN"></span></h4>
         <div class="opensum" id="tripSum"></div>
+      <div class="recbox" id="tripRecord" hidden></div>
         <div class="openbar"><div class="tabs" id="tripRes"><span class="tab on" data-r="all">All</span><span class="tab" data-r="win">Wins</span><span class="tab" data-r="loss">Losses</span><span class="tab" data-r="open">Open</span></div>
           <div class="tabs" id="tripDays"><span class="tab" data-d="1">Today</span><span class="tab on" data-d="7">7 days</span><span class="tab" data-d="30">30 days</span><span class="tab" data-d="0">All</span></div></div>
         <div class="openbar"><div class="tabs" id="tripAcct"></div><div class="tabs" id="tripBook"><span class="tab" data-m="paper">Practice</span><span class="tab" data-m="live">Real money</span></div></div>
@@ -2684,6 +2691,26 @@ async function loadTrips(){
     renderTrips();
   } catch {} finally { TRIP.loading = false; }
 }
+// the track record, measured the way the most profitable accounts are judged (and the ranges they're judged by)
+function renderRecord(d){
+  const el = $('tripRecord'); if (!el) return;
+  const st = d.stats || {}, rec = d.record || {};
+  if (!st.closed && !(rec.days > 0)) { el.hidden = true; return; }
+  const row = (label, value, ok, note) => `<div class="rrow"><span class="rlab">${label}</span><b>${value}</b>`
+    + `<span class="rflag ${ok == null ? '' : ok ? 'good' : ok === 0 ? 'warn' : 'bad'}">${ok == null ? '' : ok ? '✓' : ok === 0 ? '!' : '✗'}</span>`
+    + `<span class="rnote">${note}</span></div>`;
+  const rr = st.avg_win != null && st.avg_loss ? st.avg_win / Math.abs(st.avg_loss) : null;
+  const wr = st.win_rate, dd = rec.max_drawdown, rec_d = rec.longest_recovery_s != null ? rec.longest_recovery_s / 86_400 : null;
+  const pf = st.profit_factor;
+  el.hidden = false;
+  el.innerHTML = `<h3>📋 How it measures up</h3><div class="muted" style="font-size:13px;margin:0 0 8px">The numbers copy-trading leaderboards judge accounts by, and the ranges their most profitable accounts sit in. A guide, not a promise.</div>`
+    + row('Track record', rec.days >= 1 ? `${Math.round(rec.days)} days` : 'under a day', rec.days >= 180 ? true : 0, 'accounts are judged on 6 months or more')
+    + row('Trades won', wr == null ? '—' : `${Math.round(wr * 100)}%`, wr == null ? null : wr > 0.8 ? 0 : wr >= 0.45 ? true : false, '55-65% is healthy; over 80% can hide risk')
+    + row('Biggest drop', dd == null ? '—' : pct(dd, 1), dd == null ? null : dd < 0.2 ? true : dd < 0.3 ? 0 : false, 'under 20%; over 30% is a red flag')
+    + row('Longest recovery', rec_d == null ? '—' : rec_d < 1 ? 'under a day' : `${Math.round(rec_d)} days`, rec_d == null ? null : rec_d < 60 ? true : rec_d < 180 ? 0 : false, '6 months or more to get back to a high is a warning sign')
+    + row('Profit factor', pf == null ? '—' : pf.toFixed(2), pf == null ? null : pf >= 1.5 ? true : pf >= 1 ? 0 : false, 'what was won ÷ what was lost: 1.5 or more is good')
+    + row('Reward vs risk', rr == null ? '—' : `${rr.toFixed(2)} : 1`, rr == null ? null : rr >= 1.5 ? true : rr >= 1 ? 0 : false, 'the average win against the average loss: 1.5 or more');
+}
 function renderTrips(){
   const d = TRIP.data; if (!d) return;
   const st = d.stats, sign = v => (v >= 0 ? '+' : '-') + money(Math.abs(v));
@@ -2698,6 +2725,7 @@ function renderTrips(){
     <div><span>Average win · loss</span><b class="pair"><span class="up">${st.avg_win == null ? '—' : sign(st.avg_win)}</span><span class="down">${st.avg_loss == null ? '—' : sign(st.avg_loss)}</span></b></div>
     <div><span>Best · worst</span><b class="pair"><span class="${cls(st.best)}">${st.best == null ? '—' : sign(st.best)}</span><span class="${cls(st.worst)}">${st.worst == null ? '—' : sign(st.worst)}</span></b></div>
     <div><span>Average time held</span><b>${st.avg_hold_s == null ? '—' : dur2(st.avg_hold_s)}</b><i>fees ${money(st.fees)}</i></div>`);
+  renderRecord(d);
   const pick = {all: () => true, win: t => t.status === 'closed' && t.pnl > 0, loss: t => t.status === 'closed' && t.pnl <= 0, open: t => t.status !== 'closed'};
   const rows = d.trips.filter(pick[TRIP.res]);
   $('tripN').textContent = d.total ? `${rows.length}${rows.length === d.total ? '' : ' of ' + d.total}` : '';

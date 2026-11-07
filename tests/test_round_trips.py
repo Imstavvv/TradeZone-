@@ -98,3 +98,16 @@ def test_coins_moved_out_of_the_hold_stack_and_sold_are_a_normal_trade_not_a_sho
     assert (t["side"], t["status"], t["sold_parts"]) == ("long", "closed", 2)
     assert t["pnl"] == pytest.approx(3.7) and t["qty"] == pytest.approx(0.2)
     assert t["avg_entry"] == pytest.approx(144.0) and t["entry_reason"] == "moved out of the hold stack"
+
+
+def test_the_track_record_is_measured_on_profit_not_on_deposits():
+    """How long it has traded, its biggest drop and its longest time under water (the leaderboard measures)."""
+    j = Journal(":memory:")
+    h = 3600
+    # $1,000 in; profit +100, then down to +40 (a drop), back to a new high at +120 two days later; then a $500 deposit
+    for i, (eq, pnl) in enumerate([(1000, 0), (1100, 100), (1040, 40), (1060, 60), (1120, 120), (1620, 120)]):
+        j.record_equity(T0 + i * 24 * h, eq, "paper", pnl)
+    r = j.track_record("paper", now=T0 + 5 * 24 * h)
+    assert round(r["days"]) == 5
+    assert abs(r["max_drawdown"] - 60 / 1100) < 1e-9  # the drop from +100 to +40, on $1,100 (the deposit isn't a gain)
+    assert round(r["longest_recovery_s"] / 86_400) == 3 and r["underwater_s"] == 0

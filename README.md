@@ -1078,6 +1078,12 @@ So these are now **off** (each can be switched back on): the trailing stop (on i
 
 What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
 
+### 📋 How it measures up (studied: the most profitable accounts)
+
+The Trades tab shows the account's record measured the way copy-trading leaderboards judge accounts, with the ranges their most profitable accounts sit in: **track record** (judged on 6 months or more), **trades won** (55–65% is healthy; over 80% can hide risk), **biggest drop** (under 20%; over 30% is a red flag), **longest recovery** back to a high (6 months or more is a warning sign), **profit factor** (what was won ÷ what was lost: 1.5 or more) and **reward vs risk** (average win against average loss: 1.5 or more). The drop and the recovery are measured on the profit, over the whole history, so a deposit or withdrawal isn't counted as a gain or a drop. (The evidence behind those ranges is mostly exchanges' own studies of their copy-trading leaders - a guide, not a promise.)
+
+Compared with what those accounts do, TradeZone already matches most of it: reward about 2x the risk (−7% / +15% after fees), a stop after a 15% drop, many positions, fees and slow fills minded, smaller trades after a losing day, practice before real money. The one place it's bolder: real-money trades risk **4%** of the balance each (asked for); profitable accounts are usually said to risk 1–2% (`TZ_LIVE_RISK_PER_TRADE=0.02`).
+
 ### 🔬 Upgrades from trading research
 
 Searched for, built off, then replayed against the current settings (16 windows per market, tuning / unseen half; now: rising +$827 / +$504, falling −$745 / −$641, sideways −$160 / −$214):

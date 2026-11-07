@@ -193,6 +193,31 @@ class Journal:
                  "open": sum(t["status"] == "open" for t in shown)}
         return {"trips": shown[:limit], "stats": stats, "total": len(shown)}
 
+    def track_record(self, mode: str, now: float | None = None) -> dict:
+        """How long this book has traded, its biggest drop and its longest time under water - measured on the
+        profit (deposits and withdrawals don't count as gains or drops), one point an hour over its whole history."""
+        import time as _t
+        rows = self.all("SELECT MAX(ts), equity, pnl FROM equity WHERE mode = ? AND pnl IS NOT NULL "
+                        "GROUP BY CAST(ts / 3600 AS INTEGER) ORDER BY 1", (mode,))
+        if len(rows) < 2:
+            return {"days": 0.0, "max_drawdown": None, "longest_recovery_s": None, "underwater_s": 0.0, "points": len(rows)}
+        t_end = now if now is not None else _t.time()
+        peak_pnl, peak_base, peak_ts = None, 0.0, rows[0][0]
+        max_dd, longest = 0.0, 0.0
+        for ts, eq, pnl in rows:
+            base = eq - pnl  # (what was put in, at that moment)
+            if peak_pnl is None or pnl >= peak_pnl:
+                if peak_pnl is not None:
+                    longest = max(longest, ts - peak_ts)  # (back at a new high: that stretch under water ended)
+                peak_pnl, peak_base, peak_ts = pnl, base, ts
+            else:
+                top = peak_base + peak_pnl
+                if top > 0:
+                    max_dd = max(max_dd, (peak_pnl - pnl) / top)
+        under = t_end - peak_ts if rows[-1][2] < peak_pnl else 0.0
+        return {"days": (rows[-1][0] - rows[0][0]) / 86_400, "max_drawdown": max_dd,
+                "longest_recovery_s": max(longest, under), "underwater_s": under, "points": len(rows)}
+
     def record_equity(self, ts: float, equity: float, mode: str | None = None, pnl: float | None = None) -> None:
         with self._lock:
             self.conn.execute("INSERT INTO equity(ts, equity, mode, pnl) VALUES (?,?,?,?)", (ts, equity, mode, pnl))

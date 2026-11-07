@@ -536,7 +536,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         import time as _t
         since = _t.time() - days * 86_400 if days else 0.0
         return _clean({**d.journal.round_trips(mode, symbol or None, since, held), "mode": mode,
-                       "account": account or "main"})
+                       "account": account or "main", "record": d.journal.track_record(mode)})
 
     @app.get("/api/trades.csv", dependencies=[Depends(check_token)])
     async def trades_csv(mode: str | None = None, symbol: str | None = None):
