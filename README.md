@@ -174,7 +174,7 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 
 * **Every trade: stop-loss at most −7%, take-profit +15% after fees (asked for).** The safety stop and the loss floor are both −7% from the buy price (`TZ_WIDE_STOP_PCT`, `TZ_MAX_LOSS_PCT`; were −20%), so "never sell at a loss" still sells a trade 7% down. The early cut stays −5% for bigger coins and is −7% for meme coins (was −12%). Every take-profit is **+15% after both the buy and the sell fee** (was +4% for bigger coins and +10% for meme coins on real money; `TZ_FLIP_MAJOR_TARGET_PCT`, `TZ_FLIP_MEME_TARGET_PCT`, `TZ_MAJOR_TAKE_PROFIT_PCT`, `TZ_TAKE_PROFIT_PCT`). At +15% a third is sold and the rest rides, its stop locked in profit (selling everything at +15% was tested too and did a little worse overall). The moving take-profit starts at +15% (`TZ_TP_STEP_PCT`, was +10%). Trades already open got the new stop and target once, and one already more than 7% down was sold.
 
-  Replayed on real price history (16 windows per market, tuning / unseen half). *These numbers are from the first replay, in which the moving take-profit still moved the +15% target out before it was reached, so trades rode instead of selling a third at +15%. That's fixed (the +15% sale comes first now); the replay of the fixed version is running and its numbers replace these.*
+  Replayed on real price history (16 windows per market, tuning / unseen half). The replay was run again after the fix that sells a third at +15% before the target moves (see below): the same results to the cent, because in these 3.5-day windows no trade got as far as +15%; the sale at +15% shows up on longer, stronger rises.
 
   | | Rising | Falling | Sideways |
   | --- | --- | --- | --- |
