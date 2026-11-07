@@ -601,3 +601,29 @@ def test_staked_coins_with_a_number_in_their_name_are_shown_as_that_coin():
     _fk, desk = live_kraken(held={"XDG28.S": 10.0, "XBT03.S": 0.5})
     data = run(desk.live_broker.holdings())
     assert data["DOGE-USD"]["locked"] == 10.0 and data["BTC-USD"]["locked"] == 0.5
+
+
+def test_the_app_watches_every_credible_meme_coin_not_just_the_busiest_12():
+    from tradezone.config import MEME_CANDIDATES
+    from tradezone.desk import build_feed
+    from tradezone.market.kraken import KrakenFeed
+
+    s = Settings(feed="kraken", symbols=["BTC-USD", "DOGE-USD"])
+    feed = build_feed(s)
+    assert isinstance(feed, KrakenFeed) and feed.max_memes >= len(MEME_CANDIDATES) + len(s.meme_coins)
+    coins = [f"M{i}" for i in range(20)]
+    pairs = {f"{c}USD": {"altname": f"{c}USD", "wsname": f"{c}/USD", "base": c} for c in coins}
+
+    def handler(req):
+        if req.url.path.endswith("AssetPairs"):
+            return httpx.Response(200, json={"error": [], "result": pairs})
+        res = {alt: {"c": ["1", "1"], "b": ["0.999", "1", "1"], "a": ["1", "1", "1"], "v": ["1", "5e6"], "p": ["1", "1"]}
+               for alt in req.url.params["pair"].split(",")}
+        return httpx.Response(200, json={"error": [], "result": res})
+    symbols = []
+    many = KrakenFeed(symbols, client=httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(handler)),
+                      meme_candidates=coins, meme_coins=[], min_meme_volume_usd=1e6, max_memes=s.max_meme_coins)
+    run(many.start())  # (loads Kraken's pair list, then adds the meme coins that trade enough)
+    assert len(symbols) == 20  # all 20 that trade $1M+ a day (it used to stop at 12)
+    run(feed.client.aclose())
+    run(many.client.aclose())

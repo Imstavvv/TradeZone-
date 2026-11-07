@@ -145,7 +145,10 @@ class Settings:
     kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
     kraken_memes: bool = True  # with Kraken prices: add the meme coins Kraken lists (if they trade enough)
     min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added
-    max_meme_coins: int = 12  # watch at most this many meme coins
+    max_meme_coins: int = 100  # watch every credible meme coin (asked for; was the busiest 12). Trades in them at
+    # once stay capped by max_meme_positions: replayed with 9 meme coins, letting all be held at once did worse in
+    # every market than 5 (rising +$1,681 / +$879 vs +$1,764 / +$892, falling -$1,212 / -$876 vs -$1,149 / -$815,
+    # sideways -$46 / -$88 vs +$34 / +$26)
     # ---- "never buy a coin that can't be sold" (real money; practice too when a real account is linked) ----
     sell_max_spread_pct: float = 0.015  # the bid/ask gap must be under 1.5%...
     sell_min_volume_usd: float = 250_000.0  # ...the coin must trade at least this much a day...

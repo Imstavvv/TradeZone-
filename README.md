@@ -178,7 +178,7 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 * **Sniping meme coins:** when a trusted meme coin breaks more than 1% above its recent high, the Quant acts on that tick instead of waiting for the minute to close. Its momentum must agree, and the rest of the team (Risk Manager, Executive, and Grok if connected) still has to say yes. A breakout against a falling trend is skipped. One shot per breakout.
 * **Runners:** at the target the bots bank half the position. The stop on the other half moves **into profit** (at least half the target: +7.5% for meme coins, +3% for others), the ceiling is removed, and the stop then trails under the highest price by the stop distance. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
 * **Profit protection** still applies before the target: once a trade is about +4% up, its stop moves above break-even, so a trade that went green doesn't end red.
-* **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 5 are held at once (`TZ_MAX_MEME_POSITIONS`; 6 on Aggressive, 7 on Bold).
+* **Safer sizing for meme coins:** they risk half of what a normal trade risks (`TZ_MEME_RISK_MULT=0.5`), and at most 5 are held at once (`TZ_MAX_MEME_POSITIONS`; 6 on Aggressive, 7 on Bold). The bots watch every credible meme coin (on Kraken against USD, trading $1M+ a day) and pick those 5 from all of them. Letting all of them be held at once was replayed with 9 meme coins (16 windows per market, tuning / unseen half) and did worse in every market than the cap of 5: rising +$1,681 / +$879 vs +$1,764 / +$892, falling −$1,212 / −$876 vs −$1,149 / −$815, sideways −$46 / −$88 vs +$34 / +$26. More meme trades open at once meant more of the cash held in losing ones when they turned, so the cap stays.
 * **Real money:** Alpaca can trade DOGE, SHIB and PEPE (plus the majors) but not BONK, WIF or FLOKI. Those stay practice-only, and the Risk Manager says so instead of sending an order that would fail.
 
 Meme coins can move 20–50% in minutes. The −8% stop limits each loss, but a price that jumps straight through the stop fills at the next price. **No setting can guarantee profits.**
@@ -606,7 +606,7 @@ The busiest that **your exchange lists** are plugged into the watchlist with the
 With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:
 
 * keeps the usual coins (BTC, ETH, SOL, ... and the meme coins DOGE, SHIB, PEPE, BONK, WIF, FLOKI) that Kraken lists, and skips the rest;
-* adds other well-known meme coins **Kraken lists against USD** (TRUMP, PENGU, FARTCOIN, POPCAT, MEW, BOME, TURBO, PNUT, ...) if they trade at least **$1M a day** (`TZ_MIN_MEME_VOLUME_USD`), the busiest first, up to 12 meme coins in all (`TZ_MAX_MEME_COINS`). They get the meme-coin rules: smaller bets and wider stops. `TZ_KRAKEN_MEMES=false` turns this off.
+* adds other well-known meme coins **Kraken lists against USD** (TRUMP, PENGU, FARTCOIN, POPCAT, MEW, BOME, TURBO, PNUT, ...) if they trade at least **$1M a day** (`TZ_MIN_MEME_VOLUME_USD`), the busiest first - every credible one (`TZ_MAX_MEME_COINS=100`; was the busiest 12). They get the meme-coin rules: smaller bets and wider stops. `TZ_KRAKEN_MEMES=false` turns this off.
 
 ### Never buys a coin it can't sell
 
