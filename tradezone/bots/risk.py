@@ -397,6 +397,12 @@ class RiskBot(Bot):
         if flipper is not None:  # ⏱️ bigger in proven good hours, smaller in proven bad ones
             risk_budget *= flipper.size_mult()
         risk_budget *= advice_mult  # what the advisors made of it
+        if s.vol_target:  # equal risk across coins: calmer ones bigger, wilder ones smaller (research: vol targeting)
+            vols = [x.indicators.get("volatility") or 0.0 for x in self.snapshots.values()]
+            vols = sorted(v for v in vols if v > 0)
+            mine = (self.snapshots.get(sig.symbol).indicators.get("volatility") or 0.0) if sig.symbol in self.snapshots else 0.0
+            if vols and mine > 0:
+                risk_budget *= max(0.5, min(1.5, vols[len(vols) // 2] / mine))
         if not guard["brake"] and s.reinvest_share > 0:  # 💰 reinvest: today's banked profit works too (house money)
             risk_budget += s.reinvest_share * max(0.0, self.realized_today())
         if guard["brake"]:  # a losing day: smaller trades until it turns

@@ -214,9 +214,15 @@ class PortfolioBot(Bot):
         pos.high_water = hw
         tighten = (lambda a, b: max(a, b)) if long else (lambda a, b: min(a, b))
         r = self.trail_dist.get(t.symbol)
+        trail = r
+        if self.settings.trail_atr_mult > 0 and r:  # chandelier exit: the trail follows volatility, not a fixed gap
+            snap = getattr(self.desk.bots.get("risk"), "snapshots", {}).get(t.symbol)
+            atr = (snap.indicators.get("atr") or 0.0) if snap is not None else 0.0
+            if atr > 0:
+                trail = atr * self.settings.trail_atr_mult
         if self.settings.trailing_stop and pos.stop_price is not None and r \
                 and (not self.settings.wide_stop or (hw - pos.avg_price) * d >= r):  # wide stop: trail once up 1R
-            pos.stop_price = tighten(pos.stop_price, hw - d * r)
+            pos.stop_price = tighten(pos.stop_price, hw - d * trail)
         if self.settings.fee_rule_stops and pos.stop_price is not None and (pos.stop_price - pos.avg_price) * d > 0:
             # a stop already in profit never sits where selling would keep less than the fees: up to the fee floor
             floor = self.fee_floor(t.symbol, pos.avg_price, d)

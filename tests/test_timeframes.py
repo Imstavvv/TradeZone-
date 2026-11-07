@@ -77,3 +77,26 @@ def test_a_buy_waits_for_the_best_buy_area(mode, good, bad):
     assert QuantBot.buy_area_wait(mode, 100.0, good) is None
     assert QuantBot.buy_area_wait(mode, 100.0, bad)
     assert QuantBot.buy_area_wait("off", 100.0, bad) is None and Settings().buy_area == "off"
+
+
+def test_volatility_targeting_sizes_calm_coins_bigger_and_wild_ones_smaller():
+    def size(vol_target):
+        s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD", "SOL-USD"], vol_target=vol_target, wide_stop=False)
+        s.risk.symbol_cooldown_s = 0
+        s.risk.risk_per_trade = 0.002  # (small trades: the size cap doesn't decide here)
+        d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+        for sym, px in (("BTC-USD", 50_000.0), ("ETH-USD", 3_000.0), ("SOL-USD", 150.0)):
+            prime(d, sym, px, atr=px * 0.005)
+        d.bots["risk"].snapshots["BTC-USD"].indicators["volatility"] = 0.001  # the calm one
+        d.bots["risk"].snapshots["ETH-USD"].indicators["volatility"] = 0.002
+        d.bots["risk"].snapshots["SOL-USD"].indicators["volatility"] = 0.004  # the wild one
+        out = {}
+        for sym in ("BTC-USD", "SOL-USD"):
+            d.bus.publish("signal.proposed", Signal(sym, Side.BUY, 0.9, "t", "quant"))
+            run(d.bus.drain())
+            p = d.portfolio.position(sym)
+            out[sym] = p.qty * p.avg_price
+        return out
+    off, on = size(False), size(True)
+    assert on["BTC-USD"] > off["BTC-USD"] * 1.2 and on["SOL-USD"] < off["SOL-USD"] * 0.8
+    assert Settings().vol_target is False and Settings().trail_atr_mult == 0.0  # (off until tested)

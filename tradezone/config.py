@@ -336,6 +336,13 @@ class Settings:
     # (waiting for 6 strategies to agree buys later and higher). So the family vote is back (you chose it);
     # TZ_CONSENSUS_VOTERS=strategies turns the 6-bot vote on.
     consensus_voters: str = "families"
+    # ---- upgrades from trading research (off until tested) ----
+    # volatility targeting (time-series momentum research: equal risk across coins): a trade's size is scaled by the
+    # median volatility of the watched coins / this coin's (0.5x - 1.5x) - calmer coins bigger, wilder ones smaller
+    vol_target: bool = False
+    # a volatility trailing stop ("chandelier exit"): the trailing stop follows the high by this many average 1-minute
+    # moves (ATR) instead of the plan's fixed distance (0 = off)
+    trail_atr_mult: float = 0.0
     consensus_bots: int = 6
     max_kraken_coins: int = 600
     # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the
