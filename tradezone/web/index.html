@@ -2024,7 +2024,12 @@ function render(){
     `<b>${esc(x.symbol)}</b>`, `<span class="${cls(x.qty)}">${num(x.qty)}</span>`, num(x.avg_price), num(x.last_price),
     lockedIn(x) ? `<span class="up" title="profit locked: selling at this stop keeps a profit after fees">🔒 ${num(x.stop_price)}</span>` : num(x.stop_price), num(x.take_profit), money(x.market_value), `<span class="${cls(x.unrealized_pnl)}">${money(x.unrealized_pnl)}</span>`]), 'No open positions');
 
-  $('board').innerHTML = table(['Symbol','Price','Regime','Momentum','Mean rev.','Breakout','Ensemble'], syms.map(s => {
+  // hundreds of coins: the held ones, then the strongest signals right now (a table row for every coin, every second,
+  // was too heavy for a phone and too long to read)
+  const heldSet = new Set((p.positions || []).map(x => x.symbol));
+  const shown = [...syms].sort((a, b) => (heldSet.has(b) - heldSet.has(a)) || (Math.abs((st.scores[b] || {}).ensemble || 0) - Math.abs((st.scores[a] || {}).ensemble || 0))).slice(0, BOARD_MAX);
+  $('board').innerHTML = (syms.length > shown.length ? `<div class="muted" style="font-size:12px;margin:0 0 6px">The ${shown.length} with the strongest signals (and every coin held) of the ${syms.length} watched</div>` : '') +
+    table(['Symbol','Price','Regime','Momentum','Mean rev.','Breakout','Ensemble'], shown.map(s => {
     const sc = st.scores[s] || {}, rg = st.regimes[s];
     const bar = v => v==null ? '—' : `<span class="${cls(v)}">${v>=0?'+':''}${v.toFixed(2)}</span>`;
     return [`<b>${esc(s)}</b>`, num(st.prices[s]), rg?`<span class="pill ${rg.regime}">${rg.regime}</span>`:'<span class="pill unknown">warming</span>', bar(sc.momentum), bar(sc.mean_reversion), bar(sc.breakout), bar(sc.ensemble)];
@@ -2328,12 +2333,16 @@ function countTo(el, value){  // the balance: always lands on the exact amount, 
     el.textContent = money(k < 1 ? from + (value - from) * e : value); if (k < 1) el._raf = requestAnimationFrame(step); };
   el._raf = requestAnimationFrame(step);
 }
+const BOARD_MAX = 40, TICKER_MAX = 40;  // (hundreds of coins watched: the screens show the ones that matter)
 function renderTicker(st){
-  const key = Object.keys(st.prices).join(',');
   for (const [sym, v] of Object.entries(st.prices)) if (!(sym in FIRST_PRICE)) FIRST_PRICE[sym] = (S.history[sym] || [v])[0] || v;
+  const held = new Set(((st.portfolio || {}).positions || []).map(x => x.symbol));
+  const move = ([sym, v]) => FIRST_PRICE[sym] ? Math.abs(v / FIRST_PRICE[sym] - 1) : 0;
+  const list = Object.entries(st.prices).sort((a, b) => (held.has(b[0]) - held.has(a[0])) || (move(b) - move(a))).slice(0, TICKER_MAX);
+  const key = list.map(([s]) => s).join(',');
   const item = ([sym, v]) => { const ch = FIRST_PRICE[sym] ? v / FIRST_PRICE[sym] - 1 : 0;
     return `<span>${esc(sym.replace('-USD', ''))} ${px(v)} <b class="${ch >= 0 ? 'u' : 'd'}">${ch >= 0 ? '▲' : '▼'} ${Math.abs(ch * 100).toFixed(2)}%</b></span>`; };
-  const html = Object.entries(st.prices).map(item).join('');
+  const html = list.map(item).join('');
   const run = $('sTickerRun');
   // rebuild when the symbol list changes, otherwise refresh numbers every few seconds (not on every tick)
   if (run._key !== key || !run._t || Date.now() - run._t > 3000) { run._key = key; run._t = Date.now(); run.innerHTML = html + html; }
