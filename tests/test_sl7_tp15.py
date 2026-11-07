@@ -64,6 +64,7 @@ def test_open_trades_get_the_new_stop_and_target_once_and_a_saved_20_percent_flo
     run(d3.shutdown())
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_at_plus_15_percent_after_fees_a_third_is_sold_before_the_target_moves():
     """The moving take-profit used to move the target out at +15% before fees - so nothing was ever sold at +15%."""
     d = make()

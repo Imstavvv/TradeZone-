@@ -73,6 +73,7 @@ def test_market_weather_holds_alt_buys_while_bitcoin_falls():
     assert advice(desk, "weather", "BTC-USD")[0] is None  # Bitcoin itself isn't held back by itself
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_volatility_sizer_trims_wild_coins():
     desk = make()
     for _ in range(40):
@@ -81,6 +82,7 @@ def test_volatility_sizer_trims_wild_coins():
     assert advice(desk, "volsizer", "SOL-USD")[2] == pytest.approx(0.6)
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_momentum_ranker_favours_the_leaders():
     desk = make()
     for i in range(21):

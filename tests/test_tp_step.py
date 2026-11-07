@@ -24,6 +24,7 @@ def tick(desk, sym, price):
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_past_10_percent_the_target_moves_out_instead_of_selling(desk):
     pos = open_trade(desk, "DOGE-USD", 0.2)  # meme coin: target +15% after fees
     q0, entry, old_tp = pos.qty, pos.avg_price, pos.take_profit

@@ -63,6 +63,7 @@ def test_in_its_full_mode_targets_can_come_down_but_stay_well_above_the_fees():
     assert t >= 0.6 * 0.04 and t >= desk.settings.round_trip_cost("BTC-USD", 1.0) * desk.settings.flip_min_edge
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_trade_reviewer_sizes_finders_by_their_record():
     desk = make()
     rv = desk.bots["reviewer"]
@@ -80,6 +81,7 @@ def test_sources_are_told_apart():
         ["snipe", "volume_snipe", "flipper", "dip_buy", "pullback", "skim", "strategy"]
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_what_they_learn_is_remembered_after_a_restart(tmp_path):
     db = str(tmp_path / "tz.db")
     desk = make(db)

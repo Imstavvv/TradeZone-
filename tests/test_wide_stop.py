@@ -61,6 +61,7 @@ def test_sized_by_the_stop_a_full_stop_out_costs_only_one_trades_risk():
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_full_cash_sizes_for_the_patient_cut_so_the_whole_balance_can_trade():
     desk = make()
     eq = desk.portfolio.equity
@@ -82,6 +83,7 @@ def test_full_cash_never_spends_more_than_the_cash_and_never_borrows():
     assert desk.portfolio.cash >= 0 and pos.qty * pos.avg_price <= desk.settings.starting_cash
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_winners_are_still_protected_from_the_normal_plan():
     desk = make()
     pos = buy(desk)

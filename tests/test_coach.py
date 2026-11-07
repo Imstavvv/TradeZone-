@@ -1,5 +1,7 @@
 """Coach: the team rules and learning from closed trades, always inside the hard limits."""
 
+import pytest
+
 from tests.helpers import capture, prime, run
 from tradezone.bots import TEAM_RULES
 from tradezone.core.models import Side, Signal, Tick, now
@@ -46,6 +48,7 @@ def test_closed_trade_is_credited_to_strategy_coin_and_mood(desk):
     assert "mean_reversion" not in strat  # it didn't contribute
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_winning_strategy_earns_trust_losing_one_loses_it(desk):
     coach = desk.bots["coach"]
     for _ in range(20):
@@ -59,6 +62,7 @@ def test_winning_strategy_earns_trust_losing_one_loses_it(desk):
     assert coach.strategy_mult("mean_reversion") < 1.15
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_quant_uses_learned_trust(desk):
     coach = desk.bots["coach"]
     for _ in range(30):
@@ -74,6 +78,7 @@ def test_quant_uses_learned_trust(desk):
     assert weights_seen["momentum"] < 0.8 and weights_seen["breakout"] == 1.0
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_coin_that_keeps_losing_is_benched_then_returns(desk):
     coach = desk.bots["coach"]
     for _ in range(4):  # earlier losses on this coin
@@ -92,6 +97,7 @@ def test_coin_that_keeps_losing_is_benched_then_returns(desk):
     assert coach.benched("AAPL") == 0 and "AAPL" not in coach.bench
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_grow_when_winning_shrink_when_losing_hard_limits_hold(desk):
     from tradezone.core.portfolio import ClosedTrade
     coach = desk.bots["coach"]
@@ -112,6 +118,7 @@ def test_grow_when_winning_shrink_when_losing_hard_limits_hold(desk):
     assert 0 < notional <= desk.portfolio.equity * desk.settings.risk.max_position_pct * 1.05
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_idle_with_healthy_results_lowers_bar_a_little(desk):
     coach = desk.bots["coach"]
     base = desk.settings.risk.min_signal_strength
@@ -145,6 +152,7 @@ def test_learning_can_be_switched_off(desk):
     assert coach.strategy_mult("momentum") == 1.0 and coach.benched("AAPL") == 0 and coach.risk_mult() == 1.0
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_bench_expiry_during_cycle_does_not_crash(desk):
     coach = desk.bots["coach"]
     for _ in range(6):

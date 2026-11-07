@@ -200,7 +200,7 @@ class Settings:
     discovery_every_min: float = 30.0
     trending_nudge: float = 0.05  # conviction boost for buying a coin that's trending
     # ---- Flipper: flip trades and the best times to flip ----
-    flipper: bool = True
+    flipper: bool = False  # killed: failed on unseen data (see the README)
     # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
     stack: bool = True
     # ---- Alpaca: US stocks next to the crypto, and the day-trade rule ----
@@ -278,7 +278,7 @@ class Settings:
     max_loss_pct: float = 0.07  # (-7%: the most a trade may lose, with never-sell on too)
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
-    patient_exits: bool = True  # with the wide stop: cut early when momentum AND volume say no comeback
+    patient_exits: bool = False  # killed: failed on unseen data (see the README). Was: with the wide stop: cut early when momentum AND volume say no comeback
     patient_stop_pct: float = 0.05  # the safety stop for bigger coins (and stocks)...
     patient_meme_stop_pct: float = 0.07  # ...and for meme coins (was 12%: at most -7% now)
     no_return_momentum: float = -0.5  # momentum this strongly against the trade...
@@ -336,6 +336,8 @@ class Settings:
     # (waiting for 6 strategies to agree buys later and higher). So the family vote is back (you chose it);
     # TZ_CONSENSUS_VOTERS=strategies turns the 6-bot vote on.
     consensus_voters: str = "families"
+    # bots switched off after failing on unseen data (asked for: test every idea, kill what fails)
+    bots_off: list[str] = field(default_factory=lambda: ["volsizer", "ranker", "reviewer"])
     # ---- upgrades from trading research (off until tested) ----
     # volatility targeting (time-series momentum research: equal risk across coins): a trade's size is scaled by the
     # median volatility of the watched coins / this coin's (0.5x - 1.5x) - calmer coins bigger, wilder ones smaller
@@ -371,7 +373,7 @@ class Settings:
     losing_day_size: float = 0.5  # on a day already down half the daily limit, new trades are this size
     # ---- quick flips: on real money the bots trade more often and bank smaller wins sooner ----
     # Every target is counted AFTER fees (both buy and sell), and the hard limits above never change.
-    live_quick_flips: bool = True
+    live_quick_flips: bool = False  # killed: failed on unseen data (see the README)
     flip_min_strength: float = 0.22  # conviction a real-money trade needs (practice: risk.min_signal_strength)
     reentry_bars: int = 5  # real money: a coin whose trend still holds can be traded again this many bars after its last idea
     flip_skim_rsi_max: float = 55.0  # real-money skims: a dip counts up to this RSI (practice 45)...
@@ -388,7 +390,7 @@ class Settings:
     never_sell_at_loss: bool = True
     never_sell_meme_size: float = 0.5
     # Dip Buyer: buy more of a coin held at a loss once it has dipped further and turns up (lower average price)
-    dip_buy: bool = True
+    dip_buy: bool = False  # killed: failed on unseen data (see the README)
     # ---- underwater cap: while trades held below break-even already tie up this share of the balance, no new
     # buys (and no averaging down) until some recover - so a slide can't swallow the whole balance (0 = off).
     # Tested on real price history in rising, falling and sideways markets: about half the loss when prices
@@ -432,10 +434,10 @@ class Settings:
     goal_target: float = 10_000.0
     # ---- Grok (xAI) AI analyst ----
     # ---- Coach: the team learns from its own closed trades (hard safety limits never change) ----
-    coach_learning: bool = True
+    coach_learning: bool = False  # killed: failed on unseen data (see the README)
     learn_targets: bool = True  # Target Learner: each coin's take-profit from how far its winning trades really ran
     learn_targets_raise_only: bool = True  # ...only ever raising a target (lowering them sold winners too soon)
-    learn_sources: bool = True  # Trade Reviewer: size each trade finder by its record
+    learn_sources: bool = False  # killed: failed on unseen data (see the README). Was: Trade Reviewer: size each trade finder by its record
     coach_bench_minutes: float = 45.0  # how long a coin that keeps losing sits out
     coach_idle_hours: float = 6.0  # idle this long with healthy results -> lower the bar a little
     grok_api_key: str = ""
@@ -478,7 +480,7 @@ class Settings:
     major_take_profit_pct: float = 0.15  # other coins and stocks: +15% (was +6%)
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
     # into profit (at least runner_lock_share of the target) and then trails the peak.
-    runners: bool = True
+    runners: bool = False  # killed: failed on unseen data (see the README)
     runner_sell_fraction: float = 0.33  # at the target bank a third; two thirds ride with no ceiling
     runner_lock_share: float = 0.5
     # Quick flips: a trade that went nowhere for this long, but is in profit after fees, is closed
@@ -516,7 +518,7 @@ class Settings:
     # strategies); on by default are the two that didn't cost profit on real price history
     # MFI (Money Flow Index) added: of the 11 more indicators tested, the only one better or the same in every
     # market on both halves of the price history (16 windows each)
-    strategies: list[str] = field(default_factory=lambda: ["macd", "obv", "mfi"])
+    strategies: list[str] = field(default_factory=lambda: ["obv", "mfi"])  # (MACD killed: it failed on unseen data)
     # dip buys led by mean reversion (RSI under 35): tested on real price history they went bad MORE often than
     # buying at random, in rising, falling and sideways markets alike - they buy while the coin is still falling.
     # "off" (as before) | "turn" (wait until the RSI and the price tick back up) | "trend" (only above the
@@ -529,7 +531,7 @@ class Settings:
     snipe: bool = True
     # volume snipes: any crypto or meme coin whose bar trades several times its usual volume while the price
     # jumps up is bought on that bar (then the usual checks: Risk, the advisors, fees, the stop)
-    surge_snipe: bool = True
+    surge_snipe: bool = False  # killed: failed on unseen data (see the README)
     # ---- volume breakout: the price beats its highest close of the last vb_high_bars on at least vb_volume_ratio
     # times its average volume of the last vb_volume_bars. Found by scoring candidate buy signals against random
     # entries on real price history: the only one ahead of random in rising, falling and sideways markets alike,
@@ -551,7 +553,7 @@ class Settings:
     min_room_r: float = 1.0  # need this much room (in R) before the nearest resistance/support
     stop_atr_mult: float = 3.0  # used when stop_method=atr
     take_profit_atr_mult: float = 6.0
-    trailing_stop: bool = True
+    trailing_stop: bool = False  # killed: failed on unseen data (see the README)
     # ---- profit protection: a trade that has gone green must not end red ----
     # Once open profit reaches this multiple of the initial risk (entry-to-stop distance), the stop
     # moves to break-even plus round-trip costs, and then locks in profit_lock_pct of peak profit.

@@ -130,6 +130,9 @@ class TradingDesk:
         for bot in self.bots.values():
             bot.attach()
         self.advisors = [b for b in self.bots.values() if getattr(b, "advisor", False)]
+        for name in settings.bots_off:  # (failed on unseen data: off unless switched on from the team page)
+            if name in self.bots and not self.bots[name].critical:
+                self.bots[name].enabled = False
         self.bus.subscribe("*", self._fanout, owner="desk")
         for topic in ("order.filled", "desk.control", "funds.deposit", "funds.withdrawal"):
             self.bus.subscribe(topic, self._mark_dirty, owner="desk")
@@ -1010,7 +1013,10 @@ class TradingDesk:
             if not saved.get("mfi_offered"):  # (saved before MFI was tested in: added once; switch it off any time)
                 if "mfi" not in self.settings.strategies:
                     self.settings.strategies.append("mfi")
-                self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
+                self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True, "macd_killed": True})
+            if not saved.get("macd_killed"):  # (MACD failed on unseen data: taken out once; switch it on any time)
+                self.settings.strategies = [k for k in self.settings.strategies if k != "macd"]
+                self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True, "macd_killed": True})
         if (cap := self.store.load("live_cap")) is not None and "TZ_LIVE_MAX_CAPITAL" not in os.environ:
             if not cap.get("chosen_after_all_cash"):  # (a cap saved before "use all cash": cleared once, as asked)
                 cap = {"usd": 0.0, "chosen_after_all_cash": True}
@@ -1033,7 +1039,11 @@ class TradingDesk:
             self.settings.loser_cap = float(lc.get("cap", 0.0))
         if (fg := self.store.load("falling_guard")) is not None and "TZ_FALLING_GUARD" not in os.environ:
             self.settings.falling_guard = str(fg.get("mode", "off"))
-        for k, on in (self.store.load("finders") or {}).items():
+        finders = self.store.load("finders") or {}
+        if finders and not finders.get("_killed_after_unseen"):  # (saved before: the finders that failed go off once)
+            finders = {**finders, "surge_snipe": False, "flipper": False, "_killed_after_unseen": True}
+            self.store.save("finders", finders)
+        for k, on in finders.items():
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
@@ -1191,7 +1201,7 @@ class TradingDesk:
         from .bots.quant import STRATEGIES
         if key in self.FINDERS:
             setattr(self.settings, self.FINDERS[key][0], bool(on))
-            self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
+            self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True})
             self.bus.publish("alert", Alert("info", f"{self.FINDERS[key][1]} {'on' if on else 'off'}", "operator"))
             return self.strategy_info()
         if key not in STRATEGIES:
@@ -1200,17 +1210,17 @@ class TradingDesk:
             raise ValueError("momentum, buying dips and breakouts are the core of the team and always run")
         chosen = [k for k in self.settings.strategies if k != key] + ([key] if on else [])
         self.settings.strategies = [k for k in STRATEGIES if k in chosen]
-        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
+        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True, "macd_killed": True})
         self.bus.publish("alert", Alert("info", f"Strategy {key} {'on' if on else 'off'}", "operator"))
         return self.strategy_info()
 
     # -- "make me money" protocol: the safest proven path, step by step -------------------------
     #: the combination that tested best together on real price history (each value tested both ways)
     BEST: ClassVar[dict[str, object]] = {
-        "strategies": ["macd", "obv", "mfi"], "snipe": True, "surge_snipe": True, "surge_volume_ratio": 4.0,
-        "pullback": True, "flipper": True, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
-        "maker_exits": False, "fee_rule_stops": True, "never_sell_at_loss": True, "dip_buy": True,
-        "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
+        "strategies": ["obv", "mfi"], "snipe": True, "surge_snipe": False, "surge_volume_ratio": 4.0,
+        "pullback": True, "flipper": False, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
+        "maker_exits": False, "fee_rule_stops": True, "never_sell_at_loss": True, "dip_buy": False,
+        "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": False, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.0,
         "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07}
 
@@ -1259,8 +1269,8 @@ class TradingDesk:
         """Put every bot setting back on the combination that tested best (your risk level and cap stay yours)."""
         for k, v in self.BEST.items():
             setattr(self.settings, k, list(v) if isinstance(v, list) else v)
-        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
-        self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
+        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True, "macd_killed": True})
+        self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap, "chosen_after_off": True})
         self.store.save("loss_floor", {"pct": self.settings.max_loss_pct, "chosen_after_7": True})

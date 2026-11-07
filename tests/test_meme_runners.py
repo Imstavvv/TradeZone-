@@ -49,6 +49,7 @@ def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_runner_banks_half_at_target_then_trails_in_profit(desk):
     desk.settings.skimmer = False  # the Portfolio Manager's runner on its own (Skimmer has its own tests)
     desk.settings.tp_step = False  # (the moving take-profit has its own tests)
@@ -73,6 +74,7 @@ def test_runner_banks_half_at_target_then_trails_in_profit(desk):
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_runner_never_gives_back_the_locked_profit(desk):
     desk.settings.tp_step = False
     pos = buy(desk, "SOL-USD", 100.0)

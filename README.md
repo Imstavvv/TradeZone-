@@ -1064,6 +1064,20 @@ Two ways of *using* them to choose buys were tested on real price history (16 wi
 
 The hourly-trend filter loses about a third to a half less when prices fall, but makes less when they rise and loses more sideways. Waiting for a "best buy area" made less in every version and saved nothing when prices fell: the bots' best buys are moves already starting (breakouts, momentum), and waiting for a cheaper price misses them.
 
+### 🔪 Every idea tested on unseen data - what failed is off
+
+Asked for: "test every idea on unseen data, kill what fails". Each feature was switched off on its own and replayed on the **unseen half** of the price history (16 windows each of rising, falling and sideways markets; the current settings: +$373 / −$761 / −$241). A feature *failed* if the bots made more without it, summed over the three markets. The ones that failed were then checked together on the **other** half too (so the choice isn't only luck on the data it was picked on):
+
+| Switched off together | Tuning half: rising / falling / sideways | Unseen half: rising / falling / sideways |
+| --- | --- | --- |
+| Nothing (before) | +$705 / −$837 / −$141 | +$373 / −$765 / −$240 |
+| **The 13 that failed (now)** | **+$812 / −$741 / −$155** | **+$488 / −$638 / −$215** |
+| Only the 6 clearest | +$838 / −$853 / −$166 | +$544 / −$689 / −$204 |
+
+So these are now **off** (each can be switched back on): the trailing stop (on its own it cost +$159), quick-flip mode (+$127), the quick-flip finder (+$84), early "no comeback" cuts (+$67), the MACD strategy (+$64), the Volatility Sizer (+$22), and seven that made next to no difference: Coach learning, surge snipes, runners (a winner now sells whole at +15% after fees), the Momentum Ranker, the Trade Reviewer, dip buys and learned trade sources. Saved choices from before lose them once; turning one back on is kept.
+
+What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
+
 ### 🗳️ 6 bots must agree on every strategy buy and sell
 
 Asked for. Every strategy the Quant knows (all 21: momentum, MACD, VWAP, OBV, ADX, Supertrend, Ichimoku, buying dips, Bollinger Bands, Stochastic, RSI-style oscillators, Money Flow, breakouts, Keltner, ...) and the Strategist vote yes / no / abstain on each idea. A strategy buy or a strategy ("change of mind") sale goes ahead only when **at least 6 say yes and more say yes than no** (`TZ_CONSENSUS_BOTS=6`). An idea that doesn't have the votes yet isn't dropped: it's re-checked on every bar while the view holds. Stops, the −7% loss floor, take-profits and your own sales never wait for a vote. `TZ_CONSENSUS_VOTERS=families` brings back the old vote (the 3 strategy families and the Strategist, 4 voters, 2 yes and nobody against).

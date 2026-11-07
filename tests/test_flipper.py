@@ -75,6 +75,7 @@ def flip_snapshot(desk, sym="SOL-USD", vr=2.5):
     return desk.portfolio.position(sym)
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_it_flips_a_move_on_heavy_volume():
     desk = make()
     desk.set_bot_enabled("quant", False)

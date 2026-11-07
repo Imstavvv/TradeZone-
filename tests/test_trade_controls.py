@@ -28,6 +28,7 @@ def site(d):
     return TestClient(create_app(d, run_desk=False))
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_sell_half_then_the_rest():
     d = opened()
     pos = d.portfolio.position("BTC-USD")

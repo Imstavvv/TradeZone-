@@ -131,6 +131,7 @@ def test_every_profit_sale_keeps_more_than_its_fees():
     assert pos.is_flat
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_the_locked_profit_stop_keeps_more_than_the_fees_when_turned_on():
     desk = make()
     desk.settings.fee_rule_stops = True  # (opt-in: TZ_FEE_RULE_STOPS=true)
@@ -143,6 +144,7 @@ def test_the_locked_profit_stop_keeps_more_than_the_fees_when_turned_on():
     assert s.net_if_sold(pos, pos.stop_price) >= s.fees_if_sold(pos, pos.stop_price)  # stopped there, it still beats the fees
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_by_default_a_locked_stop_still_covers_break_even_and_the_fees():
     desk = make()
     pos = buy(desk)

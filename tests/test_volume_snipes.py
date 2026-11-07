@@ -1,5 +1,7 @@
 """Volume snipes: any crypto or meme coin trading several times its usual volume while the price jumps up."""
 
+import pytest
+
 from tests.helpers import capture, prime, run
 from tradezone.config import Settings
 from tradezone.core.models import Snapshot
@@ -26,6 +28,7 @@ def ideas(desk):
     return capture(desk, "signal.proposed")
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_snipes_a_coin_whose_volume_surges_while_the_price_jumps():
     desk = make()
     got = ideas(desk)
@@ -37,6 +40,7 @@ def test_snipes_a_coin_whose_volume_surges_while_the_price_jumps():
     assert desk.bots["quant"].metrics["volume_snipes"] == 1
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_meme_coins_too_and_only_once_per_surge():
     desk = make()
     got = ideas(desk)
@@ -78,6 +82,7 @@ def test_can_be_switched_off():
     assert not any("volume snipe" in i.reason for i in got)
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_all_21_strategies_are_available_and_can_be_switched():
     from fastapi.testclient import TestClient
 
@@ -110,6 +115,7 @@ def test_every_strategy_scores_a_real_bar():
     assert sc["macd"] > 0 and sc["trend"] > 0 and sc["roc"] > 0 and sc["obv"] > 0  # a steady rise on rising volume
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_the_trade_finders_can_be_switched_too_and_are_remembered(tmp_path):
     db = str(tmp_path / "tz.db")
     s = Settings(feed="sim", symbols=["BTC-USD", "SOL-USD"])

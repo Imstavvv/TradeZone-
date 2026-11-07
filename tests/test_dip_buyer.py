@@ -24,6 +24,7 @@ def dip(desk, prices, rsi=30.0):
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_buys_the_dip_on_a_held_loser_when_it_turns_up_lowering_the_average():
     desk = make()
     pos = buy(desk)
@@ -44,6 +45,7 @@ def test_not_while_it_is_still_falling_or_not_far_enough_down():
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_at_most_twice_per_trade_and_never_past_the_biggest_position():
     desk = make()
     pos = buy(desk)
@@ -81,6 +83,7 @@ def test_waits_while_trading_is_stopped_and_only_runs_with_never_sell_on():
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_a_flash_crash_blocks_it():
     desk = make()
     pos = buy(desk)

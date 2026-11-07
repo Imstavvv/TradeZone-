@@ -80,6 +80,7 @@ def test_stop_loss_triggers_exit(desk):
     assert trades and trades[0].pnl < 0
 
 
+@pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
 def test_trailing_stop_ratchets_up(desk):
     prime(desk)
     desk.bus.publish("signal.proposed", Signal("AAPL", Side.BUY, 0.9, "t", "quant"))
