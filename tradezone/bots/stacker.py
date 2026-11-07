@@ -358,7 +358,10 @@ class StackerBot(Bot):
             px = self.desk.prices.get(sym)
             val = h["qty"] * px if px else None
             rows.append({"symbol": sym, "qty": h["qty"], "cost": h["cost"], "avg": h["cost"] / h["qty"] if h["qty"] else 0,
-                         "value": val, "pnl": (val - h["cost"]) if val is not None else None, "buys": h["buys"]})
+                         "value": val, "pnl": (val - h["cost"]) if val is not None else None, "buys": h["buys"],
+                         # no live price for it right now (just restarted, or the feed doesn't quote it): the screen
+                         # shows it at what was paid, marked as an estimate - never as a blank
+                         "priced": val is not None, "estimate": val if val is not None else h["cost"]})
         cost = sum(r["cost"] for r in rows)
         value = sum(r["value"] or r["cost"] for r in rows)
         nxt = None

@@ -607,6 +607,7 @@ button.ghost:hover{color:var(--text)}
 .hero .fresh{font-size:12.5px;font-weight:600;color:#fff;margin:-2px 0 6px;min-height:16px}
 .hero .fresh.stale{color:#fde68a}
 /* ---- the Stack tab ---- */
+#sec-stack .coin .warnline{color:var(--warn)}
 .stackbar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);margin:12px 0 6px}
 .stackbar i{display:block;height:100%}.stackbar i.empty{width:100%}
 .stackkey{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:13px;color:var(--muted);margin-bottom:10px}
@@ -1352,7 +1353,7 @@ var(--live)}
     <div class="pagehead" data-page="trades"><h2><span class="pe">📈</span> Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
     <div class="pagehead" data-page="money"><h2><span class="pe">💰</span> Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
     <div class="pagehead" data-page="settings"><h2><span class="pe">⚙️</span> Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
-    <div class="acctwrap" data-page="home"><div class="tabs acctpick" id="acctPick" hidden aria-label="Show account"></div></div>
+    <div class="acctwrap" data-page="home stack"><div class="tabs acctpick" id="acctPick" hidden aria-label="Show account"></div></div>
     <div class="hero" data-page="home">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
       <div class="lbl"><span id="sMode">Practice money</span><span class="muted" id="sModeHint"></span></div>
@@ -2819,7 +2820,6 @@ function renderOverview(st){
   const base = eq - today;
   $('sToday').innerHTML = `<span class="${cls(today)}">${today >= 0 ? '▲ +' : '▼ -'}${money(Math.abs(today))} today (${today >= 0 ? '+' : ''}${pct(base > 0 ? today / base : 0)})</span>`;
   $('sSince').textContent = `${total >= 0 ? 'Up' : 'Down'} ${money(Math.abs(total))} since ${all ? 'they' : 'it'} started`;
-  $('sStack').style.display = all && st.stack && st.stack.value > 0 ? '' : 'none';
   let txt, kind = '';
   if (all) {
     const halted = sel.filter(r => r.halted).length, paused = sel.filter(r => r.paused && !r.halted).length;
@@ -2912,7 +2912,7 @@ function renderSimple(st){
   renderSettings();
   renderAccounts(st);
   renderOpen(st);
-  renderStack(st.stack);
+  { const v = stackView(st); renderStack(v.k, v.own, v.label); }
   renderStrategies(st.strategies);
   renderNeverSell(st);
   renderLoserCap(st);
@@ -3023,31 +3023,60 @@ function coinColor(sym){
   let h = 0; for (const ch of c) h = (h * 31 + ch.charCodeAt(0)) % 360;
   return `hsl(${h} 70% 50%)`;
 }
-function renderStack(k){
-  if (!k) return;
+// whose hold stack to show: the main account's, a linked account's, or all of them added up (the picker on Home/Stack)
+function mergeStacks(list){
+  list = list.filter(Boolean); if (!list.length) return null;
+  const by = {};
+  for (const k of list) for (const h of k.holdings || []) {
+    const b = by[h.symbol] ||= {symbol: h.symbol, qty: 0, cost: 0, value: 0, estimate: 0, buys: 0, priced: true};
+    b.qty += h.qty; b.cost += h.cost; b.buys += h.buys || 0; b.estimate += h.estimate ?? h.value ?? h.cost;
+    if (h.value == null) b.priced = false; else b.value += h.value;
+  }
+  const holdings = Object.values(by).map(b => ({...b, value: b.priced ? b.value : null, avg: b.qty ? b.cost / b.qty : 0, pnl: b.priced ? b.value - b.cost : null}));
+  const cost = holdings.reduce((t, h) => t + h.cost, 0), value = holdings.reduce((t, h) => t + h.estimate, 0);
+  const add = key => list.reduce((t, k) => t + (k[key] || 0), 0);
+  return {on: list.some(k => k.on), coins: [...new Set(list.flatMap(k => k.coins || []))], holdings, cost, value, pnl: value - cost,
+          budget: add('budget'), daily: add('daily'), profit_share: list[0].profit_share, next: null, blocked: null,
+          recent: list.flatMap(k => k.recent || []).sort((a, b) => a.ts - b.ts).slice(-8), sitting_out: []};
+}
+function stackView(st){
+  const rows = st.accounts || [];
+  if (rows.length < 2 || S.acct === 'main') return {k: st.stack, own: true, label: rows.length < 2 ? '' : 'Main account'};
+  if (S.acct === 'all') return {k: mergeStacks(rows.map(r => r.stack)), own: false, label: `All ${rows.length} accounts added up`};
+  const r = rows.find(x => x.id === S.acct);
+  return r ? {k: r.stack, own: false, label: r.label} : {k: st.stack, own: true, label: 'Main account'};
+}
+function renderStack(k, own = true, label = ''){
+  $('stackSub').textContent = (label ? label + ' · ' : '') + 'never sold by the bots · no stop-loss';
+  document.querySelectorAll('#stackToggle, #stackIn').forEach(e => { e.hidden = !own; });
+  const hs0 = $('sStack');
+  if (!k) { hs0.style.display = 'none'; setHTML($('stackRows'), '<div class="emptyhint">This account has no hold stack.</div>'); return; }
   const up = v => `<span class="${v >= 0 ? 'up' : 'down'}">${v >= 0 ? '+' : ''}${money(v)}</span>`;
   const want = (k.coins || []).map(c => c + '-USD');
   const extra = k.holdings.filter(h => !want.includes(h.symbol)).map(h => h.symbol);  // (moved in by hand)
   const rows = [...want, ...extra].map(sym => k.holdings.find(h => h.symbol === sym) || {symbol: sym, qty: 0, cost: 0, value: 0, buys: 0});
-  const worth = rows.reduce((t, h) => t + (h.value || 0), 0), held = rows.filter(h => h.qty > 0);
+  const worthOf = h => h.value ?? (h.qty ? (h.estimate ?? h.cost) : 0);  // (no live price yet: valued at what was paid)
+  const worth = rows.reduce((t, h) => t + worthOf(h), 0), held = rows.filter(h => h.qty > 0);
   const buys = rows.reduce((t, h) => t + (h.buys || 0), 0), chg = k.cost ? k.pnl / k.cost : null;
   const sign = v => (v >= 0 ? '+' : '-') + money(Math.abs(v));
   setHTML($('stackSum'), `<div><span>Worth now</span><b>${money(k.value)}</b></div><div><span>Paid</span><b>${money(k.cost)}</b></div>
     <div><span>Change</span><b class="${cls(k.pnl)}">${k.cost ? sign(k.pnl) : '—'}</b>${chg == null ? '' : `<i class="${cls(chg)}">${chg >= 0 ? '+' : ''}${pct(chg, 1)}</i>`}</div>
     <div><span>Coins held</span><b>${held.length}</b><i>of ${rows.length}</i></div><div><span>Purchases</span><b>${buys}</b></div>
     <div><span>Saved for the next</span><b>${money(k.budget)}</b><i>${k.on ? `+${money(k.daily)} a day` : 'paused'}</i></div>`);
-  const shares = held.map(h => [h, worth > 0 ? (h.value || 0) / worth : 0]);
+  const shares = held.map(h => [h, worth > 0 ? worthOf(h) / worth : 0]);
   setHTML($('stackBar'), shares.length ? shares.map(([h, f]) => `<i style="width:${(f * 100).toFixed(2)}%;background:${coinColor(h.symbol)}" title="${esc(h.symbol.split('-')[0])} ${pct(f, 0)}"></i>`).join('') : '<i class="empty"></i>');
   setHTML($('stackKey'), shares.map(([h, f]) => `<span><i style="background:${coinColor(h.symbol)}"></i>${esc(h.symbol.split('-')[0])} ${pct(f, 0)}</span>`).join(''));
   const target = rows.length ? 1 / rows.length : 0;
   setHTML($('stackRows'), rows.map(h => {
-    const share = worth > 0 ? (h.value || 0) / worth : 0, nowp = h.qty ? (h.value || 0) / h.qty : null, c = h.cost ? (h.pnl || 0) / h.cost : null;
-    return `<div class="coin" style="--cc:${coinColor(h.symbol)}"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
+    const share = worth > 0 ? worthOf(h) / worth : 0, nowp = h.qty && h.value != null ? h.value / h.qty : null, c = h.cost && h.pnl != null ? h.pnl / h.cost : null;
+    const bal = !h.qty ? '' : h.value != null ? money(h.value) : `≈ ${money(worthOf(h))}`;
+    return `<div class="coin" style="--cc:${coinColor(h.symbol)}"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${bal}</span></div>
     ${h.qty ? `<div class="q">${qtyFull(h.qty)} coins${nowp ? ` · now ${px(nowp)}` : ''}</div>
+      ${h.value == null ? '<div class="q warnline">no live price for it yet - shown at what was paid</div>' : ''}
       <div class="q">paid ${px(h.avg)} each · ${h.buys} buy${h.buys === 1 ? '' : 's'}</div>
-      ${h.cost ? `<div class="chg ${cls(h.pnl)}">${sign(h.pnl || 0)}${c == null ? '' : ` <i>${c >= 0 ? '+' : ''}${pct(c, 1)}</i>`}</div>` : ''}
+      ${h.cost && h.pnl != null ? `<div class="chg ${cls(h.pnl)}">${sign(h.pnl)}${c == null ? '' : ` <i>${c >= 0 ? '+' : ''}${pct(c, 1)}</i>`}</div>` : ''}
       <div class="share"><i style="width:${Math.min(100, share * 100).toFixed(1)}%"></i></div><div class="q">${pct(share, 0)} of the stack · aim ${pct(target, 0)}</div>
-      <div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>`
+      ${own ? `<div class="mv"><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="1">Trade it</button><button data-mv="out" data-sym="${esc(h.symbol)}" data-f="0.5">Trade half</button></div>` : ''}`
       : `<div class="q">none yet</div><div class="q">${k.next && k.next.symbol === h.symbol ? `next up: once ${money(k.next.at)} is saved` : 'bought as the budget builds up'}</div>`}</div>`;
   }).join(''));
   const recent = (k.recent || []).slice().reverse();
@@ -3070,8 +3099,8 @@ function renderStack(k){
       (k.next ? ` · next: ${k.next.symbol.split('-')[0]} once it reaches ${money(k.next.at)}` : '') +
       (k.sitting_out || []).map(x => ` · ${x.symbol.split('-')[0]} sits out until ${new Date(x.until * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}: ${x.why}`).join('');
   $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
-  const hs = $('sStack'); hs.style.display = k.value > 0 && (S.acct === 'main' || S.acct === 'all') ? '' : 'none';  // (the main account's stack)
-  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in your hold stack ›`;
+  const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';  // (the stack of the account shown: main, a linked one, or all)
+  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in ${S.acct === 'all' && !own ? 'the hold stacks' : 'the hold stack'} ›`;
 }
 document.getElementById('sec-stack').addEventListener('click', async e => {
   const b = e.target.closest('[data-mv]'); if (!b) return;

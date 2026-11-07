@@ -238,3 +238,35 @@ def test_a_coin_the_exchange_refuses_sits_out_and_the_others_keep_stacking():
     assert desk.bots["sentinel"].audit_books() == [] and desk.portfolio.open_positions == []
     out = st.summary()["sitting_out"]
     assert [x["symbol"] for x in out] in ([], ["XRP-USD"]) and all("refused" in x["why"] for x in out)
+
+
+def test_a_stacked_coin_with_no_live_price_is_shown_at_what_was_paid_not_left_blank():
+    s = Settings(feed="sim", symbols=["SOL-USD"], starting_cash=1_000.0)
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    d.prices["SOL-USD"] = 150.0
+    st = d.bots["stacker"]
+    st.books["paper"] = {"SOL-USD": {"qty": 1.123456789, "cost": 140.0, "buys": 3},
+                         "ZZZ-USD": {"qty": 1234.56789, "cost": 40.0, "buys": 2}}  # (no price for ZZZ)
+    rows = {r["symbol"]: r for r in st.summary()["holdings"]}
+    assert rows["SOL-USD"]["priced"] and rows["SOL-USD"]["qty"] == 1.123456789  # (the full amount)
+    assert rows["SOL-USD"]["estimate"] == pytest.approx(1.123456789 * 150.0)
+    assert not rows["ZZZ-USD"]["priced"] and rows["ZZZ-USD"]["value"] is None and rows["ZZZ-USD"]["estimate"] == 40.0
+    assert st.summary()["value"] == pytest.approx(1.123456789 * 150.0 + 40.0)
+
+
+def test_every_linked_account_reports_its_own_hold_stack():
+    from tests.helpers import FakeLiveBroker
+    s = Settings(feed="sim", symbols=["SOL-USD"], starting_cash=1_000.0)
+    main = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    ss = main.fleet._settings("kraken", None)
+    other = main.fleet.make_desk(ss, Journal(":memory:"))
+    other.live_broker = FakeLiveBroker(cash=500.0)
+    other.account_id, other.account_label = "a0", "Kraken savings"
+    main.fleet.desks["a0"] = other
+    main.fleet.meta["a0"] = {"id": "a0", "venue": "kraken", "label": "Kraken savings"}
+    main.fleet.loaded = True
+    other.prices["SOL-USD"] = 150.0
+    other.bots["stacker"].books["paper"] = {"SOL-USD": {"qty": 2.0, "cost": 250.0, "buys": 4}}
+    rows = {r["id"]: r for r in main.fleet.summary()}
+    assert rows["main"]["stack"] is not None and rows["main"]["stack"]["holdings"] == []
+    assert rows["a0"]["stack"]["value"] == pytest.approx(300.0) and rows["a0"]["stack"]["holdings"][0]["qty"] == 2.0

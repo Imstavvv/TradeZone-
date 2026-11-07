@@ -290,6 +290,8 @@ class AccountFleet:
                            "stop_net": d.settings.net_if_sold(x, x.stop_price) if x.stop_price else None} for x in p.open_positions],
             "never_sell": d.settings.never_sell_at_loss,
             "day_trades": d.day_trade_status(),
+            # each account's own hold stack (its coins, their worth): shown on the Stack tab and the balance card
+            "stack": d.bots["stacker"].summary() if "stacker" in d.bots else None,
             "paused": d.paused, "pause_reason": d.pause_reason, "halted": d.halted, "halt_reason": d.halt_reason,
             "feed": d.feed.name, "feed_ok": not d.feed_down,
             "exchange": ({"cash": bal.get("cash"), "equity": bal.get("equity", bal.get("portfolio_value"))}
