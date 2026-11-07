@@ -1359,6 +1359,7 @@ var(--live)}
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
       <a class="since stacklink" id="sStack" data-goto="stack" href="#/stack" style="display:none"></a>
+      <div class="since" id="sWhole" hidden></div>
       <div class="badges" id="sBadges"></div>
       <div class="power" id="sPower"></div>
       <div class="goal" id="sGoal"></div>
@@ -2778,6 +2779,19 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
 }
 // ---- the overview, for one account or all of them (Home: the tabs above the balance) ----
 try { S.acct = localStorage.getItem('tz_acct') || 'main'; } catch { S.acct = 'main'; }
+// the whole exchange account (every coin and all the cash, valued by the exchange), next to the bots' part
+function renderWhole(st){
+  const el = $('sWhole'); if (!el) return;
+  const rows = (st.accounts || []).filter(r => r.exchange && r.exchange.equity != null);
+  const sel = S.acct === 'all' ? rows : rows.filter(r => r.id === (S.acct || 'main'));
+  if (!sel.length) { el.hidden = true; return; }
+  const eq = sel.reduce((t, r) => t + (+r.exchange.equity || 0), 0), cash = sel.reduce((t, r) => t + (+r.exchange.cash || 0), 0);
+  const stable = sel.reduce((t, r) => t + Object.values(r.exchange.stablecoins || {}).reduce((a, v) => a + (+v || 0), 0), 0);
+  const where = sel.length === 1 ? `Whole ${sel[0].venue_label || 'exchange'} account` : `All ${sel.length} exchange accounts`;
+  el.hidden = false;
+  el.textContent = `🏦 ${where}: ${money(eq)} · ${money(cash)} cash for the bots` +
+    (stable > 0.01 ? ` · ${money(stable)} in stablecoins (not traded)` : '');
+}
 function renderOverview(st){
   const rows = st.accounts || [], pick = $('acctPick');
   if (rows.length < 2) { pick.hidden = true; S.acct = 'main'; }
@@ -2895,6 +2909,7 @@ function renderSimple(st){
   renderSettings();
   renderAccounts(st);
   renderOpen(st);
+  renderWhole(st);
   { const v = stackView(st); renderStack(v.k, v.own, v.label); }
   renderStrategies(st.strategies);
   renderNeverSell(st);

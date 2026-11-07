@@ -92,3 +92,32 @@ def test_a_linked_accounts_team_that_stops_is_started_again():
     asyncio.run(go())
     assert runs["n"] == 2
     assert any("Kraken savings stopped" in a.message for a in alerts)
+
+
+def test_all_cash_an_old_real_money_cap_is_cleared_once_and_a_new_one_is_kept(tmp_path):
+    from tests.helpers import run
+    from tradezone.persistence import StateStore
+    db = str(tmp_path / "tz.db")
+
+    def boot():
+        s = Settings(feed="sim", symbols=["BTC-USD"])
+        return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    d = boot()
+    StateStore(d.journal).save("live_cap", {"usd": 200.0})  # (a cap from an older version)
+    run(d.start())
+    assert d.settings.live_max_capital == 0.0  # all the cash
+    d.set_live_cap(300.0)  # set again on purpose...
+    run(d.shutdown())
+    d2 = boot()
+    run(d2.start())
+    assert d2.settings.live_max_capital == 300.0  # ...and kept
+    run(d2.shutdown())
+
+
+def test_each_account_row_carries_the_whole_exchange_balance():
+    from tests.helpers import FakeLiveBroker
+    d = desk()
+    d.live_broker = FakeLiveBroker(cash=500.0)
+    d.fleet.balances["main"] = {"cash": 500.0, "equity": 1_750.0, "stablecoins": {"USDC": 25.0}}
+    row = d.fleet.row("main")
+    assert row["exchange"] == {"cash": 500.0, "equity": 1_750.0, "stablecoins": {"USDC": 25.0}}

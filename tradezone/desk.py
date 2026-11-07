@@ -869,6 +869,9 @@ class TradingDesk:
                     self.settings.strategies.append("mfi")
                 self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
         if (cap := self.store.load("live_cap")) is not None and "TZ_LIVE_MAX_CAPITAL" not in os.environ:
+            if not cap.get("chosen_after_all_cash"):  # (a cap saved before "use all cash": cleared once, as asked)
+                cap = {"usd": 0.0, "chosen_after_all_cash": True}
+                self.store.save("live_cap", cap)
             self.settings.live_max_capital = float(cap.get("usd", 0.0))
         if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
             self.settings.never_sell_at_loss = bool(ns.get("on"))
@@ -1123,7 +1126,7 @@ class TradingDesk:
         if amount < 0:
             raise ValueError("the cap can't be negative (0 = no cap)")
         self.settings.live_max_capital = float(amount)
-        self.store.save("live_cap", {"usd": float(amount)})
+        self.store.save("live_cap", {"usd": float(amount), "chosen_after_all_cash": True})
         self.bus.publish("alert", Alert("info", f"Real-money cap: {'$' + format(amount, ',.0f') if amount else 'none'}"
                                         " (takes effect the next time real money is switched on)", "operator"))
         return self.protocol_status()

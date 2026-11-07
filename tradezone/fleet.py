@@ -321,7 +321,8 @@ class AccountFleet:
             "paused": d.paused, "pause_reason": d.pause_reason, "halted": d.halted, "halt_reason": d.halt_reason,
             "start_error": getattr(d, "start_error", ""),  # (couldn't start yet: retrying - said on its balance card)
             "feed": d.feed.name, "feed_ok": not d.feed_down,
-            "exchange": ({"cash": bal.get("cash"), "equity": bal.get("equity", bal.get("portfolio_value"))}
+            "exchange": ({"cash": bal.get("cash"), "equity": bal.get("equity", bal.get("portfolio_value")),
+                          "stablecoins": bal.get("stablecoins") or {}}
                          if isinstance(bal, dict) else None),
             "exchange_at": self.balance_at.get(acct_id),
         }
