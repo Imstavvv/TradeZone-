@@ -236,6 +236,9 @@ class KrakenBroker(Broker):
         """What Kraken will really let an order use, by asset: the balance minus what open orders hold (yours on
         Kraken, or the bots' own resting at the bid). "Balance" counts held money as free, so the bots sized buys
         with cash Kraken wouldn't release and every one came back "Insufficient funds"."""
+        cached = self.__dict__.get("_avail_cache")
+        if cached is not None and time.time() - cached[0] < self.AVAILABLE_FOR_S:
+            return cached[1]  # (Kraken's private calls are counted: a burst of orders asks once, not each time)
         try:
             raw = await self._private("BalanceEx")
         except (KrakenError, httpx.HTTPError) as exc:
@@ -246,7 +249,11 @@ class KrakenBroker(Broker):
             if isinstance(v, dict):
                 free[k] = float(v.get("balance") or 0) + float(v.get("credit") or 0) - float(v.get("credit_used") or 0) \
                     - float(v.get("hold_trade") or 0)
-        return self._fold({k: v for k, v in free.items() if not k.endswith(self.LOCKED_SUFFIXES)})
+        out = self._fold({k: v for k, v in free.items() if not k.endswith(self.LOCKED_SUFFIXES)})
+        self._avail_cache = (time.time(), out)
+        return out
+
+    AVAILABLE_FOR_S = 2.0
 
     async def available_cash(self) -> float | None:
         a = await self._available()
@@ -350,6 +357,7 @@ class KrakenBroker(Broker):
         return f"{vol:.{p['lot']}f}"
 
     async def submit(self, order: Order) -> list[Fill]:
+        self.__dict__.pop("_avail_cache", None)  # (an order changes what's free: ask afresh next time)
         try:
             if not self.pairs:
                 await self.load_pairs()

@@ -53,3 +53,17 @@ def test_a_sale_waits_when_everything_is_held():
     d.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 1.0, "out", "portfolio", SignalKind.EXIT, force=True))
     run(d.bus.drain())
     assert len(adds(fk)) == sent and pos.qty > 0  # not sent to be refused; tried again later
+
+
+def test_what_is_free_is_asked_once_per_burst_and_again_after_an_order():
+    from tests.test_kraken import broker
+    fk = FakeKraken(usd=1_000.0)
+    b = broker(fk)
+    run(b.load_pairs())
+    run(b.available_cash())
+    run(b.available_cash())
+    assert fk.calls.count("BalanceEx") == 1  # (Kraken's private calls are counted)
+    from tradezone.core.models import Order
+    run(b.submit(Order("BTC-USD", Side.BUY, 0.001, "z1")))
+    run(b.available_cash())
+    assert fk.calls.count("BalanceEx") == 2  # an order changes what's free: asked afresh
