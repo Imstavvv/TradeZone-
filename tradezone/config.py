@@ -314,11 +314,18 @@ class Settings:
     # coin are in every snapshot; hourly and daily history is loaded from the exchange in the background at start-up
     timeframe_history: bool = True
     # buy only when the higher timeframes agree: off | 1h (not while the hourly trend is down) | 4h | align (more
-    # timeframes up than down). Off until tested on real price history.
+    # timeframes up than down). Tested (16 windows per market, tuning / unseen half), vs off (+$705 / +$371 rising,
+    # -$829 / -$779 falling, -$136 / -$236 sideways): 1h +$689 / +$327, -$456 / -$531, -$203 / -$335; align
+    # +$683 / +$286, -$527 / -$445, -$146 / -$293; 4h no change (too few 4h candles in a replay). Much less lost when
+    # prices fall, less made when they rise and more lost sideways - so off (TZ_MTF_FILTER=1h to choose it).
     mtf_filter: str = "off"
     # the best buy area (asked for: "always look for the best buy area"): a buy idea waits - re-checked every bar while
     # the view holds - until the price is in it. off | range (lower half of the hourly range) | value (at or under the
-    # 20-bar average / VWAP) | support (lower 40% of the last 20 bars) | cool (not overbought on 1h / 15m)
+    # 20-bar average / VWAP) | support (lower 40% of the last 20 bars) | cool (not overbought on 1h / 15m).
+    # Tested, vs off (+$705 / +$373 rising, -$835 / -$772 falling, -$134 / -$242 sideways): range +$595 / +$236,
+    # -$833 / -$788, -$154 / -$219; value and support +$624 / +$310, -$825 / -$788, -$124 / -$243; cool +$603 / +$253,
+    # -$848 / -$786, -$155 / -$253. Every one made less when prices rose and saved nothing when they fell: the best
+    # buys are moves already starting (breakouts, momentum), which waiting for a cheaper price misses. So off.
     buy_area: str = "off"
     max_kraken_coins: int = 400
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----

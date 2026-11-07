@@ -1047,6 +1047,23 @@ There are three real-money risk levels (**Settings → Your trading rules → Re
 
 Going from Normal to Aggressive about doubled the result on the unseen half. Going from Aggressive to Bold added only $6 there, but made the worst run 50% deeper. A still bigger level (8% a trade, a single trade up to the whole balance) was also tested: +$182 on the unseen half, with a worst run of -$54 (-11%). It isn't offered, because the extra risk bought almost nothing. Every level keeps a stop and the early cut on every trade, never borrows, and never touches the hold stack. Practice money always uses Normal.
 
+### 📈 Every timeframe, and the best buy area
+
+**The bots see the whole chart on every timeframe (asked for).** Besides the 1-minute bars, every coin has 5-minute, 15-minute, 1-hour, 4-hour and daily candles (300 of each: the daily ones cover the full chart), built from the same prices and seeded at start-up, in the background, with the exchange's own hourly and daily history (4-hour candles from the hourly ones). Every snapshot the team sees carries, per timeframe, the trend, RSI(14), the last candle's change and where the price sits in that timeframe's range, plus how many timeframes agree (`tf_1h_trend`, `tf_4h_rsi`, `tf_1d_range_pos`, `mtf_score`, ...). With 400 coins a trading cycle still takes about 0.18 s.
+
+Two ways of *using* them to choose buys were tested on real price history (16 windows per market, tuning / unseen half). Neither did better in every market, so both stay off (choose one in settings if you prefer):
+
+| | Rising | Falling | Sideways |
+| --- | --- | --- | --- |
+| **Now (neither)** | **+$705 / +$371** | **−$829 / −$779** | **−$136 / −$236** |
+| Buy only while the hourly trend isn't down (`TZ_MTF_FILTER=1h`) | +$689 / +$327 | −$456 / −$531 | −$203 / −$335 |
+| Buy only when more timeframes rise than fall (`TZ_MTF_FILTER=align`) | +$683 / +$286 | −$527 / −$445 | −$146 / −$293 |
+| Wait for the lower half of the hourly range (`TZ_BUY_AREA=range`) | +$595 / +$236 | −$833 / −$788 | −$154 / −$219 |
+| Wait for the short-term value / near support (`value`, `support`) | +$624 / +$310 | −$825 / −$788 | −$124 / −$243 |
+| Wait until not overbought on 1h / 15m (`cool`) | +$603 / +$253 | −$848 / −$786 | −$155 / −$253 |
+
+The hourly-trend filter loses about a third to a half less when prices fall, but makes less when they rise and loses more sideways. Waiting for a "best buy area" made less in every version and saved nothing when prices fell: the bots' best buys are moves already starting (breakouts, momentum), and waiting for a cheaper price misses them.
+
 ### 🎛️ Every trade has its own buttons
 
 On the **Open trades** page, each trade has its own controls (asked for):
