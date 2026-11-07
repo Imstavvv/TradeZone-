@@ -304,6 +304,11 @@ class Settings:
     forex_target_pct: float = 0.012
     forex_stop_pct: float = 0.01
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
+    # everything on Kraken (asked for): every coin Kraken lists against USD that trades at least min_meme_volume_usd a
+    # day (so a position can be sold again) is watched and traded - not only the lists above. Stablecoins and money
+    # (USDC, USDT, EUR, GBP, ...) are left out: they don't move like crypto (currency pairs: TZ_FOREX, tested, off)
+    kraken_all_coins: bool = True
+    max_kraken_coins: int = 400
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
     # ---- no goal: the bots take their calculated risks every day ----

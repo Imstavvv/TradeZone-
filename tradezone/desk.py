@@ -35,7 +35,8 @@ def build_feed(s: Settings) -> MarketFeed:
         return KrakenFeed(s.symbols, meme_candidates=MEME_CANDIDATES if s.kraken_memes else [],
                           meme_coins=s.meme_coins, min_meme_volume_usd=s.min_meme_volume_usd,
                           max_memes=s.max_meme_coins,
-                          small_candidates=SMALL_CANDIDATES if s.focus_small_coins else [], max_small=s.max_small_coins)
+                          small_candidates=SMALL_CANDIDATES if s.focus_small_coins else [], max_small=s.max_small_coins,
+                          all_coins=s.kraken_all_coins, max_all=s.max_kraken_coins)
     if s.feed == "coinbase":
         from .market.coinbase import CoinbaseFeed
 
@@ -415,6 +416,25 @@ class TradingDesk:
                                         f"{bot.title} {'enabled' if enabled else 'disabled'}", "operator"))
 
     # -- lifecycle -------------------------------------------------------
+    BACKFILL_FIRST = 40  # coins whose history loads before trading starts (the starting list and the busiest)
+
+    async def _backfill_more(self, syms: list[str], gran: int) -> None:
+        """The rest of the coins' history, one at a time in the background (the exchange paces it anyway): each coin
+        can be traded as soon as its own history is in, and the team trades the others meanwhile."""
+        scout = self.bots["scout"]
+        for sym in syms:
+            if not self.running and self.cycles > 0:
+                return
+            try:
+                candles = await self.feed.history(sym, gran, 300)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # (one coin's history failing never stops the others)
+                log.warning("history for %s failed: %s", sym, exc)
+                continue
+            if candles and sym in self.settings.symbols:
+                scout.backfill(sym, candles)  # type: ignore[attr-defined]  # (its events are handled on the next cycle)
+
     async def backfill(self, timeout: float = 20.0) -> int:
         """Pre-warm indicators from recent candles so the bots can trade right away."""
         scout = self.bots["scout"]
@@ -427,6 +447,12 @@ class TradingDesk:
 
         # each coin's history is kept as it arrives: one slow (or paced) coin no longer throws away all the others
         syms = list(self.settings.symbols)
+        if len(syms) > self.BACKFILL_FIRST:  # every coin on Kraken: the first ones now, the rest join as they load
+            rest, syms = syms[self.BACKFILL_FIRST:], syms[: self.BACKFILL_FIRST]
+            old = self.__dict__.get("_backfill_rest")
+            if old is not None and not old.done():
+                old.cancel()
+            self._backfill_rest = asyncio.ensure_future(self._backfill_more(rest, gran))
         tasks = [asyncio.ensure_future(one(s)) for s in syms]
         done, pending = await asyncio.wait(tasks, timeout=max(timeout, 1.5 * len(syms)))
         for t in pending:
@@ -1432,6 +1458,10 @@ class TradingDesk:
 
     async def shutdown(self) -> None:
         self.running = False
+        if (t := self.__dict__.get("_backfill_rest")) is not None and not t.done():
+            t.cancel()  # (history still loading in the background)
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await t
         await self.feed.close()
         await self.paper_broker.close()
         if self.live_broker is not None:

@@ -73,10 +73,19 @@ async def fetch_pairs(client: httpx.AsyncClient) -> dict[str, dict]:
     return parse_pairs(r.json().get("result") or {})
 
 
+QUOTE_BATCH = 100  # pairs per Ticker request (hundreds in one URL can be refused)
+
+
 async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbols: list[str]) -> dict[str, dict]:
     want = [pairs[s]["pair"] for s in symbols if s in pairs]
     if not want:
         return {}
+    if len(want) > QUOTE_BATCH:  # every coin on Kraken: several requests, one batch each
+        listed = [s for s in symbols if s in pairs]
+        out: dict[str, dict] = {}
+        for i in range(0, len(listed), QUOTE_BATCH):
+            out.update(await fetch_quotes(client, pairs, listed[i:i + QUOTE_BATCH]))
+        return out
     r = await client.get("/0/public/Ticker", params={"pair": ",".join(want)})
     r.raise_for_status()
     body = r.json()
@@ -115,7 +124,9 @@ class KrakenFeed(MarketFeed):
     def __init__(self, symbols: list[str], client: httpx.AsyncClient | None = None,
                  meme_candidates: list[str] | None = None, meme_coins: list[str] | None = None,
                  min_meme_volume_usd: float = 1_000_000.0, max_memes: int = 12,
-                 small_candidates: list[str] | None = None, max_small: int = 8) -> None:
+                 small_candidates: list[str] | None = None, max_small: int = 8,
+                 all_coins: bool = False, max_all: int = 400) -> None:
+        self.all_coins, self.max_all = all_coins, max_all
         self.symbols = symbols  # the same list object as settings.symbols: added / dropped coins show everywhere
         self.client = client or httpx.AsyncClient(base_url=PUBLIC, timeout=8.0, headers={"User-Agent": "TradeZone/1.0"})
         self.meme_candidates = meme_candidates or []
@@ -148,6 +159,7 @@ class KrakenFeed(MarketFeed):
             self.symbols[:] = listed
         await self.discover_memes()
         await self.discover_small()
+        await self.discover_all()
 
     async def discover_small(self) -> list[str]:
         """Add smaller altcoins Kraken lists against USD that trade enough to be sold again (busiest first)."""
@@ -164,6 +176,31 @@ class KrakenFeed(MarketFeed):
         self.symbols.extend(ranked)
         self.added.extend(ranked)
         self.quotes.update({s: quotes[s] for s in ranked})
+        return ranked
+
+    #: not crypto to trade: stablecoins and money (they don't move like coins), and tokens tied to them
+    NOT_COINS = frozenset({"USDC", "USDT", "PYUSD", "USDG", "DAI", "USDS", "TUSD", "USDE", "FDUSD", "RLUSD", "USD1", "USDQ", "USDR",
+                 "EURC", "EURQ", "EURR", "EUROP", "EUR", "GBP", "AUD", "CAD", "CHF", "JPY", "AED", "ZUSD", "USD"})
+
+    async def discover_all(self) -> list[str]:
+        """Every coin Kraken lists against USD that trades enough to be sold again (busiest first)."""
+        if not self.all_coins:
+            return []
+        fresh = [s for s in self.pairs if s not in self.symbols and s.split("-")[0] not in self.NOT_COINS]
+        if not fresh:
+            return []
+        try:
+            quotes = await fetch_quotes(self.client, self.pairs, fresh)
+        except (httpx.HTTPError, ValueError) as exc:
+            log.warning("kraken all-coins volume check failed: %s", exc)
+            return []
+        ranked = sorted((s for s in fresh if quotes.get(s, {}).get("vol_usd", 0) >= self.min_meme_volume_usd),
+                        key=lambda s: -quotes[s]["vol_usd"])[: max(0, self.max_all - len(self.symbols))]
+        self.symbols.extend(ranked)
+        self.added.extend(ranked)
+        self.quotes.update({s: quotes[s] for s in ranked})
+        if ranked:
+            log.info("kraken: trading every coin that trades enough - %d added", len(ranked))
         return ranked
 
     async def discover_memes(self) -> list[str]:
