@@ -1621,6 +1621,8 @@ const tok = name => getComputedStyle(document.documentElement).getPropertyValue(
 const pct = (v, d=2) => v==null ? '—' : (v*100).toFixed(d) + '%';
 // profit locked in = selling at the stop keeps a profit after BOTH fees (not merely a stop above the buy price)
 const lockedIn = x => x.stop_price != null && (x.stop_net != null ? x.stop_net > 0 : (x.stop_price - x.avg_price) * Math.sign(x.qty) > 0);
+// a coin amount in full: every decimal that matters (up to 12), no rounding to 6 digits, no float noise
+const qtyFull = v => v == null ? '—' : Number(Number(v).toFixed(12)).toLocaleString(undefined, {maximumFractionDigits: 12});
 const num = v => v==null ? '—' : Math.abs(v) >= 1000 ? v.toLocaleString(undefined,{maximumFractionDigits:2}) : (+v).toPrecision(6).replace(/\.?0+$/,'');
 const cls = v => v > 0 ? 'up' : v < 0 ? 'down' : '';
 const time = ts => new Date(ts*1000).toLocaleTimeString();
@@ -3041,7 +3043,7 @@ function renderStack(k){
   setHTML($('stackRows'), rows.map(h => {
     const share = worth > 0 ? (h.value || 0) / worth : 0, nowp = h.qty ? (h.value || 0) / h.qty : null, c = h.cost ? (h.pnl || 0) / h.cost : null;
     return `<div class="coin" style="--cc:${coinColor(h.symbol)}"><div class="ch"><b>${esc(h.symbol.split('-')[0])}</b><span>${h.qty && h.value != null ? money(h.value) : ''}</span></div>
-    ${h.qty ? `<div class="q">${Number(h.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} coins${nowp ? ` · now ${px(nowp)}` : ''}</div>
+    ${h.qty ? `<div class="q">${qtyFull(h.qty)} coins${nowp ? ` · now ${px(nowp)}` : ''}</div>
       <div class="q">paid ${px(h.avg)} each · ${h.buys} buy${h.buys === 1 ? '' : 's'}</div>
       ${h.cost ? `<div class="chg ${cls(h.pnl)}">${sign(h.pnl || 0)}${c == null ? '' : ` <i>${c >= 0 ? '+' : ''}${pct(c, 1)}</i>`}</div>` : ''}
       <div class="share"><i style="width:${Math.min(100, share * 100).toFixed(1)}%"></i></div><div class="q">${pct(share, 0)} of the stack · aim ${pct(target, 0)}</div>
@@ -3052,15 +3054,15 @@ function renderStack(k){
   $('stackBuysN').textContent = recent.length ? `last ${recent.length}` : '';
   setHTML($('stackBuys'), recent.length ? recent.map(x => {
     const coin = esc(x.symbol.split('-')[0]), q = Math.abs(x.qty);
-    const what = x.move === 'in' ? `Moved ${num(q)} ${coin} in from the trading` : x.move === 'out' ? `Moved ${num(q)} ${coin} out to the trading` : `Bought ${num(q)} ${coin}`;
+    const what = x.move === 'in' ? `Moved ${qtyFull(q)} ${coin} in from the trading` : x.move === 'out' ? `Moved ${qtyFull(q)} ${coin} out to the trading` : `Bought ${qtyFull(q)} ${coin}`;
     return `<div class="happen"><div class="ic" style="background:${coinColor(x.symbol)}">${x.move ? '↔' : '+'}</div><div>${what} <b>${money(x.usd)}</b>
       <div class="muted small">at ${px(x.price)}</div></div><div class="tm">${ago(x.ts)}</div></div>`;
   }).join('') : `<div class="emptyhint">${buys ? 'Earlier purchases aren\'t listed here - the next ones will be.' : 'No purchases yet - the first comes once the daily budget covers one.'}</div>`);
-  setHTML($('stackMini'), k.value > 0 ? `<b style="color:var(--text)">${money(k.value)}</b> in ${held.length} coin${held.length === 1 ? '' : 's'} (${held.map(h => esc(h.symbol.split('-')[0])).join(', ')})${k.cost ? ` · <span class="${cls(k.pnl)}">${sign(k.pnl)}</span>` : ''}`
+  setHTML($('stackMini'), k.value > 0 ? `<b style="color:var(--text)">${money(k.value)}</b> in ${held.length} coin${held.length === 1 ? '' : 's'} (${held.map(h => `${qtyFull(h.qty)} ${esc(h.symbol.split('-')[0])}`).join(', ')})${k.cost ? ` · <span class="${cls(k.pnl)}">${sign(k.pnl)}</span>` : ''}`
     : 'Nothing stacked yet.');
   const pos = ((S.state && S.state.portfolio && S.state.portfolio.positions) || []).filter(p => p.qty > 0);
   setHTML($('stackIn'), pos.length ? `<div class="muted small" style="margin:10px 0 4px">Move coins from the bots' trades into the hold stack:</div>` +
-    pos.map(p => `<div class="mvrow"><span><b>${esc(p.symbol.split('-')[0])}</b> <span class="muted">${Number(p.qty).toLocaleString(undefined, {maximumFractionDigits: 6})} · ${money(p.market_value)}</span></span>
+    pos.map(p => `<div class="mvrow"><span><b>${esc(p.symbol.split('-')[0])}</b> <span class="muted">${qtyFull(p.qty)} · ${money(p.market_value)}</span></span>
       <span><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="1">Hold it</button><button data-mv="in" data-sym="${esc(p.symbol)}" data-f="0.5">Hold half</button></span></div>`).join('') : '');
   $('stackNext').textContent = !k.on ? 'Stacking is paused - what you hold stays held.'
     : k.blocked ? `Waiting: ${k.blocked}.`
@@ -3080,7 +3082,7 @@ document.getElementById('sec-stack').addEventListener('click', async e => {
   if (!await ask(title, body, {ok: out ? 'Trade it' : 'Hold it'})) return;
   b.disabled = true;
   try { const r = await api('/api/stack/move', {symbol: b.dataset.sym, direction: b.dataset.mv, fraction: half ? 0.5 : 1});
-        toast(`Moved ${Number(r.moved).toLocaleString(undefined, {maximumFractionDigits: 6})} ${coin} to the ${r.to}`, 'ok'); }
+        toast(`Moved ${qtyFull(r.moved)} ${coin} to the ${r.to}`, 'ok'); }
   catch {} finally { b.disabled = false; }
 });
 $('stackToggle').onclick = async () => {
