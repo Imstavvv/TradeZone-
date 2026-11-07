@@ -581,8 +581,8 @@ class TradingDesk:
 
     def in_focus(self, symbol: str) -> str | None:
         """Why a NEW trade in ``symbol`` waits for a bigger balance, or None when it's in focus."""
-        if symbol.upper().replace("/", "-").split("-")[0] in self.settings.always_trade:
-            return None  # (traded at any balance)
+        if symbol.upper().replace("/", "-").split("-")[0] in self.settings.always_trade or self.settings.is_forex(symbol):
+            return None  # (traded at any balance; a currency pair isn't a coin on the ladder)
         f = self.focus_status()
         size = self.settings.coin_size(symbol)
         if size in f["allowed"]:

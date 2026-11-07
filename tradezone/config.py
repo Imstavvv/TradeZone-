@@ -29,6 +29,9 @@ CRYPTO_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-
 #: coins Alpaca (the real-money broker) can trade; others are practice-only
 ALPACA_CRYPTO = {"AAVE", "AVAX", "BAT", "BCH", "BTC", "CRV", "DOGE", "DOT", "ETH", "GRT", "LINK", "LTC",
                  "MKR", "PEPE", "SHIB", "SOL", "SUSHI", "UNI", "XRP", "XTZ", "YFI"}
+#: currencies Kraken trades against the US dollar as cash pairs (EUR/USD, GBP/USD, AUD/USD). Pairs with the dollar
+#: first (USD/JPY, USD/CAD, USD/CHF) are the other way round and aren't supported: the bots buy things priced in USD.
+FOREX = {"EUR", "GBP", "AUD"}
 #: default list on the Alpaca feed: crypto only (stocks can still be added with TZ_SYMBOLS)
 ALPACA_SYMBOLS = ["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD", "AVAX-USD", "LINK-USD",
                   "DOGE-USD", "SHIB-USD", "PEPE-USD"]
@@ -276,6 +279,17 @@ class Settings:
     # coins the bots may trade at any balance (skipping the ladder above) - and always watched. They can be
     # stacked too: the hold stack and the trading each keep their own coins.
     always_trade: list[str] = field(default_factory=lambda: ["SOL", "XRP"])
+    # ---- currency pairs on Kraken (EUR/USD, GBP/USD, AUD/USD): cash against cash, Kraken's FX fee schedule
+    # (0.20% a side, maker or taker). They move about a tenth as much as crypto, so they get their own target and
+    # stop. Off until tested: TZ_FOREX=true, TZ_FOREX_PAIRS=EUR,GBP,AUD
+    forex: bool = False
+    forex_pairs: list[str] = field(default_factory=lambda: ["EUR", "GBP", "AUD"])
+    forex_fee_bps: float = 20.0
+    # +1.2% after fees: a target must pay 3x the round trip (0.42%), so under ~+0.85% no trade is ever taken.
+    # Tested on real EUR/USD history (16 windows): +$28 / +$1 rising, -$45 / -$20 falling, -$9 / -$10 sideways -
+    # the targets are rarely reached in time and the fees and held trades cost more than they make. Hence off.
+    forex_target_pct: float = 0.012
+    forex_stop_pct: float = 0.01
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
@@ -526,6 +540,8 @@ class Settings:
 
     def plan_pcts(self, symbol: str, quick: bool = False) -> tuple[float, float]:
         """(stop-loss %, take-profit %) for a symbol under the percent plan (the target is after fees)."""
+        if self.is_forex(symbol):
+            return self.forex_stop_pct, self.forex_target_pct
         if self.is_meme(symbol):
             return (self.flip_meme_stop_pct, self.flip_meme_target_pct) if quick else (self.stop_loss_pct, self.take_profit_pct)
         if quick:
@@ -550,7 +566,15 @@ class Settings:
     def is_crypto(symbol: str) -> bool:
         return "-" in symbol or "/" in symbol
 
+    @staticmethod
+    def is_forex(symbol: str) -> bool:
+        """A currency pair (EUR-USD, ...): cash against cash."""
+        base, _, quote = symbol.upper().replace("/", "-").partition("-")
+        return quote == "USD" and base in FOREX
+
     def fee_bps(self, symbol: str) -> float:
+        if self.is_forex(symbol):
+            return self.forex_fee_bps
         return self.crypto_fee_bps if self.is_crypto(symbol) else self.stock_fee_bps
 
     def round_trip_cost(self, symbol: str, price: float) -> float:
@@ -649,6 +673,11 @@ class Settings:
                                  "alpaca": [*ALPACA_SYMBOLS, *self.alpaca_stocks]}.get(self.feed, MIXED_SYMBOLS))
         self.stack_coins = [c.strip().upper().split("-")[0] for c in self.stack_coins if c.strip()]
         self.always_trade = [c.strip().upper().split("-")[0] for c in self.always_trade if c.strip()]
+        self.forex_pairs = [c.strip().upper().split("-")[0] for c in self.forex_pairs if c.strip().upper().split("-")[0] in FOREX]
+        if self.forex and self.feed == "kraken":  # (only Kraken quotes and trades them)
+            for c in self.forex_pairs:
+                if f"{c}-USD" not in self.symbols:
+                    self.symbols.append(f"{c}-USD")
         if self.feed in ("coinbase", "kraken"):  # always-traded coins are always watched
             for c in self.always_trade:
                 if f"{c}-USD" not in self.symbols:
