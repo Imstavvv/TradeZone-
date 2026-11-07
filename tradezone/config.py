@@ -193,7 +193,7 @@ class Settings:
     max_discovered: int = 100  # coins the Trend Scout may add to the watchlist (each still needs enough volume)
     history_pause_s: float = 1.1  # between price-history requests for newly found coins (Kraken allows ~1 a second)
     # stocks (Alpaca accounts): the day's busiest established stocks from Alpaca's screener
-    discover_stocks: bool = False  # all the cash goes to crypto: no stocks found or traded (TZ_DISCOVER_STOCKS=true brings them back)
+    discover_stocks: bool = True  # stocks allowed again (asked for): the Trend Scout also finds busy US stocks on Alpaca
     max_discovered_stocks: int = 10
     stock_min_price: float = 10.0  # no penny stocks
     stock_min_dollar_volume: float = 50_000_000.0  # at least $50M traded today: easy to buy and sell
@@ -204,7 +204,9 @@ class Settings:
     # ---- Stacker: slowly builds a long-term hold on the side (never sold by the bots, no stop-loss) ----
     stack: bool = True
     # ---- Alpaca: US stocks next to the crypto, and the day-trade rule ----
-    alpaca_stocks: list[str] = field(default_factory=list)  # stocks traded on the Alpaca feed (none: crypto only; TZ_ALPACA_STOCKS=SPY,QQQ,... to add)
+    # stocks traded on an Alpaca account (allowed again, asked for; tested: long-only stocks added a little over crypto
+    # alone on both halves). On Kraken, its tokenized stocks (AAPLx, TSLAx, ...) are traded like any coin it lists.
+    alpaca_stocks: list[str] = field(default_factory=lambda: list(ALPACA_STOCKS))
     # US rule: under $25,000, at most 3 day trades (buy and sell the same stock the same day) in 5 trading
     # days - Alpaca refuses the 4th (and repeat breaches lock the account for 90 days). The bots stop
     # day-trading stocks at this many, keeping the last one for your own Close all / Emergency stop.

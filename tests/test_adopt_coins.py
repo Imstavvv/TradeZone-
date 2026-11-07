@@ -64,3 +64,13 @@ def test_it_can_be_switched_off_and_never_runs_in_practice():
     d = live_desk(fk, adopt_own_coins=False)
     cycle(d)
     assert d.portfolio.position("BTC-USD").is_flat
+
+
+def test_coins_your_own_open_order_holds_are_not_taken_over():
+    fk = FakeKraken(usd=1_000.0, held={"XXBT": 0.01})
+    d = live_desk(fk)
+    fk.hold["XXBT"] = 0.004  # your own sell order on Kraken holds 0.004 BTC
+    pm = cycle(d)
+    assert d.portfolio.position("BTC-USD").qty == pytest.approx(0.006)  # only the free 0.006
+    for _ in range(3):
+        assert run(pm.reconcile_positions()) == []  # the books still match

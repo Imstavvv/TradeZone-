@@ -98,7 +98,8 @@ def test_paper_defaults_to_real_market_data():
     s = Settings(alpaca_key="k", alpaca_secret="s")
     s.validate()
     assert s.feed == "alpaca" and "PEPE-USD" in s.symbols
-    assert [x for x in s.symbols if "-" not in x] == []  # all the cash goes to crypto: no stocks by default
+    from tradezone.config import ALPACA_STOCKS as _st
+    assert [x for x in s.symbols if "-" not in x] == _st  # stocks allowed (asked for): the five tested ones
     from tradezone.config import ALPACA_STOCKS
     s = Settings(alpaca_key="k", alpaca_secret="s", alpaca_stocks=list(ALPACA_STOCKS))
     s.validate()
@@ -114,8 +115,9 @@ def test_settings_from_env(monkeypatch):
     assert s.symbols == ["AAA", "BBB"] and s.risk.max_daily_loss_pct == 0.02
 
 
-def test_all_the_cash_goes_to_crypto_by_default():
+def test_all_the_cash_is_used_and_stocks_are_allowed_by_default():
+    from tradezone.config import ALPACA_STOCKS
     s = Settings()
-    assert s.alpaca_stocks == [] and s.discover_stocks is False  # no stocks
+    assert s.alpaca_stocks == ALPACA_STOCKS and s.discover_stocks is True  # stocks allowed again (asked for)
     assert s.dip_keep_cash == 0.0 and s.stack_keep_cash == 0.0  # no cash kept back
     assert s.max_loss_pct == 0.07 and s.loser_cap == 0.0  # the loss floor at -7%; the cap is off (asked for)

@@ -420,6 +420,7 @@ class PortfolioBot(Bot):
         held = await b.holdings()
         if not held:
             return []
+        free = await b._available() if hasattr(b, "_available") else None  # (coins your own open orders hold: not taken)
         stack = st.held("live")
         base = b._fold(b.baseline)  # type: ignore[attr-defined]
         done = []
@@ -430,7 +431,10 @@ class PortfolioBot(Bot):
             if not self.portfolio.position(sym).is_flat:
                 continue  # (the bots' own trade in it is closed first)
             k = norm_symbol(sym)
-            q = float(row.get("qty") or 0.0) - stack.get(k, 0.0)
+            q = float(row.get("qty") or 0.0)
+            if free is not None:
+                q = min(q, free.get(b.pairs[sym]["base"], 0.0))  # type: ignore[attr-defined]
+            q -= stack.get(k, 0.0)
             if q * price < 1.0 or q < b.min_qty(sym, price):
                 continue  # (too little to sell again)
             asset = b.pairs[sym]["base"]  # type: ignore[attr-defined]

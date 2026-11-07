@@ -82,3 +82,13 @@ def test_with_many_coins_trading_starts_after_the_first_40_and_the_rest_load_mea
     first = run(go())
     assert first < 60 and set(syms[:40]) <= set(asked[:first])  # trading started before all 60 had loaded...
     assert sorted(asked) == sorted(syms) and [x for x in asked if x in syms[40:]] == syms[40:]  # ...the other 20 after
+
+
+def test_krakens_tokenized_stocks_are_traded_with_one_spelling():
+    coins = {"BTC": 9e9, "AAPLx": 4e6, "TSLAx": 2e6, "NVDAx": 1e4}
+    symbols = ["BTC-USD"]
+    feed = KrakenFeed(symbols, client=kraken(coins), min_meme_volume_usd=1e6, all_coins=True)
+    run(feed.start())
+    assert symbols == ["BTC-USD", "AAPLX-USD", "TSLAX-USD"]  # NVDAx trades too little to be sold again
+    assert feed.pairs["AAPLX-USD"]["pair"] == "AAPLxUSD"  # (orders still use Kraken's own name)
+    run(feed.client.aclose())
