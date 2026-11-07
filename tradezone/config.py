@@ -330,7 +330,10 @@ class Settings:
     # the team vote (asked for: "6 bots needed to agree on buys / sells"): every strategy (all 21: MACD, Supertrend,
     # RSI-style oscillators, ...) and the Strategist vote on each strategy buy and sell, and at least consensus_bots
     # must say yes - more yes than no. ("families": the old vote of the 3 strategy families + the Strategist, 4 in
-    # all.) Stops, the loss floor, take-profits and your own sales never wait for a vote.
+    # all.) Stops, the loss floor, take-profits and your own sales never wait for a vote. Replayed (16 windows per
+    # market, tuning / unseen half), 6 bots vs the family vote: rising +$651 / +$245 vs +$705 / +$373, falling
+    # -$829 / -$802 vs -$817 / -$762, sideways -$130 / -$291 vs -$136 / -$241 - worse on unseen data in every market
+    # (waiting for 6 strategies to agree buys later and higher). Kept on because it was asked for.
     consensus_voters: str = "strategies"
     consensus_bots: int = 6
     max_kraken_coins: int = 600
