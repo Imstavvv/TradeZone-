@@ -343,6 +343,11 @@ class Settings:
     # a volatility trailing stop ("chandelier exit"): the trailing stop follows the high by this many average 1-minute
     # moves (ATR) instead of the plan's fixed distance (0 = off)
     trail_atr_mult: float = 0.0
+    # partial sells for other buys (asked for): when the cash runs out, part of a trade that's in profit after both fees
+    # (the one whose signal is weakest now; at most half of it) is sold to pay for a new buy, which goes ahead once
+    # that sale has filled. Never-sell-at-a-loss and "profit-taking covers all costs" still hold.
+    rotate_for_buys: bool = False
+    rotate_max_share: float = 0.5
     consensus_bots: int = 6
     max_kraken_coins: int = 600
     # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the

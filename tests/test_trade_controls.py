@@ -73,3 +73,28 @@ def test_the_plan_is_shown_as_it_was_saved_so_saving_again_changes_nothing():
     tp = pos.take_profit
     d.set_trade_plan("BTC-USD", row["stop_pct"], row["target_pct"])
     assert pos.take_profit == pytest.approx(tp)  # saving what's shown doesn't creep the target up
+
+
+def test_part_of_a_winner_is_sold_to_pay_for_a_new_buy_never_a_loser():
+    """Partial sells for other buys (asked for): no cash left -> part of a trade in profit after fees pays for it."""
+    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD", "SOL-USD"], rotate_for_buys=True)
+    s.risk.symbol_cooldown_s = 0
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    for sym, px in (("BTC-USD", 50_000.0), ("ETH-USD", 3_000.0), ("SOL-USD", 150.0)):
+        prime(d, sym, px, atr=px * 0.005)
+    for sym in ("BTC-USD", "ETH-USD"):
+        d.bus.publish("signal.proposed", Signal(sym, Side.BUY, 0.95, "t", "quant"))
+        run(d.bus.drain())
+    btc, eth = d.portfolio.position("BTC-USD"), d.portfolio.position("ETH-USD")
+    tick(d, "BTC-USD", btc.avg_price * 1.10)  # BTC 10% up: in profit after fees
+    tick(d, "ETH-USD", eth.avg_price * 0.98)  # ETH 2% down: never sold for this
+    run(d.bus.drain())
+    d.portfolio.cash = 0.0  # (all the cash is in trades)
+    btc_had, eth_had = btc.qty, eth.qty
+    d.bus.publish("signal.proposed", Signal("SOL-USD", Side.BUY, 0.95, "t", "quant"))
+    run(d.bus.drain())
+    assert btc.qty < btc_had and btc.qty >= btc_had * 0.5 - 1e-12  # part of the winner sold (at most half)
+    assert eth.qty == eth_had  # the losing trade isn't touched
+    run(d.bots["risk"].on_cycle())  # the sale's cash is in: the buy goes ahead
+    run(d.bus.drain())
+    assert d.portfolio.position("SOL-USD").qty > 0

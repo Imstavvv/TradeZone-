@@ -35,6 +35,8 @@ class RiskBot(Bot):
 
     def __init__(self, desk) -> None:
         super().__init__(desk)
+        self._rotation: dict[str, tuple] = {}  # buy waiting for a partial sale to fill -> (signal, when)
+        self._rotated: set[str] = set()
         self.snapshots: dict[str, Snapshot] = {}
         self.long_px: dict[str, deque[float]] = {}  # (the falling-market guard's longer price history)
         self.order_times: deque[float] = deque()
@@ -417,6 +419,7 @@ class RiskBot(Bot):
         if meme and s.never_sell_at_loss:  # held without a cut, a meme coin can fall a long way: half the size
             cap *= s.never_sell_meme_size
         qty = min(qty, equity * cap / price)
+        wanted = qty  # (before the room and cash limits: what a partial sale for it would have to pay for)
         room = equity * limits.max_gross_exposure - self.portfolio.gross_exposure
         qty = min(qty, max(room, 0) / price)
         budget_left = float("inf")
@@ -430,6 +433,11 @@ class RiskBot(Bot):
             qty = min(qty, left / price)
         # buys need cash (no borrowing to make bets bigger)
         qty = min(qty, self.desk.free_cash() * 0.995 / price)
+        if (s.rotate_for_buys and sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and qty < wanted * 0.5
+                and sig.symbol not in self._rotated and (donor := self._fund_from(sig.symbol, (wanted - qty) * price))):
+            self._rotated.add(sig.symbol)
+            self._rotation[sig.symbol] = (sig, now())
+            return self.reject(sig, f"selling part of {donor} (in profit) to pay for it - bought once that sale fills")
         # portfolio heat: total money at risk to all stops stays under the cap
         heat_room = equity * limits.max_portfolio_heat - self.open_risk()
         if heat_room <= 0:
@@ -532,7 +540,47 @@ class RiskBot(Bot):
         return total
 
     # ------------------------------------------------------------------
+    ROTATION_WAIT_S = 120.0
+
+    def _fund_from(self, symbol: str, usd: float) -> str | None:
+        """Sell part of a trade in profit after both fees - the one whose signal is weakest now - to pay ``usd`` of a
+        new buy. Returns the coin sold from, or None when no trade can pay for it without a loss."""
+        s = self.settings
+        quant = self.desk.bots.get("quant")
+        scores = getattr(quant, "scores", {}) if quant is not None else {}
+        best = None
+        for pos in self.portfolio.open_positions:
+            if pos.symbol == symbol or pos.qty <= 0 or s.is_stack_only(pos.symbol):
+                continue
+            px = self.desk.prices.get(pos.symbol) or pos.last_price
+            if not px or not s.beats_fees(pos, px):
+                continue  # (only a trade whose sale keeps a profit after fees: never sold at a loss)
+            rank = (scores.get(pos.symbol, {}).get("ensemble", 0.0), -s.net_if_sold(pos, px))
+            if best is None or rank < best[0]:
+                best = (rank, pos, px)
+        if best is None:
+            return None
+        _, pos, px = best
+        frac = min(s.rotate_max_share, usd * 1.01 / (pos.qty * px))
+        if frac <= 0:
+            return None
+        self.publish("signal.proposed", Signal(pos.symbol, Side.SELL, 1.0, f"partial sale to pay for a {symbol} buy",
+                                               self.name, SignalKind.EXIT, fraction=frac))
+        self.bump("rotations")
+        self.act(f"selling {frac:.0%} of {pos.symbol} (in profit) to pay for a {symbol} buy")
+        return pos.symbol
+
     async def on_cycle(self) -> None:
+        for sym, (sig, at) in list(self._rotation.items()):  # buys waiting for a partial sale's cash
+            if now() - at > self.ROTATION_WAIT_S:
+                del self._rotation[sym]
+                self._rotated.discard(sym)
+            elif self.desk.free_cash() > 1.0:
+                del self._rotation[sym]
+                again = Signal(sig.symbol, sig.side, sig.strength, f"{sig.reason}; paid for by a partial sale", sig.source,
+                               votes=getattr(sig, "votes", None) or {})  # (a fresh idea: each id is decided once)
+                self.evaluate(again)  # (sized to the cash now free; not funded twice)
+                self._rotated.discard(sym)
         p = self.portfolio
         limits = self.settings.limits(self.desk.is_live)
         self._track_day_peak()
