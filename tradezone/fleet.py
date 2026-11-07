@@ -142,6 +142,7 @@ class AccountFleet:
             return
         task = asyncio.create_task(self.desks[acct_id].run_forever(), name=f"account-{acct_id}")
         self.tasks[acct_id] = task
+        self.__dict__.setdefault("_started_at", {})[acct_id] = time.time()
         task.add_done_callback(lambda t, a=acct_id: self._watch(a, t))
 
     def _watch(self, acct_id: str, task: asyncio.Task) -> None:
@@ -153,12 +154,17 @@ class AccountFleet:
             return
         exc = task.exception()
         why = f"{type(exc).__name__}: {exc}"[:160] if exc else "it stopped"
-        log.error("account %s stopped (%s): restarting", acct_id, why)
+        fails = self.__dict__.setdefault("_restarts", {})
+        ran = time.time() - self.__dict__.get("_started_at", {}).get(acct_id, 0.0)
+        n = 0 if ran > 600 else fails.get(acct_id, 0)  # (ran 10 minutes fine: a fresh problem, not the same one)
+        fails[acct_id] = n + 1
+        wait = min(600.0, self.RESTART_AFTER_S * 2 ** n)
+        log.error("account %s stopped (%s): restarting in %.0f s", acct_id, why, wait)
         self.main.bus.publish("alert", Alert("critical", f"{self.meta.get(acct_id, {}).get('label', acct_id)} stopped ({why}) - "
-                                                         f"restarting it in {self.RESTART_AFTER_S:.0f} s", "fleet"))
+                                                         f"restarting it in {wait:.0f} s", "fleet"))
 
         async def again():
-            await asyncio.sleep(self.RESTART_AFTER_S)
+            await asyncio.sleep(wait)
             if acct_id in self.desks and self.main.running:
                 self.desks[acct_id].running = True
                 self._run(acct_id)

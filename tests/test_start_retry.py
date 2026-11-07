@@ -121,3 +121,26 @@ def test_each_account_row_carries_the_whole_exchange_balance():
     d.fleet.balances["main"] = {"cash": 500.0, "equity": 1_750.0, "stablecoins": {"USDC": 25.0}}
     row = d.fleet.row("main")
     assert row["exchange"] == {"cash": 500.0, "equity": 1_750.0, "stablecoins": {"USDC": 25.0}}
+
+
+def test_a_team_that_keeps_stopping_is_restarted_ever_more_slowly():
+    import time as _t
+    main = desk()
+    d2 = desk()
+    main.fleet.desks["a0"], main.fleet.meta["a0"] = d2, {"id": "a0", "label": "Kraken savings"}
+    main.fleet.RESTART_AFTER_S = 15.0
+    alerts = capture(main, "alert")
+
+    async def go():
+        main.running = True
+        for _ in range(8):
+            fut = asyncio.get_running_loop().create_future()
+            fut.set_exception(RuntimeError("feed task died"))
+            main.fleet.tasks["a0"] = fut
+            main.fleet._started_at = {"a0": _t.time()}
+            main.fleet._watch("a0", fut)
+        main.running = False
+        await main.bus.drain()
+    asyncio.run(go())
+    waits = [a.message.split("restarting it in ")[1] for a in alerts if "restarting it in" in a.message]
+    assert waits[:4] == ["15 s", "30 s", "60 s", "120 s"] and waits[-1] == "600 s"

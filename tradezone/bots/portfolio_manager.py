@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from collections import deque
 
 from ..core.bus import Event
@@ -396,6 +397,25 @@ class PortfolioBot(Bot):
             n += 1
         return n
 
+    def _trim_stack(self, sym: str, room: float) -> None:
+        """The hold stack can't hold more of a coin than the account has left besides the bots' trades: coins
+        sold or moved out on the exchange itself would otherwise still show (and count) in the stack."""
+        st = self.desk.bots.get("stacker")
+        book = getattr(st, "books", {}).get("live", {}) if st is not None else {}
+        for k, h in list(book.items()):
+            if norm_symbol(k) != sym or h.get("qty", 0.0) <= room + 1e-12:
+                continue
+            gone = h["qty"] - room
+            h["cost"] = h["cost"] * room / h["qty"] if h["qty"] > 0 else 0.0
+            h["qty"] = room
+            if room <= 1e-12:
+                book.pop(k, None)
+            with contextlib.suppress(Exception):
+                st.save()
+            self.publish("alert", Alert("warning", f"Your account holds {gone:.8g} less {k.split('-')[0]} than the hold "
+                                                   "stack - sold or moved out on the exchange? The stack now shows "
+                                                   "what's really there", self.name))
+
     async def reconcile_positions(self) -> list[str]:
         """Compare the bots' records with what the broker really holds, and fix the records instead of
         stopping trading. Returns what had to be corrected.
@@ -452,6 +472,8 @@ class PortfolioBot(Bot):
                     self.publish("alert", Alert("info", f"Your account holds {abs(b - a):.8g} more {sym} than the bots "
                                                         "bought (your own coins, rewards or a deposit) - left alone", self.name))
                 self.act(f"{sym}: {b - a:+.8g} in the account isn't the bots' - left alone")
+                if b < a:  # (the account holds less than was noted as yours: hold-stack coins sold or moved out)
+                    self._trim_stack(sym, max(0.0, self.outside.get(sym, 0.0)))
                 continue
             fixed.append(self._external_change(pos, a, b))
         if fixed:

@@ -270,3 +270,37 @@ def test_every_linked_account_reports_its_own_hold_stack():
     rows = {r["id"]: r for r in main.fleet.summary()}
     assert rows["main"]["stack"] is not None and rows["main"]["stack"]["holdings"] == []
     assert rows["a0"]["stack"]["value"] == pytest.approx(300.0) and rows["a0"]["stack"]["holdings"][0]["qty"] == 2.0
+
+
+def test_stacked_coins_sold_on_the_exchange_itself_leave_the_stack():
+    """Hold-stack coins sold or moved out on Kraken directly: the stack shows what's really left (it kept the old
+    amount, so the stack page showed coins that were gone)."""
+    fk = FakeKraken(usd=2_000.0)
+    fk.price.update({"XBTUSD": 60_000.0, "XDGUSD": 0.2})
+    s = Settings(feed="coinbase", live_venue="kraken", kraken_key="KEY", kraken_secret=__import__("tests.test_kraken").test_kraken.SECRET,
+                 symbols=["BTC-USD", "DOGE-USD"], stack_coins=["DOGE"], stack_daily_usd=20.0)
+    desk = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"), live_broker=broker(fk))
+    run(desk.live_broker.refresh_market())
+    desk.owner_protected = lambda: True
+    run(desk.switch_mode("live"))
+    for sym, px in (("BTC-USD", 60_000.0), ("DOGE-USD", 0.2)):
+        prime(desk, sym, px)
+    st = desk.bots["stacker"]
+    for h in range(4 * 24 + 1):
+        desk.bus.publish("market.tick", Tick("DOGE-USD", 0.2, 1000, 1_800_000_000 + h * 900))
+        run(desk.bus.drain())
+        run(st.on_cycle())
+    had = st.summary()["holdings"][0]["qty"]
+    alerts = capture(desk, "alert")
+    fk.bal["XXDG"] = had / 2  # half sold on Kraken itself
+    pm = desk.bots["portfolio"]
+    pm.last_fill_ts = 0
+    for _ in range(2):
+        assert run(pm.reconcile_positions()) == []
+    run(desk.bus.drain())
+    assert st.summary()["holdings"][0]["qty"] == pytest.approx(had / 2)
+    assert any("less DOGE than the hold stack" in a.message for a in alerts)
+    fk.bal["XXDG"] = 0.0  # the rest too
+    for _ in range(2):
+        run(pm.reconcile_positions())
+    assert st.summary()["holdings"] == [] and desk.portfolio.open_positions == []
