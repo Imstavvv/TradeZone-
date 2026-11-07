@@ -36,8 +36,8 @@ from .base import Broker
 log = logging.getLogger(__name__)
 
 # The ONLY private methods this adapter will ever call. No withdrawals, transfers or staking.
-ALLOWED_PRIVATE = frozenset({"Balance", "TradeBalance", "AddOrder", "CancelOrder", "QueryOrders", "OpenOrders",
-                             "WithdrawInfo"})  # WithdrawInfo only *reads* fee info; used to prove the key can't withdraw
+ALLOWED_PRIVATE = frozenset({"Balance", "BalanceEx", "TradeBalance", "AddOrder", "CancelOrder", "QueryOrders",
+                             "OpenOrders", "WithdrawInfo"})  # (BalanceEx only reads: balances and what open orders hold)  # WithdrawInfo only *reads* fee info; used to prove the key can't withdraw
 _STATUS = {"pending": OrderStatus.SUBMITTED, "open": OrderStatus.SUBMITTED, "closed": OrderStatus.FILLED,
            "canceled": OrderStatus.CANCELED, "expired": OrderStatus.CANCELED}
 
@@ -231,6 +231,31 @@ class KrakenBroker(Broker):
             key = alias.get(name, name)
             out[key] = out.get(key, 0.0) + v
         return out
+
+    async def _available(self) -> dict[str, float] | None:
+        """What Kraken will really let an order use, by asset: the balance minus what open orders hold (yours on
+        Kraken, or the bots' own resting at the bid). "Balance" counts held money as free, so the bots sized buys
+        with cash Kraken wouldn't release and every one came back "Insufficient funds"."""
+        try:
+            raw = await self._private("BalanceEx")
+        except (KrakenError, httpx.HTTPError) as exc:
+            log.warning("kraken available balance failed: %s", exc)
+            return None
+        free = {}
+        for k, v in raw.items():
+            if isinstance(v, dict):
+                free[k] = float(v.get("balance") or 0) + float(v.get("credit") or 0) - float(v.get("credit_used") or 0) \
+                    - float(v.get("hold_trade") or 0)
+        return self._fold({k: v for k, v in free.items() if not k.endswith(self.LOCKED_SUFFIXES)})
+
+    async def available_cash(self) -> float | None:
+        a = await self._available()
+        return None if a is None else max(0.0, a.get("ZUSD", 0.0))
+
+    async def available_qty(self, symbol: str) -> float | None:
+        p = self.pairs.get(symbol)
+        a = await self._available() if p is not None else None
+        return None if a is None else max(0.0, a.get(p["base"], 0.0))  # type: ignore[index]
 
     LOCKED_SUFFIXES = (".S", ".M", ".B", ".P")  # staked / bonded / earning: shown, never traded
 

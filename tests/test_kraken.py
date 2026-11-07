@@ -30,6 +30,7 @@ class FakeKraken:
         self.volume = {"XBTUSD": 2_000.0, "XDGUSD": 50_000_000.0}  # coins traded in 24 h
         self.orders, self.calls, self.oflags, self.ordertypes = {}, [], [], []
         self.limit_fills = True  # a limit order at the bid gets filled straight away (set False: it just waits)
+        self.hold = {}  # asset -> amount held by open orders placed outside TradeZone (BalanceEx's hold_trade)
 
     def handler(self, req: httpx.Request) -> httpx.Response:
         path = req.url.path
@@ -56,6 +57,8 @@ class FakeKraken:
             return self.err("EAPI:Invalid signature")
         if method == "Balance":
             return self.ok({k: f"{v:.8f}" for k, v in self.bal.items()})
+        if method == "BalanceEx":
+            return self.ok({k: {"balance": f"{v:.8f}", "hold_trade": f"{self.hold.get(k, 0.0):.8f}"} for k, v in self.bal.items()})
         if method == "TradeBalance":
             return self.ok({"eb": f"{self.bal['ZUSD'] + self.bal.get('XXBT', 0) * self.price['XBTUSD']:.2f}"})
         if method == "WithdrawInfo":

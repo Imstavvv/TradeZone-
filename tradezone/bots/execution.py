@@ -191,6 +191,16 @@ class ExecutionBot(Bot):
             if qty <= 1e-12 or (held > 0) == (req.side.sign > 0):
                 self.act(f"dropped reduce-only {req.symbol}: no position to reduce", "warning")
                 return
+            if self.desk.is_live and (free := await self.desk.broker.available_qty(req.symbol)) is not None:
+                if free < qty - 1e-12:  # (some held by an open order: sell what's free, so the sale fills)
+                    if free <= 1e-12 or free < self.desk.broker.min_qty(req.symbol, self.desk.prices.get(req.symbol) or 0.0):
+                        self.bump("sell_waits")
+                        self.act(f"{req.symbol}: the exchange holds all of it in an open order right now - the sale "
+                                 "waits and is tried again", "warning")
+                        return
+                    self.act(f"{req.symbol}: selling the {free:g} the exchange has free (records {qty:g}; the rest "
+                             "is held by an open order)")
+                    qty = free
         elif req.side is Side.BUY:
             room = self.cash_room(req.symbol)
             if room <= 0:
@@ -201,6 +211,13 @@ class ExecutionBot(Bot):
                 self.act(f"{req.symbol}: buy trimmed {qty:g} -> {room:g} to the cash still free")
                 qty = room
             px = self.desk.prices.get(req.symbol) or 0.0
+            if self.desk.is_live and px > 0 and (cash := await self.desk.broker.available_cash()) is not None:
+                fee = 1 + self.settings.fee_bps(req.symbol) / 10_000  # (what the exchange will really release now)
+                can = cash * 0.995 / (max(px, (getattr(self.desk.broker, "quotes", {}).get(req.symbol) or {}).get("ask") or 0.0) * fee)
+                if qty > can:
+                    self.act(f"{req.symbol}: buy trimmed {qty:g} -> {max(can, 0.0):g} to the cash the exchange has free "
+                             f"(${cash:,.2f}; open orders hold the rest)")
+                    qty = max(can, 0.0)
             least = self.desk.broker.min_qty(req.symbol, px) if px > 0 else 0.0
             if qty < least:  # (what's left is under the exchange's minimum order: it could only be refused)
                 self.bump("cash_blocks")

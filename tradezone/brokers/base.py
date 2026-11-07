@@ -30,6 +30,14 @@ class Broker(abc.ABC):
         """A fresh {bid, ask, ...} for ``symbol`` just before an order, if the venue offers one."""
         return None
 
+    async def available_cash(self) -> float | None:
+        """Cash an order can really use right now (open orders' holds taken off), if the venue says; else None."""
+        return None
+
+    async def available_qty(self, symbol: str) -> float | None:
+        """How much of ``symbol`` a sale can really use right now, if the venue says; else None."""
+        return None
+
     def sell_check(self, symbol: str, qty: float, price: float, strict: bool = True) -> str | None:
         """Why buying could leave coins that can't be sold again, or None when it's fine."""
         return None
