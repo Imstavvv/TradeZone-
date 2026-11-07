@@ -121,9 +121,19 @@ def test_up_to_five_meme_coins_at_once():
     from tradezone.core.portfolio import Position
     desk = make(100_000.0)
     held = ["WIF-USD", "BONK-USD", "FLOKI-USD", "SHIB-USD"]
-    assert all(desk.settings.is_meme(m) for m in held) and desk.settings.max_meme_positions == 5
+    desk.settings.max_meme_positions = 5  # (a cap, when one is chosen: TZ_MAX_MEME_POSITIONS=5)
+    assert all(desk.settings.is_meme(m) for m in held)
     for m in held:
         desk.portfolio.positions[m] = Position(m, qty=1.0, avg_price=1.0, last_price=1.0)
     assert buy(desk, "DOGE-USD")[0] > 0  # the fifth meme coin is fine
     qty, rej = buy(desk, "PEPE-USD")
     assert qty == 0 and "most meme coins" in rej[-1]["reason"]  # a sixth waits
+
+
+def test_every_meme_coin_can_be_traded_at_once_by_default():
+    from tradezone.core.portfolio import Position
+    desk = make(100_000.0)
+    assert desk.settings.max_meme_positions >= 100
+    for m in ["WIF-USD", "BONK-USD", "FLOKI-USD", "SHIB-USD", "DOGE-USD"]:
+        desk.portfolio.positions[m] = Position(m, qty=1.0, avg_price=1.0, last_price=1.0)
+    assert buy(desk, "PEPE-USD")[0] > 0  # a sixth meme coin is bought too

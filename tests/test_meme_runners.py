@@ -87,6 +87,7 @@ def test_runner_never_gives_back_the_locked_profit(desk):
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_meme_coins_trade_smaller_and_are_capped(desk):
+    desk.settings.max_meme_positions = 5  # (a cap, when one is chosen; all meme coins by default)
     eq = desk.portfolio.equity
     meme = buy(desk, "PEPE-USD", 0.00001)
     assert meme.qty > 0

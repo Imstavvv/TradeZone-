@@ -148,7 +148,7 @@ class Settings:
     # taken over by the bots as trades from today's price - the -7% stop and +15%-after-fees target apply, and the
     # money is reused for new trades. Staked coins, stablecoins, the hold stack and stack-only coins are left alone.
     adopt_own_coins: bool = True
-    min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added
+    min_meme_volume_usd: float = 250_000.0  # a meme coin must trade this much a day to be added (was $1M: now the sell check's bar)
     max_meme_coins: int = 100  # watch every credible meme coin (asked for; was the busiest 12). Trades in them at
     # once stay capped by max_meme_positions: replayed with 9 meme coins, letting all be held at once did worse in
     # every market than 5 (rising +$1,681 / +$879 vs +$1,764 / +$892, falling -$1,212 / -$876 vs -$1,149 / -$815,
@@ -483,7 +483,11 @@ class Settings:
     # ---- crypto focus / meme coins ----
     meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
     meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)
-    max_meme_positions: int = 5  # meme coins held at once (+1 Aggressive, +2 Bold)
+    # meme coins held at once: all of them (asked for: "allow trade in all meme coins"; was 5). Replayed with 9 meme
+    # coins (16 windows per market, tuning / unseen half), all at once vs at most 5: rising +$1,681 / +$879 vs
+    # +$1,764 / +$892, falling -$1,212 / -$876 vs -$1,149 / -$815, sideways -$46 / -$88 vs +$34 / +$26.
+    # TZ_MAX_MEME_POSITIONS=5 brings the old cap back.
+    max_meme_positions: int = 100
     # Sniping: on a trusted meme coin, a live price breaking this far above its recent high is
     # acted on at once (not at the bar close), if momentum agrees.
     # strategies the Quant runs beyond momentum / mean reversion / breakout. All ten exist (Settings -> Trading
