@@ -36,7 +36,7 @@ def build_feed(s: Settings) -> MarketFeed:
                           meme_coins=s.meme_coins, min_meme_volume_usd=s.min_meme_volume_usd,
                           max_memes=s.max_meme_coins,
                           small_candidates=SMALL_CANDIDATES if s.focus_small_coins else [], max_small=s.max_small_coins,
-                          all_coins=s.kraken_all_coins, max_all=s.max_kraken_coins)
+                          all_coins=s.kraken_all_coins, max_all=s.max_kraken_coins, min_all_volume_usd=s.min_coin_volume_usd)
     if s.feed == "coinbase":
         from .market.coinbase import CoinbaseFeed
 

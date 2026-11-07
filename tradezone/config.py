@@ -327,7 +327,11 @@ class Settings:
     # -$848 / -$786, -$155 / -$253. Every one made less when prices rose and saved nothing when they fell: the best
     # buys are moves already starting (breakouts, momentum), which waiting for a cheaper price misses. So off.
     buy_area: str = "off"
-    max_kraken_coins: int = 400
+    max_kraken_coins: int = 600
+    # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the
+    # same bar the sell check uses (was $1M), so whatever is listed can be sold again. Every buy still has to pass
+    # that check (bid/ask gap under 1.5%, $250k a day, a position at most 1% of a day's trading).
+    min_coin_volume_usd: float = 250_000.0
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
     # ---- no goal: the bots take their calculated risks every day ----

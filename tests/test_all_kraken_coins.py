@@ -92,3 +92,16 @@ def test_krakens_tokenized_stocks_are_traded_with_one_spelling():
     assert symbols == ["BTC-USD", "AAPLX-USD", "TSLAX-USD"]  # NVDAx trades too little to be sold again
     assert feed.pairs["AAPLX-USD"]["pair"] == "AAPLxUSD"  # (orders still use Kraken's own name)
     run(feed.client.aclose())
+
+
+def test_small_caps_down_to_the_sell_checks_bar_are_traded_and_memes_keep_the_meme_rules():
+    coins = {"BTC": 9e9, "SMALL": 400_000.0, "PNUT": 300_000.0, "DUST": 100_000.0}
+    symbols, memes = ["BTC-USD"], ["DOGE"]
+    s = Settings()
+    assert s.min_coin_volume_usd == s.sell_min_volume_usd == 250_000.0
+    feed = KrakenFeed(symbols, client=kraken(coins), meme_candidates=["PNUT"], meme_coins=memes, min_meme_volume_usd=1e6,
+                      all_coins=True, min_all_volume_usd=s.min_coin_volume_usd)
+    run(feed.start())
+    assert symbols == ["BTC-USD", "SMALL-USD", "PNUT-USD"]  # (DUST trades too little to sell again)
+    assert "PNUT" in memes and "SMALL" not in memes  # the meme coin is still treated as one
+    run(feed.client.aclose())

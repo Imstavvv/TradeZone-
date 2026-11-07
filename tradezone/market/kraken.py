@@ -152,8 +152,9 @@ class KrakenFeed(MarketFeed):
                  meme_candidates: list[str] | None = None, meme_coins: list[str] | None = None,
                  min_meme_volume_usd: float = 1_000_000.0, max_memes: int = 12,
                  small_candidates: list[str] | None = None, max_small: int = 8,
-                 all_coins: bool = False, max_all: int = 400) -> None:
+                 all_coins: bool = False, max_all: int = 400, min_all_volume_usd: float | None = None) -> None:
         self.all_coins, self.max_all = all_coins, max_all
+        self.min_all_volume_usd = min_all_volume_usd
         self.symbols = symbols  # the same list object as settings.symbols: added / dropped coins show everywhere
         self.client = client or httpx.AsyncClient(base_url=PUBLIC, timeout=8.0, headers={"User-Agent": "TradeZone/1.0"})
         self.meme_candidates = meme_candidates or []
@@ -221,10 +222,15 @@ class KrakenFeed(MarketFeed):
         except (httpx.HTTPError, ValueError) as exc:
             log.warning("kraken all-coins volume check failed: %s", exc)
             return []
-        ranked = sorted((s for s in fresh if quotes.get(s, {}).get("vol_usd", 0) >= self.min_meme_volume_usd),
+        bar = self.min_all_volume_usd if self.min_all_volume_usd is not None else self.min_meme_volume_usd
+        ranked = sorted((s for s in fresh if quotes.get(s, {}).get("vol_usd", 0) >= bar),
                         key=lambda s: -quotes[s]["vol_usd"])[: max(0, self.max_all - len(self.symbols))]
         self.symbols.extend(ranked)
         self.added.extend(ranked)
+        for s in ranked:  # a known meme coin under the meme bar still gets the meme rules (smaller, capped)
+            coin = s.split("-")[0]
+            if coin in {c.upper() for c in self.meme_candidates} and coin not in self.meme_coins:
+                self.meme_coins.append(coin)
         self.quotes.update({s: quotes[s] for s in ranked})
         if ranked:
             log.info("kraken: trading every coin that trades enough - %d added", len(ranked))
