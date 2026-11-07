@@ -1188,7 +1188,8 @@ class TradingDesk:
                 "capital_floor_pct": floor}
 
     def daily_goal(self) -> float:
-        return float(self.goal.get("daily", self.settings.daily_goal_usd))
+        # (the goal was removed: a daily goal saved earlier no longer changes how the bots trade)
+        return float(self.settings.daily_goal_usd)
 
     def daily_goal_status(self) -> dict:
         """Today's profit vs the daily goal, and how big that goal is for the money on hand."""

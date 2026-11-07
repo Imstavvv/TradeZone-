@@ -25,20 +25,17 @@ def buy(desk, sym="BTC-USD"):
     return desk.portfolio.position(sym), rejected
 
 
-def test_a_slipping_good_day_keeps_trading_but_smaller():
+def test_a_slipping_good_day_keeps_trading_at_full_size():
     normal = buy(make(), "ETH-USD")[0].qty
     desk = make()
     risk = desk.bots["risk"]
     desk.portfolio.cash += 300.0  # +3% today
     risk._track_day_peak()
-    desk.portfolio.cash -= 100.0  # gave back a third: full size
-    assert not risk.day_guard()["locked"] and buy(desk)[0].qty > 0
-    desk.portfolio.cash -= 80.0  # now over half of the +$300 given back
+    desk.portfolio.cash -= 180.0  # over half of the +$300 given back
     g = risk.day_guard()
-    assert g["locked"] and g["best_today_pct"] == pytest.approx(0.03)
+    assert g["locked"] and g["best_today_pct"] == pytest.approx(0.03)  # (still noticed...)
     pos, _ = buy(desk, "ETH-USD")
-    assert 0 < pos.qty < normal * 0.6  # no cap on the day: still trading, at half size
-    assert desk.state()["goal"]["guard"]["locked"]
+    assert pos.qty == pytest.approx(normal, rel=0.05)  # ...but no slowdown: the goal is gone
 
 
 def test_the_old_stop_for_the_day_can_be_switched_back_on():

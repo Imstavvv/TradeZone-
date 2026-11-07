@@ -1,4 +1,5 @@
-"""The daily goal: a $1,000+ day with the money on hand - tracked, protected once reached, never forced."""
+"""The goal is gone: no daily goal and no good-day slowdown - the bots take their calculated risks every day.
+The real risk controls stay (stops, the loss floor, the underwater cap, never-sell, the losing-day brake)."""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -26,56 +27,35 @@ def buy(desk, sym="BTC-USD"):
     return desk.portfolio.position(sym), rejected
 
 
-def test_progress_toward_a_1000_dollar_day():
+def test_there_is_no_daily_goal_any_more():
     desk = make()
-    d = desk.daily_goal_status()
-    assert d["goal"] == 1_000 and d["today"] == 0 and not d["reached"] and d["realistic"]  # 1% of $100k
-    desk.portfolio.cash += 400.0
-    assert desk.daily_goal_status()["progress"] == pytest.approx(0.4)
-    assert desk.state()["goal"]["daily"]["today"] == pytest.approx(400.0)
+    assert desk.settings.daily_goal_usd == 0.0 and desk.daily_goal() == 0.0
+    desk.goal["daily"] = 1_000.0  # (a daily goal saved before the change)
+    assert desk.daily_goal() == 0.0  # no longer changes how the bots trade
+    assert desk.bots["risk"].day_guard()["goal_day"] is False
 
 
-def test_a_small_balance_is_told_plainly_and_risk_is_never_raised_for_it():
-    small = make(cash=50.0)
-    d = small.daily_goal_status()
-    assert not d["realistic"] and d["pct_of_balance"] == pytest.approx(20.0)  # 2,000% of $50 in a day
-    off = make(cash=50.0)
-    off.set_daily_goal(0)
-    for d in (small, off):
-        d.settings.focus_small_coins = False  # (compare like for like)
-    a, _ = buy(small)
-    b, _ = buy(off)
-    assert a.qty > 0 and a.qty == pytest.approx(b.qty)  # the goal never makes a trade bigger
-
-
-def test_a_goal_day_is_protected_without_capping_it():
+def test_a_big_day_keeps_trading_at_full_size():
+    normal = buy(make(), "ETH-USD")[0].qty
     desk = make()
-    desk.settings.risk.max_position_pct = desk.settings.risk.max_gross_exposure = 5.0  # size from risk, not caps
     risk = desk.bots["risk"]
-    desk.portfolio.cash += 1_200.0  # a $1,200 day (only +1.2%: below the usual 2% day-lock trigger)
+    desk.portfolio.cash += 3_000.0  # a great day...
     risk._track_day_peak()
-    assert risk.day_guard()["goal_day"] and not risk.day_guard()["locked"]
-    full = buy(desk, "ETH-USD")[0].qty
-    assert full > 0  # still trading while it holds
-    desk.portfolio.positions.pop("ETH-USD")
-    desk.portfolio.cash -= 350.0  # gave back over a quarter of it
-    g = risk.day_guard()
-    assert g["locked"]
-    pos, _ = buy(desk)
-    assert 0 < pos.qty <= full * 0.55  # never stops on a good day - just trades smaller while it's slipping
+    desk.portfolio.cash -= 2_000.0  # ...then most of it given back
+    pos, _ = buy(desk, "ETH-USD")
+    assert pos.qty == pytest.approx(normal, rel=0.05)  # no slowdown: full size
 
 
-def test_the_daily_goal_can_be_changed_and_is_remembered(tmp_path):
-    db = str(tmp_path / "tz.db")
-    desk = make(journal=Journal(db))
-    c = TestClient(create_app(desk))
-    assert c.post("/api/goal", json={"start": 50, "target": 10_000, "daily": 250}).status_code == 200
-    assert desk.daily_goal() == 250
-    desk.set_goal(100, 5_000)
-    assert desk.daily_goal() == 250  # changing the big goal keeps the daily one
-    desk.save_state()
-    again = make(journal=Journal(db))
-    run(again.restore_state())
-    assert again.daily_goal() == 250
-    with pytest.raises(ValueError):
-        desk.set_daily_goal(-5)
+def test_a_losing_day_still_brakes():
+    normal = buy(make(), "ETH-USD")[0].qty
+    desk = make()
+    lim = desk.settings.limits(False).max_daily_loss_pct
+    desk.portfolio.cash -= desk.portfolio.equity * lim * 0.6  # down more than half the daily limit
+    assert desk.bots["risk"].day_guard()["brake"]
+    pos, _ = buy(desk, "ETH-USD")
+    assert 0 < pos.qty < normal * 0.6  # (the brake is loss protection, not a goal: it stays)
+
+
+def test_the_goal_setting_endpoint_still_answers():
+    with TestClient(create_app(make(), run_desk=False)) as c:
+        assert c.get("/api/health").status_code == 200

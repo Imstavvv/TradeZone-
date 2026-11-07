@@ -83,7 +83,7 @@ The **Pro** view keeps everything on one long, detailed page for experts.
 | Down day or a losing trade | **Took a hit:** an asteroid knocks the ship, red alert ("the stop kept the damage small") |
 | Paused or emergency stop | **Shields up:** the ship holds still in a shield bubble and the stars stop |
 
-**🏛️ Olympus (gods and goddesses), light, dark or 🔥 heater** (the round button in the header, or Settings → Your goal → Look; each device remembers its choice). **Olympus** is the default: ivory marble with faint veins and soft light from above, gold and deep Aegean blue, the balance on a lapis tablet framed in gold with a Greek-key band along its edges, carved-stone serif titles (from the device's own serif fonts - nothing loads from outside), gilded buttons, and a **⚡ GODLIKE!** burst for a winning trade; every device switched to it once, and any other look can be picked again. **heater** is a dark, fiery look - fire gradients, a glowing balance, flames along the bottom of the screen and embers rising (a winning trade says **ON FIRE!**). It's only a look: nothing about trading changes. **Dark** is the same clean design at night. **Easy to read on any screen:** every visible text is checked - in all four looks, on a phone and a computer - for contrast against its real background (at least 4.5:1, 3:1 for large text, the accessibility standard), size (12px or more) and, on a phone, places to tap (40px or more). The **clean & vibrant** light theme is light and airy - white cards on a soft background, crisp type (Inter, bundled with the app, SIL Open Font License, so nothing loads from outside and the security policy stays strict) and generous spacing. The colour goes where it means something: the balance sits on a bold gradient (cool violet-to-cyan on practice money, warm pink-to-orange on real money, so the two can't be confused), buttons are bright, and gains and losses are a clear green and red on white. The charts take their colours from the theme. A **✨ star power** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Cadet → Pilot → Captain → Commander → Admiral); your win streak lights up as stars, and winning trades end with a **SUPERNOVA!** burst. Animations switch off if your phone has "Reduce Motion" on.
+**🏛️ Olympus (gods and goddesses), light, dark or 🔥 heater** (the round button in the header, or Settings → Your trading rules → Look; each device remembers its choice). **Olympus** is the default: ivory marble with faint veins and soft light from above, gold and deep Aegean blue, the balance on a lapis tablet framed in gold with a Greek-key band along its edges, carved-stone serif titles (from the device's own serif fonts - nothing loads from outside), gilded buttons, and a **⚡ GODLIKE!** burst for a winning trade; every device switched to it once, and any other look can be picked again. **heater** is a dark, fiery look - fire gradients, a glowing balance, flames along the bottom of the screen and embers rising (a winning trade says **ON FIRE!**). It's only a look: nothing about trading changes. **Dark** is the same clean design at night. **Easy to read on any screen:** every visible text is checked - in all four looks, on a phone and a computer - for contrast against its real background (at least 4.5:1, 3:1 for large text, the accessibility standard), size (12px or more) and, on a phone, places to tap (40px or more). The **clean & vibrant** light theme is light and airy - white cards on a soft background, crisp type (Inter, bundled with the app, SIL Open Font License, so nothing loads from outside and the security policy stays strict) and generous spacing. The colour goes where it means something: the balance sits on a bold gradient (cool violet-to-cyan on practice money, warm pink-to-orange on real money, so the two can't be confused), buttons are bright, and gains and losses are a clear green and red on white. The charts take their colours from the theme. A **✨ star power** readout shows your balance, with a meter for today's move and a rank that grows with your total return (Cadet → Pilot → Captain → Commander → Admiral); your win streak lights up as stars, and winning trades end with a **SUPERNOVA!** burst. Animations switch off if your phone has "Reduce Motion" on.
 
 TradeZone opens in **Simple view**: a colourful home screen in plain English. The **Pro** switch in the header shows the full trading dashboard.
 
@@ -193,19 +193,15 @@ The 📰 **Reporter** reads public news feeds every 5 minutes: CoinDesk, Cointel
 
 News can only make the team more careful or slightly more confident. It never opens a trade, never moves a stop and never touches the loss limits. It is off when the bots trade synthetic demo prices. The Home screen's "What the world is saying" card shows the mood, Fear & Greed and the latest headlines, with links.
 
-## Your goal, and "don't lose my money"
+## No goal - calculated risks, and "don't lose my money"
 
-**🚀 The goal: grow the balance rapidly with minimal losses.** This is the 5th team rule. Growth comes from compounding many quick, fee-paid wins (quick flips on real money, skims, runners, and shorts where they work); minimal losses come from three guards that sit on top of the hard limits below:
+**🎯 No goal: the bots take calculated risks every day.** There used to be a goal - $50 → $10,000, a $1,000 daily goal, and a good-day slowdown (half-size trades once a good day started slipping). You asked to remove it, so it's gone: the bots aim for profit on every trade every day, and a good day never makes them smaller. Replayed on real price history (16 windows a market): a little more when prices rose (+$396 / +$181 vs +$396 / +$172), the same when they fell, and $5 worse sideways on one half (−$34 / −$23 vs −$29 / −$23: a slipping day keeps trading at full size). What stays is everything that manages the risk:
 
 | Guard | What it does |
 | --- | --- |
 | A small stop on every trade | each trade risks about 1.5% of the balance (less for meme coins), longs and shorts alike |
 | Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
-| Day lock | once the day has been up **2%** (`TZ_DAY_LOCK_TRIGGER_PCT`), giving back **half** of the day's best gain (`TZ_DAY_GIVEBACK_PCT`) makes new trades **half size** (`TZ_DAY_LOCK_SIZE`) until it recovers. A good day never stops the bots: there's no ceiling on the upside. (`TZ_DAY_LOCK_STOPS=true` brings back "no new trades until tomorrow".) |
-
-**💵 The daily goal: a $1,000+ day with the money on hand** (`TZ_DAILY_GOAL_USD`, or **Settings → Your goal**; 0 turns it off). The goal card shows today's profit against it. It's a floor, not a ceiling: reaching it never stops the bots. If a goal day starts slipping (a quarter of the day's best given back, `TZ_DAILY_GOAL_GIVEBACK`), new trades are half size until it recovers. The bots never bet bigger to force it. The card also says plainly how big the goal is for your balance: $1,000 is 1% of $100,000, but 2,000% of $50 in a single day, which no amount of risk can make reliable (at about 1% a day, a $1,000 day needs roughly a $100,000 balance).
-
-The goal card (Home) shows the milestone tracker (default **$50 → $10,000**, change it in **Settings → Your goal**), the pace so far, and which guard is active. Growing fast never means bigger bets than the limits allow: compounding makes each trade a little bigger as the balance grows, and the Coach sizes up slowly after good results and down after bad ones. Be realistic: $50 → $10,000 is a 200× increase, about 530 days at a steady +1% a day or 270 at +2%.
+| No good-day slowdown | a good day that slips keeps trading at full size (`TZ_DAY_LOCK_SIZE=1`; set it to 0.5 for the old half-size slowdown, or `TZ_DAY_LOCK_STOPS=true` for "no new trades until tomorrow") |
 
 **🛡️ Don't lose the money** is the 6th team rule. Real money risks more per trade (with patient exits), so its loss limits are set to match:
 
@@ -364,7 +360,7 @@ Every visit starts on the **front page** with **one box**: type a login code.
 Everything is under **Settings** on the home screen, in plain language:
 
 * **Logging in:** log in another device (code or link), log out, log out everywhere.
-* **Your goal:** change the starting amount and target.
+* **Your trading rules:** never sell at a loss, the loss floor, the underwater cap, the falling-market guard, the risk level, the look, trade pop-ups.
 * **Linked accounts:**
   * 🏦 **Real-money account (Uphold or Alpaca):** tap **Connect**, pick where your money is, and follow the steps. For Uphold, paste the access token (see [Trading real money on Uphold](#trading-real-money-on-uphold)). For Alpaca, follow the 4 steps on screen. Paste the Key ID and Secret from your Alpaca *Live* account (📋 Paste buttons included). TradeZone checks the keys with Alpaca and shows your available cash. Keys are stored on your server only and never shown again. Practice-account (paper) keys are recognised and explained. You keep using practice money until you tap **Use real money**.
   * 🤖 **Grok AI helper:** paste your xAI key (see below).
@@ -573,7 +569,7 @@ The cycle itself got faster too, from 7.1 ms to 4.2 ms with 20 coins. The Flash-
 
 ### 🛑 Never sell at a loss
 
-**On by default** (`TZ_NEVER_SELL_AT_LOSS`; **Settings → Your goal → Never sell at a loss**). A trade below break-even after fees is **held until it recovers**:
+**On by default** (`TZ_NEVER_SELL_AT_LOSS`; **Settings → Your trading rules → Never sell at a loss**). A trade below break-even after fees is **held until it recovers**:
 - no stop-loss, early cut or bot ever sells it, and the Risk Manager turns down any sale at a loss as a safety net;
 - the automatic daily-loss, drawdown and floor limits **stop new trades**, but don't sell open ones;
 - **your own Close all trades and Emergency stop still sell** (you chose to);
@@ -703,7 +699,7 @@ Nothing caps how much the bots can make in a day or on a trade:
 
 * winners keep running: the **moving take-profit** (below) has no top, and a runner has no target at all;
 * only a **slice** is banked early: a quarter at a quick flip (`TZ_FLIP_BANK_FRACTION`), a third at the target (`TZ_RUNNER_SELL_FRACTION`); the rest keeps going. A slice smaller than the venue's minimum order is raised to the minimum, or skipped if the rest would then be too small to sell (the whole trade keeps running, protected by its stop), so a small account's winners are never sold off whole by a profit-take;
-* a great day **never stops trading**, not at +2%, not at the daily goal, not at +1,000%; if a good day starts slipping, new trades just get smaller;
+* a great day **never stops trading** and never makes the bots smaller - there's no goal to reach or protect;
 * trade sizes **compound**: each trade is a share of the current balance, so they grow as it grows.
 
 What stays capped is the *downside*: a stop on every trade, the risk per trade, and the daily-loss, drawdown and capital-floor limits. No code can make 1,000% days happen. How much is made depends on the market. This only makes sure that when the market gives a big move, the bots don't cut it short.
@@ -723,11 +719,11 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 
 | Feature | Real money | Switch |
 | --- | --- | --- |
-| **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) - **except at the loss floor** | **on** | Settings → Your goal, `TZ_NEVER_SELL_AT_LOSS` |
-| **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your goal, `TZ_MAX_LOSS_PCT` |
+| **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) - **except at the loss floor** | **on** | Settings → Your trading rules, `TZ_NEVER_SELL_AT_LOSS` |
+| **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your trading rules, `TZ_MAX_LOSS_PCT` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
-| **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your goal, `TZ_LOSER_CAP` |
-| **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | off (optional) | Settings → Your goal, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
+| **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your trading rules, `TZ_LOSER_CAP` |
+| **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | off (optional) | Settings → Your trading rules, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
 | Stop-loss 20% from the buy price (was 33%) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
 | Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
@@ -745,13 +741,12 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Speed Monitor, Housekeeper (records kept lean) | on | `TZ_JOURNAL_KEEP_DAYS` |
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
 | Growth ladder (smaller coins first on small balances) | on | `TZ_FOCUS_SMALL_COINS` |
-| Daily goal ($1,000, a floor not a ceiling) | on | `TZ_DAILY_GOAL_USD` |
 | "Never buy what can't be sold" checks | on | (always) |
 | Shorting | **off** (tested: with never-sell on, shorts lost money) | `TZ_SHORTING` |
 | Alpaca: US stocks (SPY, QQQ, AAPL, NVDA, MSFT) next to its crypto | on, long only | `TZ_ALPACA_STOCKS` |
 | Day-trade rule (stocks, under $25,000: the bots use at most 2 of the 3 day trades allowed in 5 days) | on | `TZ_DAY_TRADE_GUARD` |
 | Quick-flip slices, skims, accumulating, profit sales at the ask, the fee rule on locked stops | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS`, `TZ_FEE_RULE_STOPS` |
-| Aggressive / Bold risk levels | opt-in | Settings → Your goal |
+| Aggressive / Bold risk levels | opt-in | Settings → Your trading rules |
 
 The full list of settings, with every default, is in `.env.example`.
 
@@ -782,7 +777,7 @@ Every earlier test window turned out to be a **rising** market: the real price h
 | Before (tuned / unseen) | +$469 / +$317 | −$743 / −$514 | −$37 / −$77 | −$311 / −$274 |
 | **Underwater cap 15%** | +$396 / +$173 | −$393 / −$262 | −$29 / −$23 | **−$25 / −$112** |
 
-With never-sell-at-a-loss on, a slide otherwise pulled almost the whole balance into losing trades that are then held all the way down (the "100% win rate" hides them: they're never closed). The cap stops new buys, and the Dip Buyer's adds, while trades more than 0.5% below break-even after fees tie up 15% of the balance; buying resumes as they recover. **The cost is real: less profit when prices only rise** (about a sixth less on the tuning half, about half on the unseen half). It's a switch in Settings → Your goal. **Why it seems to "miss" good trades:** a brand-new trade starts about 0.8% below break-even (both fees), so it counts toward the cap from its first minute, and one trade can fill it - in a rising market the cap turned down about four good ideas for every trade taken (as often good as the trades that got through). Letting new trades count only after 30 minutes to 4 hours (`TZ_LOSER_CAP_GRACE_MIN`) earned up to 44% more when prices rose - but lost 18-32% more when they fell and did worse sideways on unseen data; with the falling-market guard added it lost more still. Those "missed" trades are the price of the protection, so the wait stays at 0. Also tried and dropped: a downtrend guard (no buys while a coin or the market fell over the last 30-240 minutes - it made almost no difference: these slides are slow grinds that hours of history can't tell from noise), caps of 10-25%, and counting a trade by its price drop alone (0.5-2%). Turning never-sell off lost less in falling markets in a quick check (8 windows), but it sells at a loss, which you asked the bots not to do.
+With never-sell-at-a-loss on, a slide otherwise pulled almost the whole balance into losing trades that are then held all the way down (the "100% win rate" hides them: they're never closed). The cap stops new buys, and the Dip Buyer's adds, while trades more than 0.5% below break-even after fees tie up 15% of the balance; buying resumes as they recover. **The cost is real: less profit when prices only rise** (about a sixth less on the tuning half, about half on the unseen half). It's a switch in Settings → Your trading rules. **Why it seems to "miss" good trades:** a brand-new trade starts about 0.8% below break-even (both fees), so it counts toward the cap from its first minute, and one trade can fill it - in a rising market the cap turned down about four good ideas for every trade taken (as often good as the trades that got through). Letting new trades count only after 30 minutes to 4 hours (`TZ_LOSER_CAP_GRACE_MIN`) earned up to 44% more when prices rose - but lost 18-32% more when they fell and did worse sideways on unseen data; with the falling-market guard added it lost more still. Those "missed" trades are the price of the protection, so the wait stays at 0. Also tried and dropped: a downtrend guard (no buys while a coin or the market fell over the last 30-240 minutes - it made almost no difference: these slides are slow grinds that hours of history can't tell from noise), caps of 10-25%, and counting a trade by its price drop alone (0.5-2%). Turning never-sell off lost less in falling markets in a quick check (8 windows), but it sells at a loss, which you asked the bots not to do.
 
 ### Tested in rising, falling and sideways markets: the falling-market guard (off - optional)
 
@@ -998,7 +993,7 @@ In a practice run with 24 coins to choose from, the bots held up to 18 trades at
 
 ### 🔥 More risk, more reward: the Bold level
 
-There are three real-money risk levels (**Settings → Your goal → Real-money risk**; a level above Normal needs **RISK** typed; `TZ_RISK_PROFILE`):
+There are three real-money risk levels (**Settings → Your trading rules → Real-money risk**; a level above Normal needs **RISK** typed; `TZ_RISK_PROFILE`):
 
 | | Normal | Aggressive | Bold |
 | --- | --- | --- | --- |
@@ -1149,7 +1144,7 @@ Open trades are never closed because of the ladder; it only decides which *new* 
 
 ### Aggressive risk (real money, opt-in)
 
-For faster growth with real money, switch **Settings → Your goal → Real-money risk** to **⚡ Aggressive** (type RISK to confirm; `TZ_RISK_PROFILE=aggressive` on the server does the same). Practice money is never affected.
+For faster growth with real money, switch **Settings → Your trading rules → Real-money risk** to **⚡ Aggressive** (type RISK to confirm; `TZ_RISK_PROFILE=aggressive` on the server does the same). Practice money is never affected.
 
 | | Normal | Aggressive |
 | --- | --- | --- |

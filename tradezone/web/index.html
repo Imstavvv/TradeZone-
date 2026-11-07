@@ -1151,15 +1151,6 @@ var(--live)}
     </div>
   </div>
 </div>
-<div class="sheet" id="goalSheet"><div class="panel2 left">
-  <h3 class="center">🏆 Set your goal</h3>
-  <label class="fl">Starting amount ($)</label><input id="goalStart" class="txt" inputmode="decimal" placeholder="50">
-  <label class="fl">Target ($)</label><input id="goalTarget" class="txt" inputmode="decimal" placeholder="10000">
-  <label class="fl">Daily goal ($ profit a day, 0 = off)</label><input id="goalDaily" class="txt" inputmode="decimal" placeholder="1000">
-  <div class="muted" style="font-size:12px;margin-top:6px">Progress is measured from now. In practice mode your account's growth is shown on this scale.</div>
-  <div class="lockerr" id="goalErr"></div>
-  <div class="row"><button id="goalCancel">Cancel</button><button id="goalSave" class="gopaper">Save goal</button></div>
-</div></div>
 <div class="sheet" id="riskSheet"><div class="panel2 left">
   <h3 class="center">⚡ Real-money risk level</h3>
   <div class="pick2" id="riskPick"><button type="button" data-p="normal">🛡️ Normal</button><button type="button" data-p="aggressive">⚡ Aggressive</button><button type="button" data-p="bold">🔥 Bold</button></div>
@@ -1358,7 +1349,7 @@ var(--live)}
     <div class="pagehead" data-page="stack"><h2><span class="pe">🪙</span> Hold stack</h2><p>The coins stacking on the side: bought slowly, held for the long run, never sold by the bots, no stop-loss.</p></div>
     <div class="pagehead" data-page="trades"><h2><span class="pe">📈</span> Trades</h2><p>Every trade the bots made, with the profit or loss and why they sold.</p></div>
     <div class="pagehead" data-page="money"><h2><span class="pe">💰</span> Money</h2><p>Your accounts and their balances, the hold stack, crypto wallets and sending money out.</p></div>
-    <div class="pagehead" data-page="settings"><h2><span class="pe">⚙️</span> Settings</h2><p>Your goal, risk level, trading strategies, logging in and your devices.</p></div>
+    <div class="pagehead" data-page="settings"><h2><span class="pe">⚙️</span> Settings</h2><p>Your trading rules, risk level, trading strategies, logging in and your devices.</p></div>
     <div class="acctwrap" data-page="home stack"><div class="tabs acctpick" id="acctPick" hidden aria-label="Show account"></div></div>
     <div class="hero" data-page="home">
       <div class="ticker" id="sTicker" aria-hidden="true"><div class="run" id="sTickerRun"></div></div>
@@ -1448,8 +1439,7 @@ var(--live)}
     </div>
     <div id="sec-settings">
       <div class="sgrid">
-        <div class="scard" data-page="settings"><h4>🏆 Your goal</h4>
-          <div class="srow"><div class="ic">🎯</div><div class="tx"><b id="setGoalTxt">$50 → $10,000</b><span>The bots grow it by compounding small, safe wins - the goal never makes them take bigger risks</span></div><button id="setGoalBtn">Change</button></div>
+        <div class="scard" data-page="settings"><h4>🛡️ Your trading rules</h4>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap</b><span id="setLcSub">No new buys while trades below break-even tie up 15% of the balance</span></div><button id="setLcBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (20%)</b><span id="setLfSub">A trade 20% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
@@ -2527,16 +2517,6 @@ function renderArena(st){
   $('sayB').textContent = LINES[state][1];
   $('arenaState').textContent = {idle: 'cruising', power: 'thrusters up', super: 'WARP SPEED', hurt: 'took a hit', cheer: 'BANKED IT!', guard: 'shields up'}[state];
 }
-function dailyLine(d, gd){
-  if (!d || !(d.goal > 0)) return '';
-  const pct = (d.pct_of_balance * 100);
-  const head = d.reached ? `💵 ${money(d.today)} today - a ${money(d.goal)}+ day! No ceiling - the bots keep going`
-    : `💵 Today ${d.today >= 0 ? '+' : ''}${money(d.today)} of ${money(d.goal)}`;
-  const note = d.reached ? '' : d.realistic ? ` (${pct.toFixed(1)}% of the balance)`
-    : ` · that's ${pct >= 100 ? Math.round(pct).toLocaleString() : pct.toFixed(1)}% of your balance in a day - the bots won't bet bigger to force it; at ~1% a day it needs about ${money(d.balance_for_1pct, 0)}`;
-  return `<div class="row1" style="margin-top:8px"><span>${esc(head + note)}</span></div>
-    <div class="bar"><i style="width:${Math.max(1, d.progress * 100).toFixed(1)}%"></i></div>`;
-}
 function focusLine(){
   const f = S.state && S.state.focus;
   if (!f || !f.on) return '';
@@ -2549,21 +2529,13 @@ function focusLine(){
 }
 function renderGoal(g){
   if (!g) return;
-  const m = v => '$' + Number(v).toLocaleString(undefined, {maximumFractionDigits: v < 1000 ? 2 : 0});
-  const pace = g.reached ? '🎉 Goal reached!'
-    : g.eta_days != null ? `At this pace: about ${Math.round(g.eta_days).toLocaleString()} days to go`
-    : `At +1% a day that's about ${g.days_at_1pct.toLocaleString()} days, at +2% about ${g.days_at_2pct.toLocaleString()} - growing fast by compounding, never by gambling`;
   const gd = g.guard || {};
-  const guard = gd.locked ? `🔒 Part of today's gain slipped away (best today +${(gd.best_today_pct * 100).toFixed(1)}%) - still trading, at half size until it recovers`
-    : gd.brake ? '🛟 Losing day: new trades are half size until it turns'
+  const guard = gd.brake ? '🛟 Losing day: new trades are half size until it turns'
     : gd.best_today_pct >= 0.02 ? `🚀 Up ${(gd.best_today_pct * 100).toFixed(1)}% today - no ceiling: winners keep running`
     : S.state && S.state.never_sell_at_loss ? '🛑 Never sells at a loss: a losing trade is held until it recovers · no ceiling on winners'
-    : '🛡️ A stop on every trade · no ceiling on winners · smaller trades on a losing or slipping day';
-  const agg = S.state && S.state.limits && S.state.limits.active;
-  setHTML($('sGoal'), `<div class="row1"><span>${agg ? '⚡ Aggressive' : '🚀 Grow fast, lose little'} · ${m(g.start)} → ${m(g.target)}</span><b>${m(g.value)}</b></div>
-    <div class="bar"><i style="width:${Math.max(1.5, g.progress * 100).toFixed(1)}%"></i></div>
-    <div class="note">${g.reached ? '' : `Next stop: ${m(g.next_milestone)} · `}${esc(pace)}${S.state && S.state.mode !== 'live' ? ' · practice: your growth shown on a $' + Number(g.start).toLocaleString() + ' scale' : ''}</div>
-    ${dailyLine(g.daily, gd)}<div class="note">${esc(guard)}</div>${focusLine()}`);
+    : '🛡️ A stop on every trade · no ceiling on winners · smaller trades on a losing day';
+  // (no goal: just how the bots are trading right now, and which coins the balance trades)
+  setHTML($('sGoal'), `<div class="note">${esc(guard)}</div>${focusLine()}`);
 }
 
 // ---- confetti for profitable trades ----
@@ -3163,7 +3135,6 @@ function renderSettings(){
   const LR = S.state && S.state.live_risk;
   if (LR) { $('setRiskTxt').textContent = `Real-money risk: ${({aggressive: '⚡ Aggressive', bold: '🔥 Bold'})[LR.profile] || 'Normal'}`;
     $('setRiskSub').textContent = `${(LR.risk_per_trade * 100).toFixed(1)}% risked per trade · stops for the day at -${(LR.max_daily_loss_pct * 100).toFixed(0)}% · stops everything at -${(LR.max_drawdown_pct * 100).toFixed(0)}%`; }
-  if (G) $('setGoalTxt').textContent = `$${Number(G.start).toLocaleString()} → $${Number(G.target).toLocaleString()} · now $${Number(G.value).toLocaleString(undefined, {maximumFractionDigits: 2})}`;
   if (A) {
     const b = A.broker, g = A.grok;
     if (!(S.liveAcct && modal.classList.contains('open'))) document.querySelectorAll('.venueName').forEach(e => e.textContent = b.label || 'Alpaca');
@@ -3213,17 +3184,6 @@ $('riskSave').onclick = async () => {
   try { await api('/api/risk-profile', {profile: RK.p, confirm: $('riskWord').value});
         $('riskSheet').classList.remove('open'); toast(({aggressive: 'Aggressive risk on for real money ⚡', bold: 'Bold risk on for real money 🔥'})[RK.p] || 'Normal risk for real money 🛡️', RK.p !== 'normal' ? 'warn' : 'ok', 5000); }
   catch (e) { $('riskErr').textContent = e.message; }
-};
-$('setGoalBtn').onclick = () => { const g = S.state && S.state.goal; $('goalStart').value = g ? g.start : 50; $('goalTarget').value = g ? g.target : 10000;
-  $('goalDaily').value = g && g.daily ? g.daily.goal : 1000;
-  $('goalErr').textContent = ''; $('goalSheet').classList.add('open'); };
-$('goalCancel').onclick = () => $('goalSheet').classList.remove('open');
-$('goalSave').onclick = async () => {
-  const start = parseFloat($('goalStart').value), target = parseFloat($('goalTarget').value), daily = parseFloat($('goalDaily').value || '0');
-  if (!(start > 0 && target > start)) { $('goalErr').textContent = 'The target must be bigger than the starting amount.'; return; }
-  if (!(daily >= 0)) { $('goalErr').textContent = 'The daily goal must be 0 (off) or more.'; return; }
-  try { await api('/api/goal', {start, target, daily}); $('goalSheet').classList.remove('open'); toast('Goal saved 🏆', 'ok'); }
-  catch (e) { $('goalErr').textContent = e.message; }
 };
 $('setLogoutBtn').onclick = async () => { if (await ask('Log out of this device?', 'To come back, use a code from another device or the login code in your Render logs.', {ok: 'Log out'})) { await api('/api/logout', {}); location.reload(); } };
 $('devOutAll').onclick = () => $('btnSignoutAll').onclick();

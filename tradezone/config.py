@@ -293,12 +293,14 @@ class Settings:
     max_small_coins: int = 8  # with Kraken prices: add up to this many small altcoins Kraken lists (if they trade enough)
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"
-    # ---- the daily goal: a $1,000+ day with the money on hand (never by betting bigger) ----
-    daily_goal_usd: float = 1_000.0
-    daily_goal_giveback: float = 0.25  # once reached, giving back 25% of the day's best makes new trades smaller
-    # No profit cap: a good day never stops trading. If too much of a good day slips away, new trades are this
-    # size until it recovers (day_lock_stops=true brings back "no new trades until tomorrow").
-    day_lock_size: float = 0.5
+    # ---- no goal: the bots take their calculated risks every day ----
+    # There used to be a daily goal ($1,000 a day) and a good-day slowdown: once a day was well up, giving some of
+    # it back made new trades half size. Both are gone (you asked to remove the goal). The real risk controls stay:
+    # a stop on every trade, the 20% loss floor, the underwater cap, never selling at a loss, and the losing-day
+    # brake below (smaller trades on a day already down half the daily limit).
+    daily_goal_usd: float = 0.0  # (0 = no daily goal)
+    daily_goal_giveback: float = 0.25
+    day_lock_size: float = 1.0  # (1 = a good day that slips keeps trading at full size)
     day_lock_stops: bool = False
     # ---- the goal: grow the balance rapidly with minimal losses ----
     day_lock_trigger_pct: float = 0.02  # once the day is up 2%...
