@@ -316,6 +316,10 @@ class Settings:
     # buy only when the higher timeframes agree: off | 1h (not while the hourly trend is down) | 4h | align (more
     # timeframes up than down). Off until tested on real price history.
     mtf_filter: str = "off"
+    # the best buy area (asked for: "always look for the best buy area"): a buy idea waits - re-checked every bar while
+    # the view holds - until the price is in it. off | range (lower half of the hourly range) | value (at or under the
+    # 20-bar average / VWAP) | support (lower 40% of the last 20 bars) | cool (not overbought on 1h / 15m)
+    buy_area: str = "off"
     max_kraken_coins: int = 400
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"

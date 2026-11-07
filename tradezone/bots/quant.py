@@ -420,6 +420,12 @@ class QuantBot(Bot):
                 self.bump("dip_buys_waited")
                 self.act(f"not buying the {s.symbol} dip yet: {wait}")
             return  # (the stance holds: re-checked on the next bar)
+        if not closing and side is Side.BUY and (wait := self.buy_area_wait(self.settings.buy_area, s.price, s.indicators)):
+            if self.blocked.get(s.symbol) != wait:
+                self.blocked[s.symbol] = wait
+                self.bump("buys_waited_for_area")
+                self.act(f"not buying {s.symbol} yet: {wait}")
+            return  # (the stance holds: re-checked on the next bar)
         if not closing:
             if self.desk.in_focus(s.symbol):
                 return  # waits for a bigger balance (growth ladder): not proposed yet
@@ -449,6 +455,23 @@ class QuantBot(Bot):
         self.publish("signal.proposed", sig)
         self.bump("signals")
         self.act(f"proposed {side.value.upper()} {s.symbol} @ {s.price:,.2f} ({reason})")
+
+    @staticmethod
+    def buy_area_wait(mode: str, price: float, ind: dict) -> str | None:
+        """Why the price isn't in the best buy area yet (None: it is, or there's no view to judge it by)."""
+        if mode == "range" and (rp := ind.get("tf_1h_range_pos")) is not None and rp > 0.5:
+            return f"it's in the top half of its hourly range ({rp:.0%}) - waiting for a better price"
+        if mode == "value":
+            value = min(v for v in (ind.get("bb_mid"), ind.get("vwap")) if v) if (ind.get("bb_mid") or ind.get("vwap")) else None
+            if value and price > value:
+                return f"it's above its short-term value ({value:,.6g}) - waiting for it to come back"
+        if mode == "support":
+            lo, hi = ind.get("donchian_low"), ind.get("donchian_high")
+            if lo and hi and hi > lo and (price - lo) / (hi - lo) > 0.4:
+                return "it's well above its recent low - waiting for a buy nearer support"
+        if mode == "cool" and (ind.get("tf_1h_rsi", 50) > 60 or ind.get("tf_15m_rsi", 50) > 65):
+            return "it's overbought on the higher timeframes - waiting for it to cool"
+        return None
 
     def _dip_wait(self, s: Snapshot, before: Snapshot | None) -> str | None:
         """Why a mean-reversion dip buy should wait, or None to go ahead."""

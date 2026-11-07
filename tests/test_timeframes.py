@@ -64,3 +64,16 @@ def test_the_higher_timeframe_filter_blocks_a_buy_against_the_hourly_trend():
     run(d.bus.drain())
     assert d.portfolio.position("BTC-USD").is_flat and "1h trend is down" in rejected[-1]["reason"]
     assert Settings().mtf_filter == "off"  # (off until tested)
+
+
+@pytest.mark.parametrize("mode,good,bad", [
+    ("range", {"tf_1h_range_pos": 0.3}, {"tf_1h_range_pos": 0.8}),
+    ("value", {"bb_mid": 101.0}, {"bb_mid": 95.0}),
+    ("support", {"donchian_low": 99.0, "donchian_high": 110.0}, {"donchian_low": 90.0, "donchian_high": 101.0}),
+    ("cool", {"tf_1h_rsi": 45, "tf_15m_rsi": 50}, {"tf_1h_rsi": 72, "tf_15m_rsi": 50}),
+])
+def test_a_buy_waits_for_the_best_buy_area(mode, good, bad):
+    from tradezone.bots.quant import QuantBot
+    assert QuantBot.buy_area_wait(mode, 100.0, good) is None
+    assert QuantBot.buy_area_wait(mode, 100.0, bad)
+    assert QuantBot.buy_area_wait("off", 100.0, bad) is None and Settings().buy_area == "off"
