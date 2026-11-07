@@ -90,6 +90,22 @@ class ExecutionBot(Bot):
                 return f"fat-finger guard: notional {req.qty * px:,.0f} exceeds cap {cap:,.0f}"
         return None
 
+    PLAIN = (("Insufficient funds", "not enough free cash or coins on the exchange (some may be held by an open order "
+                                    "or a hold-stack buy) - the next idea is sized to what's free"),
+             ("Invalid nonce", "the exchange saw a newer request from this API key - is the same key used by another app "
+                               "or a second TradeZone? Give each its own key"),
+             ("Rate limit", "too many requests at once - retried a moment later"),
+             ("minimum", "under the exchange's minimum order"),
+             ("Permission denied", "the API key isn't allowed to trade - turn on 'Create & modify orders' for it"),
+             ("Unknown asset pair", "the exchange doesn't trade this pair right now"),
+             ("Market in post_only", "the market is in post-only mode - only resting orders are taken for now"),
+             ("Service", "the exchange is busy or down for a moment"))
+
+    @classmethod
+    def plain_refusal(cls, reason: str | None) -> str:
+        why = next((v for k, v in cls.PLAIN if k.lower() in (reason or "").lower()), None)
+        return f" ({why})" if why else ""
+
     def cash_room(self, symbol: str) -> float:
         """How much of ``symbol`` the cash still free can buy: cash minus buys already working or filled but not
         yet booked. Two buys approved in the same moment were each sized against the whole cash, and together
@@ -97,6 +113,9 @@ class ExecutionBot(Bot):
         px = self.desk.prices.get(symbol) or 0.0
         if px <= 0:
             return 0.0
+        ask = (getattr(self.desk.broker, "quotes", {}).get(symbol) or {}).get("ask")
+        if ask and ask > px and ask < px * 1.05:
+            px = ask  # (a market buy pays the ask, not the last price)
         prices, fee = self.desk.prices, (lambda sym: 1 + self.settings.fee_bps(sym) / 10_000)  # (fees paid too)
         committed = sum(max(0.0, o.qty - o.filled_qty) * (o.limit_price or prices.get(o.symbol) or 0.0) * fee(o.symbol)
                         for o in self.working.values() if o.side is Side.BUY and not o.reduce_only)
@@ -181,6 +200,13 @@ class ExecutionBot(Bot):
             if qty > room:  # (sized against the same cash as a buy approved just before it: trimmed to what's left)
                 self.act(f"{req.symbol}: buy trimmed {qty:g} -> {room:g} to the cash still free")
                 qty = room
+            px = self.desk.prices.get(req.symbol) or 0.0
+            least = self.desk.broker.min_qty(req.symbol, px) if px > 0 else 0.0
+            if qty < least:  # (what's left is under the exchange's minimum order: it could only be refused)
+                self.bump("cash_blocks")
+                self.act(f"skipped buy {req.symbol}: the cash still free buys {qty:g}, under the exchange's minimum "
+                         f"order ({least:g}) - waits for cash")
+                return
         order = Order(
             req.symbol, req.side, qty, req.id, reason=req.reason,
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
@@ -200,7 +226,8 @@ class ExecutionBot(Bot):
         if order.status is OrderStatus.REJECTED:
             self.bump("broker_rejects")
             self.publish("order.update", order)
-            self.publish("alert", Alert("warning", f"broker rejected {order.id}: {order.reason}", self.name))
+            self.publish("alert", Alert("warning", f"broker rejected {order.side.value} {order.symbol}: {order.reason}"
+                                                   f"{self.plain_refusal(order.reason)}", self.name))
             self.act(f"broker rejected {order.side.value} {order.symbol}: {order.reason}", "warning")
             return
         if not order.status.is_terminal:

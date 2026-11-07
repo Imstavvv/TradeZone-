@@ -77,8 +77,13 @@ class KrakenBroker(Broker):
 
     # ------------------------------------------------------------------ API
     def _next_nonce(self) -> int:
-        self._nonce = max(self._nonce + 1, int(time.time() * 1000))
+        # microseconds (was milliseconds): Kraken refuses a nonce lower than the last one it saw for the key, so an
+        # app on the same key counting in microseconds made every one of ours "Invalid nonce" - every order refused
+        self._nonce = max(self._nonce + 1, time.time_ns() // 1000)
         return self._nonce
+
+    #: refusals Kraken makes BEFORE it looks at the request: nothing was done, so sending it again is safe
+    RETRY_SAFE = (("Invalid nonce", 0.2), ("Rate limit exceeded", 1.5))
 
     async def _private(self, method: str, **params) -> dict:
         if method not in ALLOWED_PRIVATE:  # layer 1: this adapter can never move money off Kraken
@@ -87,16 +92,23 @@ class KrakenBroker(Broker):
         # One private call at a time: Kraken rejects a nonce lower than the last one it saw, so two calls
         # overlapping (the bots' order + the balance check) could arrive out of order and lose an order.
         lock = self._locks.setdefault(id(asyncio.get_running_loop()), asyncio.Lock())
-        async with lock:
-            data = {"nonce": self._next_nonce(), **params}
-            headers = {"API-Key": self.key, "API-Sign": sign(path, data, self.secret),
-                       "Content-Type": "application/x-www-form-urlencoded"}
-            r = await self.client.post(path, content=urllib.parse.urlencode(data), headers=headers)
-        r.raise_for_status()
-        body = r.json()
-        if body.get("error"):
-            raise KrakenError("; ".join(body["error"]))
-        return body.get("result", {})
+        for attempt in range(3):
+            async with lock:
+                data = {"nonce": self._next_nonce(), **params}
+                headers = {"API-Key": self.key, "API-Sign": sign(path, data, self.secret),
+                           "Content-Type": "application/x-www-form-urlencoded"}
+                r = await self.client.post(path, content=urllib.parse.urlencode(data), headers=headers)
+            r.raise_for_status()
+            body = r.json()
+            if not body.get("error"):
+                return body.get("result", {})
+            msg = "; ".join(body["error"])
+            wait = next((w for k, w in self.RETRY_SAFE if k in msg), None)
+            if wait is None or attempt == 2:
+                raise KrakenError(msg)
+            log.warning("kraken %s: %s - sending it again (Kraken did nothing with it)", method, msg)
+            await asyncio.sleep(wait * (attempt + 1))
+        raise KrakenError("unreachable")
 
     async def load_pairs(self) -> None:
         """Kraken's USD pairs that can be bought AND sold right now (status online), with lot sizes and minimums."""
@@ -307,6 +319,9 @@ class KrakenBroker(Broker):
         vol = Decimal(repr(order.qty)).quantize(Decimal(1).scaleb(-p["lot"]), rounding=ROUND_DOWN)
         if vol <= 0 or float(vol) < p["ordermin"]:
             return None
+        px = order.limit_price or (self.quotes.get(order.symbol) or {}).get("last")
+        if px and p.get("costmin") and float(vol) * px < p["costmin"]:
+            return None  # (under Kraken's minimum order value: refused there anyway)
         return f"{vol:.{p['lot']}f}"
 
     async def submit(self, order: Order) -> list[Fill]:
