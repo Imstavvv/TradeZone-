@@ -426,6 +426,17 @@ class QuantBot(Bot):
                 self.bump("buys_waited_for_area")
                 self.act(f"not buying {s.symbol} yet: {wait}")
             return  # (the stance holds: re-checked on the next bar)
+        if self.settings.consensus_voters == "strategies":  # every strategy is a voter: N must agree (buys and sells)
+            votes = self.team_vote(s, new, parts, regime)
+            yes, no = sum(v == "yes" for v in votes.values()), sum(v == "no" for v in votes.values())
+            need = self.settings.consensus_bots
+            if yes < need or yes <= no:
+                why = f"{yes} of {len(votes)} bots agree ({no} against, {need} needed)"
+                if self.blocked.get(s.symbol) != why:
+                    self.blocked[s.symbol] = why
+                    self.bump("consensus_blocked")
+                    self.act(f"no consensus to {side.value} {s.symbol}: {why}")
+                return  # keep re-checking on later bars while the stance holds
         if not closing:
             if self.desk.in_focus(s.symbol):
                 return  # waits for a bigger balance (growth ladder): not proposed yet
@@ -435,6 +446,17 @@ class QuantBot(Bot):
             if not pos.is_flat:
                 return  # already positioned this way
             self._voting_meme = self.settings.is_meme(s.symbol)
+            if self.settings.consensus_voters == "strategies":
+                self.blocked.pop(s.symbol, None)
+                self.emitted[s.symbol] = new
+                self._bars_since[s.symbol] = 0
+                yes = sum(v == "yes" for v in votes.values())
+                reason += f"; {yes} of {len(votes)} bots agree"
+                sig = Signal(s.symbol, side, round(min(1.0, abs(score)), 3), reason, self.name, votes=votes)
+                self.publish("signal.proposed", sig)
+                self.bump("signals")
+                self.act(f"proposed {side.value.upper()} {s.symbol} @ {s.price:,.2f} ({reason})")
+                return
             votes = self.consensus(new, parts, regime)
             yes = sum(v == "yes" for v in votes.values())
             against = [k for k, v in votes.items() if v == "no"]
@@ -502,6 +524,19 @@ class QuantBot(Bot):
             out[fam] = sum(v * x for v, x in vals) / w if w > 0 else 0.0
             trust[fam] = w / len(vals) if vals else (coach.strategy_mult(members[0]) if coach is not None else 1.0)
         return out, trust
+
+    def team_vote(self, s: Snapshot, direction: int, parts: dict[str, float], regime: Regime) -> dict[str, str]:
+        """Every strategy votes yes / no / abstain on this move (all 21, on or off for the score), and the Strategist."""
+        votes = {}
+        for k, fn in STRATEGIES.items():
+            v = fn(s)
+            if v is None:
+                continue
+            x = v * direction
+            votes[k] = "yes" if x > 0.1 else "no" if x < -0.1 else "abstain"
+        self._voting_meme = self.settings.is_meme(s.symbol)
+        votes["strategist"] = self.consensus(direction, parts, regime)["strategist"]
+        return votes
 
     def consensus(self, direction: int, parts: dict[str, float], regime: Regime) -> dict[str, str]:
         """Each voter says yes / no / abstain on opening a position in ``direction``."""

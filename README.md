@@ -1064,6 +1064,10 @@ Two ways of *using* them to choose buys were tested on real price history (16 wi
 
 The hourly-trend filter loses about a third to a half less when prices fall, but makes less when they rise and loses more sideways. Waiting for a "best buy area" made less in every version and saved nothing when prices fell: the bots' best buys are moves already starting (breakouts, momentum), and waiting for a cheaper price misses them.
 
+### 🗳️ 6 bots must agree on every strategy buy and sell
+
+Asked for. Every strategy the Quant knows (all 21: momentum, MACD, VWAP, OBV, ADX, Supertrend, Ichimoku, buying dips, Bollinger Bands, Stochastic, RSI-style oscillators, Money Flow, breakouts, Keltner, ...) and the Strategist vote yes / no / abstain on each idea. A strategy buy or a strategy ("change of mind") sale goes ahead only when **at least 6 say yes and more say yes than no** (`TZ_CONSENSUS_BOTS=6`). An idea that doesn't have the votes yet isn't dropped: it's re-checked on every bar while the view holds. Stops, the −7% loss floor, take-profits and your own sales never wait for a vote. `TZ_CONSENSUS_VOTERS=families` brings back the old vote (the 3 strategy families and the Strategist, 4 voters, 2 yes and nobody against).
+
 ### 🎛️ Every trade has its own buttons
 
 On the **Open trades** page, each trade has its own controls (asked for):

@@ -327,6 +327,12 @@ class Settings:
     # -$848 / -$786, -$155 / -$253. Every one made less when prices rose and saved nothing when they fell: the best
     # buys are moves already starting (breakouts, momentum), which waiting for a cheaper price misses. So off.
     buy_area: str = "off"
+    # the team vote (asked for: "6 bots needed to agree on buys / sells"): every strategy (all 21: MACD, Supertrend,
+    # RSI-style oscillators, ...) and the Strategist vote on each strategy buy and sell, and at least consensus_bots
+    # must say yes - more yes than no. ("families": the old vote of the 3 strategy families + the Strategist, 4 in
+    # all.) Stops, the loss floor, take-profits and your own sales never wait for a vote.
+    consensus_voters: str = "strategies"
+    consensus_bots: int = 6
     max_kraken_coins: int = 600
     # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the
     # same bar the sell check uses (was $1M), so whatever is listed can be sold again. Every buy still has to pass

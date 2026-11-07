@@ -39,6 +39,7 @@ def test_buy_blocked_when_a_bot_disagrees(desk):
 
 
 def test_buy_proceeds_when_team_agrees(desk):
+    desk.settings.consensus_voters = "families"  # (the 4-voter family vote these tests are about)
     signals = capture(desk, "signal.proposed")
     # momentum up, breakout up, RSI neutral (abstain), regime unknown (abstain) -> 2 yes, 0 no
     push(desk, snap(price=101, rsi=55, ema_fast=103, ema_slow=100, hi=100.5))
@@ -48,6 +49,7 @@ def test_buy_proceeds_when_team_agrees(desk):
 
 @pytest.mark.parametrize("share,trades", [(0.25, True), (0.5, True), (0.75, False), (1.0, False)])
 def test_the_share_of_voters_that_must_agree(desk, share, trades):
+    desk.settings.consensus_voters = "families"  # (the 4-voter family vote these tests are about)
     """4 voters; this setup gets 2 yes (momentum, breakout) and 2 abstain: 25% and 50% let it through, 75% / 100% don't."""
     desk.settings.risk.consensus_min_share = share
     signals = capture(desk, "signal.proposed")
@@ -62,6 +64,7 @@ def test_by_default_the_old_count_rule_applies(desk):
 
 
 def test_consensus_rechecked_while_stance_holds(desk):
+    desk.settings.consensus_voters = "families"  # (the 4-voter family vote these tests are about)
     signals = capture(desk, "signal.proposed")
     push(desk, snap(price=101, rsi=80, ema_fast=103, ema_slow=100, hi=100.5))  # blocked
     push(desk, snap(price=101, rsi=55, ema_fast=103, ema_slow=100, hi=100.5))  # now agreed
@@ -154,3 +157,17 @@ def test_scout_builds_bars_from_live_ticks():
     assert len(scout.history("BTC-USD")) == 39
     assert len(snaps) == 39 - 29  # snapshots start after the 30-bar warmup
     assert desk.prices["BTC-USD"] == 100 + 399 % 7  # prices stay tick-fresh for stops
+
+
+def test_six_bots_must_agree_on_a_buy(desk):
+    """Every strategy with an opinion and the Strategist vote; at least 6 yes, more yes than no (asked for)."""
+    assert desk.settings.consensus_voters == "strategies" and desk.settings.consensus_bots == 6
+    signals = capture(desk, "signal.proposed")
+    push(desk, snap(price=101, rsi=55, ema_fast=103, ema_slow=100, hi=100.5))  # only a few strategies say yes
+    assert not [x for x in signals if x.source == "quant"]
+    why = next(iter(desk.bots["quant"].blocked.values()), "")
+    assert "bots agree" in why and "6 needed" in why
+    desk.settings.consensus_bots = 2  # (a lower bar: the same idea goes through)
+    push(desk, snap(price=101.2, rsi=55, ema_fast=103.2, ema_slow=100, hi=100.5))
+    sent = [x for x in signals if x.source == "quant"]
+    assert sent and "bots agree" in sent[-1].reason
