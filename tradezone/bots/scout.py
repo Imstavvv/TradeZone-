@@ -6,6 +6,7 @@ import math
 from collections import deque
 
 from ..core.bus import Event
+from ..core.extra_indicators import ExtraIndicators
 from ..core.indicators import EMA, RSI, RollingWindow
 from ..core.models import Alert, Snapshot, Tick, now
 from .base import Bot
@@ -41,6 +42,9 @@ class _Book:
         self.pv: deque[tuple[float, float]] = deque(maxlen=20)  # (price x volume, volume) for VWAP
         self.obv = 0.0
         self.obv_hist: deque[float] = deque(maxlen=11)
+        # ADX, Aroon, Parabolic SAR, Supertrend, Ichimoku, TRIX, CMF, CCI, Williams %R, MFI, Keltner
+        self.extra = ExtraIndicators()
+        self.extra_now: dict = {}
 
 
 class ScoutBot(Bot):
@@ -122,6 +126,7 @@ class ScoutBot(Bot):
         b.donchian.push(t.price)
         b.lows.push(low)
         b.highs.push(high)
+        b.extra_now = b.extra.update(high, low, t.price, volume)  # (every bar, warm-up included)
         avg_vol = b.volumes.mean() if b.volumes.full else 0.0  # the 20 bars BEFORE this one
         recent_vol = (sum(list(b.volumes.data)[-4:]) + volume) / 5 if b.volumes.full else 0.0  # this bar + the 4 before
         b.volumes.push(volume)
@@ -158,6 +163,7 @@ class ScoutBot(Bot):
             "volume_ratio_5": recent_vol / avg_vol if avg_vol > 0 else None,
             "volume": volume,  # (this bar's raw volume: the volume breakout keeps its own longer average)
             **self._more(b, t.price, macd),
+            **{k: v for k, v in b.extra_now.items() if v is not None},
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
         self.bump("snapshots")

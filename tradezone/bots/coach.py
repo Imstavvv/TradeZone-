@@ -48,7 +48,10 @@ TEAM_RULES = [
 STRATEGIES = tuple(ALL_STRATEGIES)
 NICE = {"momentum": "Momentum", "mean_reversion": "Buying dips", "breakout": "Breakouts", "macd": "MACD",
         "vwap": "VWAP", "trend": "50-bar trend", "roc": "Rate of change", "obv": "On-balance volume",
-        "bollinger": "Bollinger Bands", "stochastic": "Stochastic"}
+        "bollinger": "Bollinger Bands", "stochastic": "Stochastic",
+        "adx": "ADX trend strength", "aroon": "Aroon", "psar": "Parabolic SAR", "supertrend": "Supertrend",
+        "ichimoku": "Ichimoku", "trix": "TRIX", "cmf": "Chaikin Money Flow", "cci": "CCI", "williams": "Williams %R",
+        "mfi": "Money Flow Index", "keltner": "Keltner Channels"}
 FAMILY_OF = {m: fam for fam, members in FAMILIES.items() for m in members}
 CORE = ("momentum", "mean_reversion", "breakout")
 

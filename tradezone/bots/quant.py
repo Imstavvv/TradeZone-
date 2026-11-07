@@ -100,6 +100,103 @@ def stochastic_score(s: Snapshot) -> float | None:
     return max(-1.0, min(1.0, (50 - k) / 30))
 
 
+def _atr(s: Snapshot) -> float:
+    return max(s.indicators.get("atr10") or s.indicators.get("atr") or 0.0, s.price * 1e-6, 1e-12)
+
+
+def adx_score(s: Snapshot) -> float | None:
+    """ADX with +DI / -DI: a trend only counts when ADX says there is one (over 20); its direction from the DIs."""
+    ind = s.indicators
+    adx, p, m = ind.get("adx"), ind.get("pdi"), ind.get("mdi")
+    if adx is None or p is None or m is None or adx < 20:
+        return None if adx is None else 0.0
+    return math.tanh((p - m) / 15) * min(1.0, 0.5 + (adx - 20) / 20)
+
+
+def aroon_score(s: Snapshot) -> float | None:
+    """Aroon (25): a recent new high (up near 100) against a recent new low."""
+    u, d = s.indicators.get("aroon_up"), s.indicators.get("aroon_down")
+    if u is None or d is None:
+        return None
+    x = (u - d) / 100
+    return x if abs(x) >= 0.4 else 0.0
+
+
+def psar_score(s: Snapshot) -> float | None:
+    """Parabolic SAR: above the SAR is an uptrend (stronger the further above, in ATRs)."""
+    sar, up = s.indicators.get("psar"), s.indicators.get("psar_up")
+    if sar is None or up is None:
+        return None
+    return (1 if up else -1) * min(1.0, 0.3 + abs(s.price - sar) / (3 * _atr(s)))
+
+
+def supertrend_score(s: Snapshot) -> float | None:
+    """Supertrend (10, 3): its trend direction."""
+    up = s.indicators.get("supertrend_up")
+    return None if up is None else (0.6 if up else -0.6)
+
+
+def ichimoku_score(s: Snapshot) -> float | None:
+    """Ichimoku: Tenkan above Kijun (and the price above Kijun) is bullish."""
+    t, k = s.indicators.get("tenkan"), s.indicators.get("kijun")
+    if t is None or k is None:
+        return None
+    a = _atr(s)
+    return 0.5 * math.tanh((t - k) / a) + 0.5 * math.tanh((s.price - k) / (2 * a))
+
+
+def trix_score(s: Snapshot) -> float | None:
+    """TRIX (15): the slope of a triple-smoothed average, against what's normal for the coin."""
+    tx, vol = s.indicators.get("trix"), s.indicators.get("volatility", 0.0)
+    return None if tx is None or vol <= 0 else math.tanh(tx / (0.1 * vol))
+
+
+def cmf_score(s: Snapshot) -> float | None:
+    """Chaikin Money Flow (20): closes near the bars' highs on volume is buying pressure."""
+    c = s.indicators.get("cmf")
+    return None if c is None else math.tanh(4 * c)
+
+
+def cci_score(s: Snapshot) -> float | None:
+    """CCI (20): under -100 is oversold (buy the dip), over +100 overbought."""
+    c = s.indicators.get("cci")
+    if c is None:
+        return None
+    return 0.0 if abs(c) < 100 else max(-1.0, min(1.0, -c / 200))
+
+
+def williams_score(s: Snapshot) -> float | None:
+    """Williams %R (14): under -80 is oversold, over -20 overbought."""
+    r = s.indicators.get("williams_r")
+    if r is None:
+        return None
+    if r < -80:
+        return min(1.0, (-80 - r) / 20 + 0.3)
+    if r > -20:
+        return -min(1.0, (r + 20) / 20 + 0.3)
+    return 0.0
+
+
+def mfi_score(s: Snapshot) -> float | None:
+    """Money Flow Index (14): RSI with volume - under 20 oversold, over 80 overbought."""
+    m = s.indicators.get("mfi")
+    if m is None:
+        return None
+    if m < 20:
+        return min(1.0, (20 - m) / 20 + 0.3)
+    if m > 80:
+        return -min(1.0, (m - 80) / 20 + 0.3)
+    return 0.0
+
+
+def keltner_score(s: Snapshot) -> float | None:
+    """Keltner Channels (20 EMA +/- 2 ATR): a close outside the channel is a breakout."""
+    up, lo = s.indicators.get("keltner_upper"), s.indicators.get("keltner_lower")
+    if up is None or lo is None:
+        return None
+    return 1.0 if s.price > up else -1.0 if s.price < lo else 0.0
+
+
 MINOR_WEIGHT = 0.2  # a model weighted this little in a regime abstains instead of vetoing
 
 #: every strategy the Quant runs (each one's record is kept by the Coach, which trusts the winners more)
@@ -114,12 +211,17 @@ STRATEGIES = {
     "obv": obv_score,
     "bollinger": bollinger_score,
     "stochastic": stochastic_score,
+    # the wider set (each off until it's on in settings.strategies)
+    "adx": adx_score, "aroon": aroon_score, "psar": psar_score, "supertrend": supertrend_score,
+    "ichimoku": ichimoku_score, "trix": trix_score, "cmf": cmf_score,
+    "cci": cci_score, "williams": williams_score, "mfi": mfi_score, "keltner": keltner_score,
 }
 #: ...grouped into the three families that vote (so ten models don't give ten vetoes)
 FAMILIES = {
-    "momentum": ("momentum", "macd", "vwap", "trend", "roc", "obv"),
-    "mean_reversion": ("mean_reversion", "bollinger", "stochastic"),
-    "breakout": ("breakout",),
+    "momentum": ("momentum", "macd", "vwap", "trend", "roc", "obv", "adx", "aroon", "psar", "supertrend", "ichimoku",
+                 "trix", "cmf"),
+    "mean_reversion": ("mean_reversion", "bollinger", "stochastic", "cci", "williams", "mfi"),
+    "breakout": ("breakout", "keltner"),
 }
 
 

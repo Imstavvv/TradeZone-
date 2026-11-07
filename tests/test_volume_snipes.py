@@ -78,13 +78,14 @@ def test_can_be_switched_off():
     assert not any("volume snipe" in i.reason for i in got)
 
 
-def test_all_ten_strategies_are_available_and_can_be_switched():
+def test_all_21_strategies_are_available_and_can_be_switched():
     from fastapi.testclient import TestClient
 
     from tradezone.bots.quant import STRATEGIES
     from tradezone.server import create_app
     desk = make()
-    assert len(STRATEGIES) == 10
+    assert len(STRATEGIES) == 21  # the 10 original + ADX, Aroon, Parabolic SAR, Supertrend, Ichimoku, TRIX, CMF, CCI,
+    # Williams %R, MFI, Keltner (each off until switched on)
     info = {x["key"]: x for x in desk.strategy_info()}
     assert {k for k, x in info.items() if x["on"] and k in STRATEGIES} == {"momentum", "mean_reversion", "breakout",
                                                                            "macd", "obv"}
