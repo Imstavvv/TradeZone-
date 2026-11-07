@@ -424,11 +424,13 @@ class TradingDesk:
         async def one(sym: str) -> tuple[str, list[dict] | None]:
             return sym, await self.feed.history(sym, gran, 300)
 
-        try:
-            results = await asyncio.wait_for(
-                asyncio.gather(*(one(s) for s in self.settings.symbols)), timeout)
-        except asyncio.TimeoutError:
-            return 0
+        # each coin's history is kept as it arrives: one slow (or paced) coin no longer throws away all the others
+        syms = list(self.settings.symbols)
+        tasks = [asyncio.ensure_future(one(s)) for s in syms]
+        done, pending = await asyncio.wait(tasks, timeout=max(timeout, 1.5 * len(syms)))
+        for t in pending:
+            t.cancel()
+        results = [t.result() for t in done if not t.cancelled() and t.exception() is None]
         total = 0
         for sym, candles in results:
             if candles:

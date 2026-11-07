@@ -15,6 +15,7 @@ trade there (including meme coins Coinbase doesn't list) has a price, and practi
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 
@@ -102,6 +103,7 @@ async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbol
 class KrakenFeed(MarketFeed):
     name = "kraken"
     POLL_EVERY_S = 2.0
+    HISTORY_GAP_S = 1.05  # between price-history requests
 
     async def last_prices(self, symbols: list[str]) -> dict[str, float]:
         """Kraken's last price for each symbol it lists (to check a discovered coin is really the same coin)."""
@@ -129,6 +131,8 @@ class KrakenFeed(MarketFeed):
         self.last_error = ""
         self.mode = "poll"
         self._last_poll = 0.0
+        self._history_lock = asyncio.Lock()
+        self._history_at = 0.0
         self._vol_today: dict[str, float] = {}
 
     async def start(self) -> None:
@@ -218,12 +222,29 @@ class KrakenFeed(MarketFeed):
         p = self.pairs.get(symbol)
         if minutes is None or p is None:
             return None
-        try:
-            r = await self.client.get("/0/public/OHLC", params={"pair": p["pair"], "interval": minutes})
-            r.raise_for_status()
-            result = r.json().get("result") or {}
-        except (httpx.HTTPError, ValueError) as exc:
-            self.last_error = f"history {symbol}: {type(exc).__name__}: {exc}"[:200]
+        result: dict = {}
+        for attempt in range(4):
+            async with self._history_lock:  # one at a time, ~a second apart (Kraken's public limit)
+                wait = self.HISTORY_GAP_S - (time.monotonic() - self._history_at)
+                if wait > 0:
+                    await asyncio.sleep(wait)
+                try:
+                    r = await self.client.get("/0/public/OHLC", params={"pair": p["pair"], "interval": minutes})
+                    r.raise_for_status()
+                    body = r.json()
+                except (httpx.HTTPError, ValueError) as exc:
+                    self.last_error = f"history {symbol}: {type(exc).__name__}: {exc}"[:200]
+                    return None
+                finally:
+                    self._history_at = time.monotonic()
+            errors = body.get("error") or []
+            if not errors:
+                result = body.get("result") or {}
+                break
+            if any("Too many requests" in e or "Rate limit" in e for e in errors) and attempt < 3:
+                await asyncio.sleep(1.5 * (attempt + 1))  # (Kraken said slow down: wait a little longer each time)
+                continue
+            self.last_error = f"history {symbol}: {'; '.join(errors)}"[:200]  # (said, not silently "no history")
             return None
         rows = next((v for k, v in result.items() if k != "last" and isinstance(v, list)), [])
         candles = [{"ts": float(row[0]), "open": float(row[1]), "high": float(row[2]), "low": float(row[3]),

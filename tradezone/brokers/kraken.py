@@ -22,6 +22,7 @@ import base64
 import hashlib
 import hmac
 import logging
+import re
 import time
 import urllib.parse
 from decimal import ROUND_DOWN, Decimal
@@ -233,7 +234,16 @@ class KrakenBroker(Broker):
             log.warning("kraken holdings fetch failed: %s", exc)
             return None
         free = self._fold({k: v for k, v in raw.items() if not k.endswith(self.LOCKED_SUFFIXES)})
-        locked = self._fold({k[:-2] + ".F": v for k, v in raw.items() if k.endswith(self.LOCKED_SUFFIXES)})
+        # staked names can carry a number: ETH2.S (staked ETH), DOT28.S (bonded 28 days), SOL03.S - the coin is the
+        # name without it (a coin whose own name ends in a digit, like 1INCH, doesn't: the number is only stripped
+        # when the plain name isn't a coin Kraken lists)
+        known = {p.get("alt", "") for p in self.pairs.values()} | {p["base"] for p in self.pairs.values()}
+
+        def coin(name: str) -> str:
+            name = name[:-2]
+            plain = re.sub(r"\d+$", "", name)
+            return name if name in known or "X" + name in known else plain
+        locked = self._fold({coin(k) + ".F": v for k, v in raw.items() if k.endswith(self.LOCKED_SUFFIXES)})
         by_base = {p["base"]: sym for sym, p in self.pairs.items()}
         out: dict[str, dict] = {}
         for base in set(free) | set(locked):

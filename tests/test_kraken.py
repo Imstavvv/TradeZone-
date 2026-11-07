@@ -594,3 +594,10 @@ def test_holdings_say_plainly_when_the_account_cant_list_them():
         c.post("/api/signin/code", json={"code": d.security.recovery_code})
         r = c.get("/api/holdings").json()
     assert r["available"] is False and "Kraken" in r["why"]
+
+
+def test_staked_coins_with_a_number_in_their_name_are_shown_as_that_coin():
+    # Kraken names some staking balances with a number: ETH2.S, DOT28.S (bonded 28 days), SOL03.S
+    _fk, desk = live_kraken(held={"XDG28.S": 10.0, "XBT03.S": 0.5})
+    data = run(desk.live_broker.holdings())
+    assert data["DOGE-USD"]["locked"] == 10.0 and data["BTC-USD"]["locked"] == 0.5
