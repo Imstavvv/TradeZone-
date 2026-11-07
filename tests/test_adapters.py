@@ -118,4 +118,4 @@ def test_all_the_cash_goes_to_crypto_by_default():
     s = Settings()
     assert s.alpaca_stocks == [] and s.discover_stocks is False  # no stocks
     assert s.dip_keep_cash == 0.0 and s.stack_keep_cash == 0.0  # no cash kept back
-    assert s.max_loss_pct == 0.20 and s.loser_cap == 0.15  # the loss protections stay on
+    assert s.max_loss_pct == 0.20 and s.loser_cap == 0.0  # the loss floor stays; the cap is off (asked for)

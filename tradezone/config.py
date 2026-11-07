@@ -334,7 +334,11 @@ class Settings:
     # buys (and no averaging down) until some recover - so a slide can't swallow the whole balance (0 = off).
     # Tested on real price history in rising, falling and sideways markets: about half the loss when prices
     # fall, less lost sideways, but less profit when prices only rise (switch it off in Settings for that).
-    loser_cap: float = 0.15
+    # OFF (you asked): losing trades in other coins no longer stop new buys. Tested on real price history, off earns
+    # more when prices rise and loses more when they fall (a slide can pull most of the balance into coins held below
+    # what was paid). Settings -> Your trading rules -> Underwater cap turns it back on at loser_cap_on.
+    loser_cap: float = 0.0
+    loser_cap_on: float = 0.15
     loser_cap_depth: float = 0.005  # a trade counts once it's this far below break-even after fees (tested:
                                     # 0, 0.5%, 1%; and by price drop alone 0.5-2% - this did best on unseen data)
     # a brand-new trade starts below break-even (it hasn't earned back its fees yet): it only counts toward the

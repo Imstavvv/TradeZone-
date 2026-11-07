@@ -40,14 +40,30 @@ def idea(desk, sym, kind=SignalKind.ENTRY, side=Side.BUY):
     return out[-1]["reason"] if out else None
 
 
-def test_it_is_on_by_default_at_the_tested_15_percent():
+def test_it_is_off_by_default_so_other_coins_losers_dont_stop_new_buys():
     d = make()
-    assert d.settings.loser_cap == 0.15 and d.settings.loser_cap_depth == 0.005
-    assert d.BEST["loser_cap"] == 0.15 and d.protocol_status()["off"] == []
+    assert d.settings.loser_cap == 0.0 and d.settings.loser_cap_on == 0.15 and d.BEST["loser_cap"] == 0.0
+    hold(d, "BTC-USD", cost=400.0, now_px=54_000.0, avg=60_000.0)  # a big loser in another coin
+    assert "underwater cap" not in (idea(d, "SOL-USD") or "")  # the new buy goes ahead
+
+
+def test_a_cap_saved_before_is_switched_off_once_then_your_choice_holds(tmp_path):
+    from tradezone.persistence import StateStore
+    db = str(tmp_path / "tz.db")
+    d = make(db)
+    StateStore(d.journal).save("loser_cap", {"cap": 0.15})  # (saved by an older version)
+    run(d.start())
+    assert d.settings.loser_cap == 0.0
+    d.set_loser_cap(True)  # you turn it back on in Settings...
+    run(d.shutdown())
+    d2 = make(db)
+    run(d2.start())
+    assert d2.settings.loser_cap == 0.15  # ...and that choice is kept
+    run(d2.shutdown())
 
 
 def test_no_new_buys_while_losers_tie_up_the_cap_and_buying_resumes_when_they_recover():
-    d = make()
+    d = make(loser_cap=0.15)  # (when switched on)
     hold(d, "BTC-USD", cost=200.0, now_px=54_000.0, avg=60_000.0)  # 20% of the balance, 10% under
     assert "underwater cap" in (idea(d, "SOL-USD") or "")
     st = d.loser_cap_status()
@@ -58,13 +74,13 @@ def test_no_new_buys_while_losers_tie_up_the_cap_and_buying_resumes_when_they_re
 
 
 def test_a_small_loser_under_the_cap_doesnt_block():
-    d = make()
+    d = make(loser_cap=0.15)
     hold(d, "BTC-USD", cost=100.0, now_px=54_000.0, avg=60_000.0)  # 10% of the balance
     assert "underwater cap" not in (idea(d, "SOL-USD") or "")
 
 
 def test_it_never_blocks_selling():
-    d = make()
+    d = make(loser_cap=0.15)
     hold(d, "BTC-USD", cost=300.0, now_px=54_000.0, avg=60_000.0)  # the cap is hit
     hold(d, "ETH-USD", cost=100.0, now_px=3_600.0, avg=3_000.0)  # a winner
     assert "underwater cap" not in (idea(d, "ETH-USD", kind=SignalKind.EXIT, side=Side.SELL) or "")
@@ -76,20 +92,20 @@ def test_switched_off_buys_go_ahead():
     assert "underwater cap" not in (idea(d, "SOL-USD") or "")
 
 
-def test_the_switch_is_remembered_and_counts_as_off_the_tested_best(tmp_path):
+def test_the_switch_is_remembered_and_the_tested_best_button_leaves_it_off(tmp_path):
     db = str(tmp_path / "tz.db")
     d = make(db)
     with TestClient(create_app(d, run_desk=False)) as c:
-        assert c.post("/api/loser-cap", json={"on": False}).json()["cap"] == 0.0
-        assert "loser_cap" in {x["key"] for x in d.protocol_status()["off"]}
-        assert c.get("/api/state").json()["loser_cap"]["cap"] == 0.0
+        assert c.post("/api/loser-cap", json={"on": True}).json()["cap"] == 0.15
+        assert "loser_cap" in {x["key"] for x in d.protocol_status()["off"]}  # (on differs from the new default)
+        assert c.get("/api/state").json()["loser_cap"]["cap"] == 0.15
     d2 = make(db)
     run(d2.start())
-    assert d2.settings.loser_cap == 0.0
+    assert d2.settings.loser_cap == 0.15  # your choice, after a restart
     d2.apply_best()
-    assert d2.settings.loser_cap == 0.15
+    assert d2.settings.loser_cap == 0.0  # "use the tested-best settings" no longer brings it back
     run(d2.shutdown())
     d3 = make(db)
     run(d3.start())
-    assert d3.settings.loser_cap == 0.15
+    assert d3.settings.loser_cap == 0.0
     run(d3.shutdown())

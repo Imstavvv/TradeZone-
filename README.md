@@ -722,7 +722,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) - **except at the loss floor** | **on** | Settings → Your trading rules, `TZ_NEVER_SELL_AT_LOSS` |
 | **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your trading rules, `TZ_MAX_LOSS_PCT` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
-| **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **on** | Settings → Your trading rules, `TZ_LOSER_CAP` |
+| **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **off** (you asked: losing trades in other coins no longer stop new buys; it loses more when prices fall) | Settings → Your trading rules, `TZ_LOSER_CAP=0.15` to turn it on |
 | **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | off (optional) | Settings → Your trading rules, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
 | Stop-loss 20% from the buy price (was 33%) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
