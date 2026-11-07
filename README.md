@@ -847,6 +847,8 @@ Each won one half and lost the other somewhere, so they stay off.
 
 **Taking profit as soon as it covers the costs, then pickier buys.** Real-money targets of +1.5% / +1% after fees (meme coins +3% / +2%, instead of +4% / +10%), with and without a stricter buy bar (0.35, three agreeing indicators): falling markets lost two-thirds less (−$131 / −$75 vs −$389 / −$256) - but mostly because a target that small barely clears the fees, so most trades were never opened (2 trades instead of 22 in one window) - and rising markets earned 70-85% less (+$63-103 / +$47-50 vs +$396 / +$173): the winners were cut off. The Skimmer's quick +1.5% flips (`TZ_FLIP_MAX_SKIMS`) earned a little more rising (+$413 / +$182) but lost more falling (−$465 / −$285). Winners keep running: at the target a third is banked, the stop moves into profit, and the rest rides with no ceiling.
 
+**How many voters must agree** (`TZ_CONSENSUS_MIN_SHARE`, a share of the 4 voters; today's rule, 2 of 4, is 50%; any "no" still blocks): 25% +$397 / +$174 rising, the same as 50% falling; **75%** +$409 / +$183 rising (vs +$396 / +$181) and −$357 / −$264 falling (vs −$388 / −$256) - better on one half, worse on the other; 100% +$357 / +$121 rising, −$413 / −$262 falling. 50% stays.
+
 None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
