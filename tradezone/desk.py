@@ -864,6 +864,10 @@ class TradingDesk:
         if saved and isinstance(saved.get("on"), list) and "TZ_STRATEGIES" not in os.environ:
             from .bots.quant import STRATEGIES
             self.settings.strategies = [k for k in saved["on"] if k in STRATEGIES]
+            if not saved.get("mfi_offered"):  # (saved before MFI was tested in: added once; switch it off any time)
+                if "mfi" not in self.settings.strategies:
+                    self.settings.strategies.append("mfi")
+                self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
         if (cap := self.store.load("live_cap")) is not None and "TZ_LIVE_MAX_CAPITAL" not in os.environ:
             self.settings.live_max_capital = float(cap.get("usd", 0.0))
         if (ns := self.store.load("never_sell")) is not None and "TZ_NEVER_SELL_AT_LOSS" not in os.environ:
@@ -1047,14 +1051,14 @@ class TradingDesk:
             raise ValueError("momentum, buying dips and breakouts are the core of the team and always run")
         chosen = [k for k in self.settings.strategies if k != key] + ([key] if on else [])
         self.settings.strategies = [k for k in STRATEGIES if k in chosen]
-        self.store.save("strategies", {"on": self.settings.strategies})
+        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
         self.bus.publish("alert", Alert("info", f"Strategy {key} {'on' if on else 'off'}", "operator"))
         return self.strategy_info()
 
     # -- "make me money" protocol: the safest proven path, step by step -------------------------
     #: the combination that tested best together on real price history (each value tested both ways)
     BEST: ClassVar[dict[str, object]] = {
-        "strategies": ["macd", "obv"], "snipe": True, "surge_snipe": True, "surge_volume_ratio": 4.0,
+        "strategies": ["macd", "obv", "mfi"], "snipe": True, "surge_snipe": True, "surge_volume_ratio": 4.0,
         "pullback": True, "flipper": True, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
@@ -1106,7 +1110,7 @@ class TradingDesk:
         """Put every bot setting back on the combination that tested best (your risk level and cap stay yours)."""
         for k, v in self.BEST.items():
             setattr(self.settings, k, list(v) if isinstance(v, list) else v)
-        self.store.save("strategies", {"on": self.settings.strategies})
+        self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True})
         self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap, "chosen_after_off": True})

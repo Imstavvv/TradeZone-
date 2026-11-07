@@ -448,7 +448,9 @@ class Settings:
     # acted on at once (not at the bar close), if momentum agrees.
     # strategies the Quant runs beyond momentum / mean reversion / breakout. All ten exist (Settings -> Trading
     # strategies); on by default are the two that didn't cost profit on real price history
-    strategies: list[str] = field(default_factory=lambda: ["macd", "obv"])
+    # MFI (Money Flow Index) added: of the 11 more indicators tested, the only one better or the same in every
+    # market on both halves of the price history (16 windows each)
+    strategies: list[str] = field(default_factory=lambda: ["macd", "obv", "mfi"])
     # dip buys led by mean reversion (RSI under 35): tested on real price history they went bad MORE often than
     # buying at random, in rising, falling and sideways markets alike - they buy while the coin is still falling.
     # "off" (as before) | "turn" (wait until the RSI and the price tick back up) | "trend" (only above the

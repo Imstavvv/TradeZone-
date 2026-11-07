@@ -88,13 +88,13 @@ def test_all_21_strategies_are_available_and_can_be_switched():
     # Williams %R, MFI, Keltner (each off until switched on)
     info = {x["key"]: x for x in desk.strategy_info()}
     assert {k for k, x in info.items() if x["on"] and k in STRATEGIES} == {"momentum", "mean_reversion", "breakout",
-                                                                           "macd", "obv"}
+                                                                           "macd", "obv", "mfi"}  # (MFI: tested in)
     with TestClient(create_app(desk, run_desk=False)) as c:
         r = c.post("/api/strategies/bollinger", json={"on": True})
         assert r.status_code == 200 and next(x for x in r.json() if x["key"] == "bollinger")["on"]
         assert c.post("/api/strategies/momentum", json={"on": False}).status_code == 400  # the core always runs
         assert c.post("/api/strategies/nope", json={"on": True}).status_code == 400
-    assert desk.store.load("strategies")["on"] == ["macd", "obv", "bollinger"]  # remembered after a restart
+    assert set(desk.store.load("strategies")["on"]) == {"macd", "obv", "mfi", "bollinger"}  # remembered after a restart
 
 
 def test_every_strategy_scores_a_real_bar():
@@ -122,4 +122,33 @@ def test_the_trade_finders_can_be_switched_too_and_are_remembered(tmp_path):
     d2 = TradingDesk(s2, feed=SimulatedFeed(s2.symbols), journal=Journal(db))
     run(d2.start())
     assert d2.settings.pullback is False
+    run(d2.shutdown())
+
+
+
+def test_money_flow_index_is_added_once_to_saved_choices_and_a_later_off_is_kept(tmp_path):
+    from tradezone.persistence import StateStore
+    db = str(tmp_path / "tz.db")
+    d = make(db) if "db" in make.__code__.co_varnames else None
+    if d is None:
+        from tradezone.config import Settings
+        from tradezone.desk import TradingDesk
+        from tradezone.journal import Journal
+        from tradezone.market.simulated import SimulatedFeed
+
+        def boot():
+            s = Settings(feed="sim", symbols=["BTC-USD"])
+            return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
+    else:
+        def boot():
+            return make(db)
+    d = boot()
+    StateStore(d.journal).save("strategies", {"on": ["macd", "obv"]})  # (saved by an older version)
+    run(d.start())
+    assert "mfi" in d.settings.strategies
+    d.set_strategy("mfi", False)  # you switch it off...
+    run(d.shutdown())
+    d2 = boot()
+    run(d2.start())
+    assert "mfi" not in d2.settings.strategies  # ...and it stays off
     run(d2.shutdown())

@@ -849,6 +849,22 @@ Each won one half and lost the other somewhere, so they stay off.
 
 **How many voters must agree** (`TZ_CONSENSUS_MIN_SHARE`, a share of the 4 voters; today's rule, 2 of 4, is 50%; any "no" still blocks): 25% +$397 / +$174 rising, the same as 50% falling; **75%** +$409 / +$183 rising (vs +$396 / +$181) and −$357 / −$264 falling (vs −$388 / −$256) - better on one half, worse on the other; 100% +$357 / +$121 rising, −$413 / −$262 falling. 50% stays.
 
+**11 more indicators** (ADX +DI/−DI, Aroon, Parabolic SAR, Supertrend, Ichimoku, TRIX, Chaikin Money Flow, CCI, Williams %R, Money Flow Index, Keltner Channels; standard settings, in `core/extra_indicators.py`), each tried on its own on top of the setup (16 windows a market, tuning / unseen half; the underwater cap off):
+
+| | Rising | Falling | Sideways |
+| --- | --- | --- | --- |
+| As it was | +$466 / +$330 | −$744 / −$522 | −$49 / −$72 |
+| **+ Money Flow Index (on)** | **+$488 / +$342** | **−$720 / −$522** | **−$47 / −$66** |
+| + Ichimoku | +$506 / +$325 | −$738 / −$501 | −$51 / −$110 |
+| + CCI | +$505 / +$308 | −$745 / −$470 | −$44 / −$84 |
+| + Aroon / Keltner / TRIX / Williams %R | +$508-528 / +$280-312 | −$735-787 / −$474-516 | −$40-55 / −$78-98 |
+| + ADX / Parabolic SAR / Supertrend | +$433-479 / +$282-309 | −$735-743 / −$515-522 | −$39-50 / −$87-111 |
+| + Chaikin Money Flow | no change | no change | no change |
+
+Only the **Money Flow Index** (a volume-weighted RSI: dip-buying) was better or the same everywhere, so it's on (added once to saved choices too; switch it off in Settings). The others did better on the tuning half and worse on the unseen half - fitting the past, not an edge - and stay available but off.
+
+**The underwater cap off** (you asked): +$466 / +$330 rising vs +$396 / +$181 with it, but −$744 / −$522 falling vs −$388 / −$256, and −$49 / −$72 sideways vs −$34 / −$23.
+
 None beat "as it is" in every market, so nothing changed by default. The lower loss floors also sell three times as much at a loss. If you'd rather lose less in a fall and accept less profit in a rise, the smaller trade size or the underwater budget are the honest dials (the risk level in Settings, `TZ_LIVE_MAX_POSITION_PCT`, `TZ_UNDERWATER_BUDGET`).
 
 ### Tested on real price history: accumulating and the quick-flip slice are off
