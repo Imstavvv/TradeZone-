@@ -144,6 +144,10 @@ class Settings:
     maker_exits: bool = False
     kraken_fee_bps: float = 40.0  # Kraken's taker fee per side at the starting tier (0.40%); fills report the real fee
     kraken_memes: bool = True  # with Kraken prices: add the meme coins Kraken lists (if they trade enough)
+    # the whole Kraken balance trades (asked for): coins you hold there (bought or deposited outside TradeZone) are
+    # taken over by the bots as trades from today's price - the -7% stop and +15%-after-fees target apply, and the
+    # money is reused for new trades. Staked coins, stablecoins, the hold stack and stack-only coins are left alone.
+    adopt_own_coins: bool = True
     min_meme_volume_usd: float = 1_000_000.0  # a meme coin must trade at least this much a day to be added
     max_meme_coins: int = 100  # watch every credible meme coin (asked for; was the busiest 12). Trades in them at
     # once stay capped by max_meme_positions: replayed with 9 meme coins, letting all be held at once did worse in

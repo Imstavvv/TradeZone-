@@ -1041,6 +1041,10 @@ Going from Normal to Aggressive about doubled the result on the unseen half. Goi
 
 ### 💵 The whole cash balance trades (your hold stack excepted)
 
+**The whole Kraken balance trades, and is the main number (asked for).** Coins you hold on Kraken outside the bots' trades (bought before going live, or deposited later) are **taken over by the bots** at each balance check: each becomes a trade from today's price, with the −7% stop and the +15%-after-fees target, and the money is reused for new trades once it sells. No order is sent when a coin is taken over (the coins don't move), and the records' check stays balanced. Left alone: **staked or earning coins** (ETH2.S and the like: they can't be sold), **stablecoins** (USDC, USDT: not traded), the **hold stack**, stack-only coins, anything under $1 or below Kraken's minimum order, and a coin the bots already have a trade in (taken over once that one closes). An alert lists what was taken over. `TZ_ADOPT_OWN_COINS=false` turns it off. Coins you meant to keep for the long term are sold by these rules too: move them into the hold stack (or off Kraken) to keep them.
+
+The **main number on Home** is now the whole exchange account for a real-money account (every coin and all the cash, valued by Kraken), not only the bots' part; the line under it shows how much of it the bots are trading and how much isn't traded (stablecoins, staked coins, the hold stack). Practice money still shows the practice balance.
+
 **All the capital at work, no dollars left sitting (asked for).** Real-money trades on Normal are now as big as Aggressive's: 4% of the balance risked per trade (was 2.5%), one coin up to 50% of the balance (was 35%), and all open trades together risking up to 20% (was 10%). Aggressive keeps its wider daily-loss and drawdown limits. Replayed on real price history (16 windows per market, tuning / unseen half), the cash left idle fell from about **a third** of the balance on average to about **10%**. That earned more when prices rose and lost more when they fell or went sideways:
 
 | Real money, Normal | Rising | Falling | Sideways | Cash left idle |

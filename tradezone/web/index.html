@@ -2593,7 +2593,7 @@ function placePops(){
 }
 addEventListener('scroll', placePops, {passive: true}); addEventListener('resize', placePops);
 function tradePop(t){
-  if (!popsOn() || !t || !t.symbol || /moved by you between the hold stack/.test(t.reason || '')) return;
+  if (!popsOn() || !t || !t.symbol || /moved by you between the hold stack|taken over from your Kraken balance/.test(t.reason || '')) return;
   const coin = esc(t.symbol.split('-')[0]), closing = t.pnl != null, buying = t.side === 'buy';
   let kind, icon, title, lines = [];
   if (!closing) {
@@ -2784,18 +2784,23 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
 }
 // ---- the overview, for one account or all of them (Home: the tabs above the balance) ----
 try { S.acct = localStorage.getItem('tz_acct') || 'main'; } catch { S.acct = 'main'; }
-// the whole exchange account (every coin and all the cash, valued by the exchange), next to the bots' part
+// the main number of a real-money account is the WHOLE exchange account (every coin and all the cash, valued by
+// the exchange - asked for); practice, or before the exchange's total is in, it's the bots' own books
+function whole(r){ return r && r.mode === 'live' && r.exchange && r.exchange.equity != null ? +r.exchange.equity : null; }
+function shownEq(r){ const w = whole(r); return w != null ? w : (r.equity || 0); }
+// under it: the bots' part of it (their trades and cash), and what they don't trade (staked, stablecoins, hold stack)
 function renderWhole(st){
   const el = $('sWhole'); if (!el) return;
-  const rows = (st.accounts || []).filter(r => r.exchange && r.exchange.equity != null);
+  const rows = (st.accounts || []).filter(r => whole(r) != null);
   const sel = S.acct === 'all' ? rows : rows.filter(r => r.id === (S.acct || 'main'));
   if (!sel.length) { el.hidden = true; return; }
-  const eq = sel.reduce((t, r) => t + (+r.exchange.equity || 0), 0), cash = sel.reduce((t, r) => t + (+r.exchange.cash || 0), 0);
+  const eq = sel.reduce((t, r) => t + whole(r), 0), bots = sel.reduce((t, r) => t + (+r.equity || 0), 0);
   const stable = sel.reduce((t, r) => t + Object.values(r.exchange.stablecoins || {}).reduce((a, v) => a + (+v || 0), 0), 0);
-  const where = sel.length === 1 ? `Whole ${sel[0].venue_label || 'exchange'} account` : `All ${sel.length} exchange accounts`;
+  const where = sel.length === 1 ? `the whole ${sel[0].venue_label || 'exchange'} account` : `all ${sel.length} exchange accounts`;
+  const rest = eq - bots;
   el.hidden = false;
-  el.textContent = `🏦 ${where}: ${money(eq)} · ${money(cash)} cash for the bots` +
-    (stable > 0.01 ? ` · ${money(stable)} in stablecoins (not traded)` : '');
+  el.textContent = `🏦 Showing ${where} · ${money(bots)} trading` +
+    (rest > 0.01 ? ` · ${money(rest)} not traded (${stable > 0.01 ? 'stablecoins, ' : ''}staked coins or the hold stack)` : '');
 }
 function renderOverview(st){
   const rows = st.accounts || [], pick = $('acctPick');
@@ -2812,10 +2817,10 @@ function renderOverview(st){
   if (main) return;
   const all = S.acct === 'all', sel = all ? rows : rows.filter(r => r.id === S.acct), a = sel[0] || {};
   const sum = k => sel.reduce((t, r) => t + (r[k] || 0), 0);
-  const eq = sum('equity'), today = sum('pnl_today'), total = sum('pnl_total'), live = sel.filter(r => r.mode === 'live');
+  const eq = sel.reduce((t, r) => t + shownEq(r), 0), today = sum('pnl_today'), total = sum('pnl_total'), live = sel.filter(r => r.mode === 'live');
   const open = sel.flatMap(r => (r.positions || []).map(x => ({...x, acct_label: r.label})));
   $('sMode').textContent = all ? '🗂️ All accounts' : `${a.mode === 'live' ? '💵' : '🧪'} ${a.label}`;
-  $('sModeHint').textContent = all ? `${rows.length} accounts${live.length ? ` · ${live.length} on real money (${money(live.reduce((t, r) => t + r.equity, 0))})` : ' · all on practice money'}`
+  $('sModeHint').textContent = all ? `${rows.length} accounts${live.length ? ` · ${live.length} on real money (${money(live.reduce((t, r) => t + shownEq(r), 0))})` : ' · all on practice money'}`
     : `${a.mode === 'live' ? 'real money' : 'practice money'}${a.venue_label ? ' · ' + a.venue_label : ''}`;
   countTo($('sBal'), eq);
   const base = eq - today;
@@ -2859,7 +2864,8 @@ function renderSimple(st){
   const p = st.portfolio, live = st.mode === 'live';
   $('sMode').textContent = live ? '💵 Real money' : '🧪 Practice money';
   $('sModeHint').textContent = live ? 'trading your broker account' : 'live prices, nothing real at risk';
-  if (S.acct === 'main' || (st.accounts || []).length < 2) countTo($('sBal'), p.equity);  // (another account: renderOverview)
+  const mainRow = (st.accounts || []).find(r => r.id === 'main'), w = live ? whole(mainRow) : null;
+  if (S.acct === 'main' || (st.accounts || []).length < 2) countTo($('sBal'), w != null ? w : p.equity);  // (another account: renderOverview)
   renderTicker(st);
   renderBadges(st);
   const today = p.equity * p.daily_pnl_pct / (1 + p.daily_pnl_pct);
@@ -3103,7 +3109,8 @@ function renderStack(k, own = true, label = ''){
       (k.sitting_out || []).map(x => ` · ${x.symbol.split('-')[0]} sits out until ${new Date(x.until * 1000).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})}: ${x.why}`).join('');
   $('stackToggle').textContent = k.on ? 'Pause stacking' : 'Resume stacking';
   const hs = $('sStack'); hs.style.display = k.value > 0 ? '' : 'none';  // (the stack of the account shown: main, a linked one, or all)
-  if (k.value > 0) hs.textContent = `🪙 plus ${money(k.value)} in ${S.acct === 'all' && !own ? 'the hold stacks' : 'the hold stack'} ›`;
+  const inMain = ((S.state && S.state.accounts) || []).some(r => whole(r) != null && (S.acct === 'all' || r.id === (S.acct || 'main')));  // (the whole account above includes it)
+  if (k.value > 0) hs.textContent = `🪙 ${inMain ? '' : 'plus '}${money(k.value)} ${inMain ? 'of it ' : ''}in ${S.acct === 'all' && !own ? 'the hold stacks' : 'the hold stack'} ›`;
 }
 document.getElementById('sec-stack').addEventListener('click', async e => {
   const b = e.target.closest('[data-mv]'); if (!b) return;

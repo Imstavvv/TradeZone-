@@ -399,6 +399,70 @@ class PortfolioBot(Bot):
             n += 1
         return n
 
+    ADOPT_REASON = "taken over from your Kraken balance"
+
+    async def adopt_own_coins(self) -> list[str]:
+        """The whole Kraken balance trades (asked for): coins you hold there outside the bots' trades become trades
+        the bots manage, from today's price (the -7% stop, the +15% target after fees). No order is sent - the
+        coins don't move. Staked coins, stablecoins, the hold stack and stack-only coins are left alone, and a coin
+        the bots already have a trade in waits until that one is closed."""
+        s, desk = self.settings, self.desk
+        b = desk.broker
+        if not (s.adopt_own_coins and desk.is_live and hasattr(b, "capture_baseline") and hasattr(b, "holdings")):
+            return []
+        if desk.paused or desk.halted or self._suspect or now() - self.last_fill_ts < self.SETTLE_S:
+            return []
+        exe, st = desk.bots.get("execution"), desk.bots.get("stacker")
+        if exe is not None and (exe.working or any(abs(v) > 1e-12 for v in exe.unbooked.values())):
+            return []
+        if st is None or getattr(st, "pending", None) is not None:
+            return []
+        held = await b.holdings()
+        if not held:
+            return []
+        stack = st.held("live")
+        base = b._fold(b.baseline)  # type: ignore[attr-defined]
+        done = []
+        for sym, row in sorted(held.items()):
+            price = row.get("price") or desk.prices.get(sym)
+            if not price or s.is_stack_only(sym) or not s.is_crypto(sym) or sym not in b.pairs:  # type: ignore[attr-defined]
+                continue
+            if not self.portfolio.position(sym).is_flat:
+                continue  # (the bots' own trade in it is closed first)
+            k = norm_symbol(sym)
+            q = float(row.get("qty") or 0.0) - stack.get(k, 0.0)
+            if q * price < 1.0 or q < b.min_qty(sym, price):
+                continue  # (too little to sell again)
+            asset = b.pairs[sym]["base"]  # type: ignore[attr-defined]
+            take = min(base.get(asset, 0.0), q)  # your coins from before going live first...
+            base[asset] = base.get(asset, 0.0) - take
+            self.outside[k] = self.outside.get(k, 0.0) - (q - take)  # ...then ones deposited later
+            if abs(self.outside[k]) < 1e-12:
+                del self.outside[k]
+            if sym not in s.symbols:  # (prices for it, so its stop and target work)
+                s.symbols.append(sym)
+            desk.prices.setdefault(sym, price)
+            quick = s.quick(True)
+            sl_pct, tp_pct = s.plan_pcts(sym, quick)
+            if s.patient(True):
+                sl_pct = s.patient_meme_stop_pct if s.is_meme(sym) else s.patient_stop_pct
+            if s.wide_stop:
+                sl_pct = max(sl_pct, s.wide_stop_pct)
+            target = price * (1 + tp_pct) + s.round_trip_cost(sym, price)
+            self.portfolio.apply_flow(q * price)  # the coins' value joins the trading (not counted as profit)...
+            self.publish("funds.deposit", {"usd_value": q * price, "source": "your Kraken balance", "asset": sym,
+                                           "note": "your coins, taken over by the bots"})
+            st._move_fill(sym, Side.BUY, q, price, price * (1 - sl_pct), target, reason=self.ADOPT_REASON)  # ...as a trade
+            done.append(f"{q:.8g} {sym.split('-')[0]} (${q * price:,.2f})")
+        if done:
+            b.baseline = {a: v for a, v in base.items() if v > 1e-12}  # type: ignore[attr-defined]
+            desk._save_account_row("kraken_baseline", b.baseline)  # type: ignore[attr-defined]
+            self.publish("alert", Alert("info", "The bots took over your Kraken coins as trades (as asked): "
+                                                + ", ".join(done) + f". Each sells at +{s.flip_major_target_pct:.0%} after "
+                                                f"fees, or if it falls {s.wide_stop_pct:.0%}.", self.name))
+            self.act("took over your coins: " + ", ".join(done))
+        return done
+
     def _trim_stack(self, sym: str, room: float) -> None:
         """The hold stack can't hold more of a coin than the account has left besides the bots' trades: coins
         sold or moved out on the exchange itself would otherwise still show (and count) in the stack."""
@@ -614,6 +678,8 @@ class PortfolioBot(Bot):
             acct = await self.desk.broker.account()
             if acct and self.desk.is_live:
                 self.sync_cash(acct)
+            if self.metrics.get("positions_reconciled"):  # (only once the books match the account)
+                await self.adopt_own_coins()
             capped = self.desk.is_live and self.settings.live_max_capital > 0
             kraken = hasattr(self.desk.broker, "capture_baseline")  # its total includes your own coins, by design
             if acct and acct.get("equity") and not capped and not kraken:

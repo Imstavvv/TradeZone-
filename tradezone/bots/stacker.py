@@ -251,10 +251,11 @@ class StackerBot(Bot):
     # -- moving coins by hand between the hold stack and the trading -----------------------------
     MOVE_REASON = "moved by you between the hold stack and the trading"
 
-    def _move_fill(self, sym: str, side: Side, qty: float, price: float, stop=None, target=None) -> None:
+    def _move_fill(self, sym: str, side: Side, qty: float, price: float, stop=None, target=None,
+                   reason: str | None = None) -> None:
         """Book a hand move like any fill (no exchange order: the coins don't leave your account)."""
         exe = self.desk.bots.get("execution")
-        order = Order(sym, side, qty, f"move-{int(time.time() * 1000)}", reason=self.MOVE_REASON,
+        order = Order(sym, side, qty, f"move-{int(time.time() * 1000)}", reason=reason or self.MOVE_REASON,
                       stop_price=stop, take_profit=target, status=OrderStatus.FILLED, filled_qty=qty,
                       avg_fill_price=price)
         if exe is not None:
