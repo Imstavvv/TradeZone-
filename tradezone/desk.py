@@ -469,6 +469,8 @@ class TradingDesk:
     # -- lifecycle -------------------------------------------------------
     BACKFILL_FIRST = 40  # coins whose history loads before trading starts (the starting list and the busiest)
 
+    TF_HISTORY_GAP_S = 1.0
+
     async def _backfill_timeframes(self, syms: list[str]) -> None:
         """Hourly and daily candles from the exchange for every coin (held coins first), so the long timeframes have
         their real history from the start - in the background, paced by the exchange."""
@@ -487,6 +489,7 @@ class TradingDesk:
                     continue
                 if candles and sym in self.settings.symbols:
                     scout.seed_timeframe(sym, label, candles)  # type: ignore[attr-defined]
+                await asyncio.sleep(self.TF_HISTORY_GAP_S)  # (background: leaves the exchange's public limit to the prices)
 
     async def _backfill_more(self, syms: list[str], gran: int) -> None:
         """The rest of the coins' history, one at a time in the background (the exchange paces it anyway): each coin

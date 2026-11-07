@@ -108,9 +108,20 @@ async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbol
         for c in sorted(classes):
             out.update(await fetch_quotes(client, pairs, [s for s in listed if pairs[s].get("aclass", "currency") == c]))
         return out
-    if len(want) > QUOTE_BATCH:  # every coin on Kraken: several requests, one batch each
+    if len(want) > QUOTE_BATCH:
+        if pairs[listed[0]].get("aclass", "currency") == "currency":
+            # every coin on Kraken: ONE request for all of them (Ticker with no pair returns every pair). Batches
+            # of 100 meant 6 requests every 2 s for 600 coins - three times Kraken's ~1 a second public limit.
+            r = await client.get("/0/public/Ticker")
+            r.raise_for_status()
+            body = r.json()
+            if not body.get("error") or body.get("result"):
+                keys = {}
+                for s in listed:
+                    keys[pairs[s]["key"]] = keys[pairs[s]["pair"]] = s
+                return parse_ticker(body.get("result") or {}, keys)
         out = {}
-        for i in range(0, len(listed), QUOTE_BATCH):
+        for i in range(0, len(listed), QUOTE_BATCH):  # (tokenized stocks, or if the all-pairs answer failed)
             out.update(await fetch_quotes(client, pairs, listed[i:i + QUOTE_BATCH]))
         return out
     r = await client.get("/0/public/Ticker", params={"pair": ",".join(want), **aclass_params(pairs[listed[0]])})

@@ -44,13 +44,25 @@ def test_off_it_adds_nothing_and_it_is_on_by_default():
     run(feed.client.aclose())
 
 
-def test_hundreds_of_coins_are_priced_in_batches():
+def test_hundreds_of_coins_are_priced_in_one_request():
+    """Kraken's public limit is about one request a second: 600 coins in batches of 100 every 2 s broke it."""
     coins = {f"C{i}": 5e6 for i in range(250)}
     calls: list = []
-    client = kraken(coins, calls)
+
+    def handler(req):
+        calls.append(req.url.params.get("pair", "ALL"))
+        names = coins if "pair" not in req.url.params else [p[:-3] for p in req.url.params["pair"].split(",")]
+        res = {f"{c}USD": {"c": ["1", "1"], "b": ["0.999", "1", "1"], "a": ["1", "1", "1"], "v": ["1", "5e6"], "p": ["1", "1"]}
+               for c in names}
+        res["OTHERUSD"] = res[next(iter(res))]  # (pairs nobody watches come back too: ignored)
+        return httpx.Response(200, json={"error": [], "result": res})
+    client = httpx.AsyncClient(base_url="https://api.kraken.com", transport=httpx.MockTransport(handler))
     pairs = {f"C{i}-USD": {"pair": f"C{i}USD", "key": f"C{i}USD"} for i in range(250)}
     quotes = run(fetch_quotes(client, pairs, list(pairs)))
-    assert len(quotes) == 250 and len(calls) == 3 and max(len(c.split(",")) for c in calls) <= 100
+    assert len(quotes) == 250 and calls == ["ALL"]
+    small = {k: pairs[k] for k in list(pairs)[:10]}
+    calls.clear()
+    assert len(run(fetch_quotes(client, small, list(small)))) == 10 and calls != ["ALL"]  # (a few coins: named)
     run(client.aclose())
 
 
