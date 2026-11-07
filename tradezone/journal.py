@@ -106,7 +106,7 @@ class Journal:
 
         def start(f: dict, qty: float | None = None, fee: float | None = None) -> dict:
             q = abs(qty if qty is not None else float(f.get("qty") or 0))
-            return {"symbol": f["symbol"], "mode": mode, "side": "long" if f.get("side") == "buy" else "short",
+            return {"symbol": f["symbol"], "mode": mode, "side": "long",  # (no shorting: every trade is a purchase)
                     "opened": float(f.get("ts") or 0), "closed": None, "legs": [],
                     "_in": [(q, float(f.get("price") or 0))], "_out": [], "pnl": 0.0,
                     "fees": float(fee if fee is not None else (f.get("fee") or 0)), "entry_reason": f.get("reason") or "",
@@ -125,34 +125,32 @@ class Journal:
             after = float(f.get("position_after") or 0)
             t = cur.get(sym)
             if t is None and act in ("partial", "reduce", "close"):
-                # a sale with no buy before it: coins moved OUT of the hold stack, then sold by the bots (the move
-                # isn't a fill). A normal trade, its entry worked out from each sale's result - not a short.
+                # a sale with no buy before it: coins moved OUT of the hold stack (or taken over from your account),
+                # then sold by the bots (the move isn't a fill). A normal trade, its entry worked out from each sale.
                 t = cur[sym] = start(f, qty=0.0, fee=0.0)
-                t["side"] = "long" if f.get("side") == "sell" else "short"
                 t["_in"], t["from_stack"] = [], True
                 t["entry_reason"] = "moved out of the hold stack"
             if act == "open" or t is None:
                 if t is not None:  # opened again while the records still showed it open (e.g. moved to the stack)
                     finish(t, "moved")
                 t = cur[sym] = start(f)
-                leg(t, f, "buy" if f.get("side") == "buy" else "sell")
+                leg(t, f, "buy")
             elif act == "add":
                 t["_in"].append((abs(float(f.get("qty") or 0)), float(f.get("price") or 0)))
                 t["fees"] += float(f.get("fee") or 0)
                 t["adds"] += 1
                 leg(t, f, "add")
-            else:  # partial / reduce / close / flip: a sale (or buy-back of a short)
+            else:  # partial / reduce / close: a sale
                 q = abs(float(f.get("qty") or 0))
                 if act == "flip":
                     q -= abs(after)
                 t["_out"].append((q, float(f.get("price") or 0)))
                 if t.get("from_stack") and q > 0:  # what those coins were worth to the trading book
-                    sign = 1 if t["side"] == "long" else -1
-                    t["_in"].append((q, float(f.get("price") or 0) - sign * float(f.get("pnl") or 0) / q))
+                    t["_in"].append((q, float(f.get("price") or 0) - float(f.get("pnl") or 0) / q))
                 t["pnl"] += float(f.get("pnl") or 0)
                 t["fees"] += float(f.get("fee") or 0)
                 t["exit_reason"] = f.get("reason") or ""
-                leg(t, f, "sell" if t["side"] == "long" else "buy back")
+                leg(t, f, "sell")
                 if act == "flip" or abs(after) < 1e-12:
                     t["closed"] = float(f.get("ts") or 0)
                     finish(t, "closed")

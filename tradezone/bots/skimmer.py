@@ -147,7 +147,7 @@ class SkimmerBot(Bot):
 
     # ---------------------------------------------------- profit-taking (exits)
     def _sell(self, sym: str, fraction: float, reason: str) -> None:
-        """Close part of a position (sell a long, buy back a short) - always reduce-only."""
+        """Sell part of a position - always reduce-only."""
         side = Side.SELL if self.portfolio.position(sym).qty > 0 else Side.BUY
         self.publish("signal.proposed", Signal(sym, side, 1.0, reason, self.name, SignalKind.EXIT, fraction=fraction,
                                                calm=True))  # banking profit: may wait at the ask

@@ -2607,7 +2607,7 @@ function tradePop(t){
     const win = t.pnl >= 0, cost = t.entry_price ? Math.abs(t.qty) * t.entry_price : 0;
     kind = win ? 'win' : 'loss'; icon = win ? '✅' : '🔻';
     const part = t.action === 'partial' || t.action === 'reduce';
-    title = `${buying ? (part ? 'Bought back part of' : 'Bought back') : (part ? 'Sold part of' : 'Sold')} ${coin}`;
+    title = `${part ? 'Sold part of' : 'Sold'} ${coin}`;
     lines.push(`<b class="${win ? 'up' : 'down'}">${win ? '+' : '−'}${money(Math.abs(t.pnl))}${cost ? ` (${win ? '+' : '−'}${pct(Math.abs(t.pnl) / cost, 1)})` : ''}</b> after fees`);
     lines.push(`${num(Math.abs(t.qty))} at ${px(t.price)}${t.entry_price ? ` · paid ${px(t.entry_price)}` : ''}${t.held_s != null ? ` · held ${heldFor(t.held_s)}` : ''}`);
     if (t.reason) lines.push(esc(friendlyReason(t.reason)));
@@ -2680,23 +2680,23 @@ function renderTrips(){
   $('tripN').textContent = d.total ? `${rows.length}${rows.length === d.total ? '' : ' of ' + d.total}` : '';
   const live = d.mode === 'live';
   setHTML($('tripList'), rows.length ? rows.slice(0, TRIP.shown).map(t => {
-    const coin = t.symbol.split('-'), short = t.side === 'short';
-    const move = t.avg_exit != null ? (t.avg_exit / t.avg_entry - 1) * (short ? -1 : 1) : t.now_price ? (t.now_price / t.avg_entry - 1) * (short ? -1 : 1) : null;
+    const coin = t.symbol.split('-');
+    const move = t.avg_exit != null ? t.avg_exit / t.avg_entry - 1 : t.now_price ? t.now_price / t.avg_entry - 1 : null;
     const kind = t.status === 'closed' ? (t.pnl > 0 ? 'win' : 'loss') : t.status;
     const res = t.status === 'closed' ? `<span class="res ${cls(t.pnl)}">${sign(t.pnl)}<i>${t.pct == null ? '' : (t.pct >= 0 ? '+' : '') + pct(t.pct, 1)}</i></span>`
       : t.status === 'open' ? `<span class="res ${cls(t.net_now ?? t.unrealized)}"><em>now</em>${t.net_now != null ? sign(t.net_now) : t.unrealized != null ? sign(t.unrealized) : '—'}</span>`
       : '<span class="res muted"><em>moved to the hold stack</em></span>';
-    const sold = t.avg_exit != null ? ` → ${short ? 'bought back' : 'sold'} at ${px(t.avg_exit)}` : t.now_price ? ` · now ${px(t.now_price)}` : '';
+    const sold = t.avg_exit != null ? ` → sold at ${px(t.avg_exit)}` : t.now_price ? ` · now ${px(t.now_price)}` : '';
     const meta = [t.status === 'closed' ? `held ${dur2(t.held_s)}` : `open ${dur2(t.held_s)}`, t.adds ? `${t.adds + 1} buys` : '',
       t.sold_parts > 1 ? `sold in ${t.sold_parts} parts` : t.status !== 'closed' && t.sold_parts ? `${t.sold_parts} part${t.sold_parts > 1 ? 's' : ''} sold` : '',
       `fees ${money(t.fees)}`, tradeWhen(t.closed || t.opened)].filter(Boolean).join(' · ');
-    const legs = t.legs.map(l => `<div class="leg"><span class="muted">${tradeWhen(l.ts)}</span><b class="${l.kind === 'sell' || l.kind === 'buy back' ? 'down' : 'up'}">${esc(l.kind)}</b>
+    const legs = t.legs.map(l => `<div class="leg"><span class="muted">${tradeWhen(l.ts)}</span><b class="${l.kind === 'sell' ? 'down' : 'up'}">${esc(l.kind)}</b>
       <span>${num(Math.abs(l.qty))} at ${px(l.price)}</span><span class="${cls(l.pnl)}">${l.pnl == null ? '' : sign(l.pnl)}</span>
       ${l.reason ? `<div class="lr muted">${esc(l.reason)}</div>` : ''}</div>`).join('');
     return `<details class="trip ${kind}"><summary>
       <div class="t1"><span class="who"><span class="sym"><b>${esc(coin[0])}</b><span class="muted">${coin[1] ? '-' + esc(coin[1]) : ''}</span></span>
-        ${short ? '<span class="accbadge">short</span>' : ''}${live ? '<span class="accbadge live">● LIVE</span>' : ''}${t.status === 'open' ? '<span class="accbadge">open</span>' : ''}</span>${res}</div>
-      <div class="t2">${short ? 'Sold short' : 'Bought'} ${num(t.qty)} at ${px(t.avg_entry)}${sold}${move == null ? '' : ` <span class="${cls(move)}">(price ${move >= 0 ? '+' : ''}${pct(move, 1)})</span>`}</div>
+        ${live ? '<span class="accbadge live">● LIVE</span>' : ''}${t.status === 'open' ? '<span class="accbadge">open</span>' : ''}</span>${res}</div>
+      <div class="t2">Bought ${num(t.qty)} at ${px(t.avg_entry)}${sold}${move == null ? '' : ` <span class="${cls(move)}">(price ${move >= 0 ? '+' : ''}${pct(move, 1)})</span>`}</div>
       <div class="t3">${meta}</div>
       <div class="t4"><span>💡 ${esc(friendlyEntry(t.entry_reason))}</span>${t.exit_reason ? `<span>🏁 ${esc(friendlyReason(t.exit_reason))}</span>` : ''}</div>
     </summary><div class="legs">${legs}</div></details>`;
@@ -2763,11 +2763,9 @@ function plainEvent(it){  // one plain-English sentence for the "What's happenin
   const p = it.raw || {}, who = botTitle(it.bot);
   switch (it.topic) {
     case 'trade.log':
-      if (p.action === 'open' || p.action === 'add') return p.side === 'sell'
-        ? ['📉', COLORS.execution, `Shorted ${num(p.qty)} ${p.symbol} at ${px(p.price)} (profits if it falls)`]
-        : ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
+      if (p.action === 'open' || p.action === 'add') return ['💰', COLORS.execution, `Bought ${num(p.qty)} ${p.symbol} at ${px(p.price)}`];
       return [p.pnl >= 0 ? '✅' : '🔻', p.pnl >= 0 ? 'var(--up)' : 'var(--down)',
-        `${p.side === 'buy' ? (p.action === 'partial' ? 'Bought back part of' : 'Bought back') : (p.action === 'partial' ? 'Sold part of' : 'Sold')} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
+        `${p.action === 'partial' ? 'Sold part of' : 'Sold'} ${p.symbol} for ${p.pnl >= 0 ? 'a profit of ' : 'a loss of '}${money(Math.abs(p.pnl))} · ${friendlyReason(p.reason)}`];
     case 'signal.proposed':
       if (p.kind === 'entry' && p.source === 'skimmer') return ['🏄', COLORS.skimmer, `Skimmer spotted a quick dip to skim on ${p.symbol} and asked the team`];
       if (p.kind === 'entry' && p.source === 'quant' && /^snipe/.test(p.reason)) return ['🎯', COLORS.quant, `Quant sniped a breakout on ${p.symbol} and asked the team`];
@@ -2854,7 +2852,7 @@ function ptradeRows(list, named){
     const prot = locked ? `🔒 Profit locked in · stop ${px(x.stop_price)}`
       : x.stop_price != null ? `Safety stop ${px(x.stop_price)} (${pct((x.stop_price - x.last_price) / x.last_price, 1)})` : '';
     return `<div class="ptrade"><div class="s">${esc(x.symbol)}${named && x.acct_label ? ` <span class="accbadge">${esc(x.acct_label)}</span>` : ''}</div><div class="v ${cls(upl)}">${upl >= 0 ? '+' : '-'}${money(Math.abs(upl))}</div>
-      <div class="d">${x.qty > 0 ? 'Bought' : 'Shorted (profits if it falls)'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
+      <div class="d">Bought ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)}</div>
       <div class="d ${cls(upl)}" style="text-align:right">${r >= 0 ? '+' : ''}${pct(r, 1)}</div>
       ${prot ? `<div class="d full">${prot}${x.take_profit ? ` · target ${px(x.take_profit)}` : ''}</div>` : ''}</div>`;
   }).join('');
@@ -3305,7 +3303,7 @@ function renderOpen(st){
       <div class="o1"><span class="who"><span class="sym"><b>${esc(coin)}</b><span class="muted">${quote ? '-' + esc(quote) : ''}</span></span>
         ${accts.length > 1 ? `<span class="accbadge">${esc(x.acct_label)}</span>` : ''}${x.live ? '<span class="accbadge live">● LIVE</span>' : ''}</span>
         <span class="pl ${cls(u)}">${u >= 0 ? '+' : '-'}${money(Math.abs(u))}<i>${r >= 0 ? '+' : ''}${pct(r, 1)}</i></span></div>
-      <div class="o2">${x.qty > 0 ? 'Bought' : 'Shorted'} ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)} · worth ${money(Math.abs(x.market_value))}</div>
+      <div class="o2">Bought ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)} · worth ${money(Math.abs(x.market_value))}</div>
       <div class="o3">${[prot, x.take_profit ? `target ${px(x.take_profit)}` : '', x.opened_ts ? `open ${dur(x.opened_ts)}` : ''].filter(Boolean).join(' · ')}</div>${held}</div>`;
   }).join('') : `<div class="emptyhint">${n ? 'No open trades in this account.' : 'No open trades in any account right now. The bots only buy when the whole team agrees it\'s a good chance.'}</div>`);
   const k = st.stack;

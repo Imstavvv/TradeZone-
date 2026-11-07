@@ -144,7 +144,7 @@ class StretchBot(Advisor):
     title = "Overextension Guard"
     role = "No Chasing"
     mission = "🪢 Don't chase - skip coins that already ran far above their average"
-    description = "Vetoes buys more than 8 ATR above the slow average or with RSI 90+ (shorts mirrored)."
+    description = "Vetoes buys more than 8 ATR above the slow average or with RSI 90+."
 
     def advise(self, sig, snap):
         if snap is None:
@@ -164,7 +164,7 @@ class LevelsBot(Advisor):
     title = "Resistance Mapper"
     role = "Support & Resistance"
     mission = "🧱 Mind the ceiling - smaller bets when a recent high sits just above the price"
-    description = "Finds the nearest recent high (or low for shorts): if it's within half the target, the trade is trimmed."
+    description = "Finds the nearest recent high: if it's within half the target, the trade is trimmed."
 
     def advise(self, sig, snap):
         if snap is None:

@@ -48,15 +48,15 @@ def test_open_trades_show_where_they_stand_and_a_move_to_the_hold_stack_isnt_a_s
     assert j.round_trips("paper")["trips"][0]["status"] == "open"  # (holdings unknown: shown open)
 
 
-def test_a_flip_ends_one_trade_and_starts_the_other_way():
+def test_every_trade_is_a_purchase_never_a_short():
+    """No shorting: a sale with no recorded buy (coins taken over or moved out of the hold stack) is a sale."""
     j = Journal(":memory:")
-    fill(j, 0, "AAPL", "buy", "open", 10, 200, 10)
-    fill(j, 60, "AAPL", "sell", "flip", 15, 210, -5, pnl=99.0)
-    fill(j, 120, "AAPL", "buy", "close", 5, 205, 0, pnl=24.0)
+    fill(j, 0, "BTC-USD", "sell", "close", 0.01, 61_000, 0, pnl=10.0)
+    fill(j, 60, "ETH-USD", "buy", "open", 1, 3_000, 1)
+    fill(j, 120, "ETH-USD", "sell", "close", 1, 3_100, 0, pnl=95.0)
     r = j.round_trips("paper", now=T0 + 200)
-    a, b = sorted(r["trips"], key=lambda t: t["opened"])
-    assert (a["side"], a["qty"], a["pnl"]) == ("long", 10, 99.0)
-    assert (b["side"], b["qty"], b["pnl"], b["avg_entry"]) == ("short", 5, 24.0, 210)
+    assert {t["side"] for t in r["trips"]} == {"long"}
+    assert all(leg["kind"] in ("buy", "add", "sell") for t in r["trips"] for leg in t["legs"])
 
 
 def test_the_totals_and_the_period():

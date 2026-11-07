@@ -596,7 +596,7 @@ class TradingDesk:
         return (f"focusing on smaller coins to build capital: {symbol} joins when the balance reaches "
                 f"${need:,.0f} (now ${f['equity']:,.2f})")
 
-    # -- shorting: only where it really works -----------------------------------------
+    # -- after a restart: what's held is watched again ------------------------------------
     def _watch_held(self) -> list[str]:
         """After a restart: what's still held (open trades in either book, the hold stack) is watched again.
 
@@ -704,7 +704,7 @@ class TradingDesk:
         return "the bots never short - they only sell what they hold"
 
     def free_cash(self) -> float:
-        """Cash that is really yours: money from a short sale is owed back when the short is bought back."""
+        """Cash the bots may spend (no shorting: a negative position would be a book error the safety monitor flags)."""
         p = self.portfolio
         return max(0.0, p.cash - sum(abs(x.market_value) for x in p.open_positions if x.qty < 0))
 
