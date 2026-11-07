@@ -123,6 +123,7 @@ class ScoutBot(Bot):
         b.lows.push(low)
         b.highs.push(high)
         avg_vol = b.volumes.mean() if b.volumes.full else 0.0  # the 20 bars BEFORE this one
+        recent_vol = (sum(list(b.volumes.data)[-4:]) + volume) / 5 if b.volumes.full else 0.0  # this bar + the 4 before
         b.volumes.push(volume)
         prev_px = b.prices[-2] if len(b.prices) >= 2 else t.price
         macd = (b.ema_fast.value or t.price) - (b.ema_slow.value or t.price)
@@ -153,6 +154,8 @@ class ScoutBot(Bot):
             "swing_high": swing_high if swing_high is not None else max(high, t.price),
             # this bar's traded volume vs the recent average (None when the feed doesn't report volume)
             "volume_ratio": volume / avg_vol if avg_vol > 0 else None,
+            # the last 5 bars together: a thin market (Alpaca's crypto) has many single minutes with no trade at all
+            "volume_ratio_5": recent_vol / avg_vol if avg_vol > 0 else None,
             "volume": volume,  # (this bar's raw volume: the volume breakout keeps its own longer average)
             **self._more(b, t.price, macd),
         }

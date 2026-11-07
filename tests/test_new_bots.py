@@ -223,3 +223,20 @@ def test_accountant_and_fee_auditor_remember_across_a_restart(tmp_path):
     assert today["pnl"] == pytest.approx(7.0) and today["best"] == (7.0, "SOL-USD")
     assert d2.settings.crypto_fee_bps == pytest.approx(16.0)  # plans with the fee really paid, not the guess
     run(d2.shutdown())
+
+
+def test_the_liquidity_guard_isnt_fooled_by_one_empty_minute_on_a_thin_market():
+    from tradezone.bots.advisors import LiquidityBot
+    from tradezone.config import Settings
+    from tradezone.core.models import Side, Signal, Snapshot
+    from tradezone.desk import TradingDesk
+    from tradezone.journal import Journal
+    d = TradingDesk(Settings(feed="sim", symbols=["DOGE-USD"]), journal=Journal(":memory:"))
+    g = next(a for a in d.advisors if isinstance(a, LiquidityBot))
+    sig = Signal("DOGE-USD", Side.BUY, 0.9, "t", "quant")
+    quiet_minute = Snapshot("DOGE-USD", 0.2, {"volume_ratio": 0.0, "volume_ratio_5": 0.9})  # busy minutes just before
+    assert g.advise(sig, quiet_minute)[0] is None
+    dried_up = Snapshot("DOGE-USD", 0.2, {"volume_ratio": 0.0, "volume_ratio_5": 0.1})  # five quiet minutes in a row
+    assert "dried up" in g.advise(sig, dried_up)[0]
+    older = Snapshot("DOGE-USD", 0.2, {"volume_ratio": 0.1})  # (no 5-bar figure: as before)
+    assert "dried up" in g.advise(sig, older)[0]

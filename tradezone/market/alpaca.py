@@ -20,6 +20,15 @@ from .base import MarketFeed
 log = logging.getLogger(__name__)
 
 
+def _mid(q: dict | None) -> float | None:
+    """The middle of a quote's bid and ask (None if either side is missing or crossed)."""
+    try:
+        bid, ask = float(q["bp"]), float(q["ap"])  # type: ignore[index]
+    except (TypeError, KeyError, ValueError):
+        return None
+    return (bid + ask) / 2 if 0 < bid <= ask else None
+
+
 def _stock(s: str) -> bool:
     return "-" not in s and "/" not in s
 
@@ -39,6 +48,9 @@ class AlpacaFeed(MarketFeed):
         headers = {"APCA-API-KEY-ID": key, "APCA-API-SECRET-KEY": secret}
         self.client = client or httpx.AsyncClient(base_url=self.BASE, headers=headers, timeout=5.0)
         self.last_error = ""
+        # what was already counted, so a quiet coin's last trade isn't counted again every second
+        self._seen_trade: dict[str, str] = {}  # stock -> timestamp of the trade already counted
+        self._bar_vol: dict[str, tuple[str, float]] = {}  # crypto -> (minute bar, its volume already counted)
 
     @property
     def stocks(self) -> list[str]:
@@ -56,18 +68,55 @@ class AlpacaFeed(MarketFeed):
                 r = await self.client.get("/v2/stocks/trades/latest", params={"symbols": ",".join(stocks)})
                 r.raise_for_status()
                 for sym, t in r.json().get("trades", {}).items():
-                    ticks.append(Tick(sym, float(t["p"]), float(t.get("s", 0)), now()))
+                    new = t.get("t") is None or self._seen_trade.get(sym) != t.get("t")
+                    if t.get("t") is not None:
+                        self._seen_trade[sym] = t["t"]
+                    ticks.append(Tick(sym, float(t["p"]), float(t.get("s", 0)) if new else 0.0, now()))
             if crypto:
-                r = await self.client.get("/v1beta3/crypto/us/latest/trades", params={"symbols": ",".join(crypto)})
-                r.raise_for_status()
-                for sym, t in r.json().get("trades", {}).items():
-                    ticks.append(Tick(crypto.get(sym, sym), float(t["p"]), float(t.get("s", 0)), now()))
+                ticks += await self._crypto_ticks(crypto)
         except Exception as exc:
             self.last_error = f"{type(exc).__name__}: {exc}"[:200]
             log.warning("alpaca data poll failed: %s", exc)
         else:
             self.last_error = ""
         return ticks
+
+    async def _crypto_ticks(self, crypto: dict[str, str]) -> list[Tick]:
+        """Alpaca's crypto venue is thin: a coin can go minutes between trades, and its "latest trade" is then
+        the same old one every second - a frozen price (nothing for the indicators to see, so no buy ideas) and
+        its size counted again every second. So the price is the middle of the current bid / ask (quotes move
+        all the time), and the volume is what the current 1-minute bar gained since the last look."""
+        pairs = ",".join(crypto)
+        q = await self.client.get("/v1beta3/crypto/us/latest/quotes", params={"symbols": pairs})
+        q.raise_for_status()
+        quotes = q.json().get("quotes", {}) or {}
+        try:
+            b = await self.client.get("/v1beta3/crypto/us/latest/bars", params={"symbols": pairs})
+            b.raise_for_status()
+            bars = b.json().get("bars", {}) or {}
+        except Exception as exc:  # volume is a nice-to-have; prices are not
+            log.warning("alpaca crypto bars failed: %s", exc)
+            bars = {}
+        trades: dict = {}
+        missing = [p for p in crypto if not _mid(quotes.get(p))]
+        if missing:  # (no usable quote for some: their last trade, as before)
+            t = await self.client.get("/v1beta3/crypto/us/latest/trades", params={"symbols": ",".join(missing)})
+            t.raise_for_status()
+            trades = t.json().get("trades", {}) or {}
+        out = []
+        for pair, sym in crypto.items():
+            price = _mid(quotes.get(pair)) or (float(trades[pair]["p"]) if pair in trades else None)
+            if not price:
+                continue
+            vol = 0.0
+            bar = bars.get(pair)
+            if bar and bar.get("t") is not None:
+                seen_t, seen_v = self._bar_vol.get(pair, (None, 0.0))
+                v = float(bar.get("v") or 0.0)
+                vol = max(0.0, v - seen_v) if seen_t == bar["t"] else v  # (a new minute: all of it is new)
+                self._bar_vol[pair] = (bar["t"], v)
+            out.append(Tick(sym, price, vol, now()))
+        return out
 
     async def history(self, symbol: str, granularity: int, limit: int = 300) -> list[dict] | None:
         """Recent completed 1-minute bars, oldest first (dicts with ts, low, high, open, close, volume)."""

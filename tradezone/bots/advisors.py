@@ -260,11 +260,14 @@ class LiquidityBot(Advisor):
     title = "Liquidity Guard"
     role = "Market Depth"
     mission = "💧 Trade where there are buyers and sellers - not when the market has gone quiet"
-    description = "Vetoes buys when trading dries up (under a quarter of the usual volume); trims them when the bid/ask gap is wide."
+    description = ("Vetoes buys when trading dries up (this bar and the last 5 together under a quarter of the usual "
+                   "volume); trims them when the bid/ask gap is wide.")
 
     def advise(self, sig, snap):
         vr = snap.indicators.get("volume_ratio") if snap is not None else None
-        if vr is not None and vr < 0.25:
+        vr5 = snap.indicators.get("volume_ratio_5") if snap is not None else None
+        # (one empty minute isn't "dried up": on a thin market most minutes have no trade - the last 5 must be quiet too)
+        if vr is not None and vr < 0.25 and (vr5 is None or vr5 < 0.25):
             return f"trading has dried up ({vr:.0%} of the usual volume)", 0, 1
         q = getattr(self.desk.broker, "quotes", {}).get(sig.symbol) if self.desk.is_live else None
         if q and q.get("ask", 0) > q.get("bid", 0) > 0 and (q["ask"] - q["bid"]) / q["ask"] > 0.008:

@@ -12,6 +12,7 @@ import json
 import time
 
 import httpx
+import pytest
 
 from tests.helpers import run
 from tests.test_trends import MEMES, TRENDING
@@ -172,6 +173,10 @@ def fake_alpaca_data():
             return httpx.Response(200, json={"trades": {s: {"p": 100.0, "s": 5} for s in req.url.params["symbols"].split(",")}})
         if p == "/v1beta3/crypto/us/latest/trades":
             return httpx.Response(200, json={"trades": {s: {"p": 60000.0} for s in req.url.params["symbols"].split(",")}})
+        if p == "/v1beta3/crypto/us/latest/quotes":
+            return httpx.Response(200, json={"quotes": {s: {"bp": 59990.0, "ap": 60010.0} for s in req.url.params["symbols"].split(",")}})
+        if p == "/v1beta3/crypto/us/latest/bars":
+            return httpx.Response(200, json={"bars": {s: {"t": now_iso, "v": 2.0} for s in req.url.params["symbols"].split(",")}})
         if p.startswith("/v2/stocks/") and p.endswith("/bars"):
             return httpx.Response(200, json={"bars": [{"t": now_iso, "o": 1, "h": 2, "l": 0.5, "c": 1.5, "v": 10}]})
         if p == "/v1beta3/crypto/us/bars":
@@ -254,3 +259,50 @@ def test_up_to_100_found_coins_and_history_requests_are_spaced_out(_no_history_p
     asyncio.run(d.bots["trends"]._load_history(["A-USD", "B-USD", "C-USD"]))
     assert asked == ["A-USD", "B-USD", "C-USD"]
     assert _no_history_pause == [s.history_pause_s] * 2  # a pause between requests, not before the first
+
+
+
+def test_a_quiet_alpaca_coin_isnt_frozen_on_its_last_trade_or_its_volume_counted_every_second():
+    """Alpaca's crypto venue is thin: the "latest trade" can be minutes old. The price follows the quotes instead,
+    and only volume the current minute bar actually gained is counted."""
+    state = {"bid": 100.0, "ask": 100.2, "bar_t": "2026-01-01T00:00:00Z", "bar_v": 5.0}
+    asked = []
+
+    def handler(req):
+        p = req.url.path
+        asked.append(p)
+        if p == "/v1beta3/crypto/us/latest/quotes":
+            return httpx.Response(200, json={"quotes": {"DOGE/USD": {"bp": state["bid"], "ap": state["ask"]}}})
+        if p == "/v1beta3/crypto/us/latest/bars":
+            return httpx.Response(200, json={"bars": {"DOGE/USD": {"t": state["bar_t"], "v": state["bar_v"]}}})
+        if p == "/v1beta3/crypto/us/latest/trades":  # the same old trade, every time
+            return httpx.Response(200, json={"trades": {"DOGE/USD": {"p": 99.0, "s": 1000.0, "t": "2025-12-31T23:50:00Z"}}})
+        return httpx.Response(404)
+    f = AlpacaFeed(["DOGE-USD"], "k", "s", client=httpx.AsyncClient(base_url="https://data.alpaca.markets",
+                                                                     transport=httpx.MockTransport(handler)))
+    t1 = run(f.poll())[0]
+    assert t1.price == pytest.approx(100.1) and t1.volume == 5.0  # the quote's middle; the bar's volume so far
+    t2 = run(f.poll())[0]
+    assert t2.volume == 0.0  # nothing traded since: not counted again
+    state.update(bid=101.0, ask=101.2, bar_v=7.5)
+    t3 = run(f.poll())[0]
+    assert t3.price == pytest.approx(101.1) and t3.volume == pytest.approx(2.5)  # it moved, and only the new volume
+    state.update(bar_t="2026-01-01T00:01:00Z", bar_v=1.0)
+    assert run(f.poll())[0].volume == 1.0  # a new minute: all of it is new
+    assert "/v1beta3/crypto/us/latest/trades" not in asked  # (quotes were there: the old trade isn't used)
+
+
+def test_without_a_quote_the_alpaca_feed_falls_back_to_the_last_trade():
+    def handler(req):
+        p = req.url.path
+        if p == "/v1beta3/crypto/us/latest/quotes":
+            return httpx.Response(200, json={"quotes": {}})
+        if p == "/v1beta3/crypto/us/latest/bars":
+            return httpx.Response(500)
+        if p == "/v1beta3/crypto/us/latest/trades":
+            return httpx.Response(200, json={"trades": {"BTC/USD": {"p": 60000.0, "s": 0.1, "t": "x"}}})
+        return httpx.Response(404)
+    f = AlpacaFeed(["BTC-USD"], "k", "s", client=httpx.AsyncClient(base_url="https://data.alpaca.markets",
+                                                                    transport=httpx.MockTransport(handler)))
+    t = run(f.poll())[0]
+    assert t.symbol == "BTC-USD" and t.price == 60000.0 and t.volume == 0.0 and f.last_error == ""
