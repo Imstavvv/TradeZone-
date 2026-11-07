@@ -38,6 +38,9 @@ def _ts(iso: str) -> float:
 
 
 class AlpacaFeed(MarketFeed):
+    POLL_EVERY_S = 2.0  # (Alpaca's free market data: ~200 requests a minute in all)
+    BARS_EVERY_S = 15.0  # the volume: the minute bar's growth is still counted exactly, just less often
+
     name = "alpaca"
     BASE = "https://data.alpaca.markets"
 
@@ -51,6 +54,7 @@ class AlpacaFeed(MarketFeed):
         # what was already counted, so a quiet coin's last trade isn't counted again every second
         self._seen_trade: dict[str, str] = {}  # stock -> timestamp of the trade already counted
         self._bar_vol: dict[str, tuple[str, float]] = {}  # crypto -> (minute bar, its volume already counted)
+        self._last_poll = self._last_bars = 0.0
 
     @property
     def stocks(self) -> list[str]:
@@ -61,6 +65,11 @@ class AlpacaFeed(MarketFeed):
         return {s.replace("-", "/"): s for s in self.symbols if not _stock(s)}
 
     async def poll(self) -> list[Tick]:
+        import time as _time
+        t = _time.monotonic()
+        if t - self._last_poll < self.POLL_EVERY_S:
+            return []  # (prices every 2 s: inside the data limit with room for history, news and other accounts)
+        self._last_poll = t
         ticks: list[Tick] = []
         stocks, crypto = self.stocks, self.crypto
         try:
@@ -86,17 +95,24 @@ class AlpacaFeed(MarketFeed):
         the same old one every second - a frozen price (nothing for the indicators to see, so no buy ideas) and
         its size counted again every second. So the price is the middle of the current bid / ask (quotes move
         all the time), and the volume is what the current 1-minute bar gained since the last look."""
+        import time as _time
         pairs = ",".join(crypto)
-        q = await self.client.get("/v1beta3/crypto/us/latest/quotes", params={"symbols": pairs})
-        q.raise_for_status()
-        quotes = q.json().get("quotes", {}) or {}
         try:
-            b = await self.client.get("/v1beta3/crypto/us/latest/bars", params={"symbols": pairs})
-            b.raise_for_status()
-            bars = b.json().get("bars", {}) or {}
-        except Exception as exc:  # volume is a nice-to-have; prices are not
-            log.warning("alpaca crypto bars failed: %s", exc)
-            bars = {}
+            q = await self.client.get("/v1beta3/crypto/us/latest/quotes", params={"symbols": pairs})
+            q.raise_for_status()
+            quotes = q.json().get("quotes", {}) or {}
+        except Exception as exc:  # (then every coin is priced by its last trade, as before - never no price at all)
+            log.warning("alpaca crypto quotes failed: %s", exc)
+            quotes = {}
+        bars: dict = {}
+        if _time.monotonic() - self._last_bars >= self.BARS_EVERY_S:
+            self._last_bars = _time.monotonic()
+            try:
+                b = await self.client.get("/v1beta3/crypto/us/latest/bars", params={"symbols": pairs})
+                b.raise_for_status()
+                bars = b.json().get("bars", {}) or {}
+            except Exception as exc:  # volume is a nice-to-have; prices are not
+                log.warning("alpaca crypto bars failed: %s", exc)
         trades: dict = {}
         missing = [p for p in crypto if not _mid(quotes.get(p))]
         if missing:  # (no usable quote for some: their last trade, as before)

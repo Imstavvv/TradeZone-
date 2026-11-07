@@ -280,6 +280,7 @@ def test_a_quiet_alpaca_coin_isnt_frozen_on_its_last_trade_or_its_volume_counted
         return httpx.Response(404)
     f = AlpacaFeed(["DOGE-USD"], "k", "s", client=httpx.AsyncClient(base_url="https://data.alpaca.markets",
                                                                      transport=httpx.MockTransport(handler)))
+    f.POLL_EVERY_S = f.BARS_EVERY_S = 0.0  # (polled back to back here)
     t1 = run(f.poll())[0]
     assert t1.price == pytest.approx(100.1) and t1.volume == 5.0  # the quote's middle; the bar's volume so far
     t2 = run(f.poll())[0]
@@ -306,3 +307,33 @@ def test_without_a_quote_the_alpaca_feed_falls_back_to_the_last_trade():
                                                                     transport=httpx.MockTransport(handler)))
     t = run(f.poll())[0]
     assert t.symbol == "BTC-USD" and t.price == 60000.0 and t.volume == 0.0 and f.last_error == ""
+
+
+
+def test_the_alpaca_feed_stays_inside_the_data_limit_and_survives_a_failed_quote():
+    """Alpaca's free data allows ~200 requests a minute (shared with history, news and other accounts)."""
+    asked = []
+    fail = {"quotes": False}
+
+    def handler(req):
+        p = req.url.path
+        asked.append(p)
+        if p == "/v1beta3/crypto/us/latest/quotes":
+            return httpx.Response(500) if fail["quotes"] else httpx.Response(200, json={"quotes": {"BTC/USD": {"bp": 99.0, "ap": 101.0}}})
+        if p == "/v1beta3/crypto/us/latest/bars":
+            return httpx.Response(200, json={"bars": {"BTC/USD": {"t": "m", "v": 1.0}}})
+        if p == "/v1beta3/crypto/us/latest/trades":
+            return httpx.Response(200, json={"trades": {"BTC/USD": {"p": 98.0, "s": 0.1, "t": "x"}}})
+        return httpx.Response(404)
+    f = AlpacaFeed(["BTC-USD"], "k", "s", client=httpx.AsyncClient(base_url="https://data.alpaca.markets",
+                                                                    transport=httpx.MockTransport(handler)))
+    assert run(f.poll())[0].price == 100.0
+    assert run(f.poll()) == []  # (again within 2 s: no request at all)
+    assert asked.count("/v1beta3/crypto/us/latest/quotes") == 1 and asked.count("/v1beta3/crypto/us/latest/bars") == 1
+    f.POLL_EVERY_S = 0.0
+    run(f.poll())
+    assert asked.count("/v1beta3/crypto/us/latest/bars") == 1  # (the volume only every 15 s)
+    assert f.POLL_EVERY_S <= 2.0 and 60 / AlpacaFeed.POLL_EVERY_S + 60 / AlpacaFeed.BARS_EVERY_S <= 40  # ~34 a minute
+    fail["quotes"] = True
+    t = run(f.poll())[0]
+    assert t.price == 98.0 and f.last_error == ""  # a failed quote: priced by the last trade, not lost
