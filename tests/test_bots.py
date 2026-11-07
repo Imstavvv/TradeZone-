@@ -58,12 +58,11 @@ def test_risk_rejections(desk, mutate, reason):
 
 
 def test_never_shorts_crypto(desk):
-    desk.settings.shorting = "auto"  # even with shorting allowed
     prime(desk, "BTC-USD", 50_000.0, atr=250.0)
     rejected = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 0.9, "t", "quant"))
     run(desk.bus.drain())
-    assert "can't be shorted" in rejected[0]["reason"] and desk.portfolio.position("BTC-USD").is_flat
+    assert "never short" in rejected[0]["reason"] and desk.portfolio.position("BTC-USD").is_flat
 
 
 def test_stop_loss_triggers_exit(desk):

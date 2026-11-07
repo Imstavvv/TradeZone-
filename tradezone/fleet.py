@@ -132,8 +132,26 @@ class AccountFleet:
 
     async def start(self) -> None:
         self.load()
+        await self._unlink_alpaca_once()
         for acct_id in self.desks:
             self._run(acct_id)
+
+    async def _unlink_alpaca_once(self) -> None:
+        """Linked Alpaca accounts were unlinked on request (once). Alpaca can be linked again afterwards."""
+        store = self.main.store
+        if store.load("alpaca_unlinked_fleet"):
+            return
+        store.save("alpaca_unlinked_fleet", {"done": True})
+        for acct_id in [a for a, m in self.meta.items() if m.get("venue") == "alpaca"]:
+            label = self.meta[acct_id].get("label") or "Alpaca"
+            try:
+                d = self.desks[acct_id]
+                d.mode = "paper"  # (not started yet: unlinking never sells anything)
+                await self.remove(acct_id)
+            except Exception:
+                log.exception("could not unlink %s", acct_id)
+                continue
+            self.main.bus.publish("alert", Alert("warning", f"{label}: {self.main.ALPACA_UNLINKED}", "fleet"))
 
     RESTART_AFTER_S = 15.0
 
@@ -207,6 +225,8 @@ class AccountFleet:
             raise FleetError("That account is already linked - two teams trading one balance would trip over "
                              "each other. Make a separate account (or a separate sub-account) for each team.")
         self.load()
+        if venue == "alpaca":  # (linked on purpose: the one-time unlink never undoes it)
+            self.main.store.save("alpaca_unlinked_fleet", {"done": True})
         acct_id = secrets.token_hex(4)
         meta = {"id": acct_id, "venue": venue, "label": (label or "").strip()[:40] or f"{VENUES[venue]} {len(self.desks) + 2}",
                 "added_at": time.time()}

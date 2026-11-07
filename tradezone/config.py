@@ -268,14 +268,8 @@ class Settings:
     no_return_volume: float = 1.5  # ...on at least 1.5x the usual volume = no comeback: cut it
     patient_rescue_pct: float = 0.003  # a trade that was down and comes back to +0.3% after fees is closed
     patient_max_hours: float = 48.0  # down this long and momentum still not turning: let it go
-    # ---- shorting: profit from falling prices, same stops / targets / fees, mirrored ----
-    # auto = only where it really works: stocks on an Alpaca margin account that are easy to borrow
-    # (practice follows your linked account; with none linked, practice shorts stocks like Alpaca would).
-    # Never crypto (Kraken is used spot-only, Alpaca and Uphold can't short it) and never meme coins.
-    # OFF by default: tested on real price history with stocks on Alpaca, shorts made the team lose money
-    # (crypto + stocks: -$621 / -$236 with shorts vs +$171 / -$127 without, tuning / unseen half) - with
-    # never-sell-at-a-loss on, a short in a rising market is held while it loses, and that loss has no ceiling.
-    shorting: str = "off"  # auto | off
+    # (No shorting: the bots only buy, then sell what they hold. It was taken out - tested on real price
+    # history it lost money, and with never-sell-at-a-loss a short in a rising market had no loss ceiling.)
     # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
     focus_small_coins: bool = True
     focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins)
@@ -723,8 +717,6 @@ class Settings:
             raise ValueError("TZ_FEED=alpaca requires Alpaca API keys")
         if self.risk_profile not in ("normal", *PROFILES):
             raise ValueError("TZ_RISK_PROFILE must be normal, aggressive or bold")
-        if self.shorting not in ("auto", "off"):
-            raise ValueError("TZ_SHORTING must be auto or off")
         if self.stop_method not in ("structure", "atr", "percent"):
             raise ValueError("TZ_STOP_METHOD must be percent, structure or atr")
         for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):

@@ -41,7 +41,7 @@ TEAM_RULES = [
     {"icon": "🎯", "rule": "Take trades", "detail": "Don't sit idle when good chances appear."},
     {"icon": "🌱", "rule": "Grow", "detail": "Let winnings compound - size up slowly when doing well, down when not."},
     {"icon": "🧠", "rule": "Learn the markets", "detail": "Every closed trade teaches the team what works."},
-    {"icon": "🚀", "rule": "The goal: grow fast, lose little", "detail": "Grow the balance rapidly by compounding many quick, fee-paid wins (up or down markets, where shorting works) - and keep losses minimal: a small stop on every trade, half-size trades on a losing day, and the day's gains locked in once they're real."},
+    {"icon": "🚀", "rule": "The goal: grow fast, lose little", "detail": "Grow the balance rapidly by compounding many quick, fee-paid wins - and keep losses minimal: a small stop on every trade, half-size trades on a losing day, and the day's gains locked in once they're real."},
     {"icon": "💵", "rule": "A $1,000+ day", "detail": "Aim for a $1,000+ day with the money on hand - and no ceiling above it: winners keep running with a moving take-profit, and a great day never stops the bots. If a good day starts slipping, new trades get smaller instead. Never by betting bigger to force it."},
     {"icon": "🛡️", "rule": "Don't lose the money", "detail": "Protecting what you put in comes first: stops on every trade, and trading stops itself after a bad day or a 10% drop. Growing fast never means bigger bets than the limits allow."},
 ]

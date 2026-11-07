@@ -407,7 +407,7 @@ class RiskBot(Bot):
                 return self.reject(sig, f"underwater budget: {s.underwater_budget:.0%} of the balance is already in "
                                         "trades below break-even - no new buys until some recover")
             qty = min(qty, left / price)
-        # buys need cash; a short needs the same amount set aside (no borrowing to make bets bigger)
+        # buys need cash (no borrowing to make bets bigger)
         qty = min(qty, self.desk.free_cash() * 0.995 / price)
         # portfolio heat: total money at risk to all stops stays under the cap
         heat_room = equity * limits.max_portfolio_heat - self.open_risk()
@@ -415,8 +415,6 @@ class RiskBot(Bot):
             return self.reject(sig, f"portfolio heat at limit ({limits.max_portfolio_heat:.0%} of equity at risk)")
         qty = min(qty, heat_room / (size_dist + cost))
         qty = self._round_qty(qty, price)
-        if sig.side is Side.SELL and not s.is_crypto(sig.symbol):
-            qty = float(int(qty))  # shares can only be shorted whole
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
 

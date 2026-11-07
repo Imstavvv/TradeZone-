@@ -32,6 +32,10 @@ def fake_alpaca(monkeypatch):
         return accounts.get(self.client.headers.get("APCA-API-KEY-ID"))
     monkeypatch.setattr(AlpacaBroker, "account", account)
 
+    async def positions(self):
+        return {}
+    monkeypatch.setattr(AlpacaBroker, "positions", positions)  # (no real network in the tests)
+
 
 def test_link_broker_from_the_app(site, fake_alpaca, tmp_path):
     h = {}
@@ -46,8 +50,10 @@ def test_link_broker_from_the_app(site, fake_alpaca, tmp_path):
     assert "AKGOODKEY123" not in site.get("/api/accounts").text  # never sent back
     assert site.get("/api/mode").json()["account"]["cash"] == 1234.5  # Use real money now works
     again = TradingDesk(Settings(feed="coinbase", host="0.0.0.0"), journal=site.desk.journal)
-    run(again.start())
+    again._unlink_alpaca_once()  # (the start-up steps that matter here, without the network)
+    again.load_linked_broker()
     assert again.broker_info()["linked"] and again.live_broker is not None  # remembered across restarts
+    run(again.live_broker.close())
     assert site.delete("/api/accounts/broker", headers=h).status_code == 200
     assert site.get("/api/accounts").json()["broker"]["linked"] is False
 

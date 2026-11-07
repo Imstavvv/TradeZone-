@@ -200,7 +200,7 @@ News can only make the team more careful or slightly more confident. It never op
 
 | Guard | What it does |
 | --- | --- |
-| A small stop on every trade | each trade risks about 1.5% of the balance (less for meme coins), longs and shorts alike |
+| A small stop on every trade | each trade risks about 1.5% of the balance (less for meme coins), on every trade |
 | Losing-day brake | once the day is down half the daily limit (1.5% with real money), new trades are **half size** (`TZ_LOSING_DAY_SIZE`) |
 | No good-day slowdown | a good day that slips keeps trading at full size (`TZ_DAY_LOCK_SIZE=1`; set it to 0.5 for the old half-size slowdown, or `TZ_DAY_LOCK_STOPS=true` for "no new trades until tomorrow") |
 
@@ -712,7 +712,7 @@ Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at 
 * the **take-profit moves another 10% out** (to +20% after fees), and
 * the **stop moves up to lock in half of the step** (+5% at +10%).
 
-This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. Shorts work the same way, mirrored. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
+This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
 
 ### Everything on with real money
 
@@ -743,7 +743,7 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Reinvesting today's profit | on (a quarter) | `TZ_REINVEST_SHARE` |
 | Growth ladder (smaller coins first on small balances) | on | `TZ_FOCUS_SMALL_COINS` |
 | "Never buy what can't be sold" checks | on | (always) |
-| Shorting | **off** (tested: with never-sell on, shorts lost money) | `TZ_SHORTING` |
+| Shorting | **taken out** (the bots only buy, then sell what they hold) | - |
 | Alpaca: US stocks (SPY, QQQ, AAPL, NVDA, MSFT) next to its crypto | on, long only | `TZ_ALPACA_STOCKS` |
 | Day-trade rule (stocks, under $25,000: the bots use at most 2 of the 3 day trades allowed in 5 days) | on | `TZ_DAY_TRADE_GUARD` |
 | Quick-flip slices, skims, accumulating, profit sales at the ask, the fee rule on locked stops | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS`, `TZ_FEE_RULE_STOPS` |
@@ -752,6 +752,8 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 The full list of settings, with every default, is in `.env.example`.
 
 ### The Alpaca team: stocks next to crypto, no shorting, the day-trade rule
+
+**Alpaca was unlinked on request.** Once, on the first start of this version, a saved Alpaca account is forgotten: the main account's Alpaca link and any linked Alpaca accounts. The bots stop trading it, and **nothing is sold or moved**: whatever it holds stays in your Alpaca account, untouched (an alert says so). If the main account was trading Alpaca with real money, it restarts on practice money. Alpaca can still be linked again in Settings, and a link made after that is kept. Alpaca keys set on the server (`TZ_ALPACA_LIVE_KEY`) aren't touched: remove them there.
 
 A linked Alpaca account runs its own bot team on **Alpaca's crypto only** - all the cash goes to crypto. **Prices on Alpaca's thin crypto market:** a coin there can go minutes between trades, and its "latest trade" is then the same old one every second. The feed used to take that as the price (frozen: nothing for the indicators to see, so the bots found no trades on quiet coins) and count its size again every second (volume inflated up to 60x). It now prices each coin at the middle of its live bid / ask, which moves all the time, and counts only the volume the current 1-minute bar really gained. On a simulated thin market (a trade every ~4 minutes) the bots saw no frozen bars instead of 77, came up with about twice the buy ideas and closed about 2.5 times the trades. The Liquidity Guard now calls trading "dried up" only when the last 5 minutes together are quiet, not one empty minute (replayed on the other exchanges' price history: the same results within about a dollar). (Dropping the 25% the Dip Buyer and the hold stack used to keep back changed almost nothing on real price history - +$397 / +$172 rising vs +$396 / +$173, identical falling and sideways - because the underwater cap stops new buys before those reserves come into play. Switching that cap off is what puts more money to work, and it loses about twice as much when prices fall.) Stocks can be switched back on: five big US stocks/ETFs (`TZ_ALPACA_STOCKS=SPY,QQQ,AAPL,NVDA,MSFT`: liquid, fractional, no commission) and the stock search (`TZ_DISCOVER_STOCKS=true`); stocks trade only in US market hours, crypto around the clock. Under a $1,000 balance the growth ladder keeps the team on smaller coins (stocks join from $1,000).
 
@@ -763,7 +765,7 @@ Tested like everything else, on real price history in rising, falling and sidewa
 | Crypto + stocks, with shorting | −$229 / −$113 | −$397 / −$143 | +$5 / +$20 | −$621 / −$236 |
 | **Crypto + stocks, no shorting** | +$962 / +$369 | −$832 / −$467 | +$41 / −$29 | **+$171 / −$127** |
 
-**Shorting is now off by default.** With never-sell-at-a-loss on, a short (a bet on a fall) that goes the wrong way is held while the price keeps rising, and that loss has no ceiling. Long-only stocks added a little over crypto alone, on both halves: more when prices rise or go sideways, a bit more lost when they fall.
+**Shorting has been taken out** (it was off by default, and only ever worked on Alpaca stocks). With never-sell-at-a-loss on, a short (a bet on a fall) that goes the wrong way is held while the price keeps rising, and that loss has no ceiling. Long-only stocks added a little over crypto alone, on both halves: more when prices rise or go sideways, a bit more lost when they fall.
 
 **The US day-trade rule.** Under $25,000, an account may make at most 3 day trades (buy and sell the same stock on the same day) in any 5 trading days; Alpaca refuses the 4th, and repeated breaches lock the account for 90 days. The bots count them (and use Alpaca's own count when it's higher) and stop at 2: after that, a stock bought today is sold from the next trading day, and the last day trade is kept for your own Close all / Emergency stop, which always go through. Crypto isn't covered by the rule.
 
@@ -1101,7 +1103,7 @@ Skims risk their tight 1.2% stop plus ~0.9% of round-trip fees to make 1.5%, so 
 
 ### Stop-loss at -33% from the buy price
 
-Every trade's stop-loss sits **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%; 20% above for a short), so ordinary dips never stop a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what lets that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
+Every trade's stop-loss sits **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%), so ordinary dips never stop a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what lets that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
 
 * **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (2.5% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
 * **Winners are still protected** from the normal plan's stop distance (-2% / -5% with real money): once a trade is up that much, the stop moves to break-even + fees, then trails and locks profit as before, and the moving take-profit works as before. A winner never rides back down to -33%.
@@ -1143,7 +1145,7 @@ With real money, a losing trade isn't cut at the first dip. Each trade gets a wi
 | Still down after **48 h** with momentum not turning up (`TZ_PATIENT_MAX_HOURS`) | lets it go |
 | The safety stop is hit | sells, always |
 
-Volume is each bar's traded amount compared with the average of the last 20 bars. With Kraken prices it comes from Kraken's running daily total; if a feed doesn't report volume, a break below the recent swing low (above the recent high for a short) stands in for "heavy volume". Because the safety stop is wider, each real-money trade risks more (**2.5%** of the balance on Normal, **4%** on Aggressive) and the daily, drawdown and floor limits are wider to match (5% / 15% / 15% on Normal). Profit-taking (quick flips, banking slices, runners) works as before. Skims keep their own tight stop and time limit. Practice keeps the usual tight stops. `TZ_PATIENT_EXITS=false` turns this off.
+Volume is each bar's traded amount compared with the average of the last 20 bars. With Kraken prices it comes from Kraken's running daily total; if a feed doesn't report volume, a break below the recent swing low stands in for "heavy volume". Because the safety stop is wider, each real-money trade risks more (**2.5%** of the balance on Normal, **4%** on Aggressive) and the daily, drawdown and floor limits are wider to match (5% / 15% / 15% on Normal). Profit-taking (quick flips, banking slices, runners) works as before. Skims keep their own tight stop and time limit. Practice keeps the usual tight stops. `TZ_PATIENT_EXITS=false` turns this off.
 
 ### Growth ladder: smaller coins first
 
@@ -1179,20 +1181,9 @@ For faster growth with real money, switch **Settings → Your trading rules → 
 
 Positions are about **1.4–1.6×** bigger than Normal (the position cap is often what binds), so good runs grow faster and bad runs cost more. It doesn't make the bots better at picking trades. Some things don't change: a stop-loss on every trade, the losing-day brake, fees and "never buy what can't be sold" checks, and **no borrowing / leverage** (Kraken is used spot-only).
 
-### Shorting (only where it really works)
+### No shorting
 
-The bots can also **short**: sell first and buy back lower, profiting when a price falls. Shorts follow the same guidelines as buys, mirrored: the same stop-loss and target percentages (the stop above the price, the target below, after fees), the same quick-flip plan, profit-taking, fee and transfer-fee rules, day lock and losing-day brake, and the same team vote, with a bearish majority and nobody objecting. Good news on a coin blocks shorting it, just as bad news blocks buying.
-
-Shorting switches itself on **only where it's possible** (`TZ_SHORTING=auto`; `off` disables it):
-
-| | Shorts? |
-| --- | --- |
-| Stocks on an **Alpaca margin account** (shorting enabled, $2,000+ equity) | ✅ only stocks Alpaca says are **easy to borrow** (checked every 10 min), whole shares only |
-| Crypto, anywhere | ❌ Kraken is used spot-only (no borrowing), and Alpaca and Uphold can't short crypto |
-| Meme coins | ❌ never: they can jump many times over, so a short's loss has no ceiling |
-| Practice | follows your linked account; with none linked, practice shorts stocks the way an Alpaca margin account would |
-
-A short never borrows to make the bet bigger: the same amount of cash is set aside as for a buy, and the cash a short sale brings in is shown as owed, so it can't be spent or sent. With the default crypto setup (Coinbase or Kraken prices), the bots therefore never short; add stocks (`TZ_SYMBOLS`) on an Alpaca margin account to use it.
+The bots never short (sell first, buy back later). They only buy, then sell what they hold. A bearish signal on something not held does nothing, and the safety monitor flags any short position as a problem. Shorting was taken out: tested on real price history it lost money (see the Alpaca team above), and with never-sell-at-a-loss on, a short in a rising market had no ceiling on its loss. Any old `TZ_SHORTING` setting is ignored.
 
 ### Quick flips (real money)
 

@@ -30,10 +30,6 @@ class Broker(abc.ABC):
         """A fresh {bid, ask, ...} for ``symbol`` just before an order, if the venue offers one."""
         return None
 
-    def can_short(self, symbol: str) -> bool:
-        """Whether this account can sell ``symbol`` short right now (borrow it and buy it back later)."""
-        return False
-
     def sell_check(self, symbol: str, qty: float, price: float, strict: bool = True) -> str | None:
         """Why buying could leave coins that can't be sold again, or None when it's fine."""
         return None

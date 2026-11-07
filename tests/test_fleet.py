@@ -301,3 +301,38 @@ def test_every_open_trade_of_every_account_is_listed_in_full(exchange):
     assert t["net"] < -2.0  # after the fees of selling it: what never-sell-at-a-loss goes by
     assert rows[acct]["never_sell"] is True
     assert [p["symbol"] for p in rows["main"]["positions"]] == ["BTC-USD"]
+
+
+def test_alpaca_is_unlinked_once_on_request_and_can_be_linked_again(tmp_path):
+    from tests.helpers import capture
+    db = str(tmp_path / "tz.db")
+    d = main_desk(db)
+    d._save_account_row("alpaca_live", {"key": "AKXXXXXXXX", "secret": "S"})
+    alerts = capture(d, "alert")
+    run(d.start())
+    assert d._account_row("alpaca_live") is None and d.live_broker is None
+    assert not d.settings.alpaca_live_key and not d.broker_info()["linked"]
+    assert any("Alpaca unlinked as you asked" in a.message and "untouched" in a.message for a in alerts)
+    run(d.shutdown())
+    d2 = main_desk(db)
+    d2._save_account_row("alpaca_live", {"key": "AKYYYYYYYY", "secret": "S"})  # linked again later...
+    d2._unlink_alpaca_once()
+    assert d2._account_row("alpaca_live") is not None  # ...and kept
+
+
+def test_a_linked_alpaca_account_is_unlinked_once_and_kraken_ones_stay(exchange):
+    from tests.helpers import capture
+    desk = main_desk()
+    kraken = run(desk.fleet.add("kraken", "KEY-B", SECRET, "Kraken two"))["id"]
+    s = Settings(feed="sim", symbols=list(SYMS))
+    alp = TradingDesk(s, feed=SimulatedFeed(SYMS), journal=Journal(":memory:"))
+    desk.fleet.desks["alp1"], desk.fleet.meta["alp1"] = alp, {"id": "alp1", "venue": "alpaca", "label": "Alpaca stocks"}
+    desk._save_account_row("extra:alp1", desk.fleet.meta["alp1"])
+    alerts = capture(desk, "alert")
+    run(desk.fleet._unlink_alpaca_once())
+    run(desk.bus.drain())
+    assert "alp1" not in desk.fleet.desks and desk._account_row("extra:alp1") is None and kraken in desk.fleet.desks
+    assert any(a.message.startswith("Alpaca stocks: Alpaca unlinked") for a in alerts)
+    desk.fleet.desks["alp2"], desk.fleet.meta["alp2"] = alp, {"id": "alp2", "venue": "alpaca", "label": "again"}
+    run(desk.fleet._unlink_alpaca_once())
+    assert "alp2" in desk.fleet.desks  # linked again later: kept

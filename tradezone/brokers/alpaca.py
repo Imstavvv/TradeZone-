@@ -50,12 +50,9 @@ class AlpacaBroker(Broker):
         # the account holds and a later "sell everything" asks for more than is there (and is refused).
         self.crypto_fee_bps = 25.0
         self.symbols: list[str] = []  # what the bots watch (set by the desk)
-        self.shorting_enabled = False  # margin account with shorting switched on (and $2,000+ equity)
-        self.shortable: set[str] = set()  # stocks Alpaca says are shortable AND easy to borrow right now
         self.day_trades: int | None = None  # Alpaca's own count of day trades in the last 5 trading days
         self.clock_open: bool | None = None  # Alpaca's market clock (holidays and early closes included)
         self.clock_at = 0.0
-        self._short_at = 0.0
 
     def supports(self, symbol: str) -> bool | None:
         from ..config import Settings
@@ -159,33 +156,9 @@ class AlpacaBroker(Broker):
         return self.clock_open if self.clock_open is not None and _t.time() - self.clock_at < 600 else None
 
     async def refresh_market(self) -> None:
-        """The market clock (every call), and which stocks can be shorted (every 10 min)."""
-        import time as _t
+        """The market clock (when stocks are watched). (No shorting: nothing else to check.)"""
         if any(not _is_crypto(s) for s in self.symbols):
             await self.refresh_clock()
-        if _t.time() - self._short_at < 600:
-            return
-        self._short_at = _t.time()
-        try:
-            r = await self.client.get("/v2/account")
-            r.raise_for_status()
-            a = r.json()
-            self.shorting_enabled = bool(a.get("shorting_enabled")) and float(a.get("equity") or 0) >= 2_000
-            ok = set()
-            if self.shorting_enabled:
-                for sym in [s for s in self.symbols if not _is_crypto(s)]:
-                    ra = await self.client.get(f"/v2/assets/{sym}")
-                    if ra.status_code == 200:
-                        d = ra.json()
-                        if d.get("tradable") and d.get("shortable") and d.get("easy_to_borrow"):
-                            ok.add(sym)
-            self.shortable = ok
-        except (httpx.HTTPError, ValueError, KeyError) as exc:
-            self.shorting_enabled, self.shortable = False, set()  # unknown = not allowed
-            log.warning("alpaca shortability check failed: %s", exc)
-
-    def can_short(self, symbol: str) -> bool:
-        return not _is_crypto(symbol) and self.shorting_enabled and symbol in self.shortable
 
     async def account(self) -> dict | None:
         try:

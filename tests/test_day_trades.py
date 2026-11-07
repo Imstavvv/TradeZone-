@@ -47,9 +47,8 @@ def test_the_alpaca_team_trades_the_tested_stocks_next_to_its_crypto_and_never_s
     s = Settings(feed="alpaca", alpaca_live_key="k", alpaca_live_secret="s", alpaca_stocks=list(ALPACA_STOCKS))
     s.validate()
     assert [x for x in s.symbols if "-" not in x] == ALPACA_STOCKS and "BTC-USD" in s.symbols
-    assert s.shorting == "off"
     d = make()
-    assert "shorting is off" in (d.short_block("AAPL") or "")
+    assert "never short" in d.short_block("AAPL")
 
 
 def test_round_trips_on_the_same_day_are_counted_and_remembered(tmp_path):

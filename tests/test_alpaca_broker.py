@@ -106,20 +106,12 @@ def test_cancel_and_poll_survive_a_network_blip():
     assert fa.orders[o.broker_id]["status"] == "canceled"
 
 
-def test_only_easy_to_borrow_stocks_on_a_margin_account_can_be_shorted_never_crypto():
+def test_no_shortability_checks_any_more_even_on_a_margin_account():
     fa = FakeAlpaca()
     b = broker(fa)
     b.symbols = ["TSLA", "GME", "BTC-USD"]
     run(b.refresh_market())
-    assert b.can_short("TSLA") and not b.can_short("GME") and not b.can_short("BTC-USD")
-    fa.account["equity"] = "1500"  # under $2,000: no shorting at all
-    b._short_at = 0
-    run(b.refresh_market())
-    assert not b.can_short("TSLA")
-    fa.fail.add("/v2/account")  # unknown = not allowed
-    b._short_at = 0
-    run(b.refresh_market())
-    assert not b.shorting_enabled
+    assert not hasattr(b, "can_short") and not any("/v2/assets/" in c for c in getattr(fa, "calls", []))
 
 
 def test_balances_and_holdings():

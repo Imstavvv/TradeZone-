@@ -2586,13 +2586,19 @@ function heldFor(s){
   if (s < 86400) return (s / 3600).toFixed(s < 36000 ? 1 : 0).replace(/\.0$/, '') + ' h';
   return (s / 86400).toFixed(1).replace(/\.0$/, '') + ' days';
 }
+// pop-ups sit just under the header, never over it (its Go LIVE / Pause / Stop buttons stay pressable)
+function placePops(){
+  const box = $('tradePops'), top = $('top'); if (!box || !top) return;
+  box.style.top = Math.max(8, Math.round(top.getBoundingClientRect().bottom) + 8) + 'px';
+}
+addEventListener('scroll', placePops, {passive: true}); addEventListener('resize', placePops);
 function tradePop(t){
   if (!popsOn() || !t || !t.symbol || /moved by you between the hold stack/.test(t.reason || '')) return;
   const coin = esc(t.symbol.split('-')[0]), closing = t.pnl != null, buying = t.side === 'buy';
   let kind, icon, title, lines = [];
   if (!closing) {
     kind = 'open'; icon = buying ? (t.action === 'add' ? '➕' : '💰') : '📉';
-    title = `${buying ? (t.action === 'add' ? 'Bought more' : 'Bought') : 'Shorted'} ${coin}`;
+    title = `${buying ? (t.action === 'add' ? 'Bought more' : 'Bought') : 'Sold'} ${coin}`;
     lines.push(`${num(t.qty)} at ${px(t.price)} · <b>${money(t.notional)}</b>`);
     if (t.reason) lines.push(esc(friendlyEntry(t.reason)));
     const plan = [t.stop != null ? `stop ${px(t.stop)}` : '', t.target != null ? `target ${px(t.target)}` : ''].filter(Boolean).join(' · ');
@@ -2615,7 +2621,7 @@ function tradePop(t){
   const bye = () => { el.classList.add('out'); setTimeout(() => el.remove(), 250); };
   el.querySelector('.tx').onclick = ev => { ev.stopPropagation(); bye(); };
   el.onclick = () => { bye(); showPage(closing ? 'trades' : 'open'); };
-  box.appendChild(el);
+  box.appendChild(el); placePops();
   let left = 8000, t0 = Date.now(), timer = setTimeout(bye, left);
   el.onmouseenter = () => { clearTimeout(timer); left -= Date.now() - t0; };
   el.onmouseleave = () => { t0 = Date.now(); timer = setTimeout(bye, Math.max(1500, left)); };
@@ -2732,8 +2738,7 @@ function friendlyWhy(r){  // technical risk reasons -> everyday words
     [/not chasing/, 'the price moved too fast'], [/through the stop/, 'the price had already fallen too far'], [/market is closed/, 'the stock market is closed'],
     [/correlated/, 'similar coins are already being held'], [/stale|no market data|no live price/, 'prices were out of date'],
     [/conviction/, "the signal wasn't strong enough"], [/already positioned/, "it's already being held"],
-    [/no short: meme/, 'meme coins are never shorted'], [/no short: crypto/, "crypto can't be shorted on your accounts"],
-    [/no short: (your|practice follows)/, "your account can't short it"], [/no short: shorting is off/, 'shorting is switched off'],
+    [/no short/, "the bots never short - they only sell what they hold"],
     [/locking in today's gains/, "today's gains are locked in"], [/focusing on smaller coins/, 'the bots focus on smaller coins until the balance grows'],
     [/for this balance/, 'enough trades are open for this balance'], [/profit slice skipped/, 'too small to sell part of it - the whole trade keeps running'], [/Grok veto/, 'Grok AI said no'], [/Grok unavailable|Grok busy/, "Grok AI couldn't check it"],
     [/insufficient capital|exposure room/, "there isn't enough spare money"], [/rate limit/, 'there were too many trades in a short time'],

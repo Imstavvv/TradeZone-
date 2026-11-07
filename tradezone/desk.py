@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import math
 import os
@@ -470,6 +471,8 @@ class TradingDesk:
         for kind in self.LIVE_ROWS:
             self._save_account_row(kind, None)
         self._save_account_row(f"{venue}_live", data)
+        if venue == "alpaca":  # (linked on purpose: the one-time unlink never undoes it)
+            self.store.save("alpaca_unlinked", {"done": True})
         s = self.settings
         self._clear_live_credentials()
         if venue == "uphold":
@@ -696,24 +699,9 @@ class TradingDesk:
                 f"$25,000) - {symbol} was bought today, so it sells from the next trading day; the last one is "
                 "kept for your own Close all / Emergency stop (an automatic stop waits too)")
 
-    def short_block(self, symbol: str) -> str | None:
-        """Why the bots may NOT short ``symbol`` here, or None when they may."""
-        s = self.settings
-        if s.shorting == "off":
-            return "shorting is off"
-        if s.is_meme(symbol):
-            return "meme coins are never shorted - they can jump many times over"
-        if s.is_crypto(symbol):
-            return "crypto can't be shorted on your accounts (Kraken is used spot-only; Alpaca and Uphold don't short it)"
-        b = self.live_broker
-        if self.is_live:
-            if b is None or not b.can_short(symbol):
-                return (f"your {b.label if b else 'real-money'} account can't short {symbol} "
-                        "(needs a margin account with shorting on and easy-to-borrow shares)")
-            return None
-        if b is not None and not b.can_short(symbol):
-            return f"practice follows your {b.label} account, which can't short {symbol}"
-        return None
+    def short_block(self, symbol: str) -> str:
+        """Why the bots won't sell ``symbol`` short: never - they only sell what they hold."""
+        return "the bots never short - they only sell what they hold"
 
     def free_cash(self) -> float:
         """Cash that is really yours: money from a short sale is owed back when the short is bought back."""
@@ -846,7 +834,30 @@ class TradingDesk:
                 "practice_only": [s for s in self.settings.symbols
                                   if self.live_broker is not None and self.live_broker.supports(s) is False]}
 
+    ALPACA_UNLINKED = ("Alpaca unlinked as you asked: the bots no longer trade it. Anything it holds stays in your "
+                       "Alpaca account, untouched (nothing was sold or moved). You can link it again in Settings.")
+
+    def _unlink_alpaca_once(self) -> None:
+        """Alpaca was unlinked on request (once): its saved keys are forgotten. Linking it again later is kept."""
+        if self.store.load("alpaca_unlinked"):
+            return
+        self.store.save("alpaca_unlinked", {"done": True})
+        if self._account_row("alpaca_live") is None:
+            return
+        self._save_account_row("alpaca_live", None)
+        if self.settings.live_venue == "alpaca":
+            self.settings.live_venue = "auto"
+        self.settings.alpaca_live_key = self.settings.alpaca_live_secret = ""
+        if self.live_broker is not None and getattr(self.live_broker, "name", "") == "alpaca":
+            self._drop_broker = self.live_broker  # (closed in start)
+            self.live_broker = None
+        self.bus.publish("alert", Alert("warning", self.ALPACA_UNLINKED, "desk"))
+
     async def start(self) -> None:
+        self._unlink_alpaca_once()
+        if (old := self.__dict__.pop("_drop_broker", None)) is not None:
+            with contextlib.suppress(Exception):
+                await old.close()
         before = self.live_broker
         self.load_linked_broker()
         if before is not None and before is not self.live_broker:
