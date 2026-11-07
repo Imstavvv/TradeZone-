@@ -166,10 +166,13 @@ class Settings:
     live_max_daily_loss_pct: float = 0.05  # real money: stop for the day after -5%
     live_max_drawdown_pct: float = 0.15  # real money: stop after -15% from the peak
     live_capital_floor_pct: float = 0.15  # real money: stop if the account falls 15% below what you put in
-    # real money (Normal): more capital per trade than practice
-    live_risk_per_trade: float = 0.025  # 2.5% of the balance risked to the (wider, patient) stop
-    live_max_position_pct: float = 0.35
-    live_max_portfolio_heat: float = 0.10
+    # real money (Normal): all the capital at work - trades as big as Aggressive's (asked for: "don't leave US
+    # dollars sitting"). Replayed on real price history (16 windows, tuning / unseen half), vs 2.5% / 35% / 10%:
+    # cash left idle about 10% of the balance instead of about a third; rising +$678 / +$411 (was +$446 / +$333),
+    # falling -$986 / -$711 (was -$740 / -$524), sideways -$111 / -$111 (was -$89 / -$88).
+    live_risk_per_trade: float = 0.04  # 4% of the balance risked to the (wider, patient) stop
+    live_max_position_pct: float = 0.50
+    live_max_portfolio_heat: float = 0.20
     # ---- Trend Scout: meme coins over $50k market cap with promising volume, and trending coins ----
     discover_coins: bool = True
     journal_keep_days: float = 2.0  # the Housekeeper clears working notes (trade ideas, turn-downs) older than this

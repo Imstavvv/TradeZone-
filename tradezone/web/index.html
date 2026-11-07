@@ -1155,14 +1155,14 @@ var(--live)}
   <h3 class="center">⚡ Real-money risk level</h3>
   <div class="pick2" id="riskPick"><button type="button" data-p="normal">🛡️ Normal</button><button type="button" data-p="aggressive">⚡ Aggressive</button><button type="button" data-p="bold">🔥 Bold</button></div>
   <table class="risktbl"><thead><tr><th></th><th>Normal</th><th>Aggressive</th><th>Bold</th></tr></thead><tbody>
-    <tr><td>Risked per trade (to the early cut)</td><td>2.5%</td><td><b>4%</b></td><td><b>6%</b></td></tr>
-    <tr><td>Biggest single position</td><td>35%</td><td><b>50%</b></td><td><b>70%</b></td></tr>
-    <tr><td>All open stops together</td><td>10%</td><td><b>20%</b></td><td><b>30%</b></td></tr>
+    <tr><td>Risked per trade (to the early cut)</td><td>4%</td><td><b>4%</b></td><td><b>6%</b></td></tr>
+    <tr><td>Biggest single position</td><td>50%</td><td><b>50%</b></td><td><b>70%</b></td></tr>
+    <tr><td>All open stops together</td><td>20%</td><td><b>20%</b></td><td><b>30%</b></td></tr>
     <tr><td>Stop for the day after a loss of</td><td>5%</td><td><b>10%</b></td><td><b>15%</b></td></tr>
     <tr><td>Stop everything after a drop of</td><td>15%</td><td><b>30%</b></td><td><b>40%</b></td></tr>
     <tr><td>Stop if below what you put in by</td><td>15%</td><td><b>35%</b></td><td><b>50%</b></td></tr>
-    <tr><td>Tested on real price history*</td><td>+$85</td><td>+$170</td><td>+$176</td></tr>
-    <tr><td>…its worst run*</td><td>-$16</td><td>-$30</td><td>-$45</td></tr>
+    <tr><td>Tested on real price history*</td><td>like Aggressive</td><td>+$170</td><td>+$176</td></tr>
+    <tr><td>…its worst run*</td><td>like Aggressive</td><td>-$30</td><td>-$45</td></tr>
   </tbody></table>
   <div class="muted" style="font-size:13px;margin-top:8px">Bigger levels make good runs grow faster - and bad runs hurt more. They don't make the bots better at picking trades. *Ten $500 runs on real price history the settings were never tuned on: Bold made only a little more than Aggressive, with a clearly bigger worst run. Losing trades follow your "Never sell at a loss" setting (held until they recover, or cut by their stop), nothing is ever borrowed, your hold stack is never traded, and practice money is unaffected.</div>
   <div id="riskConfirm" style="display:none"><label class="fl">To confirm bigger bets with real money, type <b>RISK</b></label><input id="riskWord" class="txt" autocomplete="off" placeholder="RISK"></div>

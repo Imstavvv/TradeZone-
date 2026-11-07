@@ -1018,9 +1018,9 @@ There are three real-money risk levels (**Settings → Your trading rules → Re
 
 | | Normal | Aggressive | Bold |
 | --- | --- | --- | --- |
-| Risked per trade (to the early cut) | 2.5% | 4% | 6% |
-| Biggest single position | 35% | 50% | 70% |
-| All open trades' risk together | 10% | 20% | 30% |
+| Risked per trade (to the early cut) | 4% (was 2.5%) | 4% | 6% |
+| Biggest single position | 50% (was 35%) | 50% | 70% |
+| All open trades' risk together | 20% (was 10%) | 20% | 30% |
 | Stop for the day after a loss of | 5% | 10% | 15% |
 | Stop everything after a drop of | 15% | 30% | 40% |
 | Stop if below what you put in by | 15% | 35% | 50% |
@@ -1031,6 +1031,15 @@ There are three real-money risk levels (**Settings → Your trading rules → Re
 Going from Normal to Aggressive about doubled the result on the unseen half. Going from Aggressive to Bold added only $6 there, but made the worst run 50% deeper. A still bigger level (8% a trade, a single trade up to the whole balance) was also tested: +$182 on the unseen half, with a worst run of -$54 (-11%). It isn't offered, because the extra risk bought almost nothing. Every level keeps a stop and the early cut on every trade, never borrows, and never touches the hold stack. Practice money always uses Normal.
 
 ### 💵 The whole cash balance trades (your hold stack excepted)
+
+**All the capital at work, no dollars left sitting (asked for).** Real-money trades on Normal are now as big as Aggressive's: 4% of the balance risked per trade (was 2.5%), one coin up to 50% of the balance (was 35%), and all open trades together risking up to 20% (was 10%). Aggressive keeps its wider daily-loss and drawdown limits. Replayed on real price history (16 windows per market, tuning / unseen half), the cash left idle fell from about **a third** of the balance on average to about **10%**. That earned more when prices rose and lost more when they fell or went sideways:
+
+| Real money, Normal | Rising | Falling | Sideways | Cash left idle |
+| --- | --- | --- | --- | --- |
+| Before (2.5% / 35% / 10%) | +$446 / +$333 | −$740 / −$524 | −$89 / −$88 | about 33% |
+| **Now (4% / 50% / 20%)** | **+$678 / +$411** | **−$986 / −$711** | **−$111 / −$111** | **about 10%** |
+
+The cap on money at risk alone wasn't what kept cash idle: raising it to 20%, or lifting it, changed nothing in any market. The size of each trade was. The stop on every trade, the 20% loss floor, never-sell-at-a-loss, and the daily-loss, drawdown and capital-floor stops are unchanged. `TZ_LIVE_RISK_PER_TRADE=0.025`, `TZ_LIVE_MAX_POSITION_PCT=0.35` and `TZ_LIVE_MAX_PORTFOLIO_HEAT=0.10` bring back the old sizes.
 
 With the -33% stop, trades used to be sized as if every one would fall all the way to -33%. That made each trade about 7% of the balance, and the 10% cap on money at risk kept about two thirds of the cash idle. Now (`TZ_FULL_CASH`, on) a trade is sized for the **patient cut**: -5% (meme coins -12%), where a falling trade is closed early when momentum and volume say it isn't coming back. The risk cap is counted the same way. So the whole cash balance can be at work: a Normal real-money trade is up to 35% of the balance (Aggressive 50%), and a few trades together can use all of it.
 
@@ -1105,7 +1114,7 @@ Skims risk their tight 1.2% stop plus ~0.9% of round-trip fees to make 1.5%, so 
 
 Every trade's stop-loss sits **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%), so ordinary dips never stop a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what lets that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
 
-* **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (2.5% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
+* **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (4% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
 * **Winners are still protected** from the normal plan's stop distance (-2% / -5% with real money): once a trade is up that much, the stop moves to break-even + fees, then trails and locks profit as before, and the moving take-profit works as before. A winner never rides back down to -33%.
 * **The account limits still apply:** the daily-loss, drawdown and capital-floor stops close everything if the whole account falls too far.
 
@@ -1145,7 +1154,7 @@ With real money, a losing trade isn't cut at the first dip. Each trade gets a wi
 | Still down after **48 h** with momentum not turning up (`TZ_PATIENT_MAX_HOURS`) | lets it go |
 | The safety stop is hit | sells, always |
 
-Volume is each bar's traded amount compared with the average of the last 20 bars. With Kraken prices it comes from Kraken's running daily total; if a feed doesn't report volume, a break below the recent swing low stands in for "heavy volume". Because the safety stop is wider, each real-money trade risks more (**2.5%** of the balance on Normal, **4%** on Aggressive) and the daily, drawdown and floor limits are wider to match (5% / 15% / 15% on Normal). Profit-taking (quick flips, banking slices, runners) works as before. Skims keep their own tight stop and time limit. Practice keeps the usual tight stops. `TZ_PATIENT_EXITS=false` turns this off.
+Volume is each bar's traded amount compared with the average of the last 20 bars. With Kraken prices it comes from Kraken's running daily total; if a feed doesn't report volume, a break below the recent swing low stands in for "heavy volume". Because the safety stop is wider, each real-money trade risks more (**4%** of the balance on Normal and Aggressive) and the daily, drawdown and floor limits are wider to match (5% / 15% / 15% on Normal). Profit-taking (quick flips, banking slices, runners) works as before. Skims keep their own tight stop and time limit. Practice keeps the usual tight stops. `TZ_PATIENT_EXITS=false` turns this off.
 
 ### Growth ladder: smaller coins first
 
@@ -1169,9 +1178,9 @@ For faster growth with real money, switch **Settings → Your trading rules → 
 
 | | Normal | Aggressive |
 | --- | --- | --- |
-| Risked per trade (to its stop) | 2.5% | **4%** |
-| Biggest single position | 35% | **50%** |
-| All open stops together | 10% | **20%** |
+| Risked per trade (to its stop) | 4% (was 2.5%) | **4%** |
+| Biggest single position | 50% (was 35%) | **50%** |
+| All open stops together | 20% (was 10%) | **20%** |
 | Open trades / meme coins at once | 6 / 3 | **8 / 4** |
 | Conviction needed | 0.22 | **0.19** |
 | Stop for the day after a loss of | 5% | **10%** |

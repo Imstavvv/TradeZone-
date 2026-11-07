@@ -31,7 +31,7 @@ def test_real_money_trades_get_a_wider_safety_stop_and_more_capital():
     pos = buy(desk)
     assert pos.stop_price == pytest.approx(50_000 * 0.95, rel=1e-3)  # -5% safety stop (bigger coins)
     assert desk.bots["portfolio"].patient == {"BTC-USD"}
-    assert desk.risk_info()["risk_per_trade"] == pytest.approx(0.025)
+    assert desk.risk_info()["risk_per_trade"] == pytest.approx(0.04)
 
 
 def test_a_dip_without_selling_pressure_is_held_for_a_comeback():
@@ -115,13 +115,14 @@ def test_every_profit_sale_keeps_more_than_its_fees():
     from tradezone.core.models import Side, Signal, SignalKind
     desk = make()
     pos = buy(desk)
+    held = pos.qty
     rejected = capture(desk, "signal.rejected")
     desk.prices["BTC-USD"] = 50_500.0
     pos.last_price = 50_500.0
     desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.SELL, 1.0, "bank it", "skimmer", SignalKind.EXIT,
                                                fraction=0.5, calm=True))
     run(desk.bus.drain())
-    assert pos.qty == 0.035 and "doesn't beat" in rejected[-1]["reason"]
+    assert pos.qty == held and "doesn't beat" in rejected[-1]["reason"]
     pm = desk.bots["portfolio"]
     assert "BTC-USD" not in pm.exiting  # nothing left stuck 'on its way out'
     pos.stop_price = 50_400.0  # a stop is never held back by the rule

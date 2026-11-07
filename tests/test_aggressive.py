@@ -32,13 +32,15 @@ def at_risk(pos):
     return pos.qty * pos.avg_price * 0.05
 
 
-def test_aggressive_bets_bigger_with_real_money():
+def test_normal_now_trades_as_big_as_aggressive_with_real_money():
+    """All the capital at work (asked for): Normal real-money trades are Aggressive-sized; Aggressive keeps its wider
+    loss limits."""
     normal, agg = make(), make("aggressive")
     for d in (normal, agg):
         prime(d, "BTC-USD", 50_000.0, atr=250.0)
         run(d.switch_mode("live"))
     n, a = at_risk(buy(normal)), at_risk(buy(agg))
-    assert 1.3 * n <= a <= 1.65 * n  # 4% vs 2.5% risk, or 50% vs 35% positions when the cap is what binds
+    assert a == pytest.approx(n)  # the same size now (4% risk, up to 50% of the balance)
     assert a <= 10_000 * 0.04 * 1.01  # ...never more than 4% of the account to the stop
     assert buy(agg).stop_price is not None  # every trade still has a stop
 
@@ -73,7 +75,7 @@ def test_turning_aggressive_on_needs_the_word_risk_and_is_remembered(tmp_path):
     d2 = make(journal=Journal(db))
     run(d2.restore_state())
     assert d2.settings.risk_profile == "aggressive"
-    assert d2.set_risk_profile("normal")["risk_per_trade"] == pytest.approx(0.025)  # back to Normal: no word needed
+    assert d2.set_risk_profile("normal")["risk_per_trade"] == pytest.approx(0.04)  # back to Normal: no word needed
 
 
 def test_risk_level_api():
@@ -96,7 +98,7 @@ def test_bold_bets_bigger_again_and_needs_the_word_risk():
         prime(d, "BTC-USD", 50_000.0, atr=250.0)
         run(d.switch_mode("live"))
     n, a, b = (at_risk(buy(d)) for d in (normal, agg, bold))
-    assert n < a < b <= 10_000 * 0.06 * 1.01  # bigger each level; never more than 6% to the early cut
+    assert n <= a < b <= 10_000 * 0.06 * 1.01  # Bold bigger again; never more than 6% to the early cut
     assert buy(bold).stop_price is not None  # every trade still has a stop
     assert bold.portfolio.cash >= 0  # never borrows
 
