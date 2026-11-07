@@ -330,7 +330,8 @@ class QuantBot(Bot):
             votes = self.consensus(new, parts, regime)
             yes = sum(v == "yes" for v in votes.values())
             against = [k for k, v in votes.items() if v == "no"]
-            need = self.settings.risk.consensus_min_yes
+            share = self.settings.risk.consensus_min_share
+            need = max(1, math.ceil(share * len(votes) - 1e-9)) if share > 0 else self.settings.risk.consensus_min_yes
             if against or yes < need:
                 why = f"{', '.join(against)} against" if against else f"only {yes}/{need} agree"
                 if self.blocked.get(s.symbol) != why:  # log each distinct disagreement once

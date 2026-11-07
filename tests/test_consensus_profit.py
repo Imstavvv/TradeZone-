@@ -46,6 +46,21 @@ def test_buy_proceeds_when_team_agrees(desk):
     assert list(signals[0].votes.values()).count("yes") >= 2 and "no" not in signals[0].votes.values()
 
 
+@pytest.mark.parametrize("share,trades", [(0.25, True), (0.5, True), (0.75, False), (1.0, False)])
+def test_the_share_of_voters_that_must_agree(desk, share, trades):
+    """4 voters; this setup gets 2 yes (momentum, breakout) and 2 abstain: 25% and 50% let it through, 75% / 100% don't."""
+    desk.settings.risk.consensus_min_share = share
+    signals = capture(desk, "signal.proposed")
+    push(desk, snap(price=101, rsi=55, ema_fast=103, ema_slow=100, hi=100.5))
+    assert (len(signals) == 1) is trades
+    if not trades:
+        assert desk.bots["quant"].metrics["consensus_blocked"] == 1
+
+
+def test_by_default_the_old_count_rule_applies(desk):
+    assert desk.settings.risk.consensus_min_share == 0.0 and desk.settings.risk.consensus_min_yes == 2
+
+
 def test_consensus_rechecked_while_stance_holds(desk):
     signals = capture(desk, "signal.proposed")
     push(desk, snap(price=101, rsi=80, ema_fast=103, ema_slow=100, hi=100.5))  # blocked

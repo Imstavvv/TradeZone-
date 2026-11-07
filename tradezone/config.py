@@ -87,6 +87,10 @@ class RiskLimits:
     # Buys need team consensus: no voter may object and at least this many must actively agree.
     # Voters: momentum, mean-reversion and breakout models plus the Strategist (then Grok, then Risk).
     consensus_min_yes: int = 2
+    # the share of the voters (the momentum, dip and breakout strategy families + the Strategist: 4 in all) that must
+    # say yes, as 0-1 (0.5 = half of them = 2 of 4, the same as consensus_min_yes 2). 0 = use consensus_min_yes.
+    # Any "no" still blocks the trade either way.
+    consensus_min_share: float = 0.0
     fractional: bool = True
 
 
