@@ -310,6 +310,12 @@ class Settings:
     # day (so a position can be sold again) is watched and traded - not only the lists above. Stablecoins and money
     # (USDC, USDT, EUR, GBP, ...) are left out: they don't move like crypto (currency pairs: TZ_FOREX, tested, off)
     kraken_all_coins: bool = True
+    # every timeframe (asked for: "the full chart and all timeframes"): 5m / 15m / 1h / 4h / daily candles for every
+    # coin are in every snapshot; hourly and daily history is loaded from the exchange in the background at start-up
+    timeframe_history: bool = True
+    # buy only when the higher timeframes agree: off | 1h (not while the hourly trend is down) | 4h | align (more
+    # timeframes up than down). Off until tested on real price history.
+    mtf_filter: str = "off"
     max_kraken_coins: int = 400
     # ---- risk level for REAL money: normal | aggressive (bigger bets, wider loss limits; never leverage) ----
     risk_profile: str = "normal"

@@ -9,6 +9,7 @@ from ..core.bus import Event
 from ..core.extra_indicators import ExtraIndicators
 from ..core.indicators import EMA, RSI, RollingWindow
 from ..core.models import Alert, Snapshot, Tick, now
+from ..core.timeframes import Timeframes
 from .base import Bot
 
 WARMUP = 30
@@ -45,6 +46,7 @@ class _Book:
         # ADX, Aroon, Parabolic SAR, Supertrend, Ichimoku, TRIX, CMF, CCI, Williams %R, MFI, Keltner
         self.extra = ExtraIndicators()
         self.extra_now: dict = {}
+        self.tf = Timeframes()  # 5m / 15m / 1h / 4h / daily candles: the whole chart, every timeframe
 
 
 class ScoutBot(Bot):
@@ -127,6 +129,7 @@ class ScoutBot(Bot):
         b.lows.push(low)
         b.highs.push(high)
         b.extra_now = b.extra.update(high, low, t.price, volume)  # (every bar, warm-up included)
+        b.tf.update(ts, high, low, t.price, volume)
         avg_vol = b.volumes.mean() if b.volumes.full else 0.0  # the 20 bars BEFORE this one
         recent_vol = (sum(list(b.volumes.data)[-4:]) + volume) / 5 if b.volumes.full else 0.0  # this bar + the 4 before
         b.volumes.push(volume)
@@ -164,6 +167,7 @@ class ScoutBot(Bot):
             "volume": volume,  # (this bar's raw volume: the volume breakout keeps its own longer average)
             **self._more(b, t.price, macd),
             **{k: v for k, v in b.extra_now.items() if v is not None},
+            **b.tf.view(),  # every timeframe: tf_1h_trend, tf_4h_rsi, tf_1d_range_pos, ..., mtf_score
         }
         self.publish("market.snapshot", Snapshot(t.symbol, t.price, ind, t.ts, historical=self._historical))
         self.bump("snapshots")
@@ -200,6 +204,19 @@ class ScoutBot(Bot):
             b.last_ts = now()
             self.bump("backfilled_bars", len(candles))
         return len(candles)
+
+    def seed_timeframe(self, symbol: str, label: str, candles: list[dict]) -> None:
+        """The exchange's longer history (hourly / daily candles) for one coin's timeframes."""
+        b = self.books.get(symbol) or self.books.setdefault(symbol, self._new_book())
+        b.tf.seed(label, candles)
+        if label == "1h":  # 4-hour candles from the hourly ones (not every exchange offers 4h)
+            groups: dict[int, list[dict]] = {}
+            for c in candles:
+                groups.setdefault(int(float(c["ts"]) // 14_400), []).append(c)
+            b.tf.seed("4h", [{"ts": k * 14_400, "open": g[0].get("open", g[0]["close"]), "high": max(x["high"] for x in g),
+                              "low": min(x["low"] for x in g), "close": g[-1]["close"],
+                              "volume": sum(float(x.get("volume") or 0) for x in g)} for k, g in sorted(groups.items())])
+        self.bump("timeframe_candles", len(candles))
 
     def warmup_status(self) -> dict | None:
         """Progress toward the first indicator snapshot, or None once every symbol is warm."""

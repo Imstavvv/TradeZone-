@@ -118,6 +118,19 @@ class RiskBot(Bot):
             return "down"
         return "flat"
 
+    def mtf_block(self, symbol: str) -> str | None:
+        """The higher timeframes say no (mtf_filter): the hourly / 4-hour trend is down, or more timeframes fall."""
+        mode = self.settings.mtf_filter
+        snap = self.snapshots.get(symbol)
+        if mode == "off" or snap is None:
+            return None
+        ind = snap.indicators
+        if mode in ("1h", "4h") and ind.get(f"tf_{mode}_trend", 0) < 0:
+            return f"{symbol}'s {mode} trend is down - no new buys until the higher timeframe turns"
+        if mode == "align" and ind.get("mtf_ready", 0) >= 2 and ind.get("mtf_score", 0) < 0:
+            return f"{symbol}: more timeframes falling than rising ({ind.get('mtf_down')} vs {ind.get('mtf_up')}) - not buying"
+        return None
+
     def falling_block(self, symbol: str) -> str | None:
         st = self.settings
         if st.falling_guard == "coin" and self._falling(symbol):
@@ -233,6 +246,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and not sig.force and (why := self.mtf_block(sig.symbol)):
+            return self.reject(sig, why)
         if sig.side is Side.BUY and not sig.force and (why := self.falling_block(sig.symbol)):
             return self.reject(sig, why)  # (dip adds and buy-backs too: no catching a falling knife)
         rising_pass = sig.side is Side.BUY and self.settings.trend_split_rising_past_cap and self._trend(sig.symbol) == "up"

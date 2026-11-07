@@ -469,6 +469,25 @@ class TradingDesk:
     # -- lifecycle -------------------------------------------------------
     BACKFILL_FIRST = 40  # coins whose history loads before trading starts (the starting list and the busiest)
 
+    async def _backfill_timeframes(self, syms: list[str]) -> None:
+        """Hourly and daily candles from the exchange for every coin (held coins first), so the long timeframes have
+        their real history from the start - in the background, paced by the exchange."""
+        scout = self.bots["scout"]
+        held = {p.symbol for p in self.portfolio.open_positions}
+        for sym in sorted(syms, key=lambda x: x not in held):
+            for label, gran in (("1h", 3600), ("1d", 86_400)):
+                if not self.running and self.cycles > 0:
+                    return
+                try:
+                    candles = await self.feed.history(sym, gran, 300)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    log.warning("%s history for %s failed: %s", label, sym, exc)
+                    continue
+                if candles and sym in self.settings.symbols:
+                    scout.seed_timeframe(sym, label, candles)  # type: ignore[attr-defined]
+
     async def _backfill_more(self, syms: list[str], gran: int) -> None:
         """The rest of the coins' history, one at a time in the background (the exchange paces it anyway): each coin
         can be traded as soon as its own history is in, and the team trades the others meanwhile."""
@@ -498,12 +517,20 @@ class TradingDesk:
 
         # each coin's history is kept as it arrives: one slow (or paced) coin no longer throws away all the others
         syms = list(self.settings.symbols)
+        everyone, rest = list(syms), []
         if len(syms) > self.BACKFILL_FIRST:  # every coin on Kraken: the first ones now, the rest join as they load
             rest, syms = syms[self.BACKFILL_FIRST:], syms[: self.BACKFILL_FIRST]
+        if rest or self.settings.timeframe_history:
             old = self.__dict__.get("_backfill_rest")
             if old is not None and not old.done():
                 old.cancel()
-            self._backfill_rest = asyncio.ensure_future(self._backfill_more(rest, gran))
+
+            async def background() -> None:
+                if rest:
+                    await self._backfill_more(rest, gran)
+                if self.settings.timeframe_history:  # then the long timeframes' own history
+                    await self._backfill_timeframes(everyone)
+            self._backfill_rest = asyncio.ensure_future(background())
         tasks = [asyncio.ensure_future(one(s)) for s in syms]
         done, pending = await asyncio.wait(tasks, timeout=max(timeout, 1.5 * len(syms)))
         for t in pending:

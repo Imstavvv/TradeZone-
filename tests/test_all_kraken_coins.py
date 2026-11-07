@@ -56,7 +56,7 @@ def test_hundreds_of_coins_are_priced_in_batches():
 
 def test_with_many_coins_trading_starts_after_the_first_40_and_the_rest_load_meanwhile():
     syms = [f"C{i}-USD" for i in range(60)]
-    s = Settings(feed="sim", symbols=list(syms))
+    s = Settings(feed="sim", symbols=list(syms), timeframe_history=False)  # (only the 1-minute history here)
     asked = []
 
     class Feed:
