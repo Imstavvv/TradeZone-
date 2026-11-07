@@ -590,6 +590,13 @@ class PortfolioBot(Bot):
         self._cycles += 1
         if self._cycles % 30 == 0:
             self._free_stale_slots()
+        # A leftover too small to sell (a sale's last 0.00000001 BTC, 0.01 DOGE) used to stay "open" for good: the
+        # coin then could never be bought again ("already positioned"). Nothing in flight for it: written off.
+        exe = self.desk.bots.get("execution")
+        for pos in list(p.open_positions):
+            if exe is not None and (exe.working_for(pos.symbol) is not None or abs(exe.unbooked.get(pos.symbol, 0.0)) > 1e-12):
+                continue
+            self._write_off_dust(pos.symbol)
         self.metrics.update(
             {
                 "protected_now": len(self.protected),

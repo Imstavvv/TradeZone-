@@ -133,3 +133,44 @@ def test_full_simulation_trades_without_errors(desk):
     # ledger integrity: equity == cash + marked positions
     p = desk.portfolio
     assert p.equity == pytest.approx(p.cash + sum(x.qty * x.last_price for x in p.positions.values()))
+
+
+def test_a_leftover_too_small_to_sell_doesnt_block_the_coin_for_good(desk):
+    """A sale's last 0.00000001 BTC used to stay an open trade forever, so BTC could never be bought again."""
+    prime(desk, "BTC-USD", 50_000.0, atr=250.0)
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    pos = desk.portfolio.position("BTC-USD")
+    assert pos.qty > 0
+    pos.qty = 1e-8  # (what a sale left behind: worth half a cent)
+    run(desk.bots["portfolio"].on_cycle())
+    run(desk.bus.drain())
+    assert pos.is_flat and desk.portfolio.open_positions == []
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("BTC-USD").qty > 1e-6  # bought again
+
+
+def test_a_sellable_remainder_is_kept(desk):
+    prime(desk, "BTC-USD", 50_000.0, atr=250.0)
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    pos = desk.portfolio.position("BTC-USD")
+    pos.qty = 0.001  # $50: a real trade
+    run(desk.bots["portfolio"].on_cycle())
+    assert pos.qty == 0.001
+
+
+def test_two_buys_at_the_same_moment_never_spend_more_than_the_cash(desk):
+    """Each buy was sized against the whole cash; two approved together could ask for more than was there."""
+    s = desk.settings
+    s.risk.max_position_pct = s.risk.max_gross_exposure = 0.9
+    s.risk.risk_per_trade = s.risk.max_portfolio_heat = 0.9
+    s.risk.symbol_cooldown_s = 0
+    prime(desk, "BTC-USD", 50_000.0, atr=250.0)
+    prime(desk, "ETH-USD", 3_000.0, atr=15.0)
+    for sym in ("BTC-USD", "ETH-USD"):
+        desk.bus.publish("signal.proposed", Signal(sym, Side.BUY, 0.95, "t", "quant"))
+    run(desk.bus.drain())
+    held = [p.symbol for p in desk.portfolio.open_positions]
+    assert held and desk.portfolio.cash >= 0

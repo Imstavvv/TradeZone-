@@ -502,8 +502,8 @@ class Settings:
         return PROFILES[self.risk_profile] if self.aggressive(live) else None
 
     def limits(self, live: bool) -> RiskLimits:
-        """The risk limits in force: Aggressive (real money only) roughly doubles what a trade may risk and
-        widens the loss limits. Stops stay on every trade, and nothing is ever borrowed (no leverage)."""
+        """The risk limits in force: Normal real money trades Aggressive-sized (all the capital at work); Aggressive widens
+        the loss limits, and Bold trades bigger again. Stops stay on every trade, and nothing is ever borrowed (no leverage)."""
         if not live:
             return self.risk
         if not self.aggressive(live):

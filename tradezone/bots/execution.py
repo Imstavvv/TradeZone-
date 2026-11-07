@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 
 from ..core.bus import Event
-from ..core.models import Alert, Fill, Order, OrderRequest, OrderStatus, now
+from ..core.models import Alert, Fill, Order, OrderRequest, OrderStatus, Side, now
 from .base import Bot
 
 
@@ -90,6 +90,20 @@ class ExecutionBot(Bot):
                 return f"fat-finger guard: notional {req.qty * px:,.0f} exceeds cap {cap:,.0f}"
         return None
 
+    def cash_room(self, symbol: str) -> float:
+        """How much of ``symbol`` the cash still free can buy: cash minus buys already working or filled but not
+        yet booked. Two buys approved in the same moment were each sized against the whole cash, and together
+        could ask for more than the account had."""
+        px = self.desk.prices.get(symbol) or 0.0
+        if px <= 0:
+            return 0.0
+        prices, fee = self.desk.prices, (lambda sym: 1 + self.settings.fee_bps(sym) / 10_000)  # (fees paid too)
+        committed = sum(max(0.0, o.qty - o.filled_qty) * (o.limit_price or prices.get(o.symbol) or 0.0) * fee(o.symbol)
+                        for o in self.working.values() if o.side is Side.BUY and not o.reduce_only)
+        committed += sum(q * (prices.get(s) or 0.0) * fee(s) for s, q in self.unbooked.items() if q > 0)
+        free = self.desk.free_cash() - committed
+        return max(0.0, free * 0.995 / (px * (1 + self.settings.fee_bps(symbol) / 10_000)))
+
     def integrity_violation(self, message: str) -> None:
         self.bump("integrity_violations")
         self.act(f"INTEGRITY: {message}", "critical")
@@ -158,6 +172,15 @@ class ExecutionBot(Bot):
             if qty <= 1e-12 or (held > 0) == (req.side.sign > 0):
                 self.act(f"dropped reduce-only {req.symbol}: no position to reduce", "warning")
                 return
+        elif req.side is Side.BUY:
+            room = self.cash_room(req.symbol)
+            if room <= 0:
+                self.bump("cash_blocks")
+                self.act(f"blocked buy {req.symbol}: the cash is already committed to other buys", "warning")
+                return
+            if qty > room:  # (sized against the same cash as a buy approved just before it: trimmed to what's left)
+                self.act(f"{req.symbol}: buy trimmed {qty:g} -> {room:g} to the cash still free")
+                qty = room
         order = Order(
             req.symbol, req.side, qty, req.id, reason=req.reason,
             reduce_only=req.reduce_only, stop_price=req.stop_price, take_profit=req.take_profit,
