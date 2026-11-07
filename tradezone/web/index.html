@@ -1880,6 +1880,7 @@ function connect(){
       renderChips();
       seedStream(msg.data);
       loadTrades(true);
+      if (S.view !== 'simple' || S.page === 'money') setTimeout(loadHoldings, 0);  // (opened straight onto it)
     } else {
       for (const [sym, px] of Object.entries(msg.data.prices)) {
         const h = (S.history[sym] ||= []); h.push(px); if (h.length > 300) h.shift();
@@ -3587,7 +3588,7 @@ function showPage(pg, {push = true} = {}){
   if (push && simple && location.hash !== '#/' + pg) history.pushState(null, '', pg === 'home' ? location.pathname : '#/' + pg);
   window.scrollTo({top: 0});
   if (pg === 'trades' && S.state) { loadTrades(true); loadTrips(); }
-  if (pg === 'money' && S.state) loadHoldings();
+  if ((pg === 'money' || S.view !== 'simple') && S.state) loadHoldings();  // (the Pro view shows every section)
   if (S.state) render();
 }
 window.addEventListener('popstate', () => { if (S.view === 'simple') showPage(pageFromHash(), {push: false}); });
