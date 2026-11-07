@@ -97,6 +97,6 @@ def test_volatility_targeting_sizes_calm_coins_bigger_and_wild_ones_smaller():
             p = d.portfolio.position(sym)
             out[sym] = p.qty * p.avg_price
         return out
-    off, on = size(False), size(True)
+    off, on = size(False), size(True)  # (explicitly off / on)
     assert on["BTC-USD"] > off["BTC-USD"] * 1.2 and on["SOL-USD"] < off["SOL-USD"] * 0.8
-    assert Settings().vol_target is False and Settings().trail_atr_mult == 0.0  # (off until tested)
+    assert Settings().vol_target is True and Settings().trail_atr_mult == 0.0  # (tested: targeting on, chandelier off)

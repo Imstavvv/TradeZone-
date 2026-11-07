@@ -340,15 +340,19 @@ class Settings:
     bots_off: list[str] = field(default_factory=lambda: ["volsizer", "ranker", "reviewer"])
     # ---- upgrades from trading research (off until tested) ----
     # volatility targeting (time-series momentum research: equal risk across coins): a trade's size is scaled by the
-    # median volatility of the watched coins / this coin's (0.5x - 1.5x) - calmer coins bigger, wilder ones smaller
-    vol_target: bool = False
+    # median volatility of the watched coins / this coin's (0.5x - 1.5x) - calmer coins bigger, wilder ones smaller.
+    # Replayed (16 windows per market, tuning / unseen half): rising +$744 / +$444 vs +$827 / +$504, falling
+    # -$642 / -$588 vs -$745 / -$641, sideways -$106 / -$192 vs -$160 / -$214 - ahead summed on both halves. On.
+    vol_target: bool = True
     # a volatility trailing stop ("chandelier exit"): the trailing stop follows the high by this many average 1-minute
-    # moves (ATR) instead of the plan's fixed distance (0 = off)
+    # moves (ATR) instead of the plan's fixed distance (0 = off). Replayed with the trailing stop on, 20 and 40 ATR: a
+    # little worse than without (rising +$813 / +$483 and +$812 / +$499 vs +$827 / +$504). Off.
     trail_atr_mult: float = 0.0
     # partial sells for other buys (asked for): when the cash runs out, part of a trade that's in profit after both fees
     # (the one whose signal is weakest now; at most half of it) is sold to pay for a new buy, which goes ahead once
-    # that sale has filled. Never-sell-at-a-loss and "profit-taking covers all costs" still hold.
-    rotate_for_buys: bool = False
+    # that sale has filled. Never-sell-at-a-loss and "profit-taking covers all costs" still hold. Replayed: about the
+    # same as without (it rarely comes up: cash runs out while a trade is in profit after fees). On, as asked.
+    rotate_for_buys: bool = True
     rotate_max_share: float = 0.5
     consensus_bots: int = 6
     max_kraken_coins: int = 600

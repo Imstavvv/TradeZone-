@@ -1078,6 +1078,18 @@ So these are now **off** (each can be switched back on): the trailing stop (on i
 
 What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
 
+### 🔬 Upgrades from trading research
+
+Searched for, built off, then replayed against the current settings (16 windows per market, tuning / unseen half; now: rising +$827 / +$504, falling −$745 / −$641, sideways −$160 / −$214):
+
+| | Rising | Falling | Sideways | |
+| --- | --- | --- | --- | --- |
+| **Volatility targeting**: calmer coins traded bigger, wilder ones smaller, for equal risk across coins (`TZ_VOL_TARGET`) | +$744 / +$444 | **−$642 / −$588** | **−$106 / −$192** | **on**: ahead summed on both halves, and much less lost when prices fall |
+| **Partial sells for other buys**: when the cash is out, part of a trade in profit after fees pays for a new buy (`TZ_ROTATE_FOR_BUYS`) | same | about the same | same | **on** (asked for): it rarely comes up |
+| Chandelier exit: the trailing stop follows the high by 20 or 40 average moves (`TZ_TRAIL_ATR_MULT`, with `TZ_TRAILING_STOP`) | +$813 / +$483 | −$763 / −$642 | −$159 / −$222 | off: a little worse |
+
+Volatility targeting comes from time-series momentum research, where scaling positions by volatility is a main source of the better risk-adjusted returns; the Volatility Sizer (off) only compared a coin with its own history.
+
 ### 🗳️ 6 bots must agree on every strategy buy and sell
 
 Asked for. Every strategy the Quant knows (all 21: momentum, MACD, VWAP, OBV, ADX, Supertrend, Ichimoku, buying dips, Bollinger Bands, Stochastic, RSI-style oscillators, Money Flow, breakouts, Keltner, ...) and the Strategist vote yes / no / abstain on each idea. A strategy buy or a strategy ("change of mind") sale goes ahead only when **at least 6 say yes and more say yes than no** (`TZ_CONSENSUS_BOTS=6`). An idea that doesn't have the votes yet isn't dropped: it's re-checked on every bar while the view holds. Stops, the −7% loss floor, take-profits and your own sales never wait for a vote. `TZ_CONSENSUS_VOTERS=families` brings back the old vote (the 3 strategy families and the Strategist, 4 voters, 2 yes and nobody against).
