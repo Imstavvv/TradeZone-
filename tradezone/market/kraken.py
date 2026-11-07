@@ -36,7 +36,10 @@ def ours(base: str) -> str:
     return next((k for k, v in ALIASES.items() if v == base), base)
 
 
-def parse_pairs(result: dict) -> dict[str, dict]:
+TOKENIZED = "tokenized_asset"  # Kraken's asset class for xStocks (tokenized stocks: AAPLx, TSLAx, ...)
+
+
+def parse_pairs(result: dict, aclass: str = "currency") -> dict[str, dict]:
     """``AssetPairs`` result -> {"BTC-USD": {pair, key, base, lot, ordermin, costmin}} for online USD pairs."""
     out: dict[str, dict] = {}
     for key, p in (result or {}).items():
@@ -46,7 +49,8 @@ def parse_pairs(result: dict) -> dict[str, dict]:
         sym = f"{ours(ws.split('/')[0])}-USD".upper()  # (Kraken's tokenized stocks are written AAPLx: one spelling everywhere)
         out[sym] = {"pair": p.get("altname") or key, "key": key, "base": p["base"], "alt": ws.split("/")[0],
                     "lot": int(p.get("lot_decimals", 8)), "price_dec": int(p.get("pair_decimals", 8)),
-                    "ordermin": float(p.get("ordermin") or 0), "costmin": float(p.get("costmin") or 0)}
+                    "ordermin": float(p.get("ordermin") or 0), "costmin": float(p.get("costmin") or 0),
+                    "aclass": p.get("aclass_base") or aclass}
     return out
 
 
@@ -67,10 +71,27 @@ def parse_ticker(result: dict, by_key: dict[str, str]) -> dict[str, dict]:
     return out
 
 
-async def fetch_pairs(client: httpx.AsyncClient) -> dict[str, dict]:
+async def fetch_pairs(client: httpx.AsyncClient, stocks: bool = True) -> dict[str, dict]:
+    """Kraken's USD pairs: the coins, and (where Kraken offers them to the account's region) its tokenized stocks,
+    which its API only lists when asked for that asset class."""
     r = await client.get("/0/public/AssetPairs")
     r.raise_for_status()
-    return parse_pairs(r.json().get("result") or {})
+    out = parse_pairs(r.json().get("result") or {})
+    if stocks:
+        try:
+            rs = await client.get("/0/public/AssetPairs", params={"aclass_base": TOKENIZED})
+            rs.raise_for_status()
+            body = rs.json()
+            for sym, p in parse_pairs(body.get("result") or {}, TOKENIZED).items():
+                out.setdefault(sym, {**p, "aclass": TOKENIZED})  # (a coin of the same name stays the coin)
+        except (httpx.HTTPError, ValueError, KeyError) as exc:  # (not offered here, or Kraken busy: coins only)
+            log.info("kraken tokenized stocks unavailable: %s", exc)
+    return out
+
+
+def aclass_params(p: dict) -> dict:
+    """The extra field Kraken needs on a request about a tokenized stock (none for a coin)."""
+    return {"asset_class": TOKENIZED} if p.get("aclass") == TOKENIZED else {}
 
 
 QUOTE_BATCH = 100  # pairs per Ticker request (hundreds in one URL can be refused)
@@ -80,13 +101,19 @@ async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbol
     want = [pairs[s]["pair"] for s in symbols if s in pairs]
     if not want:
         return {}
-    if len(want) > QUOTE_BATCH:  # every coin on Kraken: several requests, one batch each
-        listed = [s for s in symbols if s in pairs]
+    listed = [s for s in symbols if s in pairs]
+    classes = {pairs[s].get("aclass", "currency") for s in listed}
+    if len(classes) > 1:  # coins and tokenized stocks are asked for separately (Kraken's asset_class field)
         out: dict[str, dict] = {}
+        for c in sorted(classes):
+            out.update(await fetch_quotes(client, pairs, [s for s in listed if pairs[s].get("aclass", "currency") == c]))
+        return out
+    if len(want) > QUOTE_BATCH:  # every coin on Kraken: several requests, one batch each
+        out = {}
         for i in range(0, len(listed), QUOTE_BATCH):
             out.update(await fetch_quotes(client, pairs, listed[i:i + QUOTE_BATCH]))
         return out
-    r = await client.get("/0/public/Ticker", params={"pair": ",".join(want)})
+    r = await client.get("/0/public/Ticker", params={"pair": ",".join(want), **aclass_params(pairs[listed[0]])})
     r.raise_for_status()
     body = r.json()
     if body.get("error") and not body.get("result"):
@@ -266,7 +293,8 @@ class KrakenFeed(MarketFeed):
                 if wait > 0:
                     await asyncio.sleep(wait)
                 try:
-                    r = await self.client.get("/0/public/OHLC", params={"pair": p["pair"], "interval": minutes})
+                    r = await self.client.get("/0/public/OHLC", params={"pair": p["pair"], "interval": minutes,
+                                                                        **aclass_params(p)})
                     r.raise_for_status()
                     body = r.json()
                 except (httpx.HTTPError, ValueError) as exc:

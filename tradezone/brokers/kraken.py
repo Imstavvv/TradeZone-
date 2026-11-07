@@ -30,7 +30,7 @@ from decimal import ROUND_DOWN, Decimal
 import httpx
 
 from ..core.models import Fill, Order, OrderStatus
-from ..market.kraken import fetch_pairs, fetch_quotes
+from ..market.kraken import aclass_params, fetch_pairs, fetch_quotes
 from .base import Broker
 
 log = logging.getLogger(__name__)
@@ -366,14 +366,15 @@ class KrakenBroker(Broker):
                 if px:
                     order.limit_price = px
                     res = await self._private("AddOrder", pair=p["pair"], type=order.side.value, ordertype="limit",
-                                              price=f"{px:.{p.get('price_dec', 8)}f}", volume=vol, oflags="post,fciq")
+                                              price=f"{px:.{p.get('price_dec', 8)}f}", volume=vol, oflags="post,fciq",
+                                              **aclass_params(p))
                     order.broker_id = (res.get("txid") or [None])[0]
                     order.status = OrderStatus.SUBMITTED
                     return await self.poll(order)
                 order.maker = False  # no quote: just buy at market
             # fciq: Kraken takes its fee in USD, so every coin bought arrives in full and can be sold again
             res = await self._private("AddOrder", pair=p["pair"], type=order.side.value,
-                                      ordertype="market", volume=vol, oflags="fciq")
+                                      ordertype="market", volume=vol, oflags="fciq", **aclass_params(p))
         except (KrakenError, httpx.HTTPError) as exc:
             order.status = OrderStatus.REJECTED
             order.reason = f"kraken: {exc}"[:200]
