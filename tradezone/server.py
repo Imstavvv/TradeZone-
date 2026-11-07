@@ -137,6 +137,20 @@ class ControlBody(BaseModel):
     reason: str = "operator"
 
 
+class TradeSellBody(BaseModel):
+    symbol: str
+    account: str = "main"
+    fraction: float = 1.0
+    confirm_loss: bool = False
+
+
+class TradePlanBody(BaseModel):
+    symbol: str
+    account: str = "main"
+    stop_pct: float | None = None  # e.g. 0.05 = 5% below what was paid
+    target_pct: float | None = None  # e.g. 0.15 = 15% above, after fees
+
+
 class ModeBody(BaseModel):
     mode: str
     confirm: str = ""
@@ -406,6 +420,35 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         desk.set_bot_enabled(name, body.enabled)
         audit(request, f"{'enabled' if body.enabled else 'disabled'} bot {name}", "info" if body.enabled else "warning")
         return {"ok": True, "bot": name, "enabled": body.enabled}
+
+    def _trade_desk(account: str):
+        try:
+            return desk.fleet.desk(account or "main")
+        except KeyError:
+            raise HTTPException(404, "no such account") from None
+
+    @app.post("/api/trade/sell", dependencies=[Depends(check_token)])
+    async def trade_sell(body: TradeSellBody, request: Request):
+        d = _trade_desk(body.account)
+        try:
+            out = d.sell_trade(body.symbol, body.fraction, body.confirm_loss)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        if out.get("needs_confirm"):
+            raise HTTPException(409, f"Selling now loses about ${-out['net']:,.2f} after fees - confirm to sell anyway")
+        audit(request, f"sold {out['selling']:.0%} of {out['symbol']} ({body.account})", "warning")
+        await d.bus.drain()
+        return _clean({"ok": True, **out})
+
+    @app.post("/api/trade/plan", dependencies=[Depends(check_token)])
+    async def trade_plan(body: TradePlanBody, request: Request):
+        d = _trade_desk(body.account)
+        try:
+            out = d.set_trade_plan(body.symbol, body.stop_pct, body.target_pct)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, f"set the plan of {out['symbol']} ({body.account})", "info")
+        return _clean({"ok": True, **out})
 
     @app.post("/api/control/{action}", dependencies=[Depends(check_token)])
     async def control(action: str, request: Request, body: ControlBody | None = None):

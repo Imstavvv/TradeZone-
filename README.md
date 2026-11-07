@@ -1047,6 +1047,16 @@ There are three real-money risk levels (**Settings → Your trading rules → Re
 
 Going from Normal to Aggressive about doubled the result on the unseen half. Going from Aggressive to Bold added only $6 there, but made the worst run 50% deeper. A still bigger level (8% a trade, a single trade up to the whole balance) was also tested: +$182 on the unseen half, with a worst run of -$54 (-11%). It isn't offered, because the extra risk bought almost nothing. Every level keeps a stop and the early cut on every trade, never borrows, and never touches the hold stack. Practice money always uses Normal.
 
+### 🎛️ Every trade has its own buttons
+
+On the **Open trades** page, each trade has its own controls (asked for):
+
+* **Sell all / Sell half / Sell ¼**: your own sale. Like Close all, it can sell below what was paid, but then the app first says how much it would lose after fees and asks you to confirm.
+* **To hold stack** (main account): the coins become yours to keep, never sold by the bots. Nothing is sold or sent.
+* **Stop / target**: change that trade's stop-loss (as % below what was paid, at most the −7% the rules allow, never above today's price) and its take-profit (% above what was paid, after both fees, like every target). Shown as they were saved, so saving again changes nothing.
+
+The same works for linked accounts (`POST /api/trade/sell`, `POST /api/trade/plan`, with the account's id).
+
 ### 💵 The whole cash balance trades (your hold stack excepted)
 
 **The whole Kraken balance trades, and is the main number (asked for).** Coins you hold on Kraken outside the bots' trades (bought before going live, or deposited later) are **taken over by the bots** at each balance check: each becomes a trade from today's price, with the −7% stop and the +15%-after-fees target, and the money is reused for new trades once it sells. No order is sent when a coin is taken over (the coins don't move), and the records' check stays balanced. Left alone: **staked or earning coins** (ETH2.S and the like: they can't be sold), **stablecoins** (USDC, USDT: not traded), the **hold stack**, stack-only coins, anything under $1 or below Kraken's minimum order, and a coin the bots already have a trade in (taken over once that one closes). An alert lists what was taken over. `TZ_ADOPT_OWN_COINS=false` turns it off. Coins you meant to keep for the long term are sold by these rules too: move them into the hold stack (or off Kraken) to keep them.

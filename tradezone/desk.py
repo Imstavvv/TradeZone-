@@ -398,6 +398,57 @@ class TradingDesk:
         self.portfolio.peak_equity = self.portfolio.equity
         self.control("reset_halt")
 
+    # -- one trade at a time (its own buttons on the open-trades list) ----------------------------
+    def _open_trade(self, symbol: str):
+        sym = symbol.strip().upper()
+        pos = self.portfolio.position(sym)
+        if pos.is_flat:
+            raise ValueError(f"there's no open {sym.split('-')[0]} trade")
+        return sym, pos
+
+    def sell_trade(self, symbol: str, fraction: float = 1.0, confirm_loss: bool = False) -> dict:
+        """Sell one open trade, or part of it - your own sale: like Close all, it may sell below what was paid, but
+        only once you've confirmed that (the reply says what it would lose)."""
+        sym, pos = self._open_trade(symbol)
+        frac = max(0.0, min(1.0, float(fraction)))
+        if frac <= 0:
+            raise ValueError("choose how much to sell")
+        price = self.prices.get(sym) or pos.last_price
+        net = self.settings.net_if_sold(pos, price) * frac if price else 0.0
+        if net < 0 and not confirm_loss:
+            return {"symbol": sym, "needs_confirm": True, "net": net, "fraction": frac}
+        pm = self.bots["portfolio"]
+        pm.exiting.discard(sym)  # type: ignore[attr-defined]
+        pm._retry_at.pop(sym, None)  # type: ignore[attr-defined]
+        pm._exit(sym, f"sold by you ({'all' if frac >= 1 else f'{frac:.0%}'})", fraction=frac, force=True)  # type: ignore[attr-defined]
+        return {"symbol": sym, "selling": frac, "net": net}
+
+    def set_trade_plan(self, symbol: str, stop_pct: float | None = None, target_pct: float | None = None) -> dict:
+        """Change one trade's stop-loss and / or take-profit, as a share of what was paid. The stop can't be looser
+        than the most a trade may lose (-7%), and the target is counted after both fees, like every target."""
+        sym, pos = self._open_trade(symbol)
+        s = self.settings
+        most = max(s.wide_stop_pct, s.max_loss_pct) if s.max_loss_pct > 0 else s.wide_stop_pct
+        if stop_pct is not None:
+            stop_pct = float(stop_pct)
+            if not 0 < stop_pct <= most + 1e-9:
+                raise ValueError(f"the stop-loss must be between 0% and {most:.0%} below what was paid")
+            stop = pos.avg_price * (1 - stop_pct)
+            price = self.prices.get(sym) or pos.last_price
+            if price and stop >= price:
+                raise ValueError("that stop is above the price now - it would sell straight away")
+            pos.stop_price = stop
+            self.bots["portfolio"].trail_dist[sym] = pos.avg_price * stop_pct  # type: ignore[attr-defined]
+        if target_pct is not None:
+            target_pct = float(target_pct)
+            if not 0 < target_pct <= 5:
+                raise ValueError("the take-profit must be between 0% and 500% above what was paid")
+            pos.take_profit = pos.avg_price * (1 + target_pct) + s.round_trip_cost(sym, pos.avg_price)  # (after fees)
+        self.save_state()
+        self.bus.publish("alert", Alert("info", f"{sym}: your plan - stop {pos.stop_price or 0:,.6g}, target "
+                                                f"{pos.take_profit or 0:,.6g}", "operator"))
+        return {"symbol": sym, "stop_price": pos.stop_price, "take_profit": pos.take_profit}
+
     def flatten(self, reason: str = "operator flatten") -> int:
         pm = self.bots["portfolio"]
         n = pm.flatten_all(reason)  # type: ignore[attr-defined]
@@ -1485,6 +1536,10 @@ class TradingDesk:
         for x in out["positions"]:
             p = by.get(x["symbol"])
             x["stop_net"] = self.settings.net_if_sold(p, p.stop_price) if p is not None and p.stop_price else None
+            if p is not None and p.avg_price:  # (the trade's own plan, as the stop / target sheet shows and takes it)
+                cost = self.settings.round_trip_cost(p.symbol, p.avg_price)
+                x["stop_pct"] = 1 - p.stop_price / p.avg_price if p.stop_price else None
+                x["target_pct"] = (p.take_profit - cost) / p.avg_price - 1 if p.take_profit else None  # (after fees)
         return out
 
     def state(self) -> dict:

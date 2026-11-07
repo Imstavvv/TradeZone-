@@ -667,6 +667,11 @@ button.ghost:hover{color:var(--text)}
 #openSort,#openAcct{flex-wrap:wrap;overflow:visible;margin:0;padding:0}
 .otrade .sym b{font-size:15px}
 .otrade .pl{text-align:right;font-weight:700;font-size:15px;white-space:nowrap}
+.otrade .obtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.otrade .obtns button{min-height:36px;padding:6px 12px;font-size:13px}
+@media (max-width:700px){.otrade .obtns button{min-height:40px;flex:1 1 auto}}
+#planSheet label{display:block;margin:10px 0 4px;font-weight:650}
+#planSheet input{width:100%;box-sizing:border-box;min-height:44px;font-size:16px}
 .otrade .pl i{font-style:normal;font-size:12px;margin-left:8px;opacity:.85}
 .otrade .o2{margin-top:4px;font-size:13px;color:var(--text)}
 .otrade .o3{margin-top:2px;font-size:12px;color:var(--muted)}
@@ -1174,6 +1179,15 @@ var(--live)}
   <div class="muted" id="askBody" style="font-size:14px;white-space:pre-line"></div>
   <div class="row"><button id="askNo">Cancel</button><button id="askYes" class="gopaper">OK</button></div>
 </div></div>
+<div class="sheet" id="planSheet"><div class="panel2">
+  <h3 id="planTitle">Stop-loss and take-profit</h3>
+  <div class="muted" id="planBody" style="font-size:14px"></div>
+  <label for="planStop">Stop-loss: % below what was paid (at most <span id="planMax">7</span>%)</label>
+  <input id="planStop" type="number" inputmode="decimal" min="0.1" step="0.1">
+  <label for="planTarget">Take-profit: % above what was paid, after fees</label>
+  <input id="planTarget" type="number" inputmode="decimal" min="0.1" step="0.5">
+  <div class="row"><button id="planNo">Cancel</button><button id="planYes" class="gopaper">Save</button></div>
+</div></div>
 <div class="sheet" id="pairSheet"><div class="panel2">
   <h3>Log in another device</h3>
   <div class="muted" style="font-size:14px">On the other phone or computer, open your website and type this code:</div>
@@ -1636,7 +1650,7 @@ async function api(path, body, extraHeaders = {}, method){
   if (r.status === 429){ const j = await r.json().catch(()=>({})); const m = Math.ceil((+r.headers.get('retry-after') || 60) / 60);
     toast(`${j.detail || 'Too many requests'} (try again in about ${m} min)`, 'error'); throw new Error('limited'); }
   const j = await r.json().catch(()=>({}));
-  if (!r.ok) { toast(j.detail || ('Something went wrong (' + r.status + ')'), 'error'); throw new Error(j.detail); }
+  if (!r.ok) { if (!(r.status === 409 && /confirm/.test(j.detail || ''))) toast(j.detail || ('Something went wrong (' + r.status + ')'), 'error'); throw new Error(j.detail); }  // (409 "confirm": the page asks first)
   return j;
 }
 // =================== toasts & sheets (instead of browser pop-ups) ===================
@@ -3304,11 +3318,51 @@ function renderOpen(st){
         ${accts.length > 1 ? `<span class="accbadge">${esc(x.acct_label)}</span>` : ''}${x.live ? '<span class="accbadge live">● LIVE</span>' : ''}</span>
         <span class="pl ${cls(u)}">${u >= 0 ? '+' : '-'}${money(Math.abs(u))}<i>${r >= 0 ? '+' : ''}${pct(r, 1)}</i></span></div>
       <div class="o2">Bought ${num(Math.abs(x.qty))} at ${px(x.avg_price)} · now ${px(x.last_price)} · worth ${money(Math.abs(x.market_value))}</div>
-      <div class="o3">${[prot, x.take_profit ? `target ${px(x.take_profit)}` : '', x.opened_ts ? `open ${dur(x.opened_ts)}` : ''].filter(Boolean).join(' · ')}</div>${held}</div>`;
+      <div class="o3">${[prot, x.take_profit ? `target ${px(x.take_profit)}` : '', x.opened_ts ? `open ${dur(x.opened_ts)}` : ''].filter(Boolean).join(' · ')}</div>${held}
+      <div class="obtns" data-sym="${esc(x.symbol)}" data-acct="${esc(x.acct)}">
+        <button data-t="sell" data-f="1">Sell all</button><button data-t="sell" data-f="0.5">Sell half</button><button data-t="sell" data-f="0.25">Sell ¼</button>
+        ${x.acct === 'main' ? '<button data-t="stack">To hold stack</button>' : ''}<button data-t="plan">Stop / target</button></div></div>`;
   }).join('') : `<div class="emptyhint">${n ? 'No open trades in this account.' : 'No open trades in any account right now. The bots only buy when the whole team agrees it\'s a good chance.'}</div>`);
   const k = st.stack;
   $('openStack').textContent = k && k.value > 0 ? `Not listed here: your hold stack (${money(k.value)}), which the bots never sell. It's on the Money tab.` : '';
 }
+// one trade's own buttons: sell all / half / a quarter, move it to the hold stack, change its stop and target
+$('openList').addEventListener('click', async e => {
+  const b = e.target.closest('.obtns button'); if (!b) return;
+  const box = b.closest('.obtns'), sym = box.dataset.sym, acct = box.dataset.acct, coin = sym.split('-')[0];
+  const x = openRows(S.state).find(r => r.symbol === sym && r.acct === acct); if (!x) return;
+  if (b.dataset.t === 'sell') {
+    const f = +b.dataset.f, part = f >= 1 ? 'all of' : f === 0.5 ? 'half of' : 'a quarter of';
+    if (!await ask(`Sell ${part} your ${coin}?`, `About ${money(Math.abs(x.market_value) * f)} at today's price${x.live ? ' - real money' : ''}.`, {ok: 'Sell'})) return;
+    try { await api('/api/trade/sell', {symbol: sym, account: acct, fraction: f}); toast(`Selling ${part} your ${coin}`, 'ok'); }
+    catch (err) {
+      if (!/loses about/.test(err.message || '')) return;
+      if (!await ask(`Sell ${coin} at a loss?`, `${err.message.split(' - ')[0]}. Your "never sell at a loss" rule is skipped for your own sale.`, {ok: 'Sell at a loss', danger: true})) return;
+      try { await api('/api/trade/sell', {symbol: sym, account: acct, fraction: f, confirm_loss: true}); toast(`Selling ${part} your ${coin}`, 'ok'); } catch {}
+    }
+  } else if (b.dataset.t === 'stack') {
+    if (!await ask(`Move your ${coin} to the hold stack?`, 'The bots keep it for the long term and never sell it. Nothing is sold or sent - it stays in your account.', {ok: 'Move it'})) return;
+    try { await api('/api/stack/move', {symbol: sym, direction: 'in', fraction: 1}); toast(`${coin} moved to the hold stack`, 'ok'); } catch {}
+  } else if (b.dataset.t === 'plan') {
+    const most = Math.round(((S.state && S.state.max_loss_pct) || 0.07) * 1000) / 10;
+    $('planTitle').textContent = `${coin}: stop-loss and take-profit`;
+    $('planBody').textContent = `Bought at ${px(x.avg_price)} · now ${px(x.last_price)}`;
+    $('planMax').textContent = most;
+    $('planStop').max = most;
+    $('planStop').value = x.stop_pct != null ? Math.max(0.1, Math.round(x.stop_pct * 1000) / 10) : most;
+    $('planTarget').value = x.target_pct != null ? Math.max(0.5, Math.round(x.target_pct * 1000) / 10) : 15;  // (after fees, as saved)
+    $('planSheet').classList.add('open');
+    const close = () => { $('planSheet').classList.remove('open'); $('planYes').onclick = $('planNo').onclick = null; };
+    $('planNo').onclick = close;
+    $('planYes').onclick = async () => {
+      const stop = parseFloat($('planStop').value), target = parseFloat($('planTarget').value);
+      const body = {symbol: sym, account: acct};
+      if ($('planStop').value) body.stop_pct = stop / 100;
+      if ($('planTarget').value) body.target_pct = target / 100;
+      try { await api('/api/trade/plan', body); close(); toast(`${coin}: new stop and target saved`, 'ok'); } catch {}
+    };
+  }
+});
 $('openSort').addEventListener('click', e => { const t = e.target.closest('[data-o]'); if (!t) return; OPEN.sort = t.dataset.o; renderOpen(S.state); });
 $('openAcct').addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t) return; OPEN.acct = t.dataset.a; renderOpen(S.state); });
 document.addEventListener('click', e => { const a = e.target.closest('[data-goto]'); if (!a) return; e.preventDefault(); showPage(a.dataset.goto); });
