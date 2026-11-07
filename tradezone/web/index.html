@@ -606,6 +606,12 @@ button.ghost:hover{color:var(--text)}
 .hero .bal.stale{opacity:.55}
 .hero .fresh{font-size:12.5px;font-weight:600;color:#fff;margin:-2px 0 6px;min-height:16px}
 .hero .fresh.stale{color:#fde68a}
+/* ---- everything in the exchange account (Money) ---- */
+.holdacct + .holdacct{margin-top:14px}
+.holdhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
+.holdhead span{color:var(--muted);font-size:14px}
+.holdrow{display:flex;justify-content:space-between;gap:12px;padding:9px 0 9px 12px;border-top:1px solid var(--line);border-left:4px solid var(--cc)}
+.holdrow b{font-size:16px;margin-right:4px}.holdrow .hv{text-align:right;font-weight:700;white-space:nowrap}
 /* ---- the Stack tab ---- */
 #sec-stack .coin .warnline{color:var(--warn)}
 .stackbar{display:flex;height:14px;border-radius:999px;overflow:hidden;background:var(--panel2);border:1px solid var(--line);margin:12px 0 6px}
@@ -1408,6 +1414,9 @@ var(--live)}
         <div id="accList" class="acclist"></div>
         <div class="btnrow"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
         <div class="muted note">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
+      <div class="scard full" data-page="money" id="sec-holdings" hidden><h4>🏦 Everything in your exchange account <a id="holdRefresh" href="#" role="button">Refresh</a></h4>
+        <div id="holdings"></div>
+        <div class="muted note">Every coin the account holds, in full - split into the bots' open trades, the hold stack, and yours (coins you held before linking, or added since: the bots never trade or sell those). Staked or earning coins are listed but can't be traded. Read-only: nothing here moves any money.</div></div>
       <div class="scard full" data-page="money" id="sec-stackmini"><h4>🪙 Hold stack <a data-goto="stack">See it all ›</a></h4><div id="stackMini" class="muted"></div></div>
       <div class="scard full" data-page="stack" id="sec-stack"><h4>🪙 Your hold stack <span class="muted small" id="stackSub">never sold by the bots · no stop-loss</span></h4>
         <div class="opensum" id="stackSum"></div>
@@ -3547,6 +3556,27 @@ const PAGE_OF = {top: 'home', 'sec-hunt': 'home', tradelog: 'trades', 'sec-happe
                  'sec-settings': 'settings', 'sec-wallet': 'money'};
 S.page = 'home';
 function pageFromHash(){ const m = location.hash.match(/^#\/(\w+)/); return m && PAGES.some(([k]) => k === m[1]) ? m[1] : 'home'; }
+// ---- everything in each linked exchange account, coin by coin (Money tab; read-only, cached 30 s on the server) ----
+async function loadHoldings(){
+  const accts = ((S.state && S.state.accounts) || []).filter(r => r.linked);
+  const ids = accts.length ? accts.map(r => [r.id, r.label]) : [['main', '']];
+  const parts = [];
+  for (const [id, label] of ids) {
+    let d; try { d = await api('/api/holdings?account=' + encodeURIComponent(id)); } catch { continue; }
+    if (!d || !d.available) continue;
+    const coin = s => esc(s.split('-')[0]);
+    const lines = d.coins.map(c => {
+      const bits = [c.yours > 1e-12 ? `yours ${qtyFull(c.yours)}` : '', c.bots > 1e-12 ? `bots' trades ${qtyFull(c.bots)}` : '',
+                    c.stack > 1e-12 ? `hold stack ${qtyFull(c.stack)}` : '', c.locked > 1e-12 ? `staked / earning ${qtyFull(c.locked)}` : ''].filter(Boolean).join(' · ');
+      return `<div class="holdrow" style="--cc:${coinColor(c.symbol)}"><div><b>${coin(c.symbol)}</b> ${qtyFull(c.total)}<div class="muted small">${bits}</div></div>
+        <div class="hv">${c.value != null ? money(c.value) : '<span class="muted">no price</span>'}${c.price ? `<div class="muted small">at ${px(c.price)}</div>` : ''}</div></div>`;
+    }).join('') || '<div class="emptyhint">No coins in this account right now.</div>';
+    parts.push(`<div class="holdacct"><div class="holdhead"><b>${esc(label || d.venue)}</b><span>${money(d.value)} in coins</span></div>${lines}</div>`);
+  }
+  $('sec-holdings').hidden = !parts.length || (S.view === 'simple' && S.page !== 'money');
+  setHTML($('holdings'), parts.join(''));
+}
+document.addEventListener('click', e => { if (e.target.id === 'holdRefresh') { e.preventDefault(); loadHoldings(); } });
 function showPage(pg, {push = true} = {}){
   if (!PAGES.some(([k]) => k === pg)) pg = 'home';
   S.page = pg;
@@ -3557,6 +3587,7 @@ function showPage(pg, {push = true} = {}){
   if (push && simple && location.hash !== '#/' + pg) history.pushState(null, '', pg === 'home' ? location.pathname : '#/' + pg);
   window.scrollTo({top: 0});
   if (pg === 'trades' && S.state) { loadTrades(true); loadTrips(); }
+  if (pg === 'money' && S.state) loadHoldings();
   if (S.state) render();
 }
 window.addEventListener('popstate', () => { if (S.view === 'simple') showPage(pageFromHash(), {push: false}); });

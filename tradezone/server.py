@@ -442,6 +442,41 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
                      limit: int = Query(100, ge=1, le=1000), offset: int = Query(0, ge=0)):
         return _clean(desk.journal.trades(mode or None, symbol or None, limit, offset))
 
+    _holdings_cache: dict[str, tuple[float, dict]] = {}
+
+    @app.get("/api/holdings", dependencies=[Depends(check_token)])
+    async def holdings(account: str | None = None):
+        """Everything an exchange account holds, coin by coin: the bots' trades, the hold stack, and yours."""
+        try:
+            d = desk if not account or account == "main" else desk.fleet.desk(account)
+        except Exception:
+            raise HTTPException(404, "no such account") from None
+        broker = d.live_broker
+        if broker is None or not hasattr(broker, "holdings"):
+            return {"available": False, "why": "only a linked Kraken account can list every coin it holds"}
+        import time as _t
+        key = account or "main"
+        hit = _holdings_cache.get(key)
+        if hit and _t.time() - hit[0] < 30:  # (one Balance call per 30 s at most: Kraken's request limit)
+            data = hit[1]
+        else:
+            data = await broker.holdings()
+            if data is None:
+                return {"available": False, "why": f"{broker.label} didn't answer - try again in a moment"}
+            _holdings_cache[key] = (_t.time(), data)
+        bots = {p.symbol: p.qty for p in (d.live_portfolio.open_positions if d.live_portfolio else [])}
+        stack = {s: h["qty"] for s, h in d.bots["stacker"].books.get("live", {}).items()} if "stacker" in d.bots else {}
+        rows = []
+        for sym, h in data.items():
+            total = h["qty"] + h["locked"]
+            price = h["price"] or d.prices.get(sym)
+            b, st_ = max(0.0, bots.get(sym, 0.0)), max(0.0, stack.get(sym, 0.0))
+            rows.append({"symbol": sym, "total": total, "free": h["qty"], "locked": h["locked"], "bots": b, "stack": st_,
+                         "yours": max(0.0, h["qty"] - b - st_), "price": price, "value": total * price if price else None})
+        rows.sort(key=lambda r: -(r["value"] or 0))
+        return {"available": True, "venue": broker.label, "coins": rows,
+                "value": sum(r["value"] or 0 for r in rows), "unpriced": [r["symbol"] for r in rows if r["value"] is None]}
+
     @app.get("/api/trades/trips", dependencies=[Depends(check_token)])
     async def trade_trips(mode: str | None = None, symbol: str | None = None, account: str | None = None,
                           days: float = Query(0, ge=0, le=3650)):

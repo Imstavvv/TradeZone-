@@ -219,6 +219,38 @@ class KrakenBroker(Broker):
             out[key] = out.get(key, 0.0) + v
         return out
 
+    LOCKED_SUFFIXES = (".S", ".M", ".B", ".P")  # staked / bonded / earning: shown, never traded
+
+    async def holdings(self) -> dict[str, dict] | None:
+        """Everything this account holds, for the screen: per coin, the amount that can be traded (Kraken
+        Rewards ".F" folded in), the amount locked in staking or earn programs, and the last price. Only reads
+        balances (the "Balance" call) - it never moves anything."""
+        try:
+            if not self.pairs:
+                await self.load_pairs()
+            raw = {k: float(v) for k, v in (await self._private("Balance")).items()}
+        except (KrakenError, httpx.HTTPError) as exc:
+            log.warning("kraken holdings fetch failed: %s", exc)
+            return None
+        free = self._fold({k: v for k, v in raw.items() if not k.endswith(self.LOCKED_SUFFIXES)})
+        locked = self._fold({k[:-2] + ".F": v for k, v in raw.items() if k.endswith(self.LOCKED_SUFFIXES)})
+        by_base = {p["base"]: sym for sym, p in self.pairs.items()}
+        out: dict[str, dict] = {}
+        for base in set(free) | set(locked):
+            sym = by_base.get(base)
+            qty, lock = free.get(base, 0.0), locked.get(base, 0.0)
+            if sym is None or qty + lock <= 1e-10:
+                continue  # (cash, and anything Kraken doesn't price against USD)
+            out[sym] = {"qty": qty, "locked": lock, "price": None}
+        try:
+            quotes = await fetch_quotes(self.client, self.pairs, list(out)) if out else {}
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            log.warning("kraken holdings prices failed: %s", exc)
+            quotes = {}
+        for sym, row in out.items():
+            row["price"] = (quotes.get(sym) or {}).get("last")
+        return out
+
     async def capture_baseline(self) -> dict[str, float]:
         """Remember what the owner already holds, so the bots never trade those coins."""
         bal = await self._balances()

@@ -558,3 +558,39 @@ def test_a_bid_that_isnt_filled_in_time_is_bought_at_market():
     assert pos.qty > 0 and fk.ordertypes[-1] == "market" and exe.metrics["maker_fallbacks"] == 1
     assert pos.stop_price is not None  # the market rest still got the trade's stop and target
     assert check(desk) == [] and not desk.paused  # books match Kraken
+
+
+def test_every_coin_in_the_kraken_account_is_shown_in_full_split_bots_stack_and_yours():
+    from fastapi.testclient import TestClient
+
+    from tradezone.server import create_app
+    fk, desk = live_kraken(held={"XXDG": 1_000.0, "XDG.S": 50.0, "XBT.F": 0.01})  # yours before linking, staked, auto-earn
+    pos = kbuy(desk, "DOGE-USD", 0.2)  # the bots buy some DOGE
+    assert pos.qty > 0
+    desk.bots["stacker"].books["live"]["DOGE-USD"] = {"qty": 30.0, "cost": 6.0, "buys": 1}
+    fk.bal["XXDG"] += 30.0  # (the stack's coins are in the account too)
+    data = run(desk.live_broker.holdings())
+    assert data["DOGE-USD"]["qty"] == pytest.approx(1_000.0 + pos.qty + 30.0) and data["DOGE-USD"]["locked"] == 50.0
+    assert data["BTC-USD"]["qty"] == pytest.approx(0.01)  # Rewards (.F) counted as normal coins
+    assert not any(c.startswith("Withdraw") and c != "WithdrawInfo" for c in fk.calls)  # (reads balances only)
+    with TestClient(create_app(desk, run_desk=False)) as c:
+        c.post("/api/signin/code", json={"code": desk.security.recovery_code})
+        r = c.get("/api/holdings").json()
+    assert r["available"] and r["venue"]
+    doge = next(x for x in r["coins"] if x["symbol"] == "DOGE-USD")
+    assert doge["total"] == pytest.approx(1_000.0 + pos.qty + 30.0 + 50.0)
+    assert doge["bots"] == pytest.approx(pos.qty) and doge["stack"] == 30.0 and doge["locked"] == 50.0
+    assert doge["yours"] == pytest.approx(1_000.0)
+    assert doge["value"] == pytest.approx(doge["total"] * doge["price"]) and r["value"] > 0
+
+
+def test_holdings_say_plainly_when_the_account_cant_list_them():
+    from fastapi.testclient import TestClient
+
+    from tradezone.server import create_app
+    s = Settings(feed="sim", symbols=["BTC-USD"])
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    with TestClient(create_app(d, run_desk=False)) as c:
+        c.post("/api/signin/code", json={"code": d.security.recovery_code})
+        r = c.get("/api/holdings").json()
+    assert r["available"] is False and "Kraken" in r["why"]
