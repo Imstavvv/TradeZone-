@@ -163,6 +163,7 @@ def kraken_desk(fk):
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"), live_broker=broker(fk))
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_bots_trade_and_take_profit_on_kraken_but_cannot_withdraw():
     fk = FakeKraken(usd=5_000.0, held={"XXBT": 0.2})
     desk = kraken_desk(fk)

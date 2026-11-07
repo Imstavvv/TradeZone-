@@ -46,6 +46,7 @@ def buy(desk, sym="BTC-USD", price=50_000.0, strength=0.9):
     return desk.portfolio.position(sym)
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_live_uses_the_quick_flip_plan_with_targets_after_fees():
     desk = make(patient_exits=False)  # (patient exits widen the stop: tested in test_patient.py)
     pos = buy(desk)

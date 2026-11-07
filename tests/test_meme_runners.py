@@ -32,9 +32,11 @@ def test_defaults_are_crypto_with_trusted_meme_coins():
     assert s.symbols == [*CRYPTO_SYMBOLS, "XCN-USD"] and all(x.endswith("-USD") for x in s.symbols)
     assert {"DOGE-USD", "SHIB-USD", "PEPE-USD"} <= set(s.symbols)
     assert s.is_meme("PEPE-USD") and s.is_meme("doge/usd") and not s.is_meme("BTC-USD")
-    assert (s.stop_method, s.stop_loss_pct, s.take_profit_pct) == ("percent", 0.08, 0.15)
+    assert (s.stop_method, s.stop_loss_pct, s.take_profit_pct) == ("percent", 0.07, 0.15)
+    assert (s.major_take_profit_pct, s.flip_major_target_pct, s.flip_meme_target_pct) == (0.15, 0.15, 0.15)
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
     meme = buy(desk, "PEPE-USD", 0.00001)
     assert meme.qty > 0
@@ -46,6 +48,7 @@ def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
     assert big.avg_price == pytest.approx(60_000, rel=0.001)
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_runner_banks_half_at_target_then_trails_in_profit(desk):
     desk.settings.skimmer = False  # the Portfolio Manager's runner on its own (Skimmer has its own tests)
     desk.settings.tp_step = False  # (the moving take-profit has its own tests)
@@ -69,6 +72,7 @@ def test_runner_banks_half_at_target_then_trails_in_profit(desk):
     assert pos.is_flat and trades[-1].pnl > 0 and trades[-1].exit_price > 1300
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_runner_never_gives_back_the_locked_profit(desk):
     desk.settings.tp_step = False
     pos = buy(desk, "SOL-USD", 100.0)
@@ -81,6 +85,7 @@ def test_runner_never_gives_back_the_locked_profit(desk):
     assert desk.bots["portfolio"].metrics.get("runners") == 1
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_meme_coins_trade_smaller_and_are_capped(desk):
     eq = desk.portfolio.equity
     meme = buy(desk, "PEPE-USD", 0.00001)

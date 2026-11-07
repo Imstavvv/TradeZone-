@@ -24,6 +24,7 @@ def open_trade():
     return fk, desk, pos
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_a_take_profit_sells_at_the_ask_for_the_maker_fee():
     fk, desk, pos = open_trade()
     target = pos.take_profit
@@ -53,6 +54,7 @@ def test_a_stop_never_waits_behind_a_resting_profit_sale():
     assert check(desk) == [] and not desk.paused
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_an_unfilled_profit_sale_is_sold_at_market_after_the_wait():
     fk, desk, pos = open_trade()
     fk.limit_fills = False
@@ -66,6 +68,7 @@ def test_an_unfilled_profit_sale_is_sold_at_market_after_the_wait():
     assert fk.bal.get("XXBT", 0) == pytest.approx(0, abs=1e-9) and check(desk) == []
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_a_partly_filled_profit_sale_never_sells_more_than_is_held():
     fk, desk, pos = open_trade()
     fk.limit_fills = False
@@ -113,6 +116,7 @@ def test_practice_and_other_venues_are_unchanged():
     assert pos.qty > 0  # (paper fills at once; only Kraken gets resting orders)
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_off_by_default_profit_sales_go_at_market():
     fk, desk = live_kraken()
     assert desk.settings.maker_exits is False

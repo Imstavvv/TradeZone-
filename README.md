@@ -172,8 +172,17 @@ A buy only happens when the team agrees. Each voter says yes, no or abstain:
 
 By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LINK) plus **trusted meme coins** (DOGE, SHIB, PEPE, BONK, WIF, FLOKI). These are the large, long-listed ones on major US exchanges; brand-new tokens are never traded. Change the list with `TZ_SYMBOLS` and `TZ_MEME_COINS`. Coins your exchange doesn't list are skipped at start-up with a note.
 
-* **Meme coins: −8% stop-loss, +15% take-profit** (`TZ_STOP_LOSS_PCT`, `TZ_TAKE_PROFIT_PCT`). Meme coins can move that far in hours.
-* **Bigger coins (BTC, ETH, SOL, …): −3% / +6%** (`TZ_MAJOR_STOP_LOSS_PCT`, `TZ_MAJOR_TAKE_PROFIT_PCT`). They move about 0.1% a minute, so ±8–15% would take days, and the bots would sit on a few positions doing nothing. Set these to 0.08 / 0.15 if you want one plan for everything.
+* **Every trade: stop-loss at most −7%, take-profit +15% after fees (asked for).** The safety stop and the loss floor are both −7% from the buy price (`TZ_WIDE_STOP_PCT`, `TZ_MAX_LOSS_PCT`; were −20%), so "never sell at a loss" still sells a trade 7% down. The early cut stays −5% for bigger coins and is −7% for meme coins (was −12%). Every take-profit is **+15% after both the buy and the sell fee** (was +4% for bigger coins and +10% for meme coins on real money; `TZ_FLIP_MAJOR_TARGET_PCT`, `TZ_FLIP_MEME_TARGET_PCT`, `TZ_MAJOR_TAKE_PROFIT_PCT`, `TZ_TAKE_PROFIT_PCT`). At +15% a third is sold and the rest rides, its stop locked in profit (selling everything at +15% was tested too and did a little worse overall). The moving take-profit starts at +15% (`TZ_TP_STEP_PCT`, was +10%). Trades already open got the new stop and target once, and one already more than 7% down was sold.
+
+  Replayed on real price history (16 windows per market, tuning / unseen half). *These numbers are from the first replay, in which the moving take-profit still moved the +15% target out before it was reached, so trades rode instead of selling a third at +15%. That's fixed (the +15% sale comes first now); the replay of the fixed version is running and its numbers replace these.*
+
+  | | Rising | Falling | Sideways |
+  | --- | --- | --- | --- |
+  | Before (−20% stop, +4% / +10% targets) | +$785 / +$452 | −$950 / −$687 | −$68 / −$124 |
+  | **Now (−7% stop, +15% after fees)** | **+$818 / +$447** | **−$545 / −$550** | **−$163 / −$246** |
+  | −7% / +15%, selling everything at the target | +$780 / +$472 | −$562 / −$547 | −$175 / −$258 |
+
+  About 40% less lost when prices fall, about the same when they rise, and more lost when they go sideways (a −7% stop is hit by ordinary swings that a −20% one rode out).
 * **Quick flips free up stuck trades:** a trade that hasn't reached its target after 6 hours (meme coins) or 24 hours (others), but is in profit after fees, is closed so the slot goes to a fresh chance. Losing trades are never closed this way; they keep their stop.
 * **Sniping meme coins:** when a trusted meme coin breaks more than 1% above its recent high, the Quant acts on that tick instead of waiting for the minute to close. Its momentum must agree, and the rest of the team (Risk Manager, Executive, and Grok if connected) still has to say yes. A breakout against a falling trend is skipped. One shot per breakout.
 * **Runners:** at the target the bots bank half the position. The stop on the other half moves **into profit** (at least half the target: +7.5% for meme coins, +3% for others), the ceiling is removed, and the stop then trails under the highest price by the stop distance. A model "sell" signal doesn't cut a runner short; only its trailing stop closes it.
@@ -232,7 +241,7 @@ Taking profits early is a trade-off: it raises the share of winning trades and s
 
 ## Stop-loss placement and risk management
 
-The default is the fixed **−8% / +15%** plan above (`TZ_STOP_METHOD=percent`). Two other placements are available.
+The default is the fixed **−7% / +15%** plan above (`TZ_STOP_METHOD=percent`). Two other placements are available.
 
 With `TZ_STOP_METHOD=structure`, stops go where most traders put them, **just beyond the most recent swing point**:
 
@@ -260,7 +269,7 @@ Every approved trade's reason in Team activity and Orders shows its stop, how it
 **No system can guarantee every trade ends in profit.** A price can fall right after a buy, before the trade is ever green. Removing stop-losses wouldn't change that; it would only turn small losses into large ones. What TradeZone enforces is the next best thing: **once a trade has been in profit, it's not allowed to turn into a loss.**
 
 1. **Break-even lock:** when open profit reaches 0.5R (half the distance from entry to the initial stop), the stop moves above break-even plus round-trip fees, slippage and a cushion sized to the symbol's typical tick move. From then on it locks in 50% of the best open profit seen. These positions show a 🔒 in the dashboard.
-2. **Partial take-profit:** with the default −8% / +15% plan, half is sold at +15% and the rest becomes a **runner** (see above). With `structure` or `atr` stops, half is sold at +1R and the rest rides with the locked stop toward the target.
+2. **Partial take-profit:** with the default −7% / +15% plan, a third is sold at +15% and the rest becomes a **runner** (see above). With `structure` or `atr` stops, half is sold at +1R and the rest rides with the locked stop toward the target.
 3. **Strategy exits only in profit:** a bearish model signal closes a position only if that nets a profit. Losing positions are left to the stop-loss, which still cuts them. Your Flatten button and the kill switch always work regardless.
 
 The **Winners lost** tile counts any winner that still closed at a loss. That can only happen if the price jumps straight through the stop between two ticks, and each case raises an alert. In offline simulation (4 seeds × 3,000 steps, realistic fees) the count was 0 in every run, with win rates of 50–72%. That's synthetic data, not a promise about real markets.
@@ -709,10 +718,10 @@ What stays capped is the *downside*: a stop on every trade, the risk per trade, 
 
 Once a trade is **10% past its buy price** (`TZ_TP_STEP_PCT`), it isn't sold at its old target. Instead:
 
-* the **take-profit moves another 10% out** (to +20% after fees), and
+* the **take-profit moves another 15% out** (to +30% after fees), and
 * the **stop moves up to lock in half of the step** (+5% at +10%).
 
-This repeats at +20% (target +30%, stop locks +10%), +30%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
+This repeats at +30% (target +45%, stop locks +15%), +45%, and so on, so a strong move keeps running while more and more of the profit is locked in. The trade ends when the price pulls back to the locked stop (or the trailing stop, whichever is closer). The Skimmer still banks slices into spikes along the way. A runner (no target) only gets the stop steps. Skims keep their own small target. `TZ_TP_STEP=false` turns it off; `TZ_TP_STEP_LOCK` sets how much of each step is locked (0.5).
 
 ### Everything on with real money
 
@@ -721,11 +730,11 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Feature | Real money | Switch |
 | --- | --- | --- |
 | **Never sell at a loss** (losing trades held until they recover; your Close all / Emergency stop still sell) - **except at the loss floor** | **on** | Settings → Your trading rules, `TZ_NEVER_SELL_AT_LOSS` |
-| **Loss floor**: a trade 20% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (20%)** | Settings → Your trading rules, `TZ_MAX_LOSS_PCT` |
+| **Loss floor**: a trade 7% below what was paid is sold, even with never-sell on (the most a trade can lose) | **on (7%; was 20%)** | Settings → Your trading rules, `TZ_MAX_LOSS_PCT` |
 | Dip Buyer (buys more of a held loser on a further dip, at most twice) | on (while never-sell is on) | `TZ_DIP_BUY` |
 | **Underwater cap** (no new buys while trades not yet back above break-even tie up 15% of the balance) | **off** (you asked: losing trades in other coins no longer stop new buys; it loses more when prices fall) | Settings → Your trading rules, `TZ_LOSER_CAP=0.15` to turn it on |
 | **Falling-market guard** (no new buys of a coin while it's below its 4-hour average and that average is falling; selling, stops and your own buys never blocked) | off (optional) | Settings → Your trading rules, `TZ_FALLING_GUARD` (`coin` / `market` / `off`) |
-| Stop-loss 20% from the buy price (was 33%) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
+| Stop-loss 7% from the buy price (was 20%, 33% before) | on; with never-sell on it sells a loser only at the loss floor | `TZ_WIDE_STOP`, `TZ_WIDE_STOP_PCT` |
 | Patient exits (cut early when momentum and volume say no comeback) | on, but with never-sell on they don't sell at a loss | `TZ_PATIENT_EXITS` |
 | Whole cash balance trades (sized for the early cut, not the -33% stop) | on | `TZ_FULL_CASH` |
 | Every profit sale keeps more than its fees (and comebacks) | on | `TZ_PROFIT_OVER_FEES`, `TZ_FEE_RULE_RESCUE` |
@@ -1112,7 +1121,7 @@ Skims risk their tight 1.2% stop plus ~0.9% of round-trip fees to make 1.5%, so 
 
 ### Stop-loss at -33% from the buy price
 
-Every trade's stop-loss sits **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%), so ordinary dips never stop a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what lets that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
+*(History: the stop and the loss floor are now −7%, see above.)* Every trade's stop-loss sat **20% below the buy price** (`TZ_WIDE_STOP_PCT`, was 33%), so ordinary dips never stopped a trade out. With never-sell on, the **loss floor** (`TZ_MAX_LOSS_PCT`, 20%) is what let that stop sell a loser: tested on real price history over 3.5-day windows (16 per market, tuning / unseen half), it changed nothing when prices rose or went sideways - nothing fell that far - and lost about a fifth less when they fell (−$598 vs −$755 / −$417 vs −$532). A 20% stop *without* the floor changed nothing at all (never-sell held the trade anyway). With the floor in place, a looser underwater cap (25%) earned more when prices rose but did worse on the unseen data, so it stays at 15%. Three things keep this from risking more money:
 
 * **Position size.** Each trade is still sized so that hitting the stop costs about the usual risk per trade (4% of the balance with real money). With a stop 33% away instead of 2%, positions are **much smaller** (roughly 7-8% of the balance instead of up to 35%). Raise `TZ_LIVE_RISK_PER_TRADE` for bigger positions; a stopped trade then costs more.
 * **Winners are still protected** from the normal plan's stop distance (-2% / -5% with real money): once a trade is up that much, the stop moves to break-even + fees, then trails and locks profit as before, and the moving take-profit works as before. A winner never rides back down to -33%.
@@ -1203,8 +1212,8 @@ With real money the bots are more active and bank wins sooner (`TZ_LIVE_QUICK_FL
 | Conviction needed for a trade | 0.35 | 0.22 |
 | A coin whose trend still holds can be traded again | after the trend flips | 5 bars after its last trade (`TZ_REENTRY_BARS`) |
 | Skims: a dip counts up to RSI | 45 | 55 (`TZ_FLIP_SKIM_RSI_MAX`) |
-| Majors / stocks stop · target | -3% · +6% | -5% safety stop (cut early from -2% only if momentum and volume say so) · +4% |
-| Meme coins stop · target | -8% · +15% | -12% safety stop (watch from -5%) · +10% |
+| Majors / stocks stop · target | -3% · +15% | -5% safety stop (cut early from -2% only if momentum and volume say so) · +15% after fees |
+| Meme coins stop · target | -7% · +15% | -7% safety stop (watch from -5%) · +15% after fees |
 | Bank part of a trade early | a quarter halfway to target | off (`TZ_FLIP_BANK_FRACTION=0`): early slices paid fees and shrank winners |
 | Close a winner that's going nowhere | after 24 h (meme 6 h) | after 3 h (meme 1.5 h) |
 | Skims at once · target · time limit · cooldown | 2 · +2.5% · 120 min · 15 min | off (`TZ_FLIP_MAX_SKIMS=0`): at ~0.9% round-trip fees a small skim target lost money; set 4 to turn back on |

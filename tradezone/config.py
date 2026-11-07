@@ -251,8 +251,11 @@ class Settings:
     reinvest_share: float = 0.25
     # ---- moving take-profit: once a trade is 10% past its buy price, the target moves up instead of selling ----
     tp_step: bool = True
-    tp_step_pct: float = 0.10  # every +10% from the buy price: the target moves another 10% out...
+    tp_step_pct: float = 0.15  # every +15% from the buy price (the take-profit): the target moves another 15% out...
     tp_step_lock: float = 0.5  # ...and the stop locks in at least half of the step reached (+5% at +10%, +10% at +20%)
+    # the take-profit is taken first (asked for: "+15%"): the steps start only once a trade has sold its share at the
+    # target (a runner). True = the old way: past +15% the target moved out before it was ever reached - nothing sold
+    tp_step_before_target: bool = False
     # ---- wide stop-loss: -20% from the buy price (was -33%), so ordinary dips never stop a trade out ----
     # Positions are sized so hitting it still costs about risk_per_trade of the account. The trailing stop and
     # the break-even lock still work from the normal plan's stop (-2% / -5%), so winners stay protected.
@@ -260,16 +263,18 @@ class Settings:
     # full cash: with the wide stop and patient exits, trades are sized (and the risk cap counted) by the patient
     # cut (-5%, meme -12%) instead of the wide stop - so the whole cash balance can be at work, not about a third of it
     full_cash: bool = True
-    wide_stop_pct: float = 0.20  # (was 33%; you asked for stops at most 20% away)
+    # stop-loss at most -7%, take-profit +15% after fees (asked for; was -20% and +4-15%). Replayed on real price history (16 windows per market, tuning / unseen half), vs the -20% stop a
+    # nd +4-15% targets: rising +$818 / +$447 (was +$785 / +$452), falling -$545 / -$550 (was -$950 / -$687), sideways -$163 / -$246 (was -$68 / -$124).
+    wide_stop_pct: float = 0.07
     # loss floor: with never-sell-at-a-loss on, a trade this far below what was paid IS sold (0 = never).
     # Tested on real price history over 3.5-day windows: the same result when prices rise or go sideways
     # (nothing falls that far), and about a fifth less lost when they fall (-598 vs -755 / -417 vs -532).
-    max_loss_pct: float = 0.20
+    max_loss_pct: float = 0.07  # (-7%: the most a trade may lose, with never-sell on too)
     # ---- patient exits (real money): a wider safety stop; a losing trade is held for a comeback, and only
     #      cut early when momentum AND volume say it isn't coming back ----
     patient_exits: bool = True  # with the wide stop: cut early when momentum AND volume say no comeback
     patient_stop_pct: float = 0.05  # the safety stop for bigger coins (and stocks)...
-    patient_meme_stop_pct: float = 0.12  # ...and for meme coins
+    patient_meme_stop_pct: float = 0.07  # ...and for meme coins (was 12%: at most -7% now)
     no_return_momentum: float = -0.5  # momentum this strongly against the trade...
     no_return_volume: float = 1.5  # ...on at least 1.5x the usual volume = no comeback: cut it
     patient_rescue_pct: float = 0.003  # a trade that was down and comes back to +0.3% after fees is closed
@@ -318,9 +323,9 @@ class Settings:
     flip_skim_rsi_max: float = 55.0  # real-money skims: a dip counts up to this RSI (practice 45)...
     flip_skim_calm: float = 0.7  # ...and the "calm enough for a tight stop" check allows a bit more movement (practice 0.5)
     flip_major_stop_pct: float = 0.02  # majors and stocks: -2% stop...
-    flip_major_target_pct: float = 0.04  # ...and +4% profit after fees
+    flip_major_target_pct: float = 0.15  # ...and +15% profit after fees (was +4%)
     flip_meme_stop_pct: float = 0.05  # meme coins: -5% stop...
-    flip_meme_target_pct: float = 0.10  # ...and +10% profit after fees
+    flip_meme_target_pct: float = 0.15  # ...and +15% profit after fees (was +10%)
     flip_net_pct: float = 0.012  # bank a slice of a trade as soon as it is up this much after fees...
     flip_bank_fraction: float = 0.0  # ...this share (0 = off: on real price history early slices shrank the winners)
     flip_min_edge: float = 3.0  # the target must pay at least 3x the fees (you keep at least twice the fees)
@@ -410,10 +415,10 @@ class Settings:
     # sized so a trade can actually reach its target in hours rather than days.
     # structure: beyond the recent swing low/high. atr: a fixed ATR multiple.
     stop_method: str = "percent"
-    stop_loss_pct: float = 0.08  # meme coins: -8% stop-loss
+    stop_loss_pct: float = 0.07  # meme coins: -7% stop-loss (was -8%)
     take_profit_pct: float = 0.15  # meme coins: +15% take-profit
     major_stop_loss_pct: float = 0.03  # other coins and stocks: -3%
-    major_take_profit_pct: float = 0.06  # other coins and stocks: +6%
+    major_take_profit_pct: float = 0.15  # other coins and stocks: +15% (was +6%)
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
     # into profit (at least runner_lock_share of the target) and then trails the peak.
     runners: bool = True

@@ -27,6 +27,7 @@ def trade(desk, sym, entry, best, exit_, reason="momentum lead in trending regim
     run(desk.bus.drain())
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_target_learner_lets_winners_run_further_in_coins_whose_moves_run_further():
     desk = make()
     tl = desk.bots["targets"]

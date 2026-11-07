@@ -32,6 +32,7 @@ def open_aapl(desk):
     return pos
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_paper_positions_and_stops_survive_restart(tmp_path):
     db = tmp_path / "tz.db"
     d1 = make(db)

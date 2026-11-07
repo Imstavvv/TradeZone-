@@ -1443,7 +1443,7 @@ var(--live)}
         <div class="scard" data-page="settings"><h4>🛡️ Your trading rules</h4>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap: OFF</b><span id="setLcSub">Losing trades in other coins don't stop new buys</span></div><button id="setLcBtn">Turn on</button></div>
-          <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (20%)</b><span id="setLfSub">A trade 20% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
+          <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (7%)</b><span id="setLfSub">A trade 7% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
           <div class="srow"><div class="ic">📉</div><div class="tx"><b id="setFgTxt">Falling-market guard: OFF</b><span id="setFgSub">New buys whatever the trend</span></div><button id="setFgBtn">Turn on</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
           <div class="srow"><div class="ic">🎨</div><div class="tx"><b id="setThemeTxt">Look: Light</b><span>🏛️ Olympus (gods and goddesses: marble and gold), light, dark, or 🔥 heater (flames and embers) - this device remembers it</span></div><div class="themepick" id="themePick"><button data-t="olympus" aria-label="Olympus">🏛️</button><button data-t="light" aria-label="Light">☀️</button><button data-t="dark" aria-label="Dark">🌙</button><button data-t="heater" aria-label="Heater">🔥</button></div></div>
@@ -2969,10 +2969,10 @@ function renderLossFloor(st){
 }
 $('setLfBtn').onclick = async () => {
   const on = !(S.state && S.state.max_loss_pct > 0);
-  const msg = on ? 'A trade that falls 20% below what was paid will be sold, taking that loss - even with "never sell at a loss" on. Tested on real price history: the same result when prices rise or go sideways, and about a fifth less lost when they fall (a falling coin stops tying up your money).'
+  const msg = on ? 'A trade that falls 7% below what was paid will be sold, taking that loss - even with "never sell at a loss" on. Tested on real price history with the +15% take-profit: about 40% less lost when prices fall, about the same when they rise, more lost when they go sideways.'
                  : 'With never-sell on, losing trades will be held however far they fall - a coin that keeps falling can tie up your money for a long time, or go to zero.';
   if (!await ask(on ? 'Turn the loss floor on?' : 'Turn the loss floor off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
-  try { await api('/api/loss-floor', {on}); toast(on ? 'Loss floor: on (20%)' : 'Loss floor: off'); } catch {}
+  try { await api('/api/loss-floor', {on}); toast(on ? 'Loss floor: on (7%)' : 'Loss floor: off'); } catch {}
 };
 function renderFallingGuard(st){
   const on = (st.falling_guard || 'off') !== 'off';

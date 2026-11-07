@@ -853,6 +853,30 @@ class TradingDesk:
             self.live_broker = None
         self.bus.publish("alert", Alert("warning", self.ALPACA_UNLINKED, "desk"))
 
+    def _sl7_tp15_once(self) -> None:
+        """Stop-loss at most -7% and take-profit +15% after fees, for the trades already open too (asked for, once).
+        A trade already more than 7% down is then sold by the loss floor at the next price check."""
+        if self.store.load("sl7_tp15"):
+            return
+        self.store.save("sl7_tp15", {"done": True})
+        s, n = self.settings, 0
+        for book, live in ((self.paper_portfolio, False), (self.live_portfolio, True)):
+            for p in (book.open_positions if book is not None else []):
+                if p.qty <= 0 or not p.avg_price:
+                    continue
+                floor = p.avg_price * (1 - s.wide_stop_pct)
+                if p.stop_price is None or p.stop_price < floor * 0.999:  # (looser than -7%: tightened to it)
+                    p.stop_price = floor
+                if p.take_profit is not None:  # (a runner has none: only its stop, already in profit, steps up)
+                    tp = s.plan_pcts(p.symbol, s.quick(live))[1]
+                    target = p.avg_price * (1 + tp) + s.round_trip_cost(p.symbol, p.avg_price)
+                    if abs(p.take_profit / target - 1) > 0.005:  # (+15% after fees)
+                        p.take_profit = target
+                n += 1
+        if n:
+            self.bus.publish("alert", Alert("info", f"New rules on {n} open trade(s): stop-loss at most -7%, take-profit "
+                                                    "+15% after fees. A trade already more than 7% down is sold.", "desk"))
+
     async def start(self) -> None:
         self._unlink_alpaca_once()
         if (old := self.__dict__.pop("_drop_broker", None)) is not None:
@@ -866,6 +890,7 @@ class TradingDesk:
         await self._venue_feed()
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
+        self._sl7_tp15_once()
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
         self.bots["stacker"].load()  # type: ignore[attr-defined]  # the hold stack
@@ -890,6 +915,9 @@ class TradingDesk:
             self.day_trades = {k: list(v) for k, v in (dt.get("trades") or {}).items()} or self.day_trades
             self._bought_on = {k: dict(v) for k, v in (dt.get("bought") or {}).items()} or self._bought_on
         if (lf := self.store.load("loss_floor")) is not None and "TZ_MAX_LOSS_PCT" not in os.environ:
+            if not lf.get("chosen_after_7"):  # (saved before "stop-loss at most -7%": set to -7% once, as asked)
+                lf = {"pct": float(self.BEST["max_loss_pct"]), "chosen_after_7": True}  # type: ignore[arg-type]
+                self.store.save("loss_floor", lf)
             self.settings.max_loss_pct = float(lf.get("pct", 0.0))
         if (lc := self.store.load("loser_cap")) is not None and "TZ_LOSER_CAP" not in os.environ:
             if not lc.get("chosen_after_off"):  # (saved before it was switched off: switched off once, as asked)
@@ -1077,7 +1105,7 @@ class TradingDesk:
         "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.0,
-        "loser_cap_depth": 0.005, "wide_stop_pct": 0.20, "max_loss_pct": 0.20}
+        "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()
@@ -1128,7 +1156,7 @@ class TradingDesk:
         self.store.save("finders", {k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap, "chosen_after_off": True})
-        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
+        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct, "chosen_after_7": True})
         self.store.save("protocol", {"best": True, "ts": time.time()})
         self.bus.publish("alert", Alert("info", "Settings set to the tested-best combination", "operator"))
         return self.protocol_status()
@@ -1155,7 +1183,7 @@ class TradingDesk:
     def set_loss_floor(self, on: bool) -> dict:
         """The loss floor on (a trade 20% under what was paid is sold, even with never-sell on) or off."""
         self.settings.max_loss_pct = float(self.BEST["max_loss_pct"]) if on else 0.0  # type: ignore[arg-type]
-        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct})
+        self.store.save("loss_floor", {"pct": self.settings.max_loss_pct, "chosen_after_7": True})
         self.bus.publish("alert", Alert("warning" if not on else "info", "Loss floor: " + (
             f"ON - a trade {self.settings.max_loss_pct:.0%} below what was paid is sold" if on
             else "OFF - with never-sell on, losing trades are held however far they fall"), "operator"))

@@ -42,7 +42,7 @@ TEAM_RULES = [
     {"icon": "🌱", "rule": "Grow", "detail": "Let winnings compound - size up slowly when doing well, down when not."},
     {"icon": "🧠", "rule": "Learn the markets", "detail": "Every closed trade teaches the team what works."},
     {"icon": "🚀", "rule": "The goal: grow fast, lose little", "detail": "Grow the balance rapidly by compounding many quick, fee-paid wins - and keep losses minimal: a small stop on every trade, half-size trades on a losing day, and the day's gains locked in once they're real."},
-    {"icon": "💵", "rule": "A $1,000+ day", "detail": "Aim for a $1,000+ day with the money on hand - and no ceiling above it: winners keep running with a moving take-profit, and a great day never stops the bots. If a good day starts slipping, new trades get smaller instead. Never by betting bigger to force it."},
+    {"icon": "🎯", "rule": "Stop at -7%, profit at +15%", "detail": "Every trade's stop-loss is at most 7% below what was paid, and its take-profit is +15% after the buy and sell fees. At +15% a third is sold and the rest rides with its stop locked in profit."},
     {"icon": "🛡️", "rule": "Don't lose the money", "detail": "Protecting what you put in comes first: stops on every trade, and trading stops itself after a bad day or a 10% drop. Growing fast never means bigger bets than the limits allow."},
 ]
 STRATEGIES = tuple(ALL_STRATEGIES)

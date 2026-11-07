@@ -88,6 +88,7 @@ def buy(desk, sym, price):
     return desk.portfolio.position(sym)
 
 
+@pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_banks_a_slice_halfway_to_the_target(desk):
     pos = buy(desk, "BTC-USD", 50_000.0)  # -3% / +6% plan
     q0 = pos.qty

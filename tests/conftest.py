@@ -19,6 +19,28 @@ def desk(settings):
     return TradingDesk(settings, journal=Journal(":memory:"))
 
 
+#: the stops / targets before "stop-loss at most -7%, take-profit +15%": tests of a mechanism (dip buys, runners,
+#: profit sales at the ask, the moving target, ...) were written around these numbers and keep testing it with them
+OLD_PLAN = {"wide_stop_pct": 0.20, "max_loss_pct": 0.20, "patient_meme_stop_pct": 0.12, "stop_loss_pct": 0.08,
+            "flip_major_target_pct": 0.04, "flip_meme_target_pct": 0.10, "major_take_profit_pct": 0.06,
+            "tp_step_pct": 0.10, "tp_step_before_target": True}
+
+
+@pytest.fixture(autouse=True)
+def _old_plan(request, monkeypatch):
+    if request.node.get_closest_marker("old_plan") is None:
+        return
+    from tradezone.config import Settings
+    real = Settings.__init__
+
+    def init(self, *a, **kw):
+        real(self, *a, **kw)
+        for k, v in OLD_PLAN.items():
+            if k not in kw:
+                setattr(self, k, v)
+    monkeypatch.setattr(Settings, "__init__", init)
+
+
 @pytest.fixture(autouse=True)
 def _no_history_pause(monkeypatch):
     """The Trend Scout spaces out history requests (the exchange's rate limit); tests don't need to wait."""

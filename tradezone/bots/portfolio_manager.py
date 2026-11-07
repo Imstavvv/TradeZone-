@@ -239,6 +239,8 @@ class PortfolioBot(Bot):
         s = self.settings
         if not s.tp_step or s.tp_step_pct <= 0 or self._is_skim(sym) or not pos.avg_price:
             return
+        if pos.take_profit is not None and sym not in self.scaled_out and not s.tp_step_before_target:
+            return  # the +15% take-profit is taken first; then the rest (a runner) steps its stop up
         gain = (price / pos.avg_price - 1) * d
         n = int(gain / s.tp_step_pct + 1e-9)
         if n < 1 or n <= self.tp_steps.get(sym, 0):

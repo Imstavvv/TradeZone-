@@ -135,6 +135,6 @@ def test_the_floor_is_on_by_default_and_part_of_the_tested_best_settings():
     from tradezone.desk import TradingDesk
     from tradezone.journal import Journal
     d = TradingDesk(Settings(feed="sim", symbols=["BTC-USD"]), journal=Journal(":memory:"))
-    assert d.settings.max_loss_pct == 0.20 and d.settings.wide_stop_pct == 0.20
-    assert d.BEST["max_loss_pct"] == 0.20 and d.protocol_status()["off"] == []
+    assert d.settings.max_loss_pct == 0.07 and d.settings.wide_stop_pct == 0.07  # at most -7% (asked for)
+    assert d.BEST["max_loss_pct"] == 0.07 and d.protocol_status()["off"] == []
     assert d.set_loss_floor(False)["max_loss_pct"] == 0.0 and "max_loss_pct" in {x["key"] for x in d.protocol_status()["off"]}
