@@ -100,3 +100,25 @@ def test_volatility_targeting_sizes_calm_coins_bigger_and_wild_ones_smaller():
     off, on = size(False), size(True)  # (explicitly off / on)
     assert on["BTC-USD"] > off["BTC-USD"] * 1.2 and on["SOL-USD"] < off["SOL-USD"] * 0.8
     assert Settings().vol_target is True and Settings().trail_atr_mult == 0.0  # (tested: targeting on, chandelier off)
+
+
+def test_a_market_wide_hourly_downtrend_stops_new_buys_one_falling_coin_doesnt():
+    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"], market_down_share=0.6)
+    s.risk.symbol_cooldown_s = 0
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    for sym, px in (("BTC-USD", 50_000.0), ("ETH-USD", 3_000.0), ("SOL-USD", 150.0), ("XRP-USD", 0.6)):
+        prime(d, sym, px, atr=px * 0.005)
+    snaps = d.bots["risk"].snapshots
+    for sym in ("ETH-USD", "SOL-USD", "XRP-USD"):
+        snaps[sym].indicators["tf_1h_trend"] = -1  # three of four falling: a broad slide
+    snaps["BTC-USD"].indicators["tf_1h_trend"] = 1
+    rejected = capture(d, "signal.rejected")
+    d.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.95, "t", "quant"))
+    run(d.bus.drain())
+    assert d.portfolio.position("BTC-USD").is_flat and "most of the market" in rejected[-1]["reason"]
+    for sym in ("SOL-USD", "XRP-USD"):
+        snaps[sym].indicators["tf_1h_trend"] = 1  # now only ETH falls
+    d.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.95, "t", "quant"))
+    run(d.bus.drain())
+    assert d.portfolio.position("BTC-USD").qty > 0
+    assert Settings().market_down_share == 0.0  # (off until tested)

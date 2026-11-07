@@ -120,6 +120,20 @@ class RiskBot(Bot):
             return "down"
         return "flat"
 
+    def market_down_block(self) -> str | None:
+        """Most of the market in an hourly downtrend (market_down_share): no new buys until it turns."""
+        share = self.settings.market_down_share
+        if share <= 0:
+            return None
+        trends = [x.indicators.get("tf_1h_trend") for x in self.snapshots.values()]
+        trends = [t for t in trends if t is not None]
+        if len(trends) < 3:
+            return None
+        down = sum(t < 0 for t in trends) / len(trends)
+        if down > share:
+            return f"most of the market is falling on the hourly chart ({down:.0%} of coins) - no new buys until it turns"
+        return None
+
     def mtf_block(self, symbol: str) -> str | None:
         """The higher timeframes say no (mtf_filter): the hourly / 4-hour trend is down, or more timeframes fall."""
         mode = self.settings.mtf_filter
@@ -248,6 +262,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and not sig.force and (why := self.market_down_block()):
+            return self.reject(sig, why)
         if sig.side is Side.BUY and not sig.force and (why := self.mtf_block(sig.symbol)):
             return self.reject(sig, why)
         if sig.side is Side.BUY and not sig.force and (why := self.falling_block(sig.symbol)):

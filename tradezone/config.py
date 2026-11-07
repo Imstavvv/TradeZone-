@@ -353,6 +353,10 @@ class Settings:
     # that sale has filled. Never-sell-at-a-loss and "profit-taking covers all costs" still hold. Replayed: about the
     # same as without (it rarely comes up: cash runs out while a trade is in profit after fees). On, as asked.
     rotate_for_buys: bool = True
+    # a market-wide hourly downtrend (an upgrade, off until tested): no new buys while more than this share of the
+    # watched coins have a falling hourly trend (0 = off). Unlike the per-coin hourly filter, one coin dipping in a
+    # healthy market is still bought - only a broad slide stops buying.
+    market_down_share: float = 0.0
     rotate_max_share: float = 0.5
     consensus_bots: int = 6
     max_kraken_coins: int = 600
