@@ -76,3 +76,22 @@ def test_at_plus_15_percent_after_fees_a_third_is_sold_before_the_target_moves()
     assert pos.qty == pytest.approx(start * (1 - d.settings.runner_sell_fraction), rel=0.02)  # a third banked...
     assert any(t.get("action") == "partial" for t in trades)
     assert pos.stop_price > pos.avg_price  # ...the rest rides with its stop locked in profit
+
+
+def test_a_stop_in_profit_always_sits_where_selling_covers_every_cost():
+    """Profit-taking always covers all costs (asked for): a trailing stop above the buy price but under the fees is
+    lifted, so the sale at it keeps a profit after both fees (never-sell would otherwise just hold the trade)."""
+    d = make()
+    assert d.settings.fee_rule_stops
+    pos = buy(d)
+    entry = pos.avg_price
+    tick(d, "BTC-USD", entry * 1.04)  # up 4%
+    pos.stop_price = entry * 1.001  # (a trailing stop just above the buy price: under the fees)
+    tick(d, "BTC-USD", entry * 1.04)
+    cost = d.settings.round_trip_cost("BTC-USD", entry)
+    assert pos.stop_price >= entry + cost  # lifted to where selling covers the costs (and more)
+    trades = capture(d, "trade.closed")
+    tick(d, "BTC-USD", pos.stop_price * 0.999)  # falls back through it
+    for _ in range(3):
+        run(d.step())
+    assert trades and all(t.pnl > 0 for t in trades)  # sold, in profit after every cost

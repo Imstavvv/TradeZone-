@@ -759,7 +759,8 @@ How the bots run today, with real money, and the switch for each. Every "off" wa
 | Shorting | **taken out** (the bots only buy, then sell what they hold) | - |
 | Alpaca: US stocks (SPY, QQQ, AAPL, NVDA, MSFT) next to its crypto | on, long only | `TZ_ALPACA_STOCKS` |
 | Day-trade rule (stocks, under $25,000: the bots use at most 2 of the 3 day trades allowed in 5 days) | on | `TZ_DAY_TRADE_GUARD` |
-| Quick-flip slices, skims, accumulating, profit sales at the ask, the fee rule on locked stops | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS`, `TZ_FEE_RULE_STOPS` |
+| Quick-flip slices, skims, accumulating, profit sales at the ask | **off** (each made less) | `TZ_FLIP_BANK_FRACTION`, `TZ_FLIP_MAX_SKIMS`, `TZ_ACCUMULATE`, `TZ_MAKER_EXITS` |
+| **Profit-taking always covers all costs**: a stop in profit is never under both fees (asked for) | **on** (rising +$705 / +$371 vs +$774 / +$425; falling −$785 / −$752 vs −$802 / −$765; sideways −$141 / −$238 vs −$144 / −$242) | `TZ_FEE_RULE_STOPS` |
 | Aggressive / Bold risk levels | opt-in | Settings → Your trading rules |
 
 The full list of settings, with every default, is in `.env.example`.

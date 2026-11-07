@@ -363,9 +363,12 @@ class Settings:
     dip_keep_cash: float = 0.0  # ...always leaving this share of the balance in cash (0: all the cash goes to crypto)  # ...and then a meme coin position is at most this share of the usual biggest
     profit_over_fees: float = 1.0  # a profit-taking sale keeps at least this many times the fees (after them)
     fee_rule_rescue: bool = True  # ...also for a losing trade that came back (closed only once it beats the fees)
-    # ...and a stop already in profit is raised to where it would keep more than the fees. Off: on real price
-    # history the tighter stops were hit more often and cost more than they kept (stops still lock break-even + fees)
-    fee_rule_stops: bool = False
+    # ...and a stop already in profit is raised to where it would keep more than the fees, so every sale at a stop in
+    # profit covers all its costs (asked for: "profit taking always cover all cost"; a trailing stop could sit above
+    # the buy price but under the fees, and never-sell then held the trade instead of selling). Replayed (16 windows
+    # per market, tuning / unseen half): rising +$705 / +$371 (was +$774 / +$425), falling -$785 / -$752 (was
+    # -$802 / -$765), sideways -$141 / -$238 (was -$144 / -$242)
+    fee_rule_stops: bool = True
     strategy_exit_min_cost: float = 2.0  # a "change of mind" exit only sells a winner once it's made 2x the fees
     flip_max_hold_hours: float = 3.0  # a trade in profit after fees that's going nowhere is closed after this
     flip_meme_max_hold_hours: float = 1.5

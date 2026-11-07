@@ -1102,7 +1102,7 @@ class TradingDesk:
     BEST: ClassVar[dict[str, object]] = {
         "strategies": ["macd", "obv", "mfi"], "snipe": True, "surge_snipe": True, "surge_volume_ratio": 4.0,
         "pullback": True, "flipper": True, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
-        "maker_exits": False, "fee_rule_stops": False, "never_sell_at_loss": True, "dip_buy": True,
+        "maker_exits": False, "fee_rule_stops": True, "never_sell_at_loss": True, "dip_buy": True,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": True, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.0,
         "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07}
