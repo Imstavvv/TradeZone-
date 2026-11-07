@@ -1068,7 +1068,7 @@ The hourly-trend filter loses about a third to a half less when prices fall, but
 
 Asked for. Every strategy the Quant knows (all 21: momentum, MACD, VWAP, OBV, ADX, Supertrend, Ichimoku, buying dips, Bollinger Bands, Stochastic, RSI-style oscillators, Money Flow, breakouts, Keltner, ...) and the Strategist vote yes / no / abstain on each idea. A strategy buy or a strategy ("change of mind") sale goes ahead only when **at least 6 say yes and more say yes than no** (`TZ_CONSENSUS_BOTS=6`). An idea that doesn't have the votes yet isn't dropped: it's re-checked on every bar while the view holds. Stops, the −7% loss floor, take-profits and your own sales never wait for a vote. `TZ_CONSENSUS_VOTERS=families` brings back the old vote (the 3 strategy families and the Strategist, 4 voters, 2 yes and nobody against).
 
-Replayed on real price history (16 windows per market, tuning / unseen half), it did **worse on unseen data in every market** than the old vote: rising +$651 / +$245 vs +$705 / +$373, falling −$829 / −$802 vs −$817 / −$762, sideways −$130 / −$291 vs −$136 / −$241. Waiting for 6 strategies to agree means buying later in a move, at a higher price. It's on because it was asked for; the old vote is the better-tested choice.
+Replayed on real price history (16 windows per market, tuning / unseen half), it did **worse on unseen data in every market** than the old vote: rising +$651 / +$245 vs +$705 / +$373, falling −$829 / −$802 vs −$817 / −$762, sideways −$130 / −$291 vs −$136 / −$241. Waiting for 6 strategies to agree means buying later in a move, at a higher price. So the old vote is back (chosen after the test); `TZ_CONSENSUS_VOTERS=strategies` turns the 6-bot vote on.
 
 ### 🎛️ Every trade has its own buttons
 

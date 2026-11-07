@@ -161,7 +161,9 @@ def test_scout_builds_bars_from_live_ticks():
 
 def test_six_bots_must_agree_on_a_buy(desk):
     """Every strategy with an opinion and the Strategist vote; at least 6 yes, more yes than no (asked for)."""
-    assert desk.settings.consensus_voters == "strategies" and desk.settings.consensus_bots == 6
+    assert Settings().consensus_voters == "families"  # (the old vote is back: the 6-bot vote did worse on unseen data)
+    desk.settings.consensus_voters = "strategies"
+    assert desk.settings.consensus_bots == 6
     signals = capture(desk, "signal.proposed")
     push(desk, snap(price=101, rsi=55, ema_fast=103, ema_slow=100, hi=100.5))  # only a few strategies say yes
     assert not [x for x in signals if x.source == "quant"]
