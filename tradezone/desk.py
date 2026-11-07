@@ -1348,9 +1348,32 @@ class TradingDesk:
             self.bus.publish("alert", Alert(
                 "critical", f"No market data from {self.feed.name} for {self.empty_polls} cycles: {why}", "desk"))
 
+    START_RETRY_S = (10.0, 20.0, 40.0, 80.0, 120.0)
+
     async def run_forever(self) -> None:
+        # A start that fails once (the exchange briefly unreachable while resuming real money, a key refused, ...)
+        # used to end this team for good: no balance updates, no trades, and nothing on screen. Now it says why
+        # and tries again, waiting a little longer each time (at most 2 minutes), until it starts or is stopped.
+        attempt = 0
         self.running = True
-        await self.start()
+        while self.running:
+            try:
+                await self.start()
+                break
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                wait = self.START_RETRY_S[min(attempt, len(self.START_RETRY_S) - 1)]
+                attempt += 1
+                who = getattr(self, "account_label", "") or "Main account"
+                log.exception("%s: start failed (attempt %d)", who, attempt)
+                self.start_error = f"{type(exc).__name__}: {exc}"[:200]
+                self.bus.publish("alert", Alert("critical", f"{who} couldn't start ({self.start_error}) - trying again in "
+                                                            f"{wait:.0f} s. No trades until it does.", "desk"))
+                await asyncio.sleep(wait)
+        if not self.running:
+            return
+        self.start_error = ""
         try:
             while self.running:
                 t0 = time.monotonic()

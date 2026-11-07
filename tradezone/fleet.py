@@ -135,10 +135,35 @@ class AccountFleet:
         for acct_id in self.desks:
             self._run(acct_id)
 
+    RESTART_AFTER_S = 15.0
+
     def _run(self, acct_id: str) -> None:
         if acct_id in self.tasks and not self.tasks[acct_id].done():
             return
-        self.tasks[acct_id] = asyncio.create_task(self.desks[acct_id].run_forever(), name=f"account-{acct_id}")
+        task = asyncio.create_task(self.desks[acct_id].run_forever(), name=f"account-{acct_id}")
+        self.tasks[acct_id] = task
+        task.add_done_callback(lambda t, a=acct_id: self._watch(a, t))
+
+    def _watch(self, acct_id: str, task: asyncio.Task) -> None:
+        """A linked account's team stopped by itself (not unlinked, not shut down): say so and start it again."""
+        if task.cancelled() or acct_id not in self.desks or self.tasks.get(acct_id) is not task:
+            return
+        d = self.desks[acct_id]
+        if not self.main.running or getattr(d, "_stopped_on_purpose", False):
+            return
+        exc = task.exception()
+        why = f"{type(exc).__name__}: {exc}"[:160] if exc else "it stopped"
+        log.error("account %s stopped (%s): restarting", acct_id, why)
+        self.main.bus.publish("alert", Alert("critical", f"{self.meta.get(acct_id, {}).get('label', acct_id)} stopped ({why}) - "
+                                                         f"restarting it in {self.RESTART_AFTER_S:.0f} s", "fleet"))
+
+        async def again():
+            await asyncio.sleep(self.RESTART_AFTER_S)
+            if acct_id in self.desks and self.main.running:
+                self.desks[acct_id].running = True
+                self._run(acct_id)
+        with contextlib.suppress(RuntimeError):
+            asyncio.get_running_loop().create_task(again())
 
     async def stop(self) -> None:
         if self._refresh is not None and not self._refresh.done():
@@ -146,6 +171,7 @@ class AccountFleet:
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._refresh
         for d in self.desks.values():
+            d._stopped_on_purpose = True  # type: ignore[attr-defined]  # (shutting down: not restarted)
             d.stop()
         for t in self.tasks.values():
             t.cancel()
@@ -293,6 +319,7 @@ class AccountFleet:
             # each account's own hold stack (its coins, their worth): shown on the Stack tab and the balance card
             "stack": d.bots["stacker"].summary() if "stacker" in d.bots else None,
             "paused": d.paused, "pause_reason": d.pause_reason, "halted": d.halted, "halt_reason": d.halt_reason,
+            "start_error": getattr(d, "start_error", ""),  # (couldn't start yet: retrying - said on its balance card)
             "feed": d.feed.name, "feed_ok": not d.feed_down,
             "exchange": ({"cash": bal.get("cash"), "equity": bal.get("equity", bal.get("portfolio_value"))}
                          if isinstance(bal, dict) else None),

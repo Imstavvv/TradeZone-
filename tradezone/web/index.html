@@ -2809,6 +2809,7 @@ function renderOverview(st){
     kind = halted ? 'stop' : paused ? 'warn' : '';
   } else if (a.halted) { txt = `Stopped${a.halt_reason ? ` (${a.halt_reason})` : ''}. No new trades until you restart it.`; kind = 'stop'; }
   else if (a.paused) { txt = 'Paused. Its open trades keep their safety stops.'; kind = 'warn'; }
+  else if (a.start_error) { txt = `Couldn't start (${a.start_error}) - trying again automatically. No trades until it does.`; kind = 'stop'; }
   else if (!a.feed_ok) { txt = 'Waiting for market prices…'; kind = 'warn'; }
   else {
     const dt = a.day_trades && a.day_trades.applies ? ` · ${a.day_trades.used} of ${a.day_trades.limit} day trades used this week` : '';
