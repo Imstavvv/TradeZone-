@@ -1181,7 +1181,7 @@ class TradingDesk:
         return {"never_sell_at_loss": self.settings.never_sell_at_loss}
 
     def set_loss_floor(self, on: bool) -> dict:
-        """The loss floor on (a trade 20% under what was paid is sold, even with never-sell on) or off."""
+        """The loss floor on (a trade 7% under what was paid is sold, even with never-sell on) or off."""
         self.settings.max_loss_pct = float(self.BEST["max_loss_pct"]) if on else 0.0  # type: ignore[arg-type]
         self.store.save("loss_floor", {"pct": self.settings.max_loss_pct, "chosen_after_7": True})
         self.bus.publish("alert", Alert("warning" if not on else "info", "Loss floor: " + (

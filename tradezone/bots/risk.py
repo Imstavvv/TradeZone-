@@ -330,7 +330,7 @@ class RiskBot(Bot):
                 tp_pct = learner.target(sig.symbol, tp_pct)  # type: ignore[attr-defined]  # where this coin's moves end
             if s.patient(self.desk.is_live):  # a wider safety stop: losing trades get room to come back
                 sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
-            if s.wide_stop:  # -20% (the wide stop): small dips never stop the trade out (the size keeps the money at risk the same)
+            if s.wide_stop:  # -7% (the wide stop, was -20%): small dips never stop the trade out (the size keeps the money at risk the same)
                 sl_pct = max(sl_pct, s.wide_stop_pct)
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
@@ -390,7 +390,7 @@ class RiskBot(Bot):
             risk_budget *= s.day_lock_size
         size_dist = stop_dist
         if (sp := s.sizing_stop_pct(sig.symbol, self.desk.is_live)) is not None:
-            size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the wide -20% stop
+            size_dist = min(stop_dist, price * sp)  # full cash: sized for the patient cut, not the wide -7% stop
         qty = risk_budget / (size_dist + cost)  # a stopped-out trade also pays fees
         cap = limits.max_position_pct
         if meme and s.never_sell_at_loss:  # held without a cut, a meme coin can fall a long way: half the size

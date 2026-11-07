@@ -256,12 +256,12 @@ class Settings:
     # the take-profit is taken first (asked for: "+15%"): the steps start only once a trade has sold its share at the
     # target (a runner). True = the old way: past +15% the target moved out before it was ever reached - nothing sold
     tp_step_before_target: bool = False
-    # ---- wide stop-loss: -20% from the buy price (was -33%), so ordinary dips never stop a trade out ----
+    # ---- wide stop-loss: -7% from the buy price (asked for; was -20%, -33% before) ----
     # Positions are sized so hitting it still costs about risk_per_trade of the account. The trailing stop and
     # the break-even lock still work from the normal plan's stop (-2% / -5%), so winners stay protected.
     wide_stop: bool = True
     # full cash: with the wide stop and patient exits, trades are sized (and the risk cap counted) by the patient
-    # cut (-5%, meme -12%) instead of the wide stop - so the whole cash balance can be at work, not about a third of it
+    # cut (-5%, meme -7%) instead of the wide stop - so the whole cash balance can be at work, not about a third of it
     full_cash: bool = True
     # stop-loss at most -7%, take-profit +15% after fees (asked for; was -20% and +4-15%). Replayed on real price history (16 windows per market, tuning / unseen half), vs the -20% stop a
     # nd +4-15% targets: rising +$818 / +$447 (was +$785 / +$452), falling -$545 / -$550 (was -$950 / -$687), sideways -$163 / -$246 (was -$68 / -$124).

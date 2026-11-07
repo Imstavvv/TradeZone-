@@ -101,7 +101,7 @@ class PortfolioBot(Bot):
                 and not pos.is_flat and order and order.stop_price:
             pos.stop_price = order.stop_price
             pos.take_profit = order.take_profit
-            # trailing stop / break-even lock work from the normal plan's stop, not a wide -20% safety stop
+            # trailing stop / break-even lock work from the normal plan's stop, not the wide -7% safety stop
             dist = abs(pos.avg_price - order.stop_price)
             if self.settings.wide_stop:
                 dist = min(dist, pos.avg_price * self.settings.plan_pcts(f.symbol, self.quick)[0])
