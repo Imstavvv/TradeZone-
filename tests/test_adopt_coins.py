@@ -74,3 +74,12 @@ def test_coins_your_own_open_order_holds_are_not_taken_over():
     assert d.portfolio.position("BTC-USD").qty == pytest.approx(0.006)  # only the free 0.006
     for _ in range(3):
         assert run(pm.reconcile_positions()) == []  # the books still match
+
+
+def test_a_meme_only_desk_takes_over_meme_coins_only():
+    fk = FakeKraken(usd=1_000.0, held={"XXBT": 0.01, "XXDG": 500.0})
+    d = live_desk(fk)
+    d.settings.meme_only = True
+    cycle(d)
+    assert d.portfolio.position("BTC-USD").is_flat  # BTC isn't a meme coin: left alone
+    assert d.portfolio.position("DOGE-USD").qty == pytest.approx(500.0)

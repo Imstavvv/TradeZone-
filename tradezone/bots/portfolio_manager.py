@@ -434,6 +434,8 @@ class PortfolioBot(Bot):
             price = row.get("price") or desk.prices.get(sym)
             if not price or s.is_stack_only(sym) or not s.is_crypto(sym) or sym not in b.pairs:  # type: ignore[attr-defined]
                 continue
+            if getattr(s, "meme_only", False) and not s.is_meme(sym):
+                continue  # (the Meme desk takes over meme coins only: anything else in its account is left alone)
             if not self.portfolio.position(sym).is_flat:
                 continue  # (the bots' own trade in it is closed first)
             k = norm_symbol(sym)
