@@ -467,6 +467,19 @@ class Settings:
     grok_timeout_s: float = 20.0
     grok_max_signal_age_s: float = 30.0
     grok_fail_open: bool = False  # if Grok is unreachable: False = reject entries (safer)
+    # 🐋 Smart Money: big trades on the tape (Kraken's public trades) and big-volume bars - nudge | veto | off
+    smart_money: str = "nudge"
+    smart_money_tape: bool = True  # read the exchange's own recent trades for the coins about to be bought
+    # 👁️ Chart Vision: a candle chart picture sent to xAI's Grok (needs the Grok key) - nudge | veto | off
+    chart_vision: str = "nudge"
+    chart_vision_frame: str = "1h"  # the timeframe drawn: 15m | 1h | 4h | 1d
+    chart_vision_per_hour: int = 30  # (each look is a paid xAI request: at most this many an hour)
+    grok_vision_model: str = ""  # (empty: the same Grok model as the reviews; grok-4 reads pictures)
+    # ⚖️ Debate: a bull case and a bear case for every buy, scored - nudge | veto | off
+    debate: str = "nudge"
+    debate_grok: bool = False  # also ask Grok to judge the debate (a paid request per buy)
+    # 🔀 Rerouter: a buy the exchange refused for a passing reason, or one held back while cash was tied up, tries again
+    rerouter: bool = True
     # ---- execution accuracy ----
     max_slippage_bps: float = 50.0  # fills worse than this vs. reference price -> auto-pause
     # ---- wallets / funding ----
@@ -816,6 +829,11 @@ class Settings:
         for lo, hi in ((self.stop_loss_pct, self.take_profit_pct), (self.major_stop_loss_pct, self.major_take_profit_pct)):
             if not (0 < lo < 0.5 and 0 < hi < 5):
                 raise ValueError("stop-loss % must be between 0 and 0.5 and take-profit % between 0 and 5")
+        for f in ("smart_money", "chart_vision", "debate"):
+            if getattr(self, f) not in ("nudge", "veto", "off"):
+                raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off")
+        if self.chart_vision_frame not in ("15m", "1h", "4h", "1d"):
+            raise ValueError("TZ_CHART_VISION_FRAME must be 15m, 1h, 4h or 1d")
         if not 0 < self.runner_sell_fraction <= 1:
             raise ValueError("TZ_RUNNER_SELL_FRACTION must be above 0 and at most 1")
         self.meme_coins = [c.upper().split("-")[0] for c in self.meme_coins]

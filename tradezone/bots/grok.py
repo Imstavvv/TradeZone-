@@ -156,6 +156,27 @@ class GrokClient:
         except (KeyError, IndexError, ValueError):
             raise GrokError("other", f"Unexpected reply from xAI: {r.text[:150]}") from None
 
+    async def vision(self, system: str, text: str, png: bytes, model: str = "") -> str:
+        """Ask Grok about a picture (a chart): the image goes with the question, as a base64 PNG."""
+        import base64
+        img = "data:image/png;base64," + base64.b64encode(png).decode()
+        try:
+            r = await self.client.post("/chat/completions", json={
+                "model": model or self.model, "temperature": 0,
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": [{"type": "image_url", "image_url": {"url": img, "detail": "high"}},
+                                                          {"type": "text", "text": text}]}]})
+        except httpx.TimeoutException:
+            raise GrokError("network", "xAI didn't answer in time (timeout). It will retry automatically.") from None
+        except httpx.HTTPError as exc:
+            raise GrokError("network", f"Can't reach api.x.ai ({type(exc).__name__}).") from None
+        if r.status_code >= 400:
+            raise explain(r, model or self.model)
+        try:
+            return r.json()["choices"][0]["message"]["content"]
+        except (KeyError, IndexError, ValueError):
+            raise GrokError("other", f"Unexpected reply from xAI: {r.text[:150]}") from None
+
     async def models(self) -> list[str]:
         try:
             r = await self.client.get("/models")

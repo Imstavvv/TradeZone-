@@ -469,6 +469,19 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         await d.bus.drain()
         return _clean({"ok": True, **out})
 
+    @app.get("/api/read", dependencies=[Depends(check_token)])
+    async def coin_read(symbol: str, account: str = "main"):
+        """One coin as the team sees it: the bull vs bear debate, the whales, Grok's chart read and the chart."""
+        return _clean(_trade_desk(account).coin_read(symbol))
+
+    @app.post("/api/read/look", dependencies=[Depends(check_token)])
+    async def coin_look(body: TradePlanBody):
+        """Have Grok read the coin's chart now (counts against the hour's looks)."""
+        if not _trade_desk(body.account).look_now(body.symbol):
+            raise HTTPException(400, "Grok can't look right now: it needs the Grok key, enough chart history, and "
+                                     "a look left this hour")
+        return {"ok": True}
+
     @app.post("/api/trade/plan", dependencies=[Depends(check_token)])
     async def trade_plan(body: TradePlanBody, request: Request):
         d = _trade_desk(body.account)

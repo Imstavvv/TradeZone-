@@ -12,7 +12,9 @@ from .advisors import (
     WeatherBot,
     WhaleBot,
 )
+from .chartvision import ChartVisionBot
 from .coach import TEAM_RULES, CoachBot
+from .debate import DebateBot
 from .execution import ExecutionBot
 from .executive import ExecutiveBot
 from .flipper import FlipperBot
@@ -29,10 +31,12 @@ from .ops import (
 )
 from .portfolio_manager import PortfolioBot
 from .quant import QuantBot
+from .rerouter import RerouterBot
 from .risk import RiskBot
 from .scout import ScoutBot
 from .sentinel import SentinelBot
 from .skimmer import SkimmerBot
+from .smartmoney import SmartMoneyBot
 from .stacker import StackerBot
 from .strategist import StrategistBot
 from .trends import TrendBot
@@ -40,9 +44,9 @@ from .trends import TrendBot
 # Order matters only for on_cycle hooks: data -> analysis -> risk -> execution -> book -> audit
 TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot,
         # advisors the Risk Manager consults before every new trade
-        WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, LiquidityBot,
+        WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, SmartMoneyBot, ChartVisionBot, DebateBot, LiquidityBot,
         ShockGuardBot, HTFBot,
-        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, PortfolioBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
+        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, RerouterBot, PortfolioBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
         FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot,
         TargetLearnerBot, TradeReviewerBot]
 

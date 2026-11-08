@@ -333,5 +333,38 @@ class KrakenFeed(MarketFeed):
                     "close": float(row[4]), "volume": float(row[6])} for row in rows[:-1]]  # last one is still forming
         return candles[-limit:]
 
+    async def trades(self, symbol: str, count: int = 500) -> list[dict] | None:
+        """The exchange's most recent trades for one coin (the tape): price, size, time and which side took it
+        (``buy`` = a buyer paid the ask). Shares the history requests' pacing (Kraken's public limit)."""
+        p = self.pairs.get(symbol)
+        if p is None:
+            return None
+        async with self._history_lock:
+            wait = self.HISTORY_GAP_S - (time.monotonic() - self._history_at)
+            if wait > 0:
+                await asyncio.sleep(wait)
+            try:
+                r = await self.client.get("/0/public/Trades", params={"pair": p["pair"], "count": count,
+                                                                       **aclass_params(p)})
+                r.raise_for_status()
+                body = r.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                self.last_error = f"trades {symbol}: {type(exc).__name__}: {exc}"[:200]
+                return None
+            finally:
+                self._history_at = time.monotonic()
+        if body.get("error"):
+            self.last_error = f"trades {symbol}: {'; '.join(body['error'])}"[:200]
+            return None
+        rows = next((v for k, v in (body.get("result") or {}).items() if k != "last" and isinstance(v, list)), [])
+        out = []
+        for row in rows:
+            try:
+                out.append({"price": float(row[0]), "qty": float(row[1]), "ts": float(row[2]),
+                            "side": "buy" if row[3] == "b" else "sell"})
+            except (IndexError, TypeError, ValueError):
+                continue
+        return out
+
     async def close(self) -> None:
         await self.client.aclose()

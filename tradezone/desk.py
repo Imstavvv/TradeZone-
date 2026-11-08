@@ -428,6 +428,42 @@ class TradingDesk:
         pm._exit(sym, f"sold by you ({'all' if frac >= 1 else f'{frac:.0%}'})", fraction=frac, force=True)  # type: ignore[attr-defined]
         return {"symbol": sym, "selling": frac, "net": net}
 
+    def coin_read(self, symbol: str) -> dict:
+        """What the team sees in one coin right now: the bull vs bear debate, the whales, Grok's chart read and the
+        chart picture itself (a PNG, base64)."""
+        import base64
+        sym = symbol.strip().upper()
+        snap = self.bots["risk"].snapshots.get(sym)
+        sm, cv, db = self.bots.get("smartmoney"), self.bots.get("chartvision"), self.bots.get("debate")
+        out: dict = {"symbol": sym, "price": self.prices.get(sym)}
+        if db is not None and snap is not None:
+            case = db.debate(sym, snap)
+            out["debate"] = {"verdict": case["verdict"], "bull_score": case["bull_score"], "bear_score": case["bear_score"],
+                             "bull": [p for _, p in case["bull"]], "bear": [p for _, p in case["bear"]]}
+        if sm is not None:
+            out["smart_money"] = sm.read(sym)
+        if cv is not None:
+            out["vision"] = cv.read(sym)
+            out["vision_status"] = cv.vision_status()
+            png = cv.picture(sym)
+            out["chart_png"] = base64.b64encode(png).decode() if png else None
+            out["chart_frame"] = self.settings.chart_vision_frame
+        return out
+
+    def look_now(self, symbol: str) -> bool:
+        """Have Grok read this coin's chart now (one of the hour's looks). False: no Grok key, no chart yet, or the
+        hour's looks are used up."""
+        cv = self.bots.get("chartvision")
+        sym = symbol.strip().upper()
+        if cv is None or (client := cv.client()) is None or cv.budget_left() <= 0 or (png := cv.picture(sym)) is None:
+            return False
+        cv.reads.pop(sym, None)
+        cv.sent.append(time.time())
+        task = asyncio.ensure_future(cv._look(client, sym, png))
+        cv._tasks.add(task)
+        task.add_done_callback(cv._tasks.discard)
+        return True
+
     def set_trade_plan(self, symbol: str, stop_pct: float | None = None, target_pct: float | None = None) -> dict:
         """Change one trade's stop-loss and / or take-profit, as a share of what was paid. The stop can't be looser
         than the most a trade may lose (-7%), and the target is counted after both fees, like every target."""

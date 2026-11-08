@@ -206,6 +206,7 @@ class ExecutionBot(Bot):
             if room <= 0:
                 self.bump("cash_blocks")
                 self.act(f"blocked buy {req.symbol}: the cash is already committed to other buys", "warning")
+                self.publish("order.skipped", {"request": req, "why": "cash_committed"})
                 return
             if qty > room:  # (sized against the same cash as a buy approved just before it: trimmed to what's left)
                 self.act(f"{req.symbol}: buy trimmed {qty:g} -> {room:g} to the cash still free")
@@ -223,6 +224,7 @@ class ExecutionBot(Bot):
                 self.bump("cash_blocks")
                 self.act(f"skipped buy {req.symbol}: the cash still free buys {qty:g}, under the exchange's minimum "
                          f"order ({least:g}) - waits for cash")
+                self.publish("order.skipped", {"request": req, "why": "under_minimum"})
                 return
         order = Order(
             req.symbol, req.side, qty, req.id, reason=req.reason,

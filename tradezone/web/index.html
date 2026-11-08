@@ -1127,6 +1127,11 @@ var(--live)}
 .memecard .warn{color:var(--down);margin-top:4px}
 #setMemeUrl{width:100%;box-sizing:border-box;margin-top:6px;min-height:40px;font-size:15px}
 .liveack{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.4}.liveack input{width:22px;height:22px;flex:none;margin-top:1px}
+.readbody{font-size:14px;line-height:1.4;max-height:70vh;overflow:auto;text-align:left}.readbody h4{margin:10px 0 4px}
+.readchart{width:100%;border-radius:10px;display:block}.readv{margin-top:8px}
+.debate{display:grid;grid-template-columns:1fr 1fr;gap:10px}.debate ul{margin:4px 0 0;padding-left:18px}
+.debate ul.bull li::marker{color:var(--up)}.debate ul.bear li::marker{color:var(--down)}
+@media (max-width:420px){.debate{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -1190,6 +1195,11 @@ var(--live)}
   <h3 id="askTitle"></h3>
   <div class="muted" id="askBody" style="font-size:14px;white-space:pre-line"></div>
   <div class="row"><button id="askNo">Cancel</button><button id="askYes" class="gopaper">OK</button></div>
+</div></div>
+<div class="sheet" id="readSheet"><div class="panel2">
+  <h3 id="readTitle">What the team sees</h3>
+  <div id="readBody" class="readbody"></div>
+  <div class="row"><button id="readLook">👁️ Ask Grok to read the chart</button><button id="readClose" class="gopaper">Close</button></div>
 </div></div>
 <div class="sheet" id="planSheet"><div class="panel2">
   <h3 id="planTitle">Stop-loss and take-profit</h3>
@@ -3425,7 +3435,7 @@ function renderOpen(st){
       <div class="o3">${[prot, x.take_profit ? `target ${px(x.take_profit)}` : '', x.opened_ts ? `open ${dur(x.opened_ts)}` : ''].filter(Boolean).join(' · ')}</div>${held}
       <div class="obtns" data-sym="${esc(x.symbol)}" data-acct="${esc(x.acct)}">
         <button data-t="sell" data-f="1">Sell all</button><button data-t="sell" data-f="0.5">Sell half</button><button data-t="sell" data-f="0.25">Sell ¼</button>
-        ${x.acct === 'main' ? '<button data-t="stack">To hold stack</button>' : ''}<button data-t="plan">Stop / target</button></div></div>`;
+        ${x.acct === 'main' ? '<button data-t="stack">To hold stack</button>' : ''}<button data-t="plan">Stop / target</button><button data-t="read">🔍 Read</button></div></div>`;
   }).join('') : `<div class="emptyhint">${n ? 'No open trades in this account.' : 'No open trades in any account right now. The bots only buy when the whole team agrees it\'s a good chance.'}</div>`);
   const k = st.stack;
   $('openStack').textContent = k && k.value > 0 ? `Not listed here: your hold stack (${money(k.value)}), which the bots never sell. It's on the Money tab.` : '';
@@ -3447,6 +3457,8 @@ $('openList').addEventListener('click', async e => {
   } else if (b.dataset.t === 'stack') {
     if (!await ask(`Move your ${coin} to the hold stack?`, 'The bots keep it for the long term and never sell it. Nothing is sold or sent - it stays in your account.', {ok: 'Move it'})) return;
     try { await api('/api/stack/move', {symbol: sym, direction: 'in', fraction: 1}); toast(`${coin} moved to the hold stack`, 'ok'); } catch {}
+  } else if (b.dataset.t === 'read') {
+    openRead(sym, acct);
   } else if (b.dataset.t === 'plan') {
     const most = Math.round(((S.state && S.state.max_loss_pct) || 0.07) * 1000) / 10;
     $('planTitle').textContent = `${coin}: stop-loss and take-profit`;
@@ -3467,6 +3479,36 @@ $('openList').addEventListener('click', async e => {
     };
   }
 });
+// one coin as the team sees it: the bull vs bear debate, the whales on the tape, and Grok's read of the chart
+async function openRead(sym, acct){
+  const coin = sym.split('-')[0];
+  $('readTitle').textContent = `${coin}: what the team sees`;
+  $('readBody').innerHTML = '<div class="muted">Reading…</div>';
+  $('readSheet').classList.add('open');
+  const close = () => { $('readSheet').classList.remove('open'); $('readClose').onclick = $('readLook').onclick = null; };
+  $('readClose').onclick = close;
+  $('readLook').onclick = async () => {
+    try { await api('/api/read/look', {symbol: sym, account: acct}); toast('Grok is looking at the chart…', 'ok');
+          setTimeout(() => $('readSheet').classList.contains('open') && openRead(sym, acct), 8000); } catch {}
+  };
+  let r; try { r = await api(`/api/read?symbol=${encodeURIComponent(sym)}&account=${encodeURIComponent(acct)}`); } catch { close(); return; }
+  const d = r.debate, m = r.smart_money || {}, v = r.vision, vs = r.vision_status || {};
+  const list = (xs, cls) => xs && xs.length ? `<ul class="${cls}">${xs.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : '<div class="muted">nothing</div>';
+  const verdict = !d ? 'Not enough data yet' : d.verdict === 'bull' ? '🐂 The bull wins' : d.verdict === 'bear' ? '🐻 The bear wins' : '⚖️ Too close to call';
+  const tape = m.tape_lean == null ? 'No big trades read yet (read when a buy comes up)'
+    : m.tape_lean >= 0.6 ? `🐋 Whales are buying (${money(m.tape.buy_usd)} bought vs ${money(m.tape.sell_usd)} sold, 30 min)`
+    : m.tape_lean <= -0.6 ? `🐋 Whales are selling (${money(m.tape.sell_usd)} sold vs ${money(m.tape.buy_usd)} bought, 30 min)`
+    : `🐋 Whales are mixed (${money(m.tape.buy_usd)} bought, ${money(m.tape.sell_usd)} sold)`;
+  const bars = m.bar_flow >= 6 ? 'heavy volume on the way up' : m.bar_flow <= -6 ? 'heavy volume on the way down' : 'no heavy-volume lean';
+  const look = v ? `👁️ Grok reads the ${esc(v.frame)} chart as <b>${esc(v.trend)}</b> (${Math.round(v.confidence * 100)}%)${v.pattern ? ' · ' + esc(v.pattern) : ''}<div class="muted">${esc(v.reason || '')}</div>`
+    : `<div class="muted">👁️ ${vs.connected ? `No chart read yet - ${vs.looks_left_this_hour} looks left this hour` : 'Chart Vision needs the Grok key (Settings)'}</div>`;
+  $('readLook').disabled = !vs.connected || !r.chart_png;
+  $('readBody').innerHTML = (r.chart_png ? `<img class="readchart" alt="${esc(coin)} ${esc(r.chart_frame)} chart" src="data:image/png;base64,${r.chart_png}">` : '<div class="muted">The chart picture appears once there are 30 candles.</div>')
+    + `<div class="readv">${look}</div>`
+    + `<h4>${verdict}${d ? ` <span class="muted">${d.bull_score} vs ${d.bear_score}</span>` : ''}</h4>`
+    + (d ? `<div class="debate"><div><b>🐂 Bull</b>${list(d.bull, 'bull')}</div><div><b>🐻 Bear</b>${list(d.bear, 'bear')}</div></div>` : '')
+    + `<div class="readv">${tape}<div class="muted">Chart volume: ${bars}</div></div>`;
+}
 $('openSort').addEventListener('click', e => { const t = e.target.closest('[data-o]'); if (!t) return; OPEN.sort = t.dataset.o; renderOpen(S.state); });
 $('openAcct').addEventListener('click', e => { const t = e.target.closest('[data-a]'); if (!t) return; OPEN.acct = t.dataset.a; renderOpen(S.state); });
 document.addEventListener('click', e => { const a = e.target.closest('[data-goto]'); if (!a) return; e.preventDefault(); showPage(a.dataset.goto); });
