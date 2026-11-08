@@ -124,6 +124,7 @@ class Signal(Model):
     force: bool = False  # exits you asked for (Close all trades / Emergency stop): always sold, even at a loss
     votes: dict[str, str] = field(default_factory=dict)  # bot/strategy -> yes | no | abstain
     qty: float | None = None  # an exact amount (the Flipper's buy-backs add this many coins to a held position)
+    emergency: bool = False  # exits: the Rug Guard's - sold now, even below break-even (before a rug pull)
     id: str = field(default_factory=lambda: new_id("sig"))
     ts: float = field(default_factory=now)
 

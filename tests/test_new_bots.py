@@ -49,9 +49,9 @@ def advice(desk, name, sym="ETH-USD", side=Side.BUY):
     return desk.bots[name].advise(Signal(sym, side, 0.6, "t", "quant"), desk.bots["risk"].snapshots.get(sym))
 
 
-def test_the_team_has_40_bots_and_13_advisors():
+def test_the_team_has_41_bots_and_13_advisors():
     desk = make()
-    assert len(desk.bots) == 40 and len(desk.advisors) == 15  # 13 advisors + the Slippage Tracker and Exchange Health
+    assert len(desk.bots) == 41 and len(desk.advisors) == 15  # 13 advisors + the Slippage Tracker and Exchange Health
     assert {"weather", "pullback", "fees", "accountant"} <= set(desk.bots)
 
 
@@ -63,7 +63,7 @@ def test_market_weather_ignores_normal_swings_in_a_jumpy_market():
 
 
 def test_market_weather_holds_alt_buys_while_bitcoin_falls():
-    desk = make()
+    desk = make(falling_buys="block")  # (the block itself; "areas" lets a buy area through - see test_falling_buys)
     for i in range(16):
         snap(desk, "BTC-USD", 60_000 * (1 - 0.0015 * i), volatility=0.0005)  # a calm market: -2.1% is a storm
     veto, _, _ = advice(desk, "weather")

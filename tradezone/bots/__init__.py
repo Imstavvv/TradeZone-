@@ -34,6 +34,7 @@ from .portfolio_manager import PortfolioBot
 from .quant import QuantBot
 from .rerouter import RerouterBot
 from .risk import RiskBot
+from .rugguard import RugGuardBot
 from .scout import ScoutBot
 from .sentinel import SentinelBot
 from .skimmer import SkimmerBot
@@ -47,7 +48,7 @@ TEAM = [ScoutBot, ListingsBot, TrendBot, NewsBot, StrategistBot,
         # advisors the Risk Manager consults before every new trade
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, SmartMoneyBot, ChartVisionBot, DebateBot, LiquidityBot,
         ShockGuardBot, HTFBot,
-        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, RerouterBot, PortfolioBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
+        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, RerouterBot, PortfolioBot, RugGuardBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
         FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot,
         TargetLearnerBot, TradeReviewerBot]
 

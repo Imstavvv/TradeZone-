@@ -192,7 +192,7 @@ class Settings:
     # They're traded only once the exchange lists them (never through a wallet key: nothing can be withdrawn)
     discover_pump: bool = True
     same_coin_tolerance: float = 0.05  # a discovered coin's price must match the exchange's within 5% (same coin)
-    discovery_min_mcap: float = 50_000.0  # meme coins worth at least this much...
+    discovery_min_mcap: float = 0.0  # (no market-cap minimum - asked for; was $50k) ...
     discovery_min_volume: float = 100_000.0  # ...trading at least this much a day...
     discovery_min_turnover: float = 0.05  # ...and at least 5% of the market cap changing hands a day
     max_discovered: int = 100  # coins the Trend Scout may add to the watchlist (each still needs enough volume)
@@ -375,9 +375,14 @@ class Settings:
     # as good or better in every market on both halves. (60%: -$364 / -$353 falling, worse sideways; 70% likewise.)
     market_down_share: float = 0.5
     # buys while the market falls: block (none) | areas (only at a good buy area - oversold, the bottom of the
-    # daily range, on support - at 0.7x size) | all (every buy, at 0.7x size)
-    falling_buys: str = "block"
+    # daily range, on support - at 0.7x size) | all (every buy, at 0.7x size). "areas", as asked ("don't skip
+    # falling markets, those could be good buy areas") - at a cost on replays (16 windows each, $500): falling
+    # markets -$199 training / -$201 unseen, sideways -$24 / -$12, rising $0 / $0; "block" brings back the old way.
+    falling_buys: str = "areas"
     rotate_max_share: float = 0.5
+    # diversify (asked for): a buy at a good buy area on another coin is paid for by part of a trade in profit as
+    # soon as cash falls short (not only when under half the cash is there), and the biggest trade pays first
+    diversify_rotation: bool = False
     consensus_bots: int = 6
     listing_scan_s: float = 60.0  # the New Listings bot reads Kraken's pair list this often (new tokens join)
     max_kraken_coins: int = 1000  # (every coin Kraken lists against USD - newly listed DEX-born tokens included)
@@ -494,6 +499,8 @@ class Settings:
     debate_grok: bool = False  # also ask Grok to judge the debate (a paid request per buy)
     # 🔀 Rerouter: a buy the exchange refused for a passing reason, or one held back while cash was tied up, tries again
     rerouter: bool = True
+    # 🛡️ Rug Guard: a held meme / DEX / smaller coin showing rug-pull signs is sold at once, even below break-even
+    rug_guard: bool = True
     # ---- execution accuracy ----
     max_slippage_bps: float = 50.0  # fills worse than this vs. reference price -> auto-pause
     # ---- wallets / funding ----
@@ -858,6 +865,8 @@ class Settings:
         for f in ("smart_money", "chart_vision", "debate"):
             if getattr(self, f) not in ("nudge", "veto", "off", *(("show",) if f == "debate" else ())):
                 raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off" + (" (or show)" if f == "debate" else ""))
+        if self.falling_buys not in ("block", "areas", "all"):
+            raise ValueError("TZ_FALLING_BUYS must be block, areas or all")
         if self.chart_vision_frame not in ("15m", "1h", "4h", "1d"):
             raise ValueError("TZ_CHART_VISION_FRAME must be 15m, 1h, 4h or 1d")
         if not 0 < self.runner_sell_fraction <= 1:

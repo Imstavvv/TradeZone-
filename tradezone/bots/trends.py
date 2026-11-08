@@ -2,10 +2,10 @@
 
 Every half hour it asks CoinGecko (free public market data, no account) for:
 
-* **meme coins** with a market cap of at least **$50k** and **promising volume**: at least $100k traded
+* **meme coins** of any market cap (no minimum, asked for) with **promising volume**: at least $100k traded
   in 24 h, and at least 5% of the market cap changing hands (real interest, not a dead coin);
 * the coins **trending** on CoinGecko right now;
-* coins **launched on pump.fun** (CoinGecko's pump.fun category) that pass the same bar: popular ($50k+ market
+* coins **launched on pump.fun** (CoinGecko's pump.fun category) that pass the same bar: popular (any market
   cap) with plenty of volume. They're bought only once the exchange lists them - never through a wallet key, so
   nothing can ever be withdrawn - and they get the meme-coin rules.
 
@@ -59,7 +59,7 @@ class TrendBot(Bot):
     role = "Trending & Meme Coin Discovery"
     mission = "🔥 Take trades where the action is - trending coins and every meme coin with real volume"
     description = (
-        "Scans CoinGecko for meme coins over $50k market cap with promising volume and for trending coins, "
+        "Scans CoinGecko for meme coins of any market cap with promising volume and for trending coins, "
         "and plugs the ones the exchange lists into the team's watchlist."
     )
 

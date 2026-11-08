@@ -20,7 +20,7 @@ It trades **mainly crypto**, including quick flips on trusted meme coins. It run
 | **Reporter** 📰 | World and market news | Reads crypto, world and business news and the Fear & Greed index; bad news on a coin blocks buying it, scary world news makes trades smaller (see [News](#news-what-the-world-is-saying)) |
 | **Skimmer** 🏄 | Profit taking and day-trade skims | Takes profits of every size (see [The Skimmer](#the-skimmer-profits-big-and-small)) |
 | **Coach** 🎓 | Learning and team rules | Learns from every closed trade which strategies, coins and market moods work, and nudges the team within safe limits (see [Team rules and learning](#team-rules-and-learning)) |
-| **Trend Scout** 🔥 | Discovery | Meme coins and pump.fun coins over $50k market cap with plenty of volume, and trending coins, that your exchange lists (same coin checked by price) - on every account (Kraken, Coinbase/Uphold, Alpaca); and on Alpaca the day's busiest established stocks |
+| **Trend Scout** 🔥 | Discovery | Meme coins and pump.fun coins of any market cap with plenty of volume, and trending coins, that your exchange lists (same coin checked by price) - on every account (Kraken, Coinbase/Uphold, Alpaca); and on Alpaca the day's busiest established stocks |
 | **Pullback Hunter** 🎣 | Entries | Buys the retest of a breakout |
 | **Flipper** ⏱️ | Flips and timing | Volume flips, and learns the best and worst hours to trade |
 | **Dip Buyer** 🔁 | Held losers | While never-sell holds a losing trade, buys more on a further dip that turns up, so it gets back to profit sooner |
@@ -527,7 +527,7 @@ On the **Open trades** page every trade has a **🔍 Read** button: the chart pi
 
 The 14th bot plugs the team into the coins where the action is. Every **30 minutes** (`TZ_DISCOVERY_EVERY_MIN`) it reads CoinGecko's free public market data (no account needed):
 
-* **meme coins** with a market cap of at least **$50k** (`TZ_DISCOVERY_MIN_MCAP`) and **promising volume**: at least **$100k** traded in 24 h (`TZ_DISCOVERY_MIN_VOLUME`) and at least **5%** of the market cap changing hands a day (`TZ_DISCOVERY_MIN_TURNOVER`), so dead coins are skipped;
+* **meme coins** of **any market cap** (no minimum, asked for; `TZ_DISCOVERY_MIN_MCAP`, was $50k) and **promising volume**: at least **$100k** traded in 24 h (`TZ_DISCOVERY_MIN_VOLUME`) and at least **5%** of the market cap changing hands a day (`TZ_DISCOVERY_MIN_TURNOVER`), so dead coins are skipped;
 * the coins **trending** on CoinGecko right now.
 
 Every one of them that the exchange lists against USD (with Kraken prices) is added to what the bots watch and trade, trending coins first, up to 100 (`TZ_MAX_DISCOVERED`; was 20), with recent price history loaded so the bots can act at once (one request about a second apart, in the background, to stay inside the exchange's rate limit). Each still needs its listing, market value and trading volume to qualify, so the number found depends on the day - and many are small, jumpy coins (meme rules: smaller bets, wider stops). Not tested on price history as a change. Meme coins get the meme rules (smaller bets, wider stops), trending coins a small conviction boost (`TZ_TRENDING_NUDGE`). Coins that stop qualifying are dropped again, never while the bots hold one. **Today's hunt** on Home lists what's trending. `TZ_DISCOVER_COINS=false` turns it off.
@@ -617,7 +617,7 @@ Re-checked after a flaw in the replay tool was fixed: the earlier "20 runs" re-u
 ### 🚀 pump.fun coins
 
 The Trend Scout watches **coins launched on pump.fun** (CoinGecko's pump.fun category, free public data, no account) with the same bar as every meme coin:
-- popular: **over $50k market cap** (`TZ_DISCOVERY_MIN_MCAP`);
+- any market cap (no minimum, asked for; `TZ_DISCOVERY_MIN_MCAP`, was $50k);
 - **plenty of volume**: at least $100k traded a day, and at least 5% of the market cap changing hands.
 
 The busiest that **your exchange lists** are plugged into the watchlist with their price history, so the volume snipes and breakout snipes can act on big moves at once. They get the meme-coin rules: smaller bets, wider stops, the early cut when momentum and volume turn, and no more than 5 meme coins at once. The home screen shows which ones came from pump.fun. `TZ_DISCOVER_PUMP=false` turns it off.

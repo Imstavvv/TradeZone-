@@ -19,7 +19,7 @@ from ..core.models import (
 )
 from ..core.stops import StopRejected, plan_stop
 from ..core.util import is_closing, round_qty
-from .advisors import falling_buy_ok
+from .advisors import buy_area, falling_buy_ok
 from .base import Bot
 
 
@@ -248,7 +248,8 @@ class RiskBot(Bot):
             if (why := self.desk.day_trade_block(sig.symbol, yours)):
                 return self.reject(sig, why)
             # reduce-only exits are always allowed: they lower risk
-            if self.settings.never_sell_at_loss and not sig.force and self.settings.net_if_sold(pos, price) < 0 \
+            if self.settings.never_sell_at_loss and not sig.force and not sig.emergency \
+                    and self.settings.net_if_sold(pos, price) < 0 \
                     and not self._past_floor(pos, price):
                 return self.reject(sig, "held: it's below break-even after fees, and the bots never sell at a loss")
             # profit-taking (and a winner's change-of-mind exit) may wait at the ask for the maker fee
@@ -266,6 +267,9 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and (rg := self.desk.bots.get("rugguard")) is not None and rg.enabled \
+                and (why := rg.banned(sig.symbol)):
+            return self.reject(sig, why)
         if sig.side is Side.BUY and s0_meme_only(self.settings) and not self.settings.is_meme(sig.symbol):
             return self.reject(sig, f"the Meme desk trades meme coins only - {sig.symbol} isn't one")
         falling_mult = 1.0
@@ -465,7 +469,9 @@ class RiskBot(Bot):
             qty = min(qty, left / price)
         # buys need cash (no borrowing to make bets bigger)
         qty = min(qty, self.desk.free_cash() * 0.995 / price)
-        if (s.rotate_for_buys and sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and qty < wanted * 0.5
+        # a buy at a good buy area on another coin (diversify): part of a trade in profit pays for it sooner
+        short = 0.9 if s.diversify_rotation and buy_area(self.snapshots.get(sig.symbol)) else 0.5
+        if (s.rotate_for_buys and sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and qty < wanted * short
                 and sig.symbol not in self._rotated and (donor := self._fund_from(sig.symbol, (wanted - qty) * price))):
             self._rotated.add(sig.symbol)
             self._rotation[sig.symbol] = (sig, now())
@@ -587,7 +593,8 @@ class RiskBot(Bot):
             px = self.desk.prices.get(pos.symbol) or pos.last_price
             if not px or not s.beats_fees(pos, px):
                 continue  # (only a trade whose sale keeps a profit after fees: never sold at a loss)
-            rank = (scores.get(pos.symbol, {}).get("ensemble", 0.0), -s.net_if_sold(pos, px))
+            value = -pos.qty * px if s.diversify_rotation else 0.0  # (diversify: the biggest trade pays first)
+            rank = (value, scores.get(pos.symbol, {}).get("ensemble", 0.0), -s.net_if_sold(pos, px))
             if best is None or rank < best[0]:
                 best = (rank, pos, px)
         if best is None:

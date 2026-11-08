@@ -184,6 +184,7 @@ class KrakenFeed(MarketFeed):
         self._history_lock = asyncio.Lock()
         self._history_at = 0.0
         self._vol_today: dict[str, float] = {}
+        self.restricted: dict[str, float] = {}  # watched pairs Kraken stopped trading normally -> since when
         self.waiting: dict[str, float] = {}  # pairs listed since start-up, not yet trading enough -> since when
         self.new_listings: list[str] = []  # coins Kraken listed after start-up that joined the watch list
 
@@ -211,6 +212,14 @@ class KrakenFeed(MarketFeed):
             self.last_error = f"pairs: {type(exc).__name__}: {exc}"[:200]
             return []
         t = time.monotonic()
+        # a watched coin Kraken stopped trading normally (reduce-only, cancel-only, delisting): flagged for the Rug
+        # Guard. (Only when the list came back whole: a half-read list must never look like a wave of delistings.)
+        gone = [p for p in self.pairs if p not in pairs and p in self.symbols]
+        if gone and len(pairs) >= 0.9 * len(self.pairs) and len(gone) <= 5:
+            for p in gone:
+                self.restricted.setdefault(p, t)  # (the pair's details are kept: a sale can still be tried)
+        for p in [p for p in self.restricted if p in pairs]:
+            self.restricted.pop(p, None)  # (back to normal trading)
         for p in pairs:
             if p not in self.pairs:
                 self.waiting[p] = t  # (new on Kraken: checked again each scan for a day, until it trades enough)

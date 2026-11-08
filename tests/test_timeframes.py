@@ -103,7 +103,8 @@ def test_volatility_targeting_sizes_calm_coins_bigger_and_wild_ones_smaller():
 
 
 def test_a_market_wide_hourly_downtrend_stops_new_buys_one_falling_coin_doesnt():
-    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"], market_down_share=0.6)
+    s = Settings(feed="sim", symbols=["BTC-USD", "ETH-USD", "SOL-USD", "XRP-USD"], market_down_share=0.6,
+                 falling_buys="block")  # (the block itself)
     s.risk.symbol_cooldown_s = 0
     d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
     for sym, px in (("BTC-USD", 50_000.0), ("ETH-USD", 3_000.0), ("SOL-USD", 150.0), ("XRP-USD", 0.6)):
