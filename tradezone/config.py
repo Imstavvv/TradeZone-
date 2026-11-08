@@ -16,6 +16,11 @@ MEME_COINS = ["DOGE", "SHIB", "PEPE", "BONK", "WIF", "FLOKI"]
 MEME_CANDIDATES = ["TRUMP", "PENGU", "FARTCOIN", "POPCAT", "MEW", "BOME", "TURBO", "PNUT", "MOG", "BRETT", "GIGA",
                    "SPX", "MOODENG", "NEIRO", "GOAT", "PONKE", "MYRO", "WEN", "BABYDOGE", "DOG", "TOSHI", "MEME",
                    "CHILLGUY", "AI16Z", "MELANIA", "SUNDOG", "HIPPO", "PUPS", "BAN", "SLERF"]
+#: DEX-born tokens (launched on a decentralized exchange - Solana, Ethereum, Base - and later listed on Kraken): the
+#: "DEX coins" quick flips focus on. Tokens Kraken lists after start-up count too (the New Listings bot adds them).
+DEX_COINS = ["BONK", "WIF", "PEPE", "SHIB", "FLOKI", *MEME_CANDIDATES, "JUP", "RAY", "JTO", "W", "PYTH", "DRIFT",
+             "ORCA", "KMNO", "CLOUD", "ZEUS", "TNSR", "AERO", "VIRTUAL", "GRASS", "ZEREBRO", "GRIFFAIN", "ARC", "FWOG",
+             "MICHI", "RETARDIO", "LOCKIN", "USELESS", "LAUNCHCOIN"]
 #: coin sizes for the growth ladder (by market size; everything not listed is a "smaller coin")
 LARGE_COINS = {"BTC", "ETH"}
 MID_COINS = {"SOL", "XRP", "BNB", "ADA", "AVAX", "LINK", "DOT", "LTC", "BCH", "TRX", "TON", "XLM", "ATOM", "NEAR",
@@ -548,6 +553,12 @@ class Settings:
     spike_fraction: float = 0.5  # sell this much into a spike
     # ---- crypto focus / meme coins ----
     meme_coins: list[str] = field(default_factory=lambda: list(MEME_COINS))
+    # DEX coins (asked for: "focus DEX coins for quick flips"): DEX-born tokens Kraken lists get a nearer target
+    # (+dex_flip_target_pct after every fee - the stop stays) and a little more conviction, so the bots go for them
+    dex_coins: list[str] = field(default_factory=lambda: list(DEX_COINS))
+    dex_flips: bool = False  # (off until its replay test is in)
+    dex_flip_target_pct: float = 0.04
+    dex_focus_nudge: float = 0.05
     meme_risk_mult: float = 0.5  # meme coins risk this fraction of a normal trade (they swing hard)
     # meme coins held at once: all of them (asked for: "allow trade in all meme coins"; was 5). Replayed with 9 meme
     # coins (16 windows per market, tuning / unseen half), all at once vs at most 5: rising +$1,681 / +$879 vs
@@ -664,6 +675,8 @@ class Settings:
         """(stop-loss %, take-profit %) for a symbol under the percent plan (the target is after fees)."""
         if self.is_forex(symbol):
             return self.forex_stop_pct, self.forex_target_pct
+        if self.dex_flips and self.is_dex(symbol):  # DEX coins: quick flips - the same stop, a nearer target after fees
+            return (self.stop_loss_pct if self.is_meme(symbol) else self.major_stop_loss_pct), self.dex_flip_target_pct
         if self.is_meme(symbol):
             return (self.flip_meme_stop_pct, self.flip_meme_target_pct) if quick else (self.stop_loss_pct, self.take_profit_pct)
         if quick:
@@ -673,6 +686,10 @@ class Settings:
     def is_stack_only(self, symbol: str) -> bool:
         """A coin the Stacker buys and the trading bots never open a trade in."""
         return symbol.upper().replace("/", "-").split("-")[0] in self.stack_only_coins
+
+    def is_dex(self, symbol: str) -> bool:
+        """A DEX-born token (see DEX_COINS), or one Kraken listed since start-up."""
+        return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.dex_coins
 
     def is_meme(self, symbol: str) -> bool:
         return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.meme_coins
@@ -846,6 +863,9 @@ class Settings:
         if not 0 < self.runner_sell_fraction <= 1:
             raise ValueError("TZ_RUNNER_SELL_FRACTION must be above 0 and at most 1")
         self.meme_coins = [c.upper().split("-")[0] for c in self.meme_coins]
+        self.dex_coins = [c.strip().upper().split("-")[0] for c in self.dex_coins if c.strip()]
+        if not 0.005 <= self.dex_flip_target_pct <= 0.5:
+            raise ValueError("TZ_DEX_FLIP_TARGET_PCT must be between 0.005 and 0.5")
         if self.live_max_capital < 0:
             raise ValueError("TZ_LIVE_MAX_CAPITAL must be >= 0")
         if not self.grok_api_key:

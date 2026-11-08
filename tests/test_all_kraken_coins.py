@@ -168,6 +168,7 @@ def test_the_new_listings_bot_scans_every_minute_and_names_what_joined():
     run(cycle())
     assert any("Newly listed on Kraken" in m and "NEWDEX" in m for m in got)
     assert "NEWDEX-USD" in d.settings.symbols and bot.metrics["joined"] == 1
+    assert d.settings.is_dex("NEWDEX-USD")  # (a new listing counts as a DEX coin: quick flips)
     assert d.settings.listing_scan_s == 60
 
 

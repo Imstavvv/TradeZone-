@@ -64,6 +64,9 @@ class ListingsBot(Bot):
             return
         for sym in joined:
             self.found.append({"symbol": sym, "ts": time.time()})
+            coin = sym.split("-")[0]
+            if coin not in self.settings.dex_coins:  # (what Kraken lists now is mostly DEX-born: a quick-flip coin)
+                self.settings.dex_coins.append(coin)
         self.bump("joined", len(joined))
         coins = ", ".join(x.split("-")[0] for x in joined[:8]) + (f" and {len(joined) - 8} more" if len(joined) > 8 else "")
         self.act(f"newly listed on Kraken, now watched: {coins}")

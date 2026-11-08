@@ -38,6 +38,7 @@ def test_defaults_are_crypto_with_trusted_meme_coins():
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
 def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
+    desk.settings.dex_flips = False  # (the meme plan itself: PEPE is also a DEX coin, which flips nearer)
     meme = buy(desk, "PEPE-USD", 0.00001)
     assert meme.qty > 0
     fees = desk.settings.round_trip_cost  # targets are profit AFTER the buy and sell fees

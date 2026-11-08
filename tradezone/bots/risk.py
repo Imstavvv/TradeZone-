@@ -320,6 +320,9 @@ class RiskBot(Bot):
                 self.bump("rejected_by_advisors")
                 return self.reject(sig, f"{adv.title}: {veto}")
             nudge, advice_mult = nudge + ds, advice_mult * sm
+        if sig.side is Side.BUY and s0.dex_flips and s0.is_dex(sig.symbol):
+            nudge += s0.dex_focus_nudge  # (DEX coins are the focus for quick flips)
+            self.bump("dex_flip_buys")
         if nudge:
             sig.strength = round(max(0.0, min(1.0, sig.strength + max(-0.15, min(0.15, nudge)))), 3)
         advice_mult = max(0.4, min(1.5, advice_mult))
