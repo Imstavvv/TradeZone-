@@ -528,6 +528,15 @@ Making money faster, replayed the same way: closing a trade that's in profit aft
 +$21.02 / -$33.93 - off. 6% risked a trade (was 4%): -$85.97 / -$85.90 (much more made in rising markets, much more
 lost in falling ones) - off. All of them together: -$70.46 / -$121.21.
 
+### 🎯 Pump Sniper (asked for) - on
+
+Buys a meme / DEX / new / smaller coin as a pump starts (3%+ in 3 bars on 3x volume, at a new high, RSI under 85,
+whales not selling, not a Rug Guard or Kraken-restricted coin) at half size, out at +4% after every fee, or after
+45 minutes of market time if in profit; a pump that turns is covered by the Rug Guard and the -7% floor
+(`TZ_PUMP_SNIPER`). Replayed (16 windows a market, $500): **+$25.46 training / -$1.75 unseen** (falling markets:
+53% of trades won vs 47%). A looser trigger (2% on 2.5x volume): +$1.56 / -$0.33. The replays have one pump-type
+coin (DOGE), so real meme markets will fire it far more often.
+
 ### ↩️ Never buy a falling coin with no turnaround (asked for)
 
 A coin in its own downtrend (the hourly trend down), and any falling-market buy at a buy area, is bought only once

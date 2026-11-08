@@ -508,7 +508,7 @@ class Settings:
     rug_guard: bool = True
     # 🎯 Pump Sniper: buys a meme / DEX / new / small coin the moment it starts pumping (3%+ in 3 bars on 3x volume,
     # at a new high, whales not selling) - half size, out at +4% after fees, or after 45 min if in profit
-    pump_sniper: bool = False  # (off until its replay test is in)
+    pump_sniper: bool = True  # (asked for; replayed: +$25.46 training / -$1.75 unseen - won more trades when prices fell)
     pump_min_move: float = 0.03
     pump_volume_ratio: float = 3.0
     pump_max_rsi: float = 85.0

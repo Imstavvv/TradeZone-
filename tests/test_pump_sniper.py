@@ -17,9 +17,9 @@ def pump(desk, sym="DOGE-USD", start=0.2, step=0.012, vr5=4.0, t0=None):
     return p / (1 + step)
 
 
-def test_off_by_default_and_on_it_snipes_a_pump_at_half_size_aiming_for_4_percent_after_fees():
-    desk = make()
-    assert desk.settings.pump_sniper is False
+def test_on_by_default_and_it_snipes_a_pump_at_half_size_aiming_for_4_percent_after_fees():
+    desk = make(pump_sniper=False)
+    assert make().settings.pump_sniper is True  # (on: asked for)
     props = capture(desk, "signal.proposed")
     pump(desk)
     assert not [p for p in props if p.source == "pumpsniper"]
