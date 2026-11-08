@@ -271,6 +271,8 @@ class Settings:
     full_cash: bool = True
     # stop-loss at most -7%, take-profit +15% after fees (asked for; was -20% and +4-15%). Replayed on real price history (16 windows per market, tuning / unseen half), vs the -20% stop a
     # nd +4-15% targets: rising +$818 / +$447 (was +$785 / +$452), falling -$545 / -$550 (was -$950 / -$687), sideways -$163 / -$246 (was -$68 / -$124).
+    # (tighter stops, -5% and -4%, were replayed too: worse, mostly sideways - ordinary swings hit them more often:
+    # sideways -$264 / -$202 and -$277 / -$233 vs -$102 / -$145; so -7%.)
     wide_stop_pct: float = 0.07
     # loss floor: with never-sell-at-a-loss on, a trade this far below what was paid IS sold (0 = never).
     # Tested on real price history over 3.5-day windows: the same result when prices rise or go sideways

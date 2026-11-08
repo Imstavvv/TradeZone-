@@ -184,6 +184,8 @@ By default the bots trade **crypto only**: majors (BTC, ETH, SOL, XRP, AVAX, LIN
 
   About 40% less lost when prices fall, about the same when they rise, and more lost when they go sideways (a −7% stop is hit by ordinary swings that a −20% one rode out).
 
+  **Tighter stops were tested too** (a stop of at most −7% allows them): −5% and −4% did worse, most of all sideways, where ordinary swings hit them more often (−$264 / −$202 and −$277 / −$233 vs −$102 / −$145 with −7%; rising and falling about the same). So −7% stays.
+
   **Correction (replay clock).** The replays above, and the older ones in this README, kept the app's calendar on the real clock, so a 3.5-day replay never reached a new day: the −5% daily loss limit acted as a limit on the whole window, and after one bad day the bots stopped buying for the rest of it. That made falling markets look better than they are (the app itself was never affected: live, the limit lifts each new day). With the replay's days following its own clock, the current settings make **+$774 / +$428 rising, −$836 / −$776 falling, −$148 / −$240 sideways**.
 
   **Removing what turns trades down was tested too (asked for), and nothing was removed.** On the corrected replays, each blocker removed on its own, and all together, did worse somewhere on both halves: the daily loss stop (same rising, more lost falling: −$915 / −$782), the growth ladder (less made rising: +$739 / +$294), a lower conviction bar (less made rising: +$714 / +$418), the profit-sale fee rules (much less made everywhere: +$362 / +$117 rising), all four (+$300 / +$98 rising, −$972 / −$817 falling). The whole team (35 bots, every trade finder) is on, with no bot switched off or failing.
