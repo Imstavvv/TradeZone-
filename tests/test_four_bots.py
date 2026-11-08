@@ -1,5 +1,6 @@
 """The Smart Money tracker, Chart Vision (xAI), the Bull vs Bear Debate and the Rerouter."""
 
+import asyncio
 import json
 import struct
 import time
@@ -73,8 +74,10 @@ def test_smart_money_reads_the_tape_for_coins_about_to_be_bought():
             return trades([300], [10], time.time())
 
     desk.feed = Feed()
-    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.6, "t", "quant"))
+    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.6, "t", "quant"))  # (a bare proposal: no read)
     run(desk.bus.drain())
+    assert not sm.wanted
+    advice(desk, "smartmoney")  # (the Risk Manager weighing the buy: its tape is read next)
     async def cycle():
         await sm.on_cycle()
         await sm._task
@@ -142,9 +145,13 @@ def test_chart_vision_sends_the_picture_to_grok_and_uses_its_read():
         p *= 1.0002 if (i // 300) % 2 else 0.9999
         desk.bots["scout"].books.setdefault("ETH-USD", desk.bots["scout"]._new_book()).tf.update(t0 + 60 * i, p, p, p, 1.0)
     snap(desk, "ETH-USD", p)
-    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.6, "t", "quant"))
-    run(desk.bus.drain())
     cv = desk.bots["chartvision"]
+
+    async def weigh():
+        assert advice(desk, "chartvision") == (None, 0.0, 1.0)  # (no read yet: the look starts now)
+        await asyncio.gather(*cv._tasks)
+
+    run(weigh())
     content = seen["body"]["messages"][1]["content"]
     assert content[0]["type"] == "image_url" and content[0]["image_url"]["url"].startswith("data:image/png;base64,")
     assert cv.read("ETH-USD")["trend"] == "bearish"
@@ -156,8 +163,7 @@ def test_chart_vision_sends_the_picture_to_grok_and_uses_its_read():
 def test_chart_vision_stays_quiet_without_a_grok_key_or_over_budget():
     desk = make()
     desk.bots["grok"].client = None
-    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.6, "t", "quant"))
-    run(desk.bus.drain())
+    advice(desk, "chartvision")
     cv = desk.bots["chartvision"]
     assert not cv._tasks and cv.read("ETH-USD") is None
     desk.settings.chart_vision_per_hour = 2
@@ -273,3 +279,32 @@ def test_the_coin_read_shows_the_debate_the_whales_and_the_chart():
         assert r["chart_png"] and r["vision"] is None and r["vision_status"]["connected"] is False
         assert "tape_lean" in r["smart_money"]
         assert c.post("/api/read/look", json={"symbol": "ETH-USD"}).status_code == 400  # (no Grok key)
+
+
+def test_a_refused_buy_really_fills_on_the_retry():
+    from tests.helpers import prime
+    desk = make()
+    prime(desk, "ETH-USD", 3000.0, atr=15.0)
+    real, calls = desk.broker.submit, []
+
+    async def busy_once(order):
+        calls.append(order.id)
+        if len(calls) == 1:
+            order.status, order.reason = OrderStatus.REJECTED, "EAPI:Rate limit exceeded"
+            return []
+        return await real(order)
+
+    desk.broker.submit = busy_once
+    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    assert len(calls) == 1 and desk.portfolio.position("ETH-USD").qty == 0
+    rr = desk.bots["rerouter"]
+    assert len(rr.queue) == 1
+    rr.queue[0]["at"] = 0
+
+    async def cycle():
+        await rr.on_cycle()
+        await desk.bus.drain()
+
+    run(cycle())
+    assert len(calls) == 2 and desk.portfolio.position("ETH-USD").qty > 0

@@ -69,9 +69,6 @@ class SmartMoneyBot(Advisor):
     def mode(self) -> str:
         return getattr(self.settings, "smart_money", "nudge")
 
-    def subscriptions(self):
-        return {**super().subscriptions(), "signal.proposed": self.on_signal}
-
     # -- the chart: heavy-volume bars, up vs down ----------------------------------------------------------
     def on_snapshot(self, snap) -> None:
         p, vr = self.last.get(snap.symbol), snap.indicators.get("volume_ratio")
@@ -94,10 +91,11 @@ class SmartMoneyBot(Advisor):
         return sum(x * (0.5 + 0.5 * (i + 1) / n) for i, x in enumerate(q))
 
     # -- the tape: the exchange's own trades --------------------------------------------------------------
-    def on_signal(self, ev) -> None:
-        sig = ev.payload
-        if getattr(sig, "side", None) is Side.BUY and sig.symbol not in self.wanted:
-            self.wanted.append(sig.symbol)
+    def want_tape(self, symbol: str) -> None:
+        """Read this coin's tape next: a buy the Risk Manager is weighing (not every proposal - hundreds of coins
+        propose, and only a few tapes can be read a cycle)."""
+        if self.tape_ok() and symbol not in self.wanted and time.time() - self.tape.get(symbol, {}).get("at", 0.0) >= TAPE_FOR_S:
+            self.wanted.append(symbol)
 
     def tape_ok(self) -> bool:
         return (self.mode != "off" and getattr(self.settings, "smart_money_tape", True)
@@ -144,6 +142,7 @@ class SmartMoneyBot(Advisor):
     def advise(self, sig, snap):
         if self.mode == "off" or sig.side is not Side.BUY:
             return NEUTRAL
+        self.want_tape(sig.symbol)
         lean, bars = self.tape_lean(sig.symbol), self.bar_flow(sig.symbol)
         if lean is not None and lean <= -LEAN:
             self.bump("whales_selling")

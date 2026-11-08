@@ -70,7 +70,7 @@ class ChartVisionBot(Advisor):
         return getattr(self.settings, "chart_vision", "nudge")
 
     def subscriptions(self):
-        return {"signal.proposed": self.on_signal}
+        return {}  # (a look starts when the Risk Manager asks about a buy that got that far - see advise)
 
     def client(self):
         g = self.desk.bots.get("grok")
@@ -95,11 +95,12 @@ class ChartVisionBot(Advisor):
         t = time.time()
         return max(0, int(getattr(self.settings, "chart_vision_per_hour", 30)) - sum(1 for x in self.sent if t - x < 3600))
 
-    def on_signal(self, ev) -> None:
-        sig = ev.payload
-        if self.mode == "off" or getattr(sig, "side", None) is not Side.BUY or getattr(sig, "kind", None) is None:
+    def want_look(self, sig) -> None:
+        """Start a chart look for a buy the Risk Manager is weighing (not every proposal: the looks are paid and
+        limited, so they go to the buys that passed the earlier checks). Its read counts for the next buys."""
+        if self.mode == "off" or sig.side is not Side.BUY or getattr(sig.kind, "value", "") != "entry":
             return
-        if sig.kind.value != "entry" or (client := self.client()) is None:
+        if (client := self.client()) is None:
             return
         r = self.reads.get(sig.symbol)
         if r and time.time() - r["at"] < FRESH_S:
@@ -137,7 +138,13 @@ class ChartVisionBot(Advisor):
         return r if r and time.time() - r["at"] < FRESH_S else None
 
     def advise(self, sig, snap):
-        if self.mode == "off" or sig.side is not Side.BUY or (r := self.read(sig.symbol)) is None:
+        if self.mode == "off" or sig.side is not Side.BUY:
+            return NEUTRAL
+        if (r := self.read(sig.symbol)) is None:
+            try:
+                self.want_look(sig)
+            except RuntimeError:  # (no event loop running: no look)
+                pass
             return NEUTRAL
         if r["trend"] == "bearish" and r["confidence"] >= SURE:
             if self.mode == "veto":
