@@ -125,3 +125,84 @@ def test_diversify_pays_for_a_buy_area_from_the_biggest_trade_in_profit():
             desk.portfolio.mark(sym, px * 1.2)
         desk.bots["quant"].scores = {"SOL-USD": {"ensemble": 0.5}, "XRP-USD": {"ensemble": -0.5}}  # (XRP weakest)
         assert desk.bots["risk"]._fund_from("ETH-USD", 30.0) == donor
+
+
+def test_a_failed_stock_list_never_reads_as_delistings_and_stocks_are_never_rug_sold():
+    import httpx
+
+    from tradezone.market.kraken import KrakenFeed
+    coins = {f"C{i}": 5e6 for i in range(20)}
+    stocks_ok = {"on": True}
+
+    def handler(req):
+        if req.url.path.endswith("AssetPairs"):
+            if req.url.params.get("aclass_base"):
+                if not stocks_ok["on"]:
+                    return httpx.Response(503)
+                return httpx.Response(200, json={"error": [], "result": {"AAPLxUSD": {
+                    "altname": "AAPLxUSD", "wsname": "AAPLx/USD", "base": "AAPLx"}}})
+            return httpx.Response(200, json={"error": [], "result": {
+                f"{c}USD": {"altname": f"{c}USD", "wsname": f"{c}/USD", "base": c} for c in coins}})
+        res = {p: {"c": ["1", "1"], "b": ["0.999", "1", "1"], "a": ["1", "1", "1"], "v": ["1", "5e6"], "p": ["1", "1"]}
+               for p in req.url.params.get("pair", "").split(",") if p}
+        return httpx.Response(200, json={"error": [], "result": res})
+    symbols = ["AAPLX-USD"]
+    feed = KrakenFeed(symbols, client=httpx.AsyncClient(base_url="https://x", transport=httpx.MockTransport(handler)),
+                      min_meme_volume_usd=1e6, all_coins=True)
+    run(feed.start())
+    assert "AAPLX-USD" in feed.pairs
+    stocks_ok["on"] = False  # (Kraken busy: the stock list fails, the coin list comes back)
+    run(feed.rescan())
+    assert not feed.restricted  # (never read as a delisting)
+    run(feed.client.aclose())
+    desk = make()
+    desk.feed.pairs = {"AAPLX-USD": {"aclass": "tokenized_asset"}, "DOGE-USD": {"aclass": "currency"}}
+    rg = desk.bots["rugguard"]
+    assert not rg.watched("AAPLX-USD") and rg.watched("DOGE-USD")
+
+
+def test_a_restricted_coin_stays_unbuyable_past_the_24_hours():
+    desk = make()
+    rg = desk.bots["rugguard"]
+    desk.feed.restricted = {"DOGE-USD": time.time()}
+    rg.sold["DOGE-USD"] = (time.time() - 90_000, "old")  # (the 24 hours are up)
+    assert "stopped trading DOGE-USD normally" in rg.banned("DOGE-USD")
+    desk.feed.restricted = {}
+    assert rg.banned("DOGE-USD") is None
+
+
+def test_an_unsellable_rug_sale_is_tried_three_times_and_said_once():
+    desk = make()
+    held(desk)
+    desk.feed.restricted = {"DOGE-USD": time.time()}
+    rg = desk.bots["rugguard"]
+    sells = capture(desk, "signal.proposed")
+    alerts = capture(desk, "alert")
+    desk.bots["risk"].enabled = False  # (the sale never goes through)
+    for _ in range(6):
+        rg.pending.clear()
+        guard(desk)
+    assert sum(1 for s in sells if s.reason.startswith("rug guard")) == 3
+    msgs = [a.message for a in alerts if "Rug Guard" in a.message]
+    assert sum("sold all of" in m for m in msgs) == 1 and sum("couldn't sell" in m for m in msgs) == 1
+
+
+def test_a_coin_kraken_refuses_to_price_is_flagged_for_the_rug_guard():
+    import httpx
+
+    from tradezone.market.kraken import KrakenFeed
+
+    def handler(req):
+        pairs = req.url.params.get("pair", "").split(",")
+        if "DEADUSD" in pairs:
+            return httpx.Response(200, json={"error": ["EQuery:Unknown asset pair"], "result": {}})
+        return httpx.Response(200, json={"error": [], "result": {
+            p: {"c": ["1", "1"], "b": ["0.999", "1", "1"], "a": ["1", "1", "1"], "v": ["1", "5e6"], "p": ["1", "1"]}
+            for p in pairs}})
+    feed = KrakenFeed(["OKAY-USD", "DEAD-USD"],
+                      client=httpx.AsyncClient(base_url="https://x", transport=httpx.MockTransport(handler)))
+    feed.pairs = {s: {"pair": s.replace("-", ""), "key": s.replace("-", "")} for s in ("OKAY-USD", "DEAD-USD")}
+    feed.POLL_EVERY_S = 0
+    ticks = run(feed.poll())
+    assert [t.symbol for t in ticks] == ["OKAY-USD"] and list(feed.restricted) == ["DEAD-USD"]
+    run(feed.client.aclose())

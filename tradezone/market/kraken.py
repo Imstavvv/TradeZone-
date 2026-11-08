@@ -214,8 +214,16 @@ class KrakenFeed(MarketFeed):
         t = time.monotonic()
         # a watched coin Kraken stopped trading normally (reduce-only, cancel-only, delisting): flagged for the Rug
         # Guard. (Only when the list came back whole: a half-read list must never look like a wave of delistings.)
-        gone = [p for p in self.pairs if p not in pairs and p in self.symbols]
-        if gone and len(pairs) >= 0.9 * len(self.pairs) and len(gone) <= 5:
+        def count(book: dict, cls: str) -> int:
+            return sum(1 for v in book.values() if v.get("aclass", "currency") == cls)
+
+        # (per asset class: Kraken's coins and its tokenized stocks come from two requests - if one of them failed,
+        # its pairs are missing, which must never read as delistings)
+        whole = {cls for cls in {v.get("aclass", "currency") for v in self.pairs.values()}
+                 if count(pairs, cls) >= 0.9 * count(self.pairs, cls)}
+        gone = [p for p in self.pairs if p not in pairs and p in self.symbols
+                and self.pairs[p].get("aclass", "currency") in whole]
+        if gone and len(gone) <= 5:
             for p in gone:
                 self.restricted.setdefault(p, t)  # (the pair's details are kept: a sale can still be tried)
         for p in [p for p in self.restricted if p in pairs]:
@@ -320,12 +328,17 @@ class KrakenFeed(MarketFeed):
             await self.start()
             if not self.pairs:
                 return []
+        before = set(self.pairs)
         try:
             quotes = await fetch_quotes(self.client, self.pairs, self.symbols)
         except (httpx.HTTPError, ValueError) as exc:
             self.last_error = f"ticker: {type(exc).__name__}: {exc}"[:200]
             log.warning("kraken ticker failed: %s", exc)
             return []
+        watched = set(self.symbols)
+        for sym in before - set(self.pairs):  # (Kraken refused to price it - just delisted: the Rug Guard hears of it)
+            if sym in watched:
+                self.restricted.setdefault(sym, t)
         self.quotes.update(quotes)
         self.last_error = ""
         ticks = []

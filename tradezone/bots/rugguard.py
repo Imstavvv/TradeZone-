@@ -44,6 +44,7 @@ class RugGuardBot(Bot):
         self.sold: dict[str, tuple[float, str]] = {}  # symbol -> (when, why): no buys for a day
         self.pending: dict[str, float] = {}  # symbol -> when the sale was sent (not sent twice)
         self.events: deque[dict] = deque(maxlen=30)
+        self.tries: dict[str, int] = {}  # symbol -> rug sales sent while it's still held
 
     @property
     def on(self) -> bool:
@@ -56,6 +57,9 @@ class RugGuardBot(Bot):
         s = self.settings
         if not s.is_crypto(symbol) or s.is_stack_only(symbol) or s.is_forex(symbol):
             return False
+        pair = (getattr(self.desk.feed, "pairs", {}) or {}).get(symbol) or {}
+        if pair.get("aclass", "currency") != "currency":
+            return False  # (Kraken's tokenized stocks - AAPLx, ... - are shares: they can't be rug-pulled)
         return s.is_meme(symbol) or s.is_dex(symbol) or s.coin_size(symbol) == "small"
 
     def on_snapshot(self, ev) -> None:
@@ -72,8 +76,11 @@ class RugGuardBot(Bot):
         f = ev.payload
         if f.side is Side.SELL and f.symbol in self.pending and self.desk.portfolio.position(f.symbol).qty <= 1e-12:
             self.pending.pop(f.symbol, None)
+            self.tries.pop(f.symbol, None)
 
     def banned(self, symbol: str) -> str | None:
+        if symbol in getattr(self.desk.feed, "restricted", {}) and self.watched(symbol):
+            return f"Kraken has stopped trading {symbol} normally (restricted or being delisted) - not bought"
         hit = self.sold.get(symbol)
         if not hit:
             return None
@@ -124,12 +131,21 @@ class RugGuardBot(Bot):
             if not strong and len(weak) < 2:
                 continue
             why = "; ".join(strong or weak)
+            tries = self.tries.get(sym, 0)
+            if tries >= 3:  # (tried three times and it's still held - e.g. under the exchange's minimum: said once)
+                if tries == 3:
+                    self.tries[sym] = 4
+                    self.publish("alert", Alert("warning", f"🛡️ Rug Guard couldn't sell {sym} after 3 tries ({why}) - "
+                                                           "check it on the exchange", self.name))
+                continue
+            self.tries[sym] = tries + 1
             self.pending[sym] = t
             self.sold[sym] = (t, why)
             self.bump("rug_sales")
             self.events.append({"symbol": sym, "ts": t, "why": why})
             self.publish("signal.proposed", Signal(sym, Side.SELL, 1.0, f"rug guard: {why}", self.name, SignalKind.EXIT,
                                                    fraction=1.0, emergency=True))
-            self.publish("alert", Alert("warning", f"🛡️ Rug Guard sold all of {sym}: {why}. Not bought again for 24 hours.",
-                                        self.name))
+            if tries == 0:
+                self.publish("alert", Alert("warning", f"🛡️ Rug Guard sold all of {sym}: {why}. Not bought again for "
+                                                       "24 hours.", self.name))
             self.act(f"sold all of {sym} before a possible rug: {why}", "warning")
