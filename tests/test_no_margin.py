@@ -22,7 +22,7 @@ def kraken_with_credit():
 
 
 def test_a_credit_line_is_never_counted_as_free_cash():
-    fk, b = kraken_with_credit()
+    _fk, b = kraken_with_credit()
     run(b.load_pairs())
     assert run(b.available_cash()) == pytest.approx(900.0)  # $1,000 owned - $100 borrowed; the $500 line ignored
 
