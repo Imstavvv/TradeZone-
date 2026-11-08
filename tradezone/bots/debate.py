@@ -85,9 +85,10 @@ def make_case(ind: dict, price: float, smart: dict | None = None, vision: dict |
             side(lean >= 0.6, lean <= -0.6, 1.5, "the whales are buying it", "the whales are selling it")
         side(bars >= 6, bars <= -6, 0.5, "heavy-volume bars are up bars", "heavy-volume bars are down bars")
     if vision and vision.get("confidence", 0) >= 0.7:
+        who = "the chart reader" if vision.get("source") == "chart reader" else "Grok"
         side(vision["trend"] == "bullish", vision["trend"] == "bearish", 1.5,
-             f"Grok reads the chart as bullish ({vision.get('pattern') or 'its picture'})",
-             f"Grok reads the chart as bearish ({vision.get('pattern') or 'its picture'})")
+             f"{who} reads the chart as bullish ({vision.get('pattern') or 'its picture'})",
+             f"{who} reads the chart as bearish ({vision.get('pattern') or 'its picture'})")
     b, s = sum(w for w, _ in bull), sum(w for w, _ in bear)
     return {"bull": bull, "bear": bear, "bull_score": round(b, 2), "bear_score": round(s, 2), "margin": round(b - s, 2)}
 

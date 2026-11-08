@@ -7,7 +7,9 @@ read is kept for 30 minutes; buys use the latest one:
 * bearish and fairly sure (70%+): a little less sure and smaller - or, with ``chart_vision = "veto"``, no buy;
 * bullish and fairly sure: a little more sure.
 
-Needs the Grok key (the same one as the Grok analyst). Each look is a paid xAI request, so at most
+Without the Grok key (or between Grok's looks) the built-in chart reader reads the same candles - their structure
+(higher highs and lows, or lower), the trend line, and breakouts above or under the last 20 candles - for free.
+With the key, Grok's look comes first; it works with the Grok analyst off too. Each look is a paid xAI request, so at most
 ``chart_vision_per_hour`` an hour, and never more than two at a time. Sells are never touched.
 """
 
@@ -18,6 +20,7 @@ import json
 import re
 import time
 from collections import deque
+from itertools import pairwise
 
 from ..core.chart_png import candle_png
 from ..core.models import Side
@@ -47,6 +50,48 @@ def parse_read(text: str) -> dict:
             "reason": str(d.get("reason", ""))[:200]}
 
 
+def read_chart(rows: list[list[float]]) -> dict | None:
+    """The built-in chart reader (no key, no cost): the last 40 candles' structure, slope and breakouts.
+
+    * structure: the 40 candles in 4 blocks - highs and lows mostly rising (higher highs, higher lows) or falling;
+    * slope: the closes' straight-line trend, measured in candle ranges;
+    * breakout / breakdown: the close above the last 20 candles' high, or under their low.
+
+    Returns the same shape as Grok's read (trend, confidence, pattern, reason), or None under 30 candles."""
+    rows = [r for r in rows if len(r) >= 5 and r[2] >= r[3] > 0][-40:]
+    if len(rows) < MIN_CANDLES:
+        return None
+    hi, lo, cl = [r[2] for r in rows], [r[3] for r in rows], [r[4] for r in rows]
+    n = len(cl)
+    rng = sum(h - low for h, low in zip(hi, lo, strict=True)) / n or cl[-1] * 1e-4
+    xm, ym = (n - 1) / 2, sum(cl) / n
+    slope = sum((i - xm) * (c - ym) for i, c in enumerate(cl)) / sum((i - xm) ** 2 for i in range(n))
+    run = slope * n / rng  # (how many candle ranges the trend line climbs over the chart)
+    k = n // 4
+    bh = [max(hi[i * k:(i + 1) * k]) for i in range(4)]
+    bl = [min(lo[i * k:(i + 1) * k]) for i in range(4)]
+    hh = sum(b > a for a, b in pairwise(bh))
+    hl = sum(b > a for a, b in pairwise(bl))
+    structure = 1 if hh >= 2 and hl >= 2 else -1 if hh <= 1 and hl <= 1 else 0
+    prior_hi, prior_lo = max(hi[-21:-1]), min(lo[-21:-1])
+    brk = 1 if cl[-1] > prior_hi else -1 if cl[-1] < prior_lo else 0
+    score = 0.4 * max(-1.0, min(1.0, run / 3)) + 0.35 * structure + 0.25 * brk
+    trend = "bullish" if score >= 0.35 else "bearish" if score <= -0.35 else "sideways"
+    if trend == "bullish":  # (the pattern named is the one behind the verdict; a signal against it is a caveat)
+        pattern = ("breakout above the 20-candle high" if brk > 0 else "higher highs and higher lows" if structure > 0
+                   else "uptrend")
+        pattern += ", but it just dipped under the 20-candle low" if brk < 0 else ""
+    elif trend == "bearish":
+        pattern = ("breakdown under the 20-candle low" if brk < 0 else "lower highs and lower lows" if structure < 0
+                   else "downtrend")
+        pattern += ", but it just poked over the 20-candle high" if brk > 0 else ""
+    else:
+        pattern = ("range, testing the 20-candle high" if brk > 0 else "range, testing the 20-candle low" if brk < 0
+                   else "range")
+    return {"trend": trend, "confidence": round(0.5 + 0.5 * min(1.0, abs(score)), 2), "pattern": pattern,
+            "reason": f"trend line {run:+.1f} candle ranges over {n} candles; {pattern}", "source": "chart reader"}
+
+
 class ChartVisionBot(Advisor):
     name = "chartvision"
     title = "Chart Vision"
@@ -73,8 +118,12 @@ class ChartVisionBot(Advisor):
         return {}  # (a look starts when the Risk Manager asks about a buy that got that far - see advise)
 
     def client(self):
+        """The xAI connection: Chart Vision's own (from the Grok key - it works with the Grok analyst off or
+        switched off), else the analyst's."""
         g = self.desk.bots.get("grok")
-        return getattr(g, "client", None) if g is not None and g.enabled else None
+        if g is None:
+            return None
+        return getattr(g, "vision_client", None) or getattr(g, "client", None)
 
     def candles(self, symbol: str) -> list[list[float]]:
         scout = self.desk.bots.get("scout")
@@ -129,31 +178,44 @@ class ChartVisionBot(Advisor):
             self.bump("failures")
             self.last_error = str(exc)[:200]
             return
-        self.reads[symbol] = {**read, "frame": frame, "at": time.time()}
+        self.reads[symbol] = {**read, "frame": frame, "at": time.time(), "source": "Grok"}
         self.bump(read["trend"])
         self.act(f"{symbol} {frame} chart: {read['trend']} ({read['confidence']:.0%}) - {read['pattern'] or read['reason']}")
 
-    def read(self, symbol: str) -> dict | None:
+    def grok_read(self, symbol: str) -> dict | None:
         r = self.reads.get(symbol)
         return r if r and time.time() - r["at"] < FRESH_S else None
+
+    def local_read(self, symbol: str) -> dict | None:
+        r = read_chart(self.candles(symbol))
+        return {**r, "frame": getattr(self.settings, "chart_vision_frame", "1h")} if r else None
+
+    def read(self, symbol: str) -> dict | None:
+        """Grok's read of the picture when there's a fresh one, else the built-in chart reader's."""
+        return self.grok_read(symbol) or self.local_read(symbol)
 
     def advise(self, sig, snap):
         if self.mode == "off" or sig.side is not Side.BUY:
             return NEUTRAL
-        if (r := self.read(sig.symbol)) is None:
+        if self.grok_read(sig.symbol) is None:
             try:
                 self.want_look(sig)
             except RuntimeError:  # (no event loop running: no look)
                 pass
+        r = self.grok_read(sig.symbol)
+        if r is None and getattr(self.settings, "chart_vision_local", False):
+            r = self.local_read(sig.symbol)  # (the built-in reader changes trades only when switched on)
+        if r is None:
             return NEUTRAL
         if r["trend"] == "bearish" and r["confidence"] >= SURE:
             if self.mode == "veto":
-                return f"Grok reads the {r['frame']} chart as bearish ({r['confidence']:.0%}): {r['reason']}", 0, 1
+                return f"{'the chart reader' if r.get('source') else 'Grok'} reads the {r['frame']} chart as bearish ({r['confidence']:.0%}): {r['reason']}", 0, 1
             return None, -0.05, 0.8
         if r["trend"] == "bullish" and r["confidence"] >= SURE:
             return None, 0.04, 1.0
         return NEUTRAL
 
     def vision_status(self) -> dict:
-        return {"connected": self.client() is not None, "looks_left_this_hour": self.budget_left(),
+        return {"connected": self.client() is not None, "local_trades": bool(getattr(self.settings, "chart_vision_local", False)),
+                "looks_left_this_hour": self.budget_left(),
                 "last_error": self.last_error}

@@ -276,7 +276,8 @@ def test_the_coin_read_shows_the_debate_the_whales_and_the_chart():
     with TestClient(create_app(desk, run_desk=False)) as c:
         r = c.get("/api/read", params={"symbol": "eth-usd"}).json()
         assert r["debate"]["verdict"] == "bull" and r["debate"]["bull"]
-        assert r["chart_png"] and r["vision"] is None and r["vision_status"]["connected"] is False
+        assert r["chart_png"] and r["vision_status"]["connected"] is False
+        assert r["vision"]["source"] == "chart reader" and r["vision"]["trend"] == "bullish"  # (no key: built-in)
         assert "tape_lean" in r["smart_money"]
         assert c.post("/api/read/look", json={"symbol": "ETH-USD"}).status_code == 400  # (no Grok key)
 
@@ -308,3 +309,53 @@ def test_a_refused_buy_really_fills_on_the_retry():
 
     run(cycle())
     assert len(calls) == 2 and desk.portfolio.position("ETH-USD").qty > 0
+
+
+def _rows(step, n=60, wobble=0.0):
+    out, p = [], 100.0
+    for i in range(n):
+        o = p
+        p = p * (1 + step) + (wobble * (1 if i % 2 else -1))
+        out.append([i, o, max(o, p) * 1.002, min(o, p) * 0.998, p, 1.0])
+    return out
+
+
+def test_the_built_in_chart_reader_needs_no_key():
+    from tradezone.bots.chartvision import read_chart
+    up, down, flat = read_chart(_rows(0.004)), read_chart(_rows(-0.004)), read_chart(_rows(0.0, wobble=0.3))
+    assert up["trend"] == "bullish" and up["confidence"] >= 0.7 and up["source"] == "chart reader"
+    assert down["trend"] == "bearish" and down["confidence"] >= 0.7
+    assert flat["trend"] == "sideways"
+    assert read_chart(_rows(0.004, n=20)) is None  # (too few candles)
+
+
+def test_chart_vision_works_without_grok_and_with_the_grok_analyst_off():
+    desk = make()
+    desk.bots["grok"].client = None
+    desk.bots["grok"].vision_client = None
+    book = desk.bots["scout"].books.setdefault("ETH-USD", desk.bots["scout"]._new_book())
+    for i, r in enumerate(_rows(-0.004)):
+        book.tf.update(1_700_000_000 + 3600 * i, r[2], r[3], r[4], 1.0)
+    snap(desk, "ETH-USD", 100.0)
+    cv = desk.bots["chartvision"]
+    assert cv.read("ETH-USD")["trend"] == "bearish"  # (no key at all: the built-in reader, always shown)
+    assert advice(desk, "chartvision") == (None, 0.0, 1.0)  # (... but trades unchanged unless switched on)
+    desk.settings.chart_vision_local = True
+    assert advice(desk, "chartvision") == (None, -0.05, 0.8)
+    # the key set with the Grok analyst off: Chart Vision still has its own connection
+    desk.bots["grok"].configure("xai-abcdefgh1234", "grok-4", "off", "dashboard")
+    assert desk.bots["grok"].client is None and desk.bots["chartvision"].client() is not None
+    desk.bots["grok"].enabled = False
+    assert desk.bots["chartvision"].client() is not None
+
+
+def test_the_chart_readers_pattern_matches_its_verdict():
+    from tradezone.bots.chartvision import read_chart
+    rows = _rows(0.004)
+    last = rows[-1][4]
+    rows.append([99, last, last, last * 0.85, last * 0.86, 1.0])  # (one sharp drop under the 20-candle low)
+    r = read_chart(rows)
+    assert r["trend"] in ("bullish", "sideways")
+    assert not (r["trend"] == "bullish" and r["pattern"].startswith("breakdown"))
+    if r["trend"] == "bullish":
+        assert "dipped under the 20-candle low" in r["pattern"]

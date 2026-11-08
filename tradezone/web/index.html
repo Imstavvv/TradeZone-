@@ -3500,8 +3500,9 @@ async function openRead(sym, acct){
     : m.tape_lean <= -0.6 ? `🐋 Whales are selling (${money(m.tape.sell_usd)} sold vs ${money(m.tape.buy_usd)} bought, 30 min)`
     : `🐋 Whales are mixed (${money(m.tape.buy_usd)} bought, ${money(m.tape.sell_usd)} sold)`;
   const bars = m.bar_flow >= 6 ? 'heavy volume on the way up' : m.bar_flow <= -6 ? 'heavy volume on the way down' : 'no heavy-volume lean';
-  const look = v ? `👁️ Grok reads the ${esc(v.frame)} chart as <b>${esc(v.trend)}</b> (${Math.round(v.confidence * 100)}%)${v.pattern ? ' · ' + esc(v.pattern) : ''}<div class="muted">${esc(v.reason || '')}</div>`
-    : `<div class="muted">👁️ ${vs.connected ? `No chart read yet - ${vs.looks_left_this_hour} looks left this hour` : 'Chart Vision needs the Grok key (Settings)'}</div>`;
+  const who = v && v.source === 'chart reader' ? 'The built-in chart reader' : 'Grok';
+  const look = v ? `👁️ ${who} reads the ${esc(v.frame)} chart as <b>${esc(v.trend)}</b> (${Math.round(v.confidence * 100)}%)${v.pattern ? ' · ' + esc(v.pattern) : ''}<div class="muted">${esc(v.reason || '')}${who !== 'Grok' && !vs.connected ? ' · add the Grok key in Settings for Grok to read the picture too' : ''}</div>`
+    : `<div class="muted">👁️ ${vs.connected ? `No chart read yet - ${vs.looks_left_this_hour} looks left this hour` : 'No chart read yet (it needs 30 candles)'}</div>`;
   $('readLook').disabled = !vs.connected || !r.chart_png;
   $('readBody').innerHTML = (r.chart_png ? `<img class="readchart" alt="${esc(coin)} ${esc(r.chart_frame)} chart" src="data:image/png;base64,${r.chart_png}">` : '<div class="muted">The chart picture appears once there are 30 candles.</div>')
     + `<div class="readv">${look}</div>`

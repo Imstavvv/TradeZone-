@@ -211,6 +211,7 @@ class GrokBot(Bot):
         self._key_hint = ""
         self._last_check = 0.0
         self.client: GrokClient | None = None
+        self.vision_client: GrokClient | None = None  # (Chart Vision: works with the analyst off)
         self.configure(desk.settings.grok_api_key, desk.settings.grok_model, desk.settings.grok_mode, "env")
         if client is not None:  # injected (tests)
             self.client = client
@@ -225,6 +226,14 @@ class GrokBot(Bot):
         if old is not None and _loop_running():
             task = asyncio.ensure_future(old.close())  # release the previous HTTP connection pool
             self._tasks.add(task)  # keep a reference so it isn't garbage-collected mid-close
+            task.add_done_callback(self._tasks.discard)
+        # Chart Vision's own connection: the key works for it even with the Grok analyst off (or switched off)
+        oldv = getattr(self, "vision_client", None)
+        self.vision_client = GrokClient(api_key, model or s.grok_model, s.grok_base_url, s.grok_timeout_s) \
+            if api_key else None
+        if oldv is not None and _loop_running():
+            task = asyncio.ensure_future(oldv.close())
+            self._tasks.add(task)
             task.add_done_callback(self._tasks.discard)
         self.mode = mode if self.client else "off"
         if self.mode == "auto":
@@ -428,3 +437,5 @@ class GrokBot(Bot):
             t.cancel()
         if self.client:
             await self.client.close()
+        if getattr(self, "vision_client", None):
+            await self.vision_client.close()
