@@ -1119,6 +1119,7 @@ var(--live)}
 .recbox h3{margin:0 0 4px;font-size:16px}
 .recbox .rrow{display:grid;grid-template-columns:minmax(0,1.2fr) auto 22px minmax(0,2fr);gap:4px 10px;align-items:baseline;padding:6px 0;border-top:1px solid var(--line)}
 .recbox .rlab{color:var(--muted)}.recbox .rnote{color:var(--muted);font-size:12.5px}
+.recbox .rdl{margin-top:10px;font-size:13.5px}.recbox .rdl a{font-weight:700}
 .recbox .rflag{text-align:center;font-weight:800}.recbox .rflag.good{color:var(--up)}.recbox .rflag.warn{color:#b45309}.recbox .rflag.bad{color:var(--down)}
 @media (max-width:700px){.recbox .rrow{grid-template-columns:minmax(0,1fr) auto 22px}.recbox .rnote{grid-column:1/-1}}
 </style>
@@ -2709,7 +2710,11 @@ function renderRecord(d){
     + row('Biggest drop', dd == null ? '—' : pct(dd, 1), dd == null ? null : dd < 0.2 ? true : dd < 0.3 ? 0 : false, 'under 20%; over 30% is a red flag')
     + row('Longest recovery', rec_d == null ? '—' : rec_d < 1 ? 'under a day' : `${Math.round(rec_d)} days`, rec_d == null ? null : rec_d < 60 ? true : rec_d < 180 ? 0 : false, '6 months or more to get back to a high is a warning sign')
     + row('Profit factor', pf == null ? '—' : pf.toFixed(2), pf == null ? null : pf >= 1.5 ? true : pf >= 1 ? 0 : false, 'what was won ÷ what was lost: 1.5 or more is good')
-    + row('Reward vs risk', rr == null ? '—' : `${rr.toFixed(2)} : 1`, rr == null ? null : rr >= 1.5 ? true : rr >= 1 ? 0 : false, 'the average win against the average loss: 1.5 or more');
+    + row('Reward vs risk', rr == null ? '—' : `${rr.toFixed(2)} : 1`, rr == null ? null : rr >= 1.5 ? true : rr >= 1 ? 0 : false, 'the average win against the average loss: 1.5 or more')
+    + (() => { const y = new Date().getFullYear(), m = d.mode === 'live' ? 'live' : 'paper';
+        return `<div class="rdl">⬇ Tax report - every sale's cost and gain (first-in first-out, fees included):
+          <a href="/api/reports/gains.csv?mode=${m}&year=${y}" download>${y}</a> · <a href="/api/reports/gains.csv?mode=${m}&year=${y - 1}" download>${y - 1}</a>
+          <span class="muted">(${m === 'live' ? 'real money' : 'practice'}; not tax advice)</span></div>`; })();
 }
 function renderTrips(){
   const d = TRIP.data; if (!d) return;

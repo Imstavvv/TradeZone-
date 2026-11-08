@@ -111,3 +111,34 @@ def test_the_track_record_is_measured_on_profit_not_on_deposits():
     assert round(r["days"]) == 5
     assert abs(r["max_drawdown"] - 60 / 1100) < 1e-9  # the drop from +100 to +40, on $1,100 (the deposit isn't a gain)
     assert round(r["longest_recovery_s"] / 86_400) == 3 and r["underwater_s"] == 0
+
+
+def test_the_tax_report_matches_sales_to_buys_first_in_first_out_with_fees():
+    j = Journal(":memory:")
+    fill(j, 0, "SOL-USD", "buy", "open", 1, 100, 1, fee=1.0)
+    fill(j, 60, "SOL-USD", "buy", "add", 1, 200, 2, fee=1.0)
+    fill(j, 120, "SOL-USD", "sell", "partial", 1.5, 300, 0.5, pnl=0, fee=1.5)
+    fill(j, 180, "XRP-USD", "buy", "open", 10, 2, 10, fee=0.0, reason="taken over from your Kraken balance")
+    fill(j, 240, "XRP-USD", "sell", "close", 10, 3, 0, pnl=10, fee=0.0)
+    g = j.gains("paper")
+    sol, xrp = g
+    assert (sol["cost"], sol["proceeds"], sol["gain"]) == (201.5, 448.5, 247.0)  # 1 x 101 + 0.5 x 201, fees in
+    assert sol["term"] == "short" and sol["note"] == ""
+    assert xrp["gain"] == 10.0 and "taken over" in xrp["note"]  # (cost = the price that day: noted)
+    assert j.gains("paper", year=1999) == []
+
+
+def test_the_tax_report_downloads_as_csv():
+    from fastapi.testclient import TestClient
+
+    from tradezone.config import Settings
+    from tradezone.desk import TradingDesk
+    from tradezone.server import create_app
+    d = TradingDesk(Settings(feed="sim", symbols=["SOL-USD"]), journal=Journal(":memory:"))
+    fill(d.journal, 0, "SOL-USD", "buy", "open", 1, 100, 1, fee=1.0, mode="live")
+    fill(d.journal, 60, "SOL-USD", "sell", "close", 1, 120, 0, pnl=18, fee=1.0, mode="live")
+    with TestClient(create_app(d, run_desk=False)) as c:
+        r = c.get("/api/reports/gains.csv?mode=live")
+    assert r.status_code == 200 and "attachment" in r.headers["content-disposition"]
+    lines = r.text.strip().splitlines()
+    assert lines[0].startswith("description,qty,acquired,sold,proceeds,cost,gain") and "1 SOL" in lines[1] and ",18.0," in lines[1]

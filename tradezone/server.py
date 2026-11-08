@@ -538,6 +538,23 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         return _clean({**d.journal.round_trips(mode, symbol or None, since, held), "mode": mode,
                        "account": account or "main", "record": d.journal.track_record(mode)})
 
+    @app.get("/api/reports/gains.csv", dependencies=[Depends(check_token)])
+    async def gains_csv(mode: str = "live", year: int | None = Query(None, ge=2000, le=2100)):
+        """A tax report: every sale's proceeds, cost basis (first-in first-out, fees included) and gain."""
+        rows = desk.journal.gains("live" if mode == "live" else "paper", year)
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        cols = ["symbol", "qty", "acquired", "sold", "proceeds", "cost", "gain", "term", "note"]
+        w.writerow(["description", *cols[1:]])
+        for r in rows:
+            w.writerow([f"{r['qty']:g} {r['symbol'].split('-')[0]}", *[r[c] for c in cols[1:]]])
+        w.writerow([])
+        w.writerow(["total", "", "", "", round(sum(r["proceeds"] for r in rows), 2), round(sum(r["cost"] for r in rows), 2),
+                    round(sum(r["gain"] for r in rows), 2), "", "first-in first-out, both fees included; not tax advice"])
+        name = f"tradezone-gains-{mode}{'-' + str(year) if year else ''}.csv"
+        return Response(buf.getvalue(), media_type="text/csv",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
     @app.get("/api/trades.csv", dependencies=[Depends(check_token)])
     async def trades_csv(mode: str | None = None, symbol: str | None = None):
         # the session cookie authorises the download link; tokens never go in URLs

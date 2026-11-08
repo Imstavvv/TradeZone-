@@ -193,6 +193,57 @@ class Journal:
                  "open": sum(t["status"] == "open" for t in shown)}
         return {"trips": shown[:limit], "stats": stats, "total": len(shown)}
 
+    def gains(self, mode: str, year: int | None = None) -> list[dict]:
+        """Every sale with its cost basis, matched first-in first-out against the buys before it: proceeds after the
+        sell fee, cost including the buy fee, the gain, and how long it was held (over a year = long-term). A coin
+        that entered the trading without a buy on the exchange (taken over from your balance, or moved out of the hold
+        stack) has the price on that day as its cost - noted on the row: your own cost may differ."""
+        import json as _json
+        from collections import deque
+        from datetime import datetime, timezone
+        with self._lock:
+            rows = self.conn.execute("SELECT payload FROM events WHERE topic = 'trade.log' AND mode = ? ORDER BY id",
+                                     (mode,)).fetchall()
+        lots: dict[str, deque] = {}
+        out: list[dict] = []
+        for (raw,) in rows:
+            f = _json.loads(raw)
+            sym, qty, px = f.get("symbol"), abs(float(f.get("qty") or 0)), float(f.get("price") or 0)
+            fee, ts, why = float(f.get("fee") or 0), float(f.get("ts") or 0), f.get("reason") or ""
+            if not sym or qty <= 0:
+                continue
+            if f.get("side") == "buy":
+                note = ("cost = the price the day it was taken over / moved in (your own cost may differ)"
+                        if "taken over" in why or "moved by you" in why else "")
+                lots.setdefault(sym, deque()).append([qty, (qty * px + fee) / qty, ts, note])
+                continue
+            left, cost, first, notes = qty, 0.0, None, set()
+            book = lots.setdefault(sym, deque())
+            while left > 1e-12 and book:
+                lot = book[0]
+                take = min(left, lot[0])
+                cost += take * lot[1]
+                first = lot[2] if first is None else min(first, lot[2])
+                if lot[3]:
+                    notes.add(lot[3])
+                lot[0] -= take
+                left -= take
+                if lot[0] <= 1e-12:
+                    book.popleft()
+            if left > 1e-12:  # (sold more than the journal saw bought: coins from before it - cost unknown)
+                notes.add(f"{left:g} with no recorded buy: add your own cost")
+            sold_on = datetime.fromtimestamp(ts, timezone.utc)
+            if year is not None and sold_on.year != year:
+                continue
+            proceeds = qty * px - fee
+            held = ts - first if first is not None else None
+            out.append({"symbol": sym, "qty": qty,
+                        "acquired": datetime.fromtimestamp(first, timezone.utc).strftime("%Y-%m-%d") if first else "",
+                        "sold": sold_on.strftime("%Y-%m-%d"), "proceeds": round(proceeds, 2), "cost": round(cost, 2),
+                        "gain": round(proceeds - cost, 2), "term": "" if held is None else
+                        ("long" if held > 365 * 86_400 else "short"), "note": "; ".join(sorted(notes))})
+        return out
+
     def track_record(self, mode: str, now: float | None = None) -> dict:
         """How long this book has traded, its biggest drop and its longest time under water - measured on the
         profit (deposits and withdrawals don't count as gains or drops), one point an hour over its whole history."""
