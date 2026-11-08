@@ -528,6 +528,24 @@ Making money faster, replayed the same way: closing a trade that's in profit aft
 +$21.02 / -$33.93 - off. 6% risked a trade (was 4%): -$85.97 / -$85.90 (much more made in rising markets, much more
 lost in falling ones) - off. All of them together: -$70.46 / -$121.21.
 
+### 🔎 Improvements in everything (asked for), replayed on the current plan
+
+16 windows a market, $500, training half first; only what wins there is run on the unseen half.
+
+* **Runners - back on** (`TZ_RUNNERS`): at the +6% target a third is banked and two thirds ride with the stop
+  locked in profit. **+$28.28 training / +$74.89 unseen** (killed earlier under the +15% plan, where it failed).
+* Tighter stops: -5% -$156.12, -4% -$172.56 training (sideways markets stopped out far more) - the -7% stays.
+* A third strategy beside OBV and MFI: trend +$7.09 training but -$87.31 unseen - off; momentum -$4.60,
+  breakout -$4.83, Supertrend -$11.28, CMF -$7.45 training - off.
+
+**Rules holding us back?** (asked for) What actually turned signals down, counted over 9 replays: 370 strategy
+sells of trades below break-even (your never-sell-at-a-loss rule), 59 sells of winners under 2x the fees, then a
+handful each for the turnaround rule, low conviction, the market falling and the Overextension Guard. Each one
+lifted, training half: winners sold at 1x the fees -$57.65, at any profit -$236.99; no market-falling block
+-$115.06; no Big-Picture Trend -$44.66; no Liquidity Guard -$16.06; no Correlation Officer -$6.65; no Market
+Weather -$3.30 - they protect the money, so they stay. Only the Overextension Guard came out ahead (+$1.18); its
+unseen half is being checked.
+
 ### 🎯 Pump Sniper (asked for) - on
 
 Buys a meme / DEX / new / smaller coin as a pump starts (3%+ in 3 bars on 3x volume, at a new high, RSI under 85,

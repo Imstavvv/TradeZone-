@@ -16,7 +16,7 @@ def boot(db):
 def test_the_failed_features_are_off_by_default():
     s = Settings()
     assert not any(getattr(s, k) for k in ("trailing_stop", "live_quick_flips", "flipper", "patient_exits", "coach_learning",
-                                           "surge_snipe", "runners", "dip_buy", "learn_sources"))
+                                           "surge_snipe", "dip_buy", "learn_sources"))
     assert "macd" not in s.strategies and set(s.bots_off) == {"volsizer", "ranker", "reviewer"}
     d = boot(":memory:")
     assert not d.bots["volsizer"].enabled and not d.bots["ranker"].enabled and d.bots["weather"].enabled

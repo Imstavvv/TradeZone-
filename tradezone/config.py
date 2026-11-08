@@ -549,7 +549,7 @@ class Settings:
     major_take_profit_pct: float = 0.06  # other coins and stocks: +6% after every fee (was +15%)
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
     # into profit (at least runner_lock_share of the target) and then trails the peak.
-    runners: bool = False  # killed: failed on unseen data (see the README)
+    runners: bool = True  # (back on: with the +6% plan replayed +$28.28 training / +$74.89 unseen; killed under +15%)
     runner_sell_fraction: float = 0.33  # at the target bank a third; two thirds ride with no ceiling
     runner_lock_share: float = 0.5
     # Quick flips: a trade that went nowhere for this long, but is in profit after fees, is closed

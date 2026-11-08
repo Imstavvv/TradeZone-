@@ -53,3 +53,7 @@ def test_open_trades_on_the_old_automatic_15_move_to_6_once_a_hand_set_target_st
 def test_a_buy_needs_conviction_half_and_three_families():
     s = Settings()
     assert s.risk.min_signal_strength == 0.5 and s.risk.consensus_min_yes == 3
+
+
+def test_runners_are_back_on_with_the_6_percent_plan():
+    assert Settings().runners is True  # (replayed with +6%: +$28.28 training / +$74.89 unseen)
