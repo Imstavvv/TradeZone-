@@ -475,8 +475,10 @@ class Settings:
     chart_vision_frame: str = "1h"  # the timeframe drawn: 15m | 1h | 4h | 1d
     chart_vision_per_hour: int = 30  # (each look is a paid xAI request: at most this many an hour)
     grok_vision_model: str = ""  # (empty: the same Grok model as the reviews; grok-4 reads pictures)
-    # ⚖️ Debate: a bull case and a bear case for every buy, scored - nudge | veto | off
-    debate: str = "nudge"
+    # ⚖️ Debate: a bull case and a bear case for every buy, scored - show | nudge | veto | off. "show" (the default):
+    # every buy is debated and the case is on the Read sheet, but trades aren't changed - nudging lost money on
+    # unseen replays (-$44.83 over the three markets, mostly in flat markets; -$17.20 on the training half)
+    debate: str = "show"
     debate_grok: bool = False  # also ask Grok to judge the debate (a paid request per buy)
     # 🔀 Rerouter: a buy the exchange refused for a passing reason, or one held back while cash was tied up, tries again
     rerouter: bool = True
@@ -830,8 +832,8 @@ class Settings:
             if not (0 < lo < 0.5 and 0 < hi < 5):
                 raise ValueError("stop-loss % must be between 0 and 0.5 and take-profit % between 0 and 5")
         for f in ("smart_money", "chart_vision", "debate"):
-            if getattr(self, f) not in ("nudge", "veto", "off"):
-                raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off")
+            if getattr(self, f) not in ("nudge", "veto", "off", *(("show",) if f == "debate" else ())):
+                raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off" + (" (or show)" if f == "debate" else ""))
         if self.chart_vision_frame not in ("15m", "1h", "4h", "1d"):
             raise ValueError("TZ_CHART_VISION_FRAME must be 15m, 1h, 4h or 1d")
         if not 0 < self.runner_sell_fraction <= 1:

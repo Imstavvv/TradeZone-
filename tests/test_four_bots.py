@@ -184,6 +184,9 @@ def test_the_debate_weighs_both_sides():
 def test_debate_advice_trims_a_losing_case_and_keeps_a_record():
     desk = make()
     snap(desk, "ETH-USD", 100.0, **BEARISH)
+    assert desk.settings.debate == "show" and advice(desk, "debate") == (None, 0.0, 1.0)  # (shown, trades unchanged)
+    assert desk.bots["debate"].recent()[0]["verdict"] == "bear"
+    desk.settings.debate = "nudge"
     assert advice(desk, "debate") == (None, -0.06, 0.75)
     desk.settings.debate = "veto"
     assert "bear wins the debate" in advice(desk, "debate")[0]

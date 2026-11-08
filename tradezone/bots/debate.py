@@ -9,6 +9,9 @@ between the two cases is the verdict:
 * the bull wins clearly: a little more sure;
 * too close to call: no change.
 
+By default (``debate = "show"``) every buy is still debated and the case is shown on the Read sheet, but trades
+aren't changed: nudging them lost money on unseen replays (-$44.83 over the rising, falling and flat markets).
+
 With ``debate_grok`` on (and the Grok key), Grok also judges each debate as a neutral referee; its ruling counts for
 that coin's next buys (30 minutes). The last debates are kept for the bot floor. Sells are never touched.
 """
@@ -137,6 +140,8 @@ class DebateBot(Advisor):
         self.metrics["last"] = f"{sig.symbol}: {case['verdict']} ({case['bull_score']:g} vs {case['bear_score']:g})"
         if getattr(self.settings, "debate_grok", False):
             self._ask_judge(sig.symbol, case)
+        if self.mode == "show":
+            return NEUTRAL  # (debated and shown, trades unchanged: nudging lost money on unseen replays)
         if m <= -STRONG:
             if self.mode == "veto":
                 return (f"the bear wins the debate {case['bear_score']:g} to {case['bull_score']:g}: "

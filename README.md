@@ -506,6 +506,17 @@ Four **operations** bots:
 
 Each one can be switched off on the bot floor (Pro view).
 
+### 🐋👁️⚖️🔀 Smart Money, Chart Vision, the Debate and the Rerouter
+
+| Bot | What it does | Tested on replays (unseen half / training half) |
+| --- | --- | --- |
+| 🐋 **Smart Money** | Reads Kraken's own recent trades for each coin about to be bought. The biggest tenth (at least $2,000) are the whales; 60%+ of their money on one side is a lean. Whales buying: +0.05 and 1.1×. Whales selling: -0.05 and 0.7× (or no buy, with `TZ_SMART_MONEY=veto`). Also counts heavy-volume bars up vs down on every chart. | **+$2.85 / +$7.10**, on (the replays have no trade tape, so only the volume-bar half was tested) |
+| 👁️ **Chart Vision** | Draws the coin's 1-hour candle chart (with volume) as a picture and has xAI's Grok vision model read it: bullish, bearish or sideways, and the pattern. Confident bearish (70%+): -0.05 and 0.8×; confident bullish: +0.04. Needs the Grok key; at most 30 looks an hour (each is a paid xAI request). | can't be replayed (needs Grok live), on, small effect |
+| ⚖️ **Bull vs Bear Debate** | Before each buy, a bull and a bear argue from the trend on every timeframe, MACD, RSI, VWAP, ADX, Supertrend, OBV, the whales and Grok's chart read. | **-$44.83 / -$17.20** when it changed trades (mostly flat markets), so it's **show-only**: every buy is debated and you see the case, but trades aren't changed (`TZ_DEBATE=nudge` turns it back on) |
+| 🔀 **Rerouter** | A buy the exchange refused for a passing reason (busy, too many requests, nonce, funds still settling) or held back while cash was tied up in other buys is tried again 15 s later as a fresh signal, with every check run again. At most twice per coin in 30 min. Never retries sells, never uses margin; hard refusals (key can't trade, pair not listed) are explained, not retried. | $0 (practice replays have no refusals), on |
+
+On the **Open trades** page every trade has a **🔍 Read** button: the chart picture, Grok's read of it (and a button to ask for a fresh one), the bull and bear cases and who won, and what the whales are doing.
+
 ### 🔥 The Trend Scout: every meme coin worth trading, and what's trending
 
 **On every account.** It used to need Kraken's prices; now it knows what each account's exchange lists - Kraken's pairs, Coinbase's products (Uphold accounts also check Uphold lists the coin), Alpaca's coins - so every linked account finds new coins for its own team. The same-coin price check runs on all three.
