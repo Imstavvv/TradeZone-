@@ -633,8 +633,10 @@ The busiest that **your exchange lists** are plugged into the watchlist with the
 Kraken's own **DEX trading** (on-chain swaps from a built-in wallet in the Kraken app and Kraken Pro web) has no
 trading API, so no bot - TradeZone's or anyone's - can place those swaps through Kraken. What the bots *do* trade is
 every DEX-born token Kraken lists as a regular spot pair against USD: up to 1,000 coins, each with enough daily
-trading to be sold again ($250k+). Kraken's pair list is read again **every 30 minutes**, so a token Kraken lists
-after start-up joins the watch list on its own (an alert names it) - no restart needed. Nothing is ever sent
+trading to be sold again ($250k+). The **🆕 New Listings** bot reads Kraken's pair list **every minute**
+(`TZ_LISTING_SCAN_S`), so a token Kraken lists joins the watch list within a minute (an alert names it) - no
+restart needed. A new token that's still thin is checked again every minute for a day, until it trades enough.
+Being new is never a reason to buy: a new coin trades only when the team's usual signals and checks say so. Nothing is ever sent
 on-chain, and no wallet key is ever held.
 
 ### Kraken's meme coins

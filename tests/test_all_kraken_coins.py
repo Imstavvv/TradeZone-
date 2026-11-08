@@ -132,16 +132,43 @@ def test_tokens_kraken_lists_after_start_up_join_on_the_next_scan():
     run(feed.client.aclose())
 
 
-def test_the_desk_says_when_new_listings_join():
+def test_a_thin_new_listing_is_checked_again_until_it_trades_enough():
+    coins = {"BTC": 9e9}
+    symbols = ["BTC-USD"]
+    feed = KrakenFeed(symbols, client=kraken(coins), min_meme_volume_usd=1e6, all_coins=True)
+    run(feed.start())
+    coins["FRESH"] = 1e3  # (listed a minute ago: hardly traded yet)
+    assert run(feed.rescan()) == [] and "FRESH-USD" in feed.waiting
+    coins["FRESH"] = 3e6  # (an hour in: plenty)
+    assert run(feed.rescan()) == ["FRESH-USD"] and not feed.waiting
+    run(feed.client.aclose())
+
+
+def test_the_new_listings_bot_scans_every_minute_and_names_what_joined():
     from tradezone.market.simulated import SimulatedFeed
     s = Settings(feed="sim", symbols=["BTC-USD"])
     d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
-    d.feed.new_listings = ["NEWDEX-USD"]
+    coins = {"BTC": 9e9}
+    d.feed = KrakenFeed(d.settings.symbols, client=kraken(coins), min_meme_volume_usd=1e6, all_coins=True)
+    run(d.feed.start())
+    bot = d.bots["listings"]
     got = []
     d.bus.subscribe("alert", lambda e: got.append(e.payload.message), owner="t")
-    run(d.step())
-    run(d.bus.drain())
-    assert any("Newly listed on Kraken" in m and "NEWDEX" in m for m in got) and d.feed.new_listings == []
+    coins["NEWDEX"] = 5e6
+
+    async def cycle():
+        await bot.on_cycle()
+        if bot._task:
+            await bot._task
+        await d.bus.drain()
+
+    run(cycle())
+    assert not got  # (less than a minute since start-up: not yet)
+    bot._at -= 61
+    run(cycle())
+    assert any("Newly listed on Kraken" in m and "NEWDEX" in m for m in got)
+    assert "NEWDEX-USD" in d.settings.symbols and bot.metrics["joined"] == 1
+    assert d.settings.listing_scan_s == 60
 
 
 def test_up_to_a_thousand_kraken_coins():

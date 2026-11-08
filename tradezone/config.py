@@ -371,6 +371,7 @@ class Settings:
     market_down_share: float = 0.5
     rotate_max_share: float = 0.5
     consensus_bots: int = 6
+    listing_scan_s: float = 60.0  # the New Listings bot reads Kraken's pair list this often (new tokens join)
     max_kraken_coins: int = 1000  # (every coin Kraken lists against USD - newly listed DEX-born tokens included)
     # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the
     # same bar the sell check uses (was $1M), so whatever is listed can be sold again. Every buy still has to pass

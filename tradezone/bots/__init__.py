@@ -20,6 +20,7 @@ from .executive import ExecutiveBot
 from .flipper import FlipperBot
 from .grok import GrokBot
 from .learners import TargetLearnerBot, TradeReviewerBot
+from .listings import ListingsBot
 from .news import NewsBot
 from .ops import (
     AccountantBot,
@@ -42,7 +43,7 @@ from .strategist import StrategistBot
 from .trends import TrendBot
 
 # Order matters only for on_cycle hooks: data -> analysis -> risk -> execution -> book -> audit
-TEAM = [ScoutBot, TrendBot, NewsBot, StrategistBot,
+TEAM = [ScoutBot, ListingsBot, TrendBot, NewsBot, StrategistBot,
         # advisors the Risk Manager consults before every new trade
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, SmartMoneyBot, ChartVisionBot, DebateBot, LiquidityBot,
         ShockGuardBot, HTFBot,

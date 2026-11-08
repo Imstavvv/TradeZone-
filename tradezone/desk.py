@@ -1153,10 +1153,6 @@ class TradingDesk:
             self.feed.last_error = f"{type(exc).__name__}: {exc}"[:200]
             ticks = []
         self._track_feed(ticks)
-        if (fresh := getattr(self.feed, "new_listings", None)):  # Kraken listed new tokens since start-up
-            coins = ", ".join(x.split("-")[0] for x in fresh[:8]) + (f" and {len(fresh) - 8} more" if len(fresh) > 8 else "")
-            self.bus.publish("alert", Alert("info", f"Newly listed on Kraken, now watched and tradeable: {coins}", "scout"))
-            fresh.clear()
         self.paper_broker.on_prices(ticks)
         if self.live_broker is not None:
             self.live_broker.on_prices(ticks)
