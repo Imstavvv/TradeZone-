@@ -503,6 +503,16 @@ class Settings:
     rerouter: bool = True
     # 🛡️ Rug Guard: a held meme / DEX / smaller coin showing rug-pull signs is sold at once, even below break-even
     rug_guard: bool = True
+    # 🎯 Pump Sniper: buys a meme / DEX / new / small coin the moment it starts pumping (3%+ in 3 bars on 3x volume,
+    # at a new high, whales not selling) - half size, out at +4% after fees, or after 45 min if in profit
+    pump_sniper: bool = False  # (off until its replay test is in)
+    pump_min_move: float = 0.03
+    pump_volume_ratio: float = 3.0
+    pump_max_rsi: float = 85.0
+    pump_target_pct: float = 0.04
+    pump_size_mult: float = 0.5
+    pump_max_minutes: float = 45.0
+    pump_cooldown_bars: int = 60
     # ---- execution accuracy ----
     max_slippage_bps: float = 50.0  # fills worse than this vs. reference price -> auto-pause
     # ---- wallets / funding ----

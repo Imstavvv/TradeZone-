@@ -384,6 +384,8 @@ class RiskBot(Bot):
                 sl_pct = s.patient_meme_stop_pct if meme else s.patient_stop_pct
             if s.wide_stop:  # -7% (the wide stop, was -20%): small dips never stop the trade out (the size keeps the money at risk the same)
                 sl_pct = max(sl_pct, s.wide_stop_pct)
+            if sig.source == "pumpsniper":  # a pump: out quickly at its own nearer target (the same stop)
+                tp_pct = s.pump_target_pct
             stop_dist = price * sl_pct
             stop = price - stop_dist * direction
             tp = price * (1 + tp_pct * direction) + cost * direction  # the target is after fees
@@ -435,6 +437,8 @@ class RiskBot(Bot):
             risk_budget *= flipper.size_mult()
         risk_budget *= advice_mult  # what the advisors made of it
         risk_budget *= falling_mult  # (a buy in a falling market: smaller)
+        if sig.source == "pumpsniper":
+            risk_budget *= s.pump_size_mult  # (a pump snipe: smaller than a normal trade)
         if s.vol_target:  # equal risk across coins: calmer ones bigger, wilder ones smaller (research: vol targeting)
             vols = [x.indicators.get("volatility") or 0.0 for x in self.snapshots.values()]
             vols = sorted(v for v in vols if v > 0)

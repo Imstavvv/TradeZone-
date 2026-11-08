@@ -31,6 +31,7 @@ from .ops import (
     UptimeBot,
 )
 from .portfolio_manager import PortfolioBot
+from .pumpsniper import PumpSniperBot
 from .quant import QuantBot
 from .rerouter import RerouterBot
 from .risk import RiskBot
@@ -48,7 +49,7 @@ TEAM = [ScoutBot, ListingsBot, TrendBot, NewsBot, StrategistBot,
         # advisors the Risk Manager consults before every new trade
         WeatherBot, VolSizerBot, RankerBot, StretchBot, LevelsBot, CorrelationBot, WhaleBot, SmartMoneyBot, ChartVisionBot, DebateBot, LiquidityBot,
         ShockGuardBot, HTFBot,
-        QuantBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, RerouterBot, PortfolioBot, RugGuardBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
+        QuantBot, PumpSniperBot, PullbackBot, GrokBot, RiskBot, ExecutiveBot, ExecutionBot, RerouterBot, PortfolioBot, RugGuardBot, SkimmerBot, FlipperBot, DipBuyerBot, StackerBot,
         FeeAuditorBot, SlippageBot, UptimeBot, AccountantBot, SpeedBot, HousekeeperBot, SentinelBot, CoachBot,
         TargetLearnerBot, TradeReviewerBot]
 
