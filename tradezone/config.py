@@ -346,7 +346,9 @@ class Settings:
     # TZ_CONSENSUS_VOTERS=strategies turns the 6-bot vote on.
     consensus_voters: str = "families"
     # bots switched off after failing on unseen data (asked for: test every idea, kill what fails)
-    bots_off: list[str] = field(default_factory=lambda: ["volsizer", "ranker", "reviewer"])
+    # (the Overextension Guard too: without it +$1.18 training / +$13.81 unseen - it skipped good buys more often
+    # than bad ones)
+    bots_off: list[str] = field(default_factory=lambda: ["volsizer", "ranker", "reviewer", "stretch"])
     # ---- upgrades from trading research (off until tested) ----
     # volatility targeting (time-series momentum research: equal risk across coins): a trade's size is scaled by the
     # median volatility of the watched coins / this coin's (0.5x - 1.5x) - calmer coins bigger, wilder ones smaller.

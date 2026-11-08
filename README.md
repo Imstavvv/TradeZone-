@@ -543,8 +543,8 @@ sells of trades below break-even (your never-sell-at-a-loss rule), 59 sells of w
 handful each for the turnaround rule, low conviction, the market falling and the Overextension Guard. Each one
 lifted, training half: winners sold at 1x the fees -$57.65, at any profit -$236.99; no market-falling block
 -$115.06; no Big-Picture Trend -$44.66; no Liquidity Guard -$16.06; no Correlation Officer -$6.65; no Market
-Weather -$3.30 - they protect the money, so they stay. Only the Overextension Guard came out ahead (+$1.18); its
-unseen half is being checked.
+Weather -$3.30 - they protect the money, so they stay. Only the Overextension Guard came out ahead: +$1.18
+training / +$13.81 unseen - **switched off** (it skipped good buys more often than bad ones).
 
 ### 🎯 Pump Sniper (asked for) - on
 
