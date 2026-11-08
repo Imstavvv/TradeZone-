@@ -515,6 +515,21 @@ Each one can be switched off on the bot floor (Pro view).
 | ⚖️ **Bull vs Bear Debate** | Before each buy, a bull and a bear argue from the trend on every timeframe, MACD, RSI, VWAP, ADX, Supertrend, OBV, the whales and Grok's chart read. | **-$44.83 / -$17.20** when it changed trades (mostly flat markets), so it's **show-only**: every buy is debated and you see the case, but trades aren't changed (`TZ_DEBATE=nudge` turns it back on) |
 | 🔀 **Rerouter** | A buy the exchange refused for a passing reason (busy, too many requests, nonce, funds still settling) or held back while cash was tied up in other buys is tried again 15 s later as a fresh signal, with every check run again. At most twice per coin in 30 min. Never retries sells, never uses margin; hard refusals (key can't trade, pair not listed) are explained, not retried. | $0 (practice replays have no refusals), on |
 
+### 🛡️ Rug Guard, falling markets, diversifying, DEX quick flips (replayed: 16 windows each, $500)
+
+* **🛡️ Rug Guard** (on, asked for): a held meme / DEX / smaller coin is sold at once on a strong rug sign (Kraken
+  restricting or delisting it; a crash of 6%+ in 5 bars on 2.5x volume) or two smaller ones (whales dumping it,
+  the bid/ask gap past 3%, a 3% slide) - even below break-even - and isn't bought again for 24 hours. The replays
+  have no rug pulls to catch: $0 training / -$1.85 unseen (one flat-market sale).
+* **Falling markets** (`TZ_FALLING_BUYS=areas`, on as asked): buys go ahead in a falling market at good buy areas
+  (oversold, the bottom of the daily range, on support) at 0.7x. Cost: -$222.60 training / -$212.60 unseen, nearly
+  all in falling markets (twice the trades, most still losing). `block` brings back the old way.
+* **Diversify into buy areas** (`TZ_DIVERSIFY_ROTATION`, off): +$0.83 training / -$4.49 unseen - failed.
+* **DEX quick flips** (`TZ_DEX_FLIPS`, off): a nearer target for DEX-born tokens. +4%: -$41.02 / +$4.24; +6%:
+  -$19.64 / +$16.58; +8%: -$32.13 / +$8.26 (training / unseen) - each gained in rising markets and lost more in
+  falling ones. (The replays have no DEX tokens: DOGE, SOL and XRP stood in.)
+* **No market-cap minimum** for discovered meme / pump.fun coins (asked for; was $50k): the volume bars stay.
+
 On the **Open trades** page every trade has a **🔍 Read** button: the chart picture, Grok's read of it (and a button to ask for a fresh one), the bull and bear cases and who won, and what the whales are doing.
 
 ### 🔥 The Trend Scout: every meme coin worth trading, and what's trending
