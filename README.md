@@ -528,6 +528,23 @@ Making money faster, replayed the same way: closing a trade that's in profit aft
 +$21.02 / -$33.93 - off. 6% risked a trade (was 4%): -$85.97 / -$85.90 (much more made in rising markets, much more
 lost in falling ones) - off. All of them together: -$70.46 / -$121.21.
 
+### ✅ Surer buys: conviction 0.5 and three voting families (asked for: "buy what will win")
+
+No setting wins every trade. Stricter buy rules were replayed on the +6% plan (16 windows a market, $500;
+training / unseen half, against conviction 0.35 and 2 families):
+
+| Buy rule | Rising | Falling | Sideways | Training | Unseen |
+| --- | --- | --- | --- | --- | --- |
+| conviction 0.5 | +13.29 / +18.43 | -10.35 / +65.14 | +13.74 / +26.42 | +$16.68 | +$110.00 |
+| conviction 0.65 | -281.56 / -123.68 | +187.76 / +133.51 | +35.12 / +167.78 | -$58.68 | +$177.61 |
+| 3 families say yes | -4.11 / -3.55 | +48.78 / +65.69 | -6.73 / +16.34 | +$37.94 | +$78.48 |
+| **both (now on)** | +20.55 / +12.86 | +13.02 / +99.99 | +8.20 / +18.31 | **+$41.77** | **+$131.16** |
+
+**A buy now needs conviction 0.5 and three of the voting families saying yes** (was 0.35 and two): ahead in
+every market on both halves. Trades won on the unseen half: rising 97% (was 96%), falling 51% (52%),
+sideways 83% (78%). Conviction 0.65 wins the most trades when prices fall (61%) but gives up too much in rising
+markets.
+
 ### 🛡️ Rug Guard, falling markets, diversifying, DEX quick flips (replayed: 16 windows each, $500)
 
 * **🛡️ Rug Guard** (on, asked for): a held meme / DEX / smaller coin is sold at once on a strong rug sign (Kraken

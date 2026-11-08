@@ -48,3 +48,8 @@ def test_open_trades_on_the_old_automatic_15_move_to_6_once_a_hand_set_target_st
     btc.take_profit = 1.0
     d._tp6_once()  # (once only)
     assert btc.take_profit == 1.0
+
+
+def test_a_buy_needs_conviction_half_and_three_families():
+    s = Settings()
+    assert s.risk.min_signal_strength == 0.5 and s.risk.consensus_min_yes == 3

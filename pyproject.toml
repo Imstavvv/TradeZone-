@@ -25,7 +25,7 @@ tradezone = ["web/*.html", "web/*.svg", "web/*.png", "web/*.webmanifest", "web/f
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]  # so `pytest` (not only `python -m pytest`) finds the app and the tests' shared helpers
-markers = ["with_killed: run with the features switched off after failing on unseen data turned back on", "old_plan: run with the stop / target plan from before -7% / +15% (tests of a mechanism, not the defaults)", "tp15: run with the +15% take-profit from before +6% won its replays"]
+markers = ["with_killed: run with the features switched off after failing on unseen data turned back on", "old_plan: run with the stop / target plan from before -7% / +15% (tests of a mechanism, not the defaults)", "tp15: run with the +15% take-profit from before +6% won its replays", "old_entry: run with the buy bar from before conviction 0.5 / 3 families won its replays"]
 
 [tool.ruff]
 line-length = 120

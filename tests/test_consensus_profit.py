@@ -30,6 +30,7 @@ def test_votes_and_vetoes(desk):
     assert q.consensus(1, conflict, Regime.UNKNOWN)["mean_reversion"] == "no"
 
 
+@pytest.mark.old_entry  # (written around 2 voting families)
 def test_buy_blocked_when_a_bot_disagrees(desk):
     signals = capture(desk, "signal.proposed")
     # strong momentum but overbought RSI: momentum says buy, mean reversion objects
@@ -38,6 +39,7 @@ def test_buy_blocked_when_a_bot_disagrees(desk):
     assert desk.bots["quant"].metrics["consensus_blocked"] == 1
 
 
+@pytest.mark.old_entry  # (written around 2 voting families)
 def test_buy_proceeds_when_team_agrees(desk):
     desk.settings.consensus_voters = "families"  # (the 4-voter family vote these tests are about)
     signals = capture(desk, "signal.proposed")
@@ -60,9 +62,10 @@ def test_the_share_of_voters_that_must_agree(desk, share, trades):
 
 
 def test_by_default_the_old_count_rule_applies(desk):
-    assert desk.settings.risk.consensus_min_share == 0.0 and desk.settings.risk.consensus_min_yes == 2
+    assert desk.settings.risk.consensus_min_share == 0.0 and desk.settings.risk.consensus_min_yes == 3
 
 
+@pytest.mark.old_entry  # (written around 2 voting families)
 def test_consensus_rechecked_while_stance_holds(desk):
     desk.settings.consensus_voters = "families"  # (the 4-voter family vote these tests are about)
     signals = capture(desk, "signal.proposed")

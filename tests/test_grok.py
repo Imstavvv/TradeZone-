@@ -87,6 +87,7 @@ def test_grok_outage_fails_closed_by_default():
     assert desk.bots["grok"].connected is False
 
 
+@pytest.mark.old_entry  # (written around the 0.35 buy bar)
 def test_grok_outage_fail_open():
     desk, _ = grok_desk(status=503, fail_open=True)
     prime(desk)

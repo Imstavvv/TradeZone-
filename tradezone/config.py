@@ -87,11 +87,13 @@ class RiskLimits:
     max_drawdown_pct: float = 0.15  # kill switch trips beyond this drawdown from peak
     max_orders_per_minute: int = 30
     max_portfolio_heat: float = 0.07  # total risk to all stops, as a fraction of equity
-    min_signal_strength: float = 0.35
+    # a buy needs conviction 0.5 and 3 voting families saying yes (was 0.35 and 2 - replayed with the +6% plan:
+    # +$41.77 training / +$131.16 unseen, ahead in every market; won more trades when prices fell or went sideways)
+    min_signal_strength: float = 0.5
     symbol_cooldown_s: float = 10.0
     # Buys need team consensus: no voter may object and at least this many must actively agree.
     # Voters: momentum, mean-reversion and breakout models plus the Strategist (then Grok, then Risk).
-    consensus_min_yes: int = 2
+    consensus_min_yes: int = 3
     # the share of the voters (the momentum, dip and breakout strategy families + the Strategist: 4 in all) that must
     # say yes, as 0-1 (0.5 = half of them = 2 of 4, the same as consensus_min_yes 2). 0 = use consensus_min_yes.
     # Any "no" still blocks the trade either way.

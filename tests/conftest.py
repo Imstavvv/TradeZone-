@@ -63,6 +63,20 @@ def _old_plan(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _old_entry(request, monkeypatch):
+    """Tests written around the old buy bar (conviction 0.35, 2 voting families) - before 0.5 / 3 won its replays."""
+    if request.node.get_closest_marker("old_entry") is None:
+        return
+    from tradezone.config import Settings
+    real = Settings.__init__
+
+    def init(self, *a, **kw):
+        real(self, *a, **kw)
+        self.risk.min_signal_strength, self.risk.consensus_min_yes = 0.35, 2
+    monkeypatch.setattr(Settings, "__init__", init)
+
+
+@pytest.fixture(autouse=True)
 def _tp15(request, monkeypatch):
     """Tests written around the +15% take-profit (before +6% won its replays): the old target for them."""
     if request.node.get_closest_marker("tp15") is None:
