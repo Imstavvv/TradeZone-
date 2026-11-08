@@ -1080,6 +1080,12 @@ So these are now **off** (each can be switched back on): the trailing stop (on i
 
 What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
 
+### 🐸 The MemeCoin desk, attached
+
+Your [MemeCoin desk](https://github.com/Imstavvv/MemeCoinz-) (on-chain memecoins found on DexScreener, its own scam filter, momentum entries and risk limits) can be attached in **Settings → MemeCoin desk**: paste its address (for example its Render web service, `https://….onrender.com`). Home then shows a 🐸 card with its balance, profit, record (won of closed) and open positions, read from its status page (`/api/state`) about every 30 seconds; a kill switch tripped there, or the desk being unreachable, is said on the card.
+
+It's **read-only**: TradeZone can't trade on it or change it (the MemeCoin desk has no controls to call), and the MemeCoin desk itself only paper-trades for now - its README sets the bar before real money. Only a public `https://` address is accepted (never a private or local one), so the setting can't be used to reach into your own network.
+
 ### 🌊 No new buys while most of the market falls
 
 When more than half of the watched coins are in a falling hourly trend, the bots wait with new buys until the market turns (`TZ_MARKET_DOWN_SHARE=0.5`; 0 turns it off). One coin dipping in a healthy market is still bought: only a broad slide stops buying. Replayed on real price history (16 windows per market, tuning / unseen half), it did as well or better in **every market on both halves**:

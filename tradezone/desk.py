@@ -156,6 +156,8 @@ class TradingDesk:
         from .fleet import AccountFleet
 
         self.fleet = AccountFleet(self)  # extra real-money accounts, each with its own bot team
+        from .memedesk import MemeDesk
+        self.memedesk = MemeDesk()  # the MemeCoin desk, attached read-only (its address is saved from Settings)
 
     # ------------------------------------------------------------------
     @staticmethod
@@ -451,6 +453,14 @@ class TradingDesk:
         self.bus.publish("alert", Alert("info", f"{sym}: your plan - stop {pos.stop_price or 0:,.6g}, target "
                                                 f"{pos.take_profit or 0:,.6g}", "operator"))
         return {"symbol": sym, "stop_price": pos.stop_price, "take_profit": pos.take_profit}
+
+    async def attach_memedesk(self, url: str) -> dict | None:
+        """Attach (or, with an empty address, detach) the MemeCoin desk; read it once straight away."""
+        self.memedesk.set_url(url)  # (ValueError: the address isn't accepted)
+        self.store.save("memedesk", {"url": self.memedesk.url})
+        if self.memedesk.url:
+            await self.memedesk.refresh()
+        return self.memedesk.view()
 
     def flatten(self, reason: str = "operator flatten") -> int:
         pm = self.bots["portfolio"]
@@ -1047,6 +1057,9 @@ class TradingDesk:
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
         self.bots["fees"].load()  # type: ignore[attr-defined]  # the fees really paid at this venue
+        if (md := self.store.load("memedesk")) and md.get("url") and not hasattr(self, "account_id"):
+            with contextlib.suppress(ValueError):
+                self.memedesk.set_url(md["url"])
         if self.bots["coach"].load():  # type: ignore[attr-defined]  # what the team learned before the restart
             self.bots["coach"].act(f"remembered {self.bots['coach'].learned_trades} past trades")  # type: ignore[attr-defined]
         if back := self._watch_held():
@@ -1132,6 +1145,8 @@ class TradingDesk:
         if self._dirty or self.cycles % 10 == 0:
             self.save_state()
         if not hasattr(self, "account_id") and (self.fleet.desks or self.live_broker is not None):
+            if self.memedesk.due() and (self.__dict__.get("_meme_task") is None or self._meme_task.done()):
+                self._meme_task = asyncio.ensure_future(self.memedesk.refresh())  # (the MemeCoin desk: in the background)
             self.fleet.refresh_soon()  # each exchange's own balance, once a minute (in the background: a slow
             # exchange must never hold up the trading cycle)
 
@@ -1549,6 +1564,8 @@ class TradingDesk:
 
     async def shutdown(self) -> None:
         self.running = False
+        with contextlib.suppress(Exception):
+            await self.memedesk.close()
         if (t := self.__dict__.get("_backfill_rest")) is not None and not t.done():
             t.cancel()  # (history still loading in the background)
             with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -1651,6 +1668,7 @@ class TradingDesk:
             "daily_reports": self.bots["accountant"].summary(),  # type: ignore[attr-defined]
             "hunt": self.hunt_summary(),
             "accounts": self.fleet.summary() if not hasattr(self, "account_id") else [],
+            "memedesk": self.memedesk.view() if not hasattr(self, "account_id") else None,
             "news": self.bots["news"].summary(),  # type: ignore[attr-defined]
             "goal": {**self.goal_status(), "guard": self.bots["risk"].day_guard(),  # type: ignore[attr-defined]
                      "daily": self.daily_goal_status()},

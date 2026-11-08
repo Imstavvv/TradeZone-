@@ -1122,6 +1122,10 @@ var(--live)}
 .recbox .rdl{margin-top:10px;font-size:13.5px}.recbox .rdl a{font-weight:700}
 .recbox .rflag{text-align:center;font-weight:800}.recbox .rflag.good{color:var(--up)}.recbox .rflag.warn{color:#b45309}.recbox .rflag.bad{color:var(--down)}
 @media (max-width:700px){.recbox .rrow{grid-template-columns:minmax(0,1fr) auto 22px}.recbox .rnote{grid-column:1/-1}}
+.memecard{margin:10px 0 0;padding:10px 12px;border:1px solid var(--line);border-radius:14px;font-size:14px}
+.memecard .mrow{margin-top:4px}.memecard .mrow b{font-size:17px}.memecard .mpos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.memecard .warn{color:var(--down);margin-top:4px}
+#setMemeUrl{width:100%;box-sizing:border-box;margin-top:6px;min-height:40px;font-size:15px}
 </style>
 </head>
 <body>
@@ -1380,6 +1384,7 @@ var(--live)}
       <div class="chg" id="sToday"></div>
       <div class="since" id="sSince"></div>
       <a class="since stacklink" id="sStack" data-goto="stack" href="#/stack" style="display:none"></a>
+      <div class="memecard" id="sMeme" hidden></div>
       <div class="since" id="sWhole" hidden></div>
       <div class="badges" id="sBadges"></div>
       <div class="power" id="sPower"></div>
@@ -1465,6 +1470,8 @@ var(--live)}
         <div class="scard" data-page="settings"><h4>🛡️ Your trading rules</h4>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap: OFF</b><span id="setLcSub">Losing trades in other coins don't stop new buys</span></div><button id="setLcBtn">Turn on</button></div>
+          <div class="srow"><div class="ic">🐸</div><div class="tx"><b>MemeCoin desk</b><span id="setMemeSub">Attach your MemeCoin desk to see it here (read-only: it keeps its own rules and trades on its own)</span>
+            <input id="setMemeUrl" type="url" inputmode="url" placeholder="https://your-memecoin-desk.onrender.com" autocomplete="off"></div><button id="setMemeBtn">Attach</button></div>
           <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (7%)</b><span id="setLfSub">A trade 7% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
           <div class="srow"><div class="ic">📉</div><div class="tx"><b id="setFgTxt">Falling-market guard: OFF</b><span id="setFgSub">New buys whatever the trend</span></div><button id="setFgBtn">Turn on</button></div>
           <div class="srow"><div class="ic">⚡</div><div class="tx"><b id="setRiskTxt">Real-money risk: Normal</b><span id="setRiskSub">Every trade has a stop-loss; trading stops itself after a bad day</span></div><button id="setRiskBtn">Change</button></div>
@@ -2843,6 +2850,34 @@ try { S.acct = localStorage.getItem('tz_acct') || 'main'; } catch { S.acct = 'ma
 function whole(r){ return r && r.mode === 'live' && r.exchange && r.exchange.equity != null ? +r.exchange.equity : null; }
 function shownEq(r){ const w = whole(r); return w != null ? w : (r.equity || 0); }
 // under it: the bots' part of it (their trades and cash), and what they don't trade (staked, stablecoins, hold stack)
+// the MemeCoin desk, attached read-only: its own balance, trades and record, from its status page
+function renderMeme(st){
+  const el = $('sMeme'), m = st.memedesk; if (!el) return;
+  const sub = $('setMemeSub'), btn = $('setMemeBtn'), inp = $('setMemeUrl');
+  if (sub && document.activeElement !== inp) {
+    if (m) { inp.value = m.url; btn.textContent = 'Detach'; sub.textContent = `Attached: ${m.url}`; }
+    else { btn.textContent = 'Attach'; }
+  }
+  const here = S.acct === 'all' || !S.acct || S.acct === 'main';  // (the main account's view, or all accounts)
+  if (!m || !here) { el.hidden = true; return; }
+  el.hidden = false;
+  const live = m.status === 'running', bad = m.kill_switch || m.error || m.desk_error;
+  const head = `🐸 <b>MemeCoin desk</b> <span class="accbadge">${m.mode === 'live' ? 'live data' : esc(m.mode || '')} · paper</span>`;
+  if (m.equity == null) { el.innerHTML = `${head}<div class="muted">${m.error ? "Can't reach it: " + esc(m.error) : 'Connecting…'}</div>`; return; }
+  const pos = (m.positions || []).map(p => `<span class="chip">${esc(p.symbol)} ${p.value != null ? money(p.value) : ''}</span>`).join('');
+  el.innerHTML = `${head}<div class="mrow"><b>${money(m.equity)}</b> <span class="${cls(m.pnl)}">${m.pnl >= 0 ? '+' : '-'}${money(Math.abs(m.pnl))}</span>`
+    + ` <span class="muted">· ${m.wins ?? 0} of ${m.closed_trades ?? 0} closed won · ${(m.positions || []).length} open</span></div>`
+    + (pos ? `<div class="mpos">${pos}</div>` : '')
+    + (m.kill_switch ? '<div class="warn">Its kill switch is on: no new trades there until it is reset on that desk.</div>' : '')
+    + (bad && !m.kill_switch ? `<div class="muted">⚠ ${esc(m.error || m.desk_error)}</div>` : '')
+    + (!live && !bad ? `<div class="muted">${esc(m.status)}</div>` : '');
+}
+$('setMemeBtn') && $('setMemeBtn').addEventListener('click', async () => {
+  const attached = S.state && S.state.memedesk, url = attached ? '' : ($('setMemeUrl').value || '').trim();
+  if (!attached && !url) { toast("Paste the MemeCoin desk's address first", 'warn'); return; }
+  try { const r = await api('/api/memedesk', {url}); toast(attached ? 'MemeCoin desk detached' : 'MemeCoin desk attached', 'ok');
+        if (S.state) { S.state.memedesk = r.memedesk; renderMeme(S.state); } if (attached) $('setMemeUrl').value = ''; } catch {}
+});
 function renderWhole(st){
   const el = $('sWhole'); if (!el) return;
   const rows = (st.accounts || []).filter(r => whole(r) != null);
@@ -2975,6 +3010,7 @@ function renderSimple(st){
   renderAccounts(st);
   renderOpen(st);
   renderWhole(st);
+  renderMeme(st);
   { const v = stackView(st); renderStack(v.k, v.own, v.label); }
   renderStrategies(st.strategies);
   renderNeverSell(st);

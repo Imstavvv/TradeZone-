@@ -133,6 +133,10 @@ class BotToggle(BaseModel):
     enabled: bool
 
 
+class MemeDeskBody(BaseModel):
+    url: str = ""
+
+
 class ControlBody(BaseModel):
     reason: str = "operator"
 
@@ -426,6 +430,16 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
             return desk.fleet.desk(account or "main")
         except KeyError:
             raise HTTPException(404, "no such account") from None
+
+    @app.post("/api/memedesk", dependencies=[Depends(check_token)])
+    async def memedesk(body: MemeDeskBody, request: Request):
+        """Attach the MemeCoin desk by its address (read-only), or detach it with an empty one."""
+        try:
+            view = await desk.attach_memedesk(body.url)
+        except ValueError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, "attached the MemeCoin desk" if body.url else "detached the MemeCoin desk", "info")
+        return _clean({"ok": True, "memedesk": view})
 
     @app.post("/api/trade/sell", dependencies=[Depends(check_token)])
     async def trade_sell(body: TradeSellBody, request: Request):
