@@ -545,6 +545,15 @@ every market on both halves. Trades won on the unseen half: rising 97% (was 96%)
 sideways 83% (78%). Conviction 0.65 wins the most trades when prices fall (61%) but gives up too much in rising
 markets.
 
+### Smaller trades to diversify (asked for: "diversify, take more trades") - failed, not used
+
+Capping each real-money trade lower than 50% of the balance (`TZ_LIVE_MAX_POSITION_PCT`) was replayed on the
+training half (16 windows a market, $500): 35% -$68.42, 25% -$173.37, 15% -$247.70, 10% -$232.36 against 50%.
+Every cap made the same number of trades (356 rising, ~170 falling, 106 sideways): the bots weren't short of cash
+but of buy signals, so smaller trades only meant smaller wins (and smaller losses when prices fell). The unseen
+half wasn't run. On real money the bots already watch up to 1,000 Kraken coins, which is where more trades come
+from; the replays have five.
+
 ### 🛡️ Rug Guard, falling markets, diversifying, DEX quick flips (replayed: 16 windows each, $500)
 
 * **🛡️ Rug Guard** (on, asked for): a held meme / DEX / smaller coin is sold at once on a strong rug sign (Kraken
