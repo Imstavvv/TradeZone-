@@ -45,13 +45,39 @@ def buy_area(snap) -> str | None:
     return None
 
 
+def turned_up(snap) -> str | None:
+    """Has a falling coin turned around? Back above its short-term average and its 5-minute candle rising.
+    The reason if so, else None (no snapshot: None)."""
+    if snap is None:
+        return None
+    ind, px = snap.indicators, snap.price
+    fast, c5 = ind.get("ema_fast"), ind.get("tf_5m_chg")
+    if fast is None or px <= fast or (c5 is not None and c5 <= 0):
+        return None
+    return "turning up (back above its short-term average, the 5-minute candle rising)"
+
+
+def falling_coin(snap) -> bool:
+    """A coin in its own downtrend: the hourly trend down (or, before the hourly chart is ready, the fast average
+    under the slow one)."""
+    if snap is None:
+        return False
+    ind = snap.indicators
+    if (t := ind.get("tf_1h_trend")) is not None:
+        return t < 0
+    fast, slow = ind.get("ema_fast"), ind.get("ema_slow")
+    return fast is not None and slow is not None and fast < slow
+
+
 def falling_buy_ok(settings, snap) -> tuple[bool, str]:
-    """In a falling market: may this buy go ahead? ``falling_buys``: block (no) | areas (only at a buy area) | all."""
+    """In a falling market: may this buy go ahead? ``falling_buys``: block (no) | areas (only at a buy area) | all -
+    and never a coin still falling with no turnaround (asked for)."""
     mode = getattr(settings, "falling_buys", "block")
-    if mode == "all":
-        return True, "falling market, buying anyway (smaller)"
-    if mode == "areas" and (why := buy_area(snap)):
-        return True, f"falling market, but a good buy area: {why}"
+    turn = turned_up(snap) if getattr(settings, "falling_coin_turn", True) else "(not checked)"
+    if mode == "all" and turn:
+        return True, f"falling market, buying a coin {turn} (smaller)"
+    if mode == "areas" and (why := buy_area(snap)) and turn:
+        return True, f"falling market, but a good buy area: {why}, {turn}"
     return False, ""
 
 

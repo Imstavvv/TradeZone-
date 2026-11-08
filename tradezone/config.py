@@ -381,6 +381,9 @@ class Settings:
     # falling markets, those could be good buy areas") - at a cost on replays (16 windows each, $500): falling
     # markets -$199 training / -$201 unseen, sideways -$24 / -$12, rising $0 / $0; "block" brings back the old way.
     falling_buys: str = "areas"
+    # never buy a coin still falling with no turnaround (asked for): a coin in its own downtrend (the hourly trend
+    # down) is bought only once it turns up - back above its short-term average with its 5-minute candle rising
+    falling_coin_turn: bool = True
     rotate_max_share: float = 0.5
     # diversify (asked for): a buy at a good buy area on another coin is paid for by part of a trade in profit as
     # soon as cash falls short (not only when under half the cash is there), and the biggest trade pays first

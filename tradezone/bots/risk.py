@@ -19,7 +19,7 @@ from ..core.models import (
 )
 from ..core.stops import StopRejected, plan_stop
 from ..core.util import is_closing, round_qty
-from .advisors import buy_area, falling_buy_ok
+from .advisors import buy_area, falling_buy_ok, falling_coin, turned_up
 from .base import Bot
 
 
@@ -272,6 +272,10 @@ class RiskBot(Bot):
             return self.reject(sig, why)
         if sig.side is Side.BUY and s0_meme_only(self.settings) and not self.settings.is_meme(sig.symbol):
             return self.reject(sig, f"the Meme desk trades meme coins only - {sig.symbol} isn't one")
+        if sig.side is Side.BUY and not sig.force and getattr(self.settings, "falling_coin_turn", False) \
+                and sig.kind is SignalKind.ENTRY and falling_coin(snap1 := self.snapshots.get(sig.symbol)) \
+                and not turned_up(snap1):
+            return self.reject(sig, f"{sig.symbol} is still falling with no turnaround yet - waits for it to turn up")
         falling_mult = 1.0
         if sig.side is Side.BUY and not sig.force and (why := self.market_down_block()):
             ok, note = falling_buy_ok(self.settings, self.snapshots.get(sig.symbol))

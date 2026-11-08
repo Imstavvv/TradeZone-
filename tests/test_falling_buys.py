@@ -28,20 +28,24 @@ def test_the_modes():
     class Set:
         falling_buys = "block"
     class Snap:
-        price, indicators = 100.0, {"rsi": 30}
+        price, indicators = 100.0, {"rsi": 30, "ema_fast": 99.0, "tf_5m_chg": 0.002}  # (oversold, turning up)
     s = Set()
     assert falling_buy_ok(s, Snap())[0] is False
     s.falling_buys = "areas"
     assert falling_buy_ok(s, Snap())[0] is True
-    Snap.indicators = {"rsi": 55}
+    Snap.indicators = {"rsi": 30, "ema_fast": 101.0, "tf_5m_chg": -0.002}  # (oversold but still falling)
+    assert falling_buy_ok(s, Snap())[0] is False
+    Snap.indicators = {"rsi": 55, "ema_fast": 99.0, "tf_5m_chg": 0.002}
     assert falling_buy_ok(s, Snap())[0] is False
     s.falling_buys = "all"
     assert falling_buy_ok(s, Snap())[0] is True
+    Snap.indicators = {"rsi": 55, "ema_fast": 101.0}
+    assert falling_buy_ok(s, Snap())[0] is False  # (no turnaround: not even with "all")
 
 
-def _buy(desk, rsi):
+def _buy(desk, rsi, turned=True):
     prime(desk, "ETH-USD", 100.0, atr=0.5)
-    falling(desk, rsi=rsi, atr=0.5)
+    falling(desk, rsi=rsi, atr=0.5, **({"ema_fast": 99.0, "tf_5m_chg": 0.003} if turned else {"ema_fast": 101.0}))
     rej = capture(desk, "signal.rejected")
     desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.95, "t", "quant"))
     run(desk.bus.drain())
@@ -58,6 +62,9 @@ def test_a_falling_market_at_a_buy_area_is_bought_smaller():
     desk = make(falling_buys="areas")
     qty, why = _buy(desk, 55)  # (falling and not at a buy area: still waits)
     assert qty == 0
+    desk = make(falling_buys="areas")
+    qty, why = _buy(desk, 30, turned=False)  # (a buy area, but still falling - no turnaround)
+    assert qty == 0
 
 
 def test_bitcoin_falling_no_longer_vetoes_a_buy_area():
@@ -65,7 +72,21 @@ def test_bitcoin_falling_no_longer_vetoes_a_buy_area():
     w = desk.bots["weather"]
     w.btc.extend([100.0] + [95.0] * w.BARS)
     w.change = -0.05
-    snap(desk, "ETH-USD", 100.0, rsi=30)
+    snap(desk, "ETH-USD", 100.0, rsi=30, ema_fast=99.0, tf_5m_chg=0.002)
     assert advice(desk, "weather") == (None, -0.03, 0.7)
     snap(desk, "ETH-USD", 100.0, rsi=55)
     assert "Bitcoin is falling" in advice(desk, "weather")[0]
+
+
+def test_a_coin_in_its_own_downtrend_waits_for_a_turnaround():
+    desk = make()
+    prime(desk, "ETH-USD", 100.0, atr=0.5)
+    snap(desk, "ETH-USD", 100.0, tf_1h_trend=-1, ema_fast=101.0, atr=0.5)  # (falling, still under its short average)
+    rej = capture(desk, "signal.rejected")
+    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.95, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("ETH-USD").qty == 0 and "no turnaround" in rej[-1]["reason"]
+    snap(desk, "ETH-USD", 100.0, tf_1h_trend=-1, ema_fast=99.0, tf_5m_chg=0.003, atr=0.5)  # (turned up)
+    desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.95, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("ETH-USD").qty > 0

@@ -54,7 +54,7 @@ def test_every_snapshot_carries_the_timeframes():
 
 
 def test_the_higher_timeframe_filter_blocks_a_buy_against_the_hourly_trend():
-    s = Settings(feed="sim", symbols=["BTC-USD"], mtf_filter="1h")
+    s = Settings(feed="sim", symbols=["BTC-USD"], mtf_filter="1h", falling_coin_turn=False)  # (the mtf filter itself)
     s.risk.symbol_cooldown_s = 0
     d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
     prime(d, "BTC-USD", 50_000.0, atr=250.0)
