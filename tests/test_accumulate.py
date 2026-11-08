@@ -48,6 +48,7 @@ def test_sell_a_slice_into_a_rise_and_buy_it_back_cheaper_for_more_coins():
 
 
 @pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
+@pytest.mark.tp15  # (written around the +15% target)
 def test_never_buys_back_higher_the_slice_stays_as_dollar_profit():
     desk = make()
     f = desk.bots["flipper"]

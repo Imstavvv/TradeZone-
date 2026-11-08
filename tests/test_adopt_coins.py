@@ -32,6 +32,7 @@ def cycle(d):
     return pm
 
 
+@pytest.mark.tp15  # (written around the +15% target)
 def test_your_kraken_coins_become_trades_with_the_stop_and_target_and_the_books_still_match():
     fk = FakeKraken(usd=1_000.0, held={"XXBT": 0.01, "ETH2.S": 1.5})  # BTC from before going live, staked ETH
     d = live_desk(fk)

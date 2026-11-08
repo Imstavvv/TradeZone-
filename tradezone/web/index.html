@@ -3101,7 +3101,7 @@ function renderLossFloor(st){
 }
 $('setLfBtn').onclick = async () => {
   const on = !(S.state && S.state.max_loss_pct > 0);
-  const msg = on ? 'A trade that falls 7% below what was paid will be sold, taking that loss - even with "never sell at a loss" on. Tested on real price history with the +15% take-profit: about 40% less lost when prices fall, about the same when they rise, more lost when they go sideways.'
+  const msg = on ? 'A trade that falls 7% below what was paid will be sold, taking that loss - even with "never sell at a loss" on. Tested on real price history (with the take-profit then +15%): about 40% less lost when prices fall, about the same when they rise, more lost when they go sideways.'
                  : 'With never-sell on, losing trades will be held however far they fall - a coin that keeps falling can tie up your money for a long time, or go to zero.';
   if (!await ask(on ? 'Turn the loss floor on?' : 'Turn the loss floor off?', msg, {ok: on ? 'Turn on' : 'Turn off', danger: !on})) return;
   try { await api('/api/loss-floor', {on}); toast(on ? 'Loss floor: on (7%)' : 'Loss floor: off'); } catch {}
@@ -3466,7 +3466,7 @@ $('openList').addEventListener('click', async e => {
     $('planMax').textContent = most;
     $('planStop').max = most;
     $('planStop').value = x.stop_pct != null ? Math.max(0.1, Math.round(x.stop_pct * 1000) / 10) : most;
-    $('planTarget').value = x.target_pct != null ? Math.max(0.5, Math.round(x.target_pct * 1000) / 10) : 15;  // (after fees, as saved)
+    $('planTarget').value = x.target_pct != null ? Math.max(0.5, Math.round(x.target_pct * 1000) / 10) : 6;  // (after fees, as saved)
     $('planSheet').classList.add('open');
     const close = () => { $('planSheet').classList.remove('open'); $('planYes').onclick = $('planNo').onclick = null; };
     $('planNo').onclick = close;

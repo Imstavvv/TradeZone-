@@ -63,6 +63,23 @@ def _old_plan(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _tp15(request, monkeypatch):
+    """Tests written around the +15% take-profit (before +6% won its replays): the old target for them."""
+    if request.node.get_closest_marker("tp15") is None:
+        return
+    from tradezone.config import Settings
+    real = Settings.__init__
+
+    def init(self, *a, **kw):
+        real(self, *a, **kw)
+        old = OLD_PLAN if request.node.get_closest_marker("old_plan") is not None else {}
+        for k in ("take_profit_pct", "major_take_profit_pct", "tp_step_pct"):
+            if k not in kw and k not in old:  # (the old plan's own values win where it sets them)
+                setattr(self, k, 0.15)
+    monkeypatch.setattr(Settings, "__init__", init)
+
+
+@pytest.fixture(autouse=True)
 def _no_history_pause(monkeypatch):
     """The Trend Scout spaces out history requests (the exchange's rate limit); tests don't need to wait."""
     import tradezone.bots.trends as trends

@@ -1031,7 +1031,28 @@ class TradingDesk:
                 n += 1
         if n:
             self.bus.publish("alert", Alert("info", f"New rules on {n} open trade(s): stop-loss at most -7%, take-profit "
-                                                    "+15% after fees. A trade already more than 7% down is sold.", "desk"))
+                                                    f"+{s.take_profit_pct:.0%} after fees. A trade already more than 7% down "
+                                                    "is sold.", "desk"))
+
+    def _tp6_once(self) -> None:
+        """The +6% take-profit (replayed: beat +15% on both halves) for the trades already open too, once: only a
+        target still on the old automatic +15% after fees moves (a target you set on a trade yourself stays)."""
+        if self.store.load("tp6"):
+            return
+        self.store.save("tp6", {"done": True})
+        s, n = self.settings, 0
+        for book, live in ((self.paper_portfolio, False), (self.live_portfolio, True)):
+            for p in (book.open_positions if book is not None else []):
+                if p.qty <= 0 or not p.avg_price or p.take_profit is None:
+                    continue
+                cost = s.round_trip_cost(p.symbol, p.avg_price)
+                old = p.avg_price * 1.15 + cost
+                if abs(p.take_profit / old - 1) <= 0.005:  # (the old automatic +15%: not one set by hand)
+                    p.take_profit = p.avg_price * (1 + s.plan_pcts(p.symbol, s.quick(live))[1]) + cost
+                    n += 1
+        if n:
+            self.bus.publish("alert", Alert("info", f"Take-profit is now +6% after every fee (it beat +15% on replays): "
+                                                    f"{n} open trade(s) moved to it.", "desk"))
 
     async def start(self) -> None:
         self._unlink_alpaca_once()
@@ -1047,6 +1068,7 @@ class TradingDesk:
         self.bots["grok"].load_saved()  # type: ignore[attr-defined]  # key saved from the dashboard, if any
         restored = await self.restore_state()
         self._sl7_tp15_once()
+        self._tp6_once()
         self.bots["flipper"].load()  # type: ignore[attr-defined]  # the hours it learned are good / bad for flips
         self.bots["accountant"].load()  # type: ignore[attr-defined]  # today's totals so far
         self.bots["stacker"].load()  # type: ignore[attr-defined]  # the hold stack

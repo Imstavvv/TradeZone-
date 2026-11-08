@@ -32,11 +32,12 @@ def test_defaults_are_crypto_with_trusted_meme_coins():
     assert s.symbols == [*CRYPTO_SYMBOLS, "XCN-USD"] and all(x.endswith("-USD") for x in s.symbols)
     assert {"DOGE-USD", "SHIB-USD", "PEPE-USD"} <= set(s.symbols)
     assert s.is_meme("PEPE-USD") and s.is_meme("doge/usd") and not s.is_meme("BTC-USD")
-    assert (s.stop_method, s.stop_loss_pct, s.take_profit_pct) == ("percent", 0.07, 0.15)
-    assert (s.major_take_profit_pct, s.flip_major_target_pct, s.flip_meme_target_pct) == (0.15, 0.15, 0.15)
+    assert (s.stop_method, s.stop_loss_pct, s.take_profit_pct) == ("percent", 0.07, 0.06)
+    assert (s.major_take_profit_pct, s.flip_major_target_pct, s.flip_meme_target_pct) == (0.06, 0.15, 0.15)
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.tp15  # (written around the +15% target)
 def test_meme_coins_get_minus_8_plus_15_and_majors_minus_3_plus_6(desk):
     desk.settings.dex_flips = False  # (the meme plan itself: PEPE is also a DEX coin, which flips nearer)
     meme = buy(desk, "PEPE-USD", 0.00001)

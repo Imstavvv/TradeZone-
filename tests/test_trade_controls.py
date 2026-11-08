@@ -29,6 +29,7 @@ def site(d):
 
 
 @pytest.mark.with_killed  # (tests a feature switched off after failing on unseen data)
+@pytest.mark.tp15  # (written around the +15% target)
 def test_sell_half_then_the_rest():
     d = opened()
     pos = d.portfolio.position("BTC-USD")

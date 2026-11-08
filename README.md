@@ -515,6 +515,19 @@ Each one can be switched off on the bot floor (Pro view).
 | ⚖️ **Bull vs Bear Debate** | Before each buy, a bull and a bear argue from the trend on every timeframe, MACD, RSI, VWAP, ADX, Supertrend, OBV, the whales and Grok's chart read. | **-$44.83 / -$17.20** when it changed trades (mostly flat markets), so it's **show-only**: every buy is debated and you see the case, but trades aren't changed (`TZ_DEBATE=nudge` turns it back on) |
 | 🔀 **Rerouter** | A buy the exchange refused for a passing reason (busy, too many requests, nonce, funds still settling) or held back while cash was tied up in other buys is tried again 15 s later as a fresh signal, with every check run again. At most twice per coin in 30 min. Never retries sells, never uses margin; hard refusals (key can't trade, pair not listed) are explained, not retried. | $0 (practice replays have no refusals), on |
 
+### 🎯 Take-profit +6% after every fee (replayed against +4% ... +25%)
+
+Each target replayed on all coins, 16 windows per market, $500, against the old +15% (training / unseen half):
++4% -$14.47 / +$18.03 · **+6% +$10.10 / +$10.02** · +8% -$1.13 / +$7.98 · +10% -$1.00 / +$6.23 ·
++12% +$2.01 / +$2.06 · +20% -$4.60 / +$1.94 · +25% -$2.51 / +$3.34. Only +6% and +12% beat +15% on both halves;
+**+6% is the plan now** (the target always covers the buy and sell fees on top). Trades already open on the old
+automatic +15% moved to +6% once; a target set on a trade by hand stays.
+
+Making money faster, replayed the same way: closing a trade that's in profit after fees but going nowhere after
+**6 hours** (was 24; meme coins 3, was 6) +$0.67 / +$0.84 - **on**. Waiting 60 s at the maker price (was 20 s):
++$21.02 / -$33.93 - off. 6% risked a trade (was 4%): -$85.97 / -$85.90 (much more made in rising markets, much more
+lost in falling ones) - off. All of them together: -$70.46 / -$121.21.
+
 ### 🛡️ Rug Guard, falling markets, diversifying, DEX quick flips (replayed: 16 windows each, $500)
 
 * **🛡️ Rug Guard** (on, asked for): a held meme / DEX / smaller coin is sold at once on a strong rug sign (Kraken

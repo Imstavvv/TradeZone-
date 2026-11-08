@@ -262,7 +262,7 @@ class Settings:
     reinvest_share: float = 0.25
     # ---- moving take-profit: once a trade is 10% past its buy price, the target moves up instead of selling ----
     tp_step: bool = True
-    tp_step_pct: float = 0.15  # every +15% from the buy price (the take-profit): the target moves another 15% out...
+    tp_step_pct: float = 0.06  # every +6% from the buy price (the take-profit): the target moves another 6% out... (replayed: +6% won on both halves)
     tp_step_lock: float = 0.5  # ...and the stop locks in at least half of the step reached (+5% at +10%, +10% at +20%)
     # the take-profit is taken first (asked for: "+15%"): the steps start only once a trade has sold its share at the
     # target (a runner). True = the old way: past +15% the target moved out before it was ever reached - nothing sold
@@ -529,9 +529,9 @@ class Settings:
     # structure: beyond the recent swing low/high. atr: a fixed ATR multiple.
     stop_method: str = "percent"
     stop_loss_pct: float = 0.07  # meme coins: -7% stop-loss (was -8%)
-    take_profit_pct: float = 0.15  # meme coins: +15% take-profit
+    take_profit_pct: float = 0.06  # meme coins: +6% after every fee (replayed: beat +15% by +$10.10 training / +$10.02 unseen)
     major_stop_loss_pct: float = 0.03  # other coins and stocks: -3%
-    major_take_profit_pct: float = 0.15  # other coins and stocks: +15% (was +6%)
+    major_take_profit_pct: float = 0.06  # other coins and stocks: +6% after every fee (was +15%)
     # Runners: at the take-profit, sell runner_sell_fraction and let the rest run. Its stop moves
     # into profit (at least runner_lock_share of the target) and then trails the peak.
     runners: bool = False  # killed: failed on unseen data (see the README)
@@ -539,8 +539,8 @@ class Settings:
     runner_lock_share: float = 0.5
     # Quick flips: a trade that went nowhere for this long, but is in profit after fees, is closed
     # to free the slot for a better chance (losers are still left to their stop).
-    max_hold_hours: float = 24.0
-    meme_max_hold_hours: float = 6.0
+    max_hold_hours: float = 6.0  # (was 24 - replayed: +$0.67 training / +$0.84 unseen; frees cash sooner)
+    meme_max_hold_hours: float = 3.0
     # ---- Reporter: world & crypto news (public RSS feeds + Fear & Greed index, no account) ----
     news: bool = True
     news_alpaca: bool = True  # Alpaca accounts: its news service too (headlines tagged with their stocks / coins)

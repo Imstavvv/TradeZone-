@@ -41,6 +41,7 @@ def test_past_10_percent_the_target_moves_out_instead_of_selling(desk):
     assert pos.is_flat and trades[-1].pnl > 0 and trades[-1].exit_price >= entry * 1.085  # (sold on the pullback tick)
 
 
+@pytest.mark.tp15  # (written around the +15% target)
 def test_it_can_be_switched_off(desk):
     desk.settings.tp_step = False
     pos = open_trade(desk, "DOGE-USD", 0.2)

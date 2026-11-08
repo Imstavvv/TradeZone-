@@ -10,6 +10,7 @@ from tradezone.journal import Journal
 from tradezone.market.simulated import SimulatedFeed
 from tradezone.persistence import StateStore
 
+pytestmark = pytest.mark.tp15  # (the +15% migration itself)
 
 def make(db=":memory:", **kw):
     s = Settings(loser_cap=0.0, feed="sim", symbols=["BTC-USD", "ETH-USD", "DOGE-USD"], **kw)

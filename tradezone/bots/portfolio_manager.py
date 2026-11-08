@@ -409,7 +409,7 @@ class PortfolioBot(Bot):
 
     async def adopt_own_coins(self) -> list[str]:
         """The whole Kraken balance trades (asked for): coins you hold there outside the bots' trades become trades
-        the bots manage, from today's price (the -7% stop, the +15% target after fees). No order is sent - the
+        the bots manage, from today's price (the -7% stop, the +6% target after fees). No order is sent - the
         coins don't move. Staked coins, stablecoins, the hold stack and stack-only coins are left alone, and a coin
         the bots already have a trade in waits until that one is closed."""
         s, desk = self.settings, self.desk
