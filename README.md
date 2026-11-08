@@ -663,7 +663,7 @@ TZ_ALPACA_LIVE_SECRET=...
 TZ_LIVE_MAX_CAPITAL=500       # optional: bots trade at most $500 of the account
 ```
 
-Prices must be live (the default `TZ_FEED=auto` is). You must be logged in, and you type LIVE to confirm, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
+**One-tap real money (asked for).** The first time you go live, the dialog asks you to tick *I understand the risk*; after that, **Go LIVE switches at once** (on every device: the choice is saved on the server). Going back to practice money still asks first (it closes the real trades), anything blocking real money is still shown, and **Settings → Real-money switch** turns it back to asking every time. (The server still needs the confirmation word, which the page sends, so a script can't go live by accident.) Prices must be live (the default `TZ_FEED=auto` is). You must be logged in, and you type LIVE to confirm, so no access token is needed. If something is missing, the **Use real money** dialog says what in plain words, with a **Connect account** shortcut.
 
 ### Trading real money on Uphold
 

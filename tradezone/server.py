@@ -155,6 +155,10 @@ class TradePlanBody(BaseModel):
     target_pct: float | None = None  # e.g. 0.15 = 15% above, after fees
 
 
+class ToggleBody(BaseModel):
+    on: bool
+
+
 class ModeBody(BaseModel):
     mode: str
     confirm: str = ""
@@ -606,9 +610,19 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         return desk.journal.query(topic, limit)
 
     # -- paper / live switch -------------------------------------------------
+    def live_ack() -> bool:
+        return bool((desk.store.load("live_ack") or {}).get("on"))
+
     @app.get("/api/mode", dependencies=[Depends(check_token)])
     async def mode_check():
-        return _clean(await desk.mode_check())
+        return _clean({**await desk.mode_check(), "live_ack": live_ack()})
+
+    @app.post("/api/live-ack", dependencies=[Depends(check_token)])
+    async def set_live_ack(body: ToggleBody, request: Request):
+        """One-tap live (you understand the risk) - or ask every time again."""
+        desk.store.save("live_ack", {"on": bool(body.on)})
+        audit(request, "one-tap live switch " + ("on (risk understood)" if body.on else "off (ask every time)"), "warning")
+        return {"ok": True, "live_ack": bool(body.on)}
 
     @app.post("/api/mode", dependencies=[Depends(check_token)])
     async def switch_mode(body: ModeBody, request: Request):
@@ -843,7 +857,7 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
 
     @app.get("/api/fleet/{acct_id}/mode", dependencies=[Depends(check_token)])
     async def fleet_mode_check(acct_id: str):
-        return _clean(await fleet_desk(acct_id).mode_check())
+        return _clean({**await fleet_desk(acct_id).mode_check(), "live_ack": live_ack()})
 
     @app.post("/api/fleet/{acct_id}/mode", dependencies=[Depends(check_token)])
     async def fleet_mode(acct_id: str, body: ModeBody, request: Request):

@@ -1126,6 +1126,7 @@ var(--live)}
 .memecard .mrow{margin-top:4px}.memecard .mrow b{font-size:17px}.memecard .mpos{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .memecard .warn{color:var(--down);margin-top:4px}
 #setMemeUrl{width:100%;box-sizing:border-box;margin-top:6px;min-height:40px;font-size:15px}
+.liveack{display:flex;gap:10px;align-items:flex-start;margin-top:12px;font-size:14px;line-height:1.4}.liveack input{width:22px;height:22px;flex:none;margin-top:1px}
 </style>
 </head>
 <body>
@@ -1470,6 +1471,7 @@ var(--live)}
         <div class="scard" data-page="settings"><h4>🛡️ Your trading rules</h4>
           <div class="srow"><div class="ic">🛑</div><div class="tx"><b id="setNsTxt">Never sell at a loss</b><span id="setNsSub">A losing trade is held until it's back in profit after fees</span></div><button id="setNsBtn">Turn off</button></div>
           <div class="srow"><div class="ic">🛟</div><div class="tx"><b id="setLcTxt">Underwater cap: OFF</b><span id="setLcSub">Losing trades in other coins don't stop new buys</span></div><button id="setLcBtn">Turn on</button></div>
+          <div class="srow"><div class="ic">💵</div><div class="tx"><b id="setAckTxt">Real-money switch: ask every time</b><span id="setAckSub">Going live asks you to confirm first</span></div><button id="setAckBtn">One tap</button></div>
           <div class="srow"><div class="ic">🐸</div><div class="tx"><b>MemeCoin desk</b><span id="setMemeSub">Attach your MemeCoin desk to see it here (read-only: it keeps its own rules and trades on its own)</span>
             <input id="setMemeUrl" type="url" inputmode="url" placeholder="https://your-memecoin-desk.onrender.com" autocomplete="off"></div><button id="setMemeBtn">Attach</button></div>
           <div class="srow"><div class="ic">🧯</div><div class="tx"><b id="setLfTxt">Loss floor: ON (7%)</b><span id="setLfSub">A trade 7% below what was paid is sold, even with never-sell on</span></div><button id="setLfBtn">Turn off</button></div>
@@ -1777,21 +1779,30 @@ async function openLive(which){
     <div><div class="muted">Bots can use</div><b>${money(a.trading_capital)}</b>${c.live_max_capital ? '<div class="muted" style="font-size:11px">capped by TZ_LIVE_MAX_CAPITAL</div>' : ''}</div>
     <div><div class="muted">Auto-stop if down</div><b>-${pct(c.risk.max_daily_loss_pct,0)} day / -${pct(c.risk.max_drawdown_pct,0)} DD</b></div></div>
     <div class="muted small">Risk per trade ${pct(c.risk.risk_per_trade,1)} · max ${pct(c.risk.max_position_pct,0)} per position</div>` : '';
-  const confirmBox = c.blockers.length ? '' : `<div style="margin-top:12px">To make sure, type <b>LIVE</b></div><input id="liveWord" autocomplete="off" placeholder="LIVE">`;
+  if (!c.blockers.length && c.live_ack) {  // one tap (the risk understood, once): straight to real money
+    modal.classList.remove('open');
+    try { await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/mode` : '/api/mode', {mode: 'live', confirm: 'LIVE'}); toast('💵 Real money: on', 'ok'); }
+    catch { openLive(S.liveAcct); }
+    return;
+  }
+  const confirmBox = c.blockers.length ? '' : `<label class="liveack"><input id="liveAck" type="checkbox"> I understand the risk: real money can be lost. From now on one tap switches to real money (Settings can turn this back).</label>`;
   $('liveBody').innerHTML = blockers + acct + confirmBox;
   $('liveFlatten').style.display = c.blockers.some(b => /open paper position/.test(b)) ? '' : 'none';
   $('liveConnect').style.display = !S.liveAcct && c.blockers.some(b => /Linked accounts|Real-money account/.test(b)) ? '' : 'none';
   const who = S.liveAcct ? (S.state.accounts || []).find(r => r.id === S.liveAcct) : null;
   document.querySelectorAll('#liveModal .venueName').forEach(e => e.textContent = who ? `${who.label} (${who.venue_label})` : (S.accounts && S.accounts.broker && S.accounts.broker.label) || e.textContent);
-  const w = $('liveWord');
-  if (w){ w.focus(); w.oninput = () => $('liveGo').disabled = w.value.trim().toUpperCase() !== 'LIVE'; }
+  const w = $('liveAck');
+  if (w) w.onchange = () => { $('liveGo').disabled = !w.checked; };
 }
 $('liveFlatten').onclick = async () => { await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/control/flatten` : '/api/control/flatten', {reason:'switching to live'}); setTimeout(() => openLive(S.liveAcct), 1500); };
 $('liveGo').onclick = async () => {
   $('liveGo').disabled = true;
   const t = await confirmAction('switch to LIVE, real-money trading');
   if (t === null) { $('liveGo').disabled = false; return; }
-  try { await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/mode` : '/api/mode', {mode:'live', confirm: $('liveWord').value}, t); modal.classList.remove('open'); }
+  try {
+    if ($('liveAck') && $('liveAck').checked) await api('/api/live-ack', {on: true});
+    await api(S.liveAcct ? `/api/fleet/${S.liveAcct}/mode` : '/api/mode', {mode:'live', confirm: 'LIVE'}, t); modal.classList.remove('open');
+  }
   catch { openLive(S.liveAcct); }
 };
 $('btnMode').onclick = async () => {
@@ -2872,6 +2883,17 @@ function renderMeme(st){
     + (bad && !m.kill_switch ? `<div class="muted">⚠ ${esc(m.error || m.desk_error)}</div>` : '')
     + (!live && !bad ? `<div class="muted">${esc(m.status)}</div>` : '');
 }
+async function renderAck(){
+  try { const c = await api('/api/mode'); const on = !!c.live_ack;
+        $('setAckTxt').textContent = on ? 'Real-money switch: one tap' : 'Real-money switch: ask every time';
+        $('setAckSub').textContent = on ? 'You said you understand the risk: Go LIVE switches at once (going back to practice still asks)' : 'Going live asks you to confirm first';
+        $('setAckBtn').textContent = on ? 'Ask every time' : 'One tap'; $('setAckBtn').dataset.on = on ? '1' : ''; } catch {}
+}
+$('setAckBtn') && $('setAckBtn').addEventListener('click', async () => {
+  const on = !$('setAckBtn').dataset.on;
+  if (on && !await ask('One-tap real money?', 'Go LIVE will switch to real-money trading at once, without asking. Real money can be lost. (Going back to practice money still asks first.)', {ok: 'I understand the risk', danger: true})) return;
+  try { await api('/api/live-ack', {on}); toast(on ? 'Real-money switch: one tap' : 'Real-money switch: asks every time', 'ok'); renderAck(); } catch {}
+});
 $('accMeme') && $('accMeme').addEventListener('click', async () => {
   if (!await ask('Start a Meme desk?', "A bot team of its own that trades only meme coins, with the same rules as yours, on $1,000 of practice money (Kraken's live prices). It shows as its own account. For real money later, give it its own Kraken sub-account.", {ok: 'Start it'})) return;
   try { await api('/api/accounts/meme-desk', {}); toast('🐸 Meme desk started (practice money)', 'ok'); } catch {}
@@ -3711,6 +3733,7 @@ function showPage(pg, {push = true} = {}){
   window.scrollTo({top: 0});
   if (pg === 'trades' && S.state) { loadTrades(true); loadTrips(); }
   if ((pg === 'money' || S.view !== 'simple') && S.state) loadHoldings();  // (the Pro view shows every section)
+  if (pg === 'settings' && S.state) renderAck();  // (one-tap real money: on or off)
   if (S.state) render();
 }
 window.addEventListener('popstate', () => { if (S.view === 'simple') showPage(pageFromHash(), {push: false}); });
