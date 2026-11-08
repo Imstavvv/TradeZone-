@@ -379,6 +379,16 @@ class QuantBot(Bot):
         base = dict(WEIGHTS[regime])
         if regime is Regime.RANGING:
             base["mean_reversion"] = self.settings.mr_ranging_weight
+        if self.settings.size_aware_weights:  # research: big coins keep going (momentum), small ones snap back
+            big = self.settings.coin_size(s.symbol) == "large" and not self.settings.is_meme(s.symbol)
+            small = self.settings.coin_size(s.symbol) == "small" or self.settings.is_meme(s.symbol)
+            if big:
+                base["momentum"] *= 1.25
+                base["breakout"] *= 1.25
+                base["mean_reversion"] *= 0.75
+            elif small:
+                base["mean_reversion"] *= 1.5
+                base["momentum"] *= 0.75
         weights = {k: w * trust[k] for k, w in base.items()}
         score = sum(weights[k] * v for k, v in parts.items()) / sum(weights.values())
         self.scores[s.symbol] = {**every, **{f"family_{k}": v for k, v in parts.items()},  # type: ignore[dict-item]

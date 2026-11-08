@@ -358,6 +358,11 @@ class Settings:
     # the Meme desk (asked for): a bot team that trades only meme coins - its watch list is the meme coins (Kraken's
     # credible ones join as found) and any other coin is never bought there
     meme_only: bool = False
+    # size-aware strategy weights (research on thousands of coins: big, liquid coins show week-to-week momentum, small
+    # and illiquid ones short-term reversal): on BTC / ETH the trend and breakout models count more, on small and meme
+    # coins buying dips counts more. Off: the replays are built from stock / currency history, which can't show a
+    # crypto-specific size effect - so it can't be proven (or ruled out) here.
+    size_aware_weights: bool = False
     # a market-wide hourly downtrend: no new buys while more than this share of the watched coins have a falling
     # hourly trend (0 = off). Unlike the per-coin hourly filter, one coin dipping in a healthy market is still bought -
     # only a broad slide stops buying. Replayed (16 windows per market, tuning / unseen half), at 50% vs off: rising
