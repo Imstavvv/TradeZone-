@@ -1120,6 +1120,8 @@ Searched for, built off, then replayed against the current settings (16 windows 
 | **Partial sells for other buys**: when the cash is out, part of a trade in profit after fees pays for a new buy (`TZ_ROTATE_FOR_BUYS`) | same | about the same | same | **on** (asked for): it rarely comes up |
 | Chandelier exit: the trailing stop follows the high by 20 or 40 average moves (`TZ_TRAIL_ATR_MULT`, with `TZ_TRAILING_STOP`) | +$813 / +$483 | −$763 / −$642 | −$159 / −$222 | off: a little worse |
 
+**Size-aware strategy weights** (`TZ_SIZE_AWARE_WEIGHTS`, off): studies of thousands of coins find week-to-week momentum in big, liquid coins and short-term reversal in small, illiquid ones, so on BTC / ETH the trend and breakout models count more, and on small and meme coins buying dips does. The replays are built from stock and currency history, which can't show a crypto-only effect: there it came out neutral (within about $13 in every market: rising +$762 / +$477, falling −$367 / −$310, sideways −$81 / −$183 vs +$769 / +$464, −$357 / −$308, −$88 / −$175), so it stays off until real crypto history can test it.
+
 Volatility targeting comes from time-series momentum research, where scaling positions by volatility is a main source of the better risk-adjusted returns; the Volatility Sizer (off) only compared a coin with its own history.
 
 ### 🗳️ 6 bots must agree on every strategy buy and sell
