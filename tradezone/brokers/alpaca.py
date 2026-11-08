@@ -166,7 +166,9 @@ class AlpacaBroker(Broker):
             r.raise_for_status()
             a = r.json()
             self.day_trades = int(a.get("daytrade_count") or 0)  # day trades in the last 5 trading days
-            return {"cash": float(a["cash"]), "equity": float(a["equity"]), "daytrade_count": self.day_trades,
+            # never margin funds (asked for): negative cash is a margin loan, and buying power includes borrowing -
+            # the bots only ever use the cash the account really holds
+            return {"cash": max(0.0, float(a["cash"])), "equity": float(a["equity"]), "daytrade_count": self.day_trades,
                     "pattern_day_trader": bool(a.get("pattern_day_trader"))}
         except Exception as exc:
             log.warning("alpaca account fetch failed: %s", exc)

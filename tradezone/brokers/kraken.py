@@ -88,6 +88,8 @@ class KrakenBroker(Broker):
     async def _private(self, method: str, **params) -> dict:
         if method not in ALLOWED_PRIVATE:  # layer 1: this adapter can never move money off Kraken
             raise KrakenError(f"refused: TradeZone never calls Kraken '{method}'")
+        if method == "AddOrder" and (params.get("leverage") or params.get("margin") or params.get("reduce_only")):
+            raise KrakenError("refused: TradeZone never trades on margin")  # (spot only: never borrowed money)
         path = f"/0/private/{method}"
         # One private call at a time: Kraken rejects a nonce lower than the last one it saw, so two calls
         # overlapping (the bots' order + the balance check) could arrive out of order and lose an order.
@@ -247,8 +249,9 @@ class KrakenBroker(Broker):
         free = {}
         for k, v in raw.items():
             if isinstance(v, dict):
-                free[k] = float(v.get("balance") or 0) + float(v.get("credit") or 0) - float(v.get("credit_used") or 0) \
-                    - float(v.get("hold_trade") or 0)
+                # never margin funds (asked for): a credit line isn't the account's money, and what's borrowed on it
+                # (credit_used) isn't free either - only the balance you own, less what open orders hold
+                free[k] = float(v.get("balance") or 0) - float(v.get("credit_used") or 0) - float(v.get("hold_trade") or 0)
         out = self._fold({k: v for k, v in free.items() if not k.endswith(self.LOCKED_SUFFIXES)})
         self._avail_cache = (time.time(), out)
         return out

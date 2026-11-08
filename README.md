@@ -353,6 +353,7 @@ The site controls real money, so it's locked down in layers. Each is tested in `
 | Malicious websites acting as you (CSRF, WebSocket hijacking) | State-changing requests and live connections from another site are refused (Origin check), and the cookie is never sent cross-site. |
 | Clickjacking (your dashboard hidden inside another page) | `frame-ancestors 'none'` and `X-Frame-Options: DENY`. |
 | Injected scripts (XSS) | A strict Content-Security-Policy with a per-request nonce: only TradeZone's own script runs. All displayed data is escaped. |
+| Trading on margin (borrowed money) | Never. Kraken is used spot-only: an order carrying leverage or margin settings is refused before it leaves the server; the free-cash check before each order ignores any credit line and subtracts what's borrowed on it; on Alpaca, only the cash the account holds counts (never buying power, and negative cash, a margin loan, counts as none). |
 | Flooding / denial of service | 600 requests per minute per IP (`TZ_RATE_LIMIT_PER_MIN`), a 64 KB request size limit, at most 6 live connections per IP (60 total), capped concurrency and short keep-alives. |
 | Unknown networks | Optional firewall allowlist: `TZ_ALLOWED_IPS=203.0.113.7,198.51.100.0/24` lets only those addresses in. The platform health check still works. |
 | Spoofed IP addresses | Forwarded-for headers are only trusted from the hosting proxy (`TZ_TRUSTED_PROXIES`, set automatically on Render). |
