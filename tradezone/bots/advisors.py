@@ -26,6 +26,35 @@ from .quant import momentum_score
 NEUTRAL: tuple[str | None, float, float] = (None, 0.0, 1.0)
 
 
+def buy_area(snap) -> str | None:
+    """Is the price at a good place to buy in a falling market? The reason if so (else None):
+    oversold (RSI 35 or under, on the bars or the hourly chart), the bottom fifth of its daily range, or sitting on
+    support (within 1% of the recent swing low or the 20-bar low)."""
+    if snap is None:
+        return None
+    ind, px = snap.indicators, snap.price
+    if (r := ind.get("rsi")) is not None and r <= 35:
+        return f"oversold (RSI {r:.0f})"
+    if (h := ind.get("tf_1h_rsi")) is not None and h <= 35:
+        return f"oversold on the hourly chart (RSI {h:.0f})"
+    if (rp := ind.get("tf_1d_range_pos")) is not None and ind.get("tf_1d_candles", 0) >= 5 and rp <= 0.2:
+        return f"in the bottom fifth of its daily range ({rp:.0%})"
+    for key, name in (("swing_low", "the recent swing low"), ("donchian_low", "the 20-bar low")):
+        if (lv := ind.get(key)) and px > 0 and lv * 0.995 <= px <= lv * 1.01:
+            return f"on support ({name})"
+    return None
+
+
+def falling_buy_ok(settings, snap) -> tuple[bool, str]:
+    """In a falling market: may this buy go ahead? ``falling_buys``: block (no) | areas (only at a buy area) | all."""
+    mode = getattr(settings, "falling_buys", "block")
+    if mode == "all":
+        return True, "falling market, buying anyway (smaller)"
+    if mode == "areas" and (why := buy_area(snap)):
+        return True, f"falling market, but a good buy area: {why}"
+    return False, ""
+
+
 class Advisor(Bot):
     advisor = True
 
@@ -76,6 +105,10 @@ class WeatherBot(Advisor):
         if not self.settings.is_crypto(sig.symbol) or sig.symbol.upper().startswith("BTC") or len(self.btc) <= self.BARS:
             return NEUTRAL
         if sig.side is Side.BUY and self.change <= self.drop_limit():
+            ok, _ = falling_buy_ok(self.settings, snap)
+            if ok:  # (a buy area in a falling market: bought, smaller)
+                self.bump("falling_buys_allowed")
+                return None, -0.03, 0.7
             return f"Bitcoin is falling ({self.change:+.1%} in {self.BARS} bars) - other coins usually follow", 0, 1
         if sig.side is Side.BUY and self.change >= self.RISE:
             return None, 0.03, 1.1

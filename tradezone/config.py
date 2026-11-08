@@ -369,6 +369,9 @@ class Settings:
     # +$744 / +$446 (the same), falling -$356 / -$308 vs -$642 / -$589, sideways -$94 / -$156 vs -$106 / -$192 -
     # as good or better in every market on both halves. (60%: -$364 / -$353 falling, worse sideways; 70% likewise.)
     market_down_share: float = 0.5
+    # buys while the market falls: block (none) | areas (only at a good buy area - oversold, the bottom of the
+    # daily range, on support - at 0.7x size) | all (every buy, at 0.7x size)
+    falling_buys: str = "block"
     rotate_max_share: float = 0.5
     consensus_bots: int = 6
     listing_scan_s: float = 60.0  # the New Listings bot reads Kraken's pair list this often (new tokens join)

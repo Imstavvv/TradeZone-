@@ -19,6 +19,7 @@ from ..core.models import (
 )
 from ..core.stops import StopRejected, plan_stop
 from ..core.util import is_closing, round_qty
+from .advisors import falling_buy_ok
 from .base import Bot
 
 
@@ -267,8 +268,14 @@ class RiskBot(Bot):
             return self.reject(sig, "trading paused")
         if sig.side is Side.BUY and s0_meme_only(self.settings) and not self.settings.is_meme(sig.symbol):
             return self.reject(sig, f"the Meme desk trades meme coins only - {sig.symbol} isn't one")
+        falling_mult = 1.0
         if sig.side is Side.BUY and not sig.force and (why := self.market_down_block()):
-            return self.reject(sig, why)
+            ok, note = falling_buy_ok(self.settings, self.snapshots.get(sig.symbol))
+            if not ok:
+                return self.reject(sig, why)
+            falling_mult = 0.7  # (bought in a falling market: smaller)
+            self.bump("falling_buys_allowed")
+            sig.reason = f"{sig.reason}; {note}"
         if sig.side is Side.BUY and not sig.force and (why := self.mtf_block(sig.symbol)):
             return self.reject(sig, why)
         if sig.side is Side.BUY and not sig.force and (why := self.falling_block(sig.symbol)):
@@ -420,6 +427,7 @@ class RiskBot(Bot):
         if flipper is not None:  # ⏱️ bigger in proven good hours, smaller in proven bad ones
             risk_budget *= flipper.size_mult()
         risk_budget *= advice_mult  # what the advisors made of it
+        risk_budget *= falling_mult  # (a buy in a falling market: smaller)
         if s.vol_target:  # equal risk across coins: calmer ones bigger, wilder ones smaller (research: vol targeting)
             vols = [x.indicators.get("volatility") or 0.0 for x in self.snapshots.values()]
             vols = sorted(v for v in vols if v > 0)
