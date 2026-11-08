@@ -121,4 +121,4 @@ def test_a_market_wide_hourly_downtrend_stops_new_buys_one_falling_coin_doesnt()
     d.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.95, "t", "quant"))
     run(d.bus.drain())
     assert d.portfolio.position("BTC-USD").qty > 0
-    assert Settings().market_down_share == 0.0  # (off until tested)
+    assert Settings().market_down_share == 0.5  # (on: it did as well or better in every market on both halves)

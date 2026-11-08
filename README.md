@@ -1078,6 +1078,17 @@ So these are now **off** (each can be switched back on): the trailing stop (on i
 
 What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
 
+### 🌊 No new buys while most of the market falls
+
+When more than half of the watched coins are in a falling hourly trend, the bots wait with new buys until the market turns (`TZ_MARKET_DOWN_SHARE=0.5`; 0 turns it off). One coin dipping in a healthy market is still bought: only a broad slide stops buying. Replayed on real price history (16 windows per market, tuning / unseen half), it did as well or better in **every market on both halves**:
+
+| | Rising | Falling | Sideways |
+| --- | --- | --- | --- |
+| Without | +$744 / +$446 | −$642 / −$589 | −$106 / −$192 |
+| **With (50%)** | **+$744 / +$446** | **−$356 / −$308** | **−$94 / −$156** |
+
+(Waiting until 60% or 70% of the coins fall helped less when prices fell and lost more sideways.) The replays' coins move together more than real ones might; crypto does tend to fall together, which is what this relies on.
+
 ### 📋 How it measures up (studied: the most profitable accounts)
 
 The Trades tab shows the account's record measured the way copy-trading leaderboards judge accounts, with the ranges their most profitable accounts sit in: **track record** (judged on 6 months or more), **trades won** (55–65% is healthy; over 80% can hide risk), **biggest drop** (under 20%; over 30% is a red flag), **longest recovery** back to a high (6 months or more is a warning sign), **profit factor** (what was won ÷ what was lost: 1.5 or more) and **reward vs risk** (average win against average loss: 1.5 or more). The drop and the recovery are measured on the profit, over the whole history, so a deposit or withdrawal isn't counted as a gain or a drop. (The evidence behind those ranges is mostly exchanges' own studies of their copy-trading leaders - a guide, not a promise.)
