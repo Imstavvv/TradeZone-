@@ -472,7 +472,9 @@ class Settings:
     smart_money_tape: bool = True  # read the exchange's own recent trades for the coins about to be bought
     # 👁️ Chart Vision: a candle chart picture sent to xAI's Grok (needs the Grok key) - nudge | veto | off
     chart_vision: str = "nudge"
-    chart_vision_local: bool = False  # the built-in chart reader (no key needed) - off until its replay test is in
+    # the built-in chart reader (no key needed) changing trades: off - replays lost money (1h: -$2.93 training,
+    # -$3.51 unseen; 15m: -$9.94 / +$8.26). Its read is still shown (the Read sheet, the Debate).
+    chart_vision_local: bool = False
     chart_vision_frame: str = "1h"  # the timeframe drawn: 15m | 1h | 4h | 1d
     chart_vision_per_hour: int = 30  # (each look is a paid xAI request: at most this many an hour)
     grok_vision_model: str = ""  # (empty: the same Grok model as the reviews; grok-4 reads pictures)
