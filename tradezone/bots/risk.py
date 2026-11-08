@@ -22,6 +22,9 @@ from ..core.util import is_closing, round_qty
 from .base import Bot
 
 
+def s0_meme_only(settings) -> bool:
+    return bool(getattr(settings, "meme_only", False))
+
 class RiskBot(Bot):
     name = "risk"
     title = "Risk Manager"
@@ -262,6 +265,8 @@ class RiskBot(Bot):
             return self.reject(sig, f"kill switch active ({self.desk.halt_reason})")
         if self.desk.paused:
             return self.reject(sig, "trading paused")
+        if sig.side is Side.BUY and s0_meme_only(self.settings) and not self.settings.is_meme(sig.symbol):
+            return self.reject(sig, f"the Meme desk trades meme coins only - {sig.symbol} isn't one")
         if sig.side is Side.BUY and not sig.force and (why := self.market_down_block()):
             return self.reject(sig, why)
         if sig.side is Side.BUY and not sig.force and (why := self.mtf_block(sig.symbol)):

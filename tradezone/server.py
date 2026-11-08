@@ -431,6 +431,17 @@ def create_app(desk: TradingDesk, run_desk: bool = True) -> FastAPI:
         except KeyError:
             raise HTTPException(404, "no such account") from None
 
+    @app.post("/api/accounts/meme-desk", dependencies=[Depends(check_token)])
+    async def meme_desk(request: Request):
+        """Start the Meme desk: TradeZone's own bot team for meme coins only (practice money)."""
+        from .fleet import FleetError
+        try:
+            row = desk.fleet.add_meme_desk()
+        except FleetError as exc:
+            raise HTTPException(400, str(exc)) from None
+        audit(request, "started the Meme desk", "info")
+        return _clean({"ok": True, "account": row})
+
     @app.post("/api/memedesk", dependencies=[Depends(check_token)])
     async def memedesk(body: MemeDeskBody, request: Request):
         """Attach the MemeCoin desk by its address (read-only), or detach it with an empty one."""

@@ -96,12 +96,25 @@ class AccountFleet:
         d.security = getattr(self.main, "security", None)  # type: ignore[attr-defined]  # same owner sign-in
         return d
 
+    def _meme_settings(self, s):
+        """A Meme desk's team: meme coins only, the credible ones on Kraken joining as they're found."""
+        s.meme_only = True
+        s.kraken_all_coins = False  # (only the meme coins, not every coin on Kraken)
+        s.kraken_memes = True
+        s.focus_small_coins = False  # (no small-coin ladder: the meme coins are the list)
+        s.stack = False  # (no hold stack on the Meme desk)
+        s.symbols = [f"{c}-USD" for c in s.meme_coins]
+        return s
+
     def _open(self, meta: dict) -> TradingDesk:
         journal = Journal(self._db_path(meta["id"]))
         _table(journal)
         row = journal.one("SELECT data FROM linked_accounts WHERE kind = ?", (f"{meta['venue']}_live",))
         creds = json.loads(row[0]) if row else None
-        d = self.make_desk(self._settings(meta["venue"], creds), journal)
+        s = self._settings(meta["venue"], creds)
+        if meta.get("meme_only"):
+            s = self._meme_settings(s)
+        d = self.make_desk(s, journal)
         d.account_id = meta["id"]  # type: ignore[attr-defined]
         d.account_label = meta["label"]  # type: ignore[attr-defined]
         self._forward_alerts(d)
@@ -213,6 +226,32 @@ class AccountFleet:
         for s in [self.main.settings, *(d.settings for d in self.desks.values())]:
             out |= {k for k in (s.kraken_key, s.alpaca_live_key, s.uphold_token) if k}
         return out
+
+    MEME_LABEL = "🐸 Meme desk"
+
+    def add_meme_desk(self, cash: float = 1_000.0) -> dict:
+        """The Meme desk: a bot team of its own that trades only meme coins, on practice money with Kraken's live
+        prices. (Real money: give it its own Kraken sub-account - two teams on one balance would trip over each other.)"""
+        self.load()
+        for acct_id, meta in self.meta.items():
+            if meta.get("meme_only"):
+                return self.row(acct_id)  # (there's one already)
+        if len(self.desks) >= MAX_EXTRA:
+            raise FleetError(f"Up to {MAX_EXTRA} extra accounts can trade at the same time.")
+        acct_id = secrets.token_hex(4)
+        meta = {"id": acct_id, "venue": "kraken", "label": self.MEME_LABEL, "meme_only": True, "added_at": time.time()}
+        s = self._meme_settings(self._settings("kraken", None))
+        s.starting_cash = max(10.0, float(cash))
+        d = self.make_desk(s, Journal(self._db_path(acct_id)))
+        d.account_id, d.account_label = acct_id, meta["label"]  # type: ignore[attr-defined]
+        self._forward_alerts(d)
+        self.desks[acct_id], self.meta[acct_id] = d, meta
+        self.main._save_account_row(f"extra:{acct_id}", meta)
+        if self.main.running:
+            self._run(acct_id)
+        self.main.bus.publish("alert", Alert("info", f"{self.MEME_LABEL} started: its own bot team, meme coins only, "
+                                                     f"${s.starting_cash:,.0f} of practice money", "fleet"))
+        return self.row(acct_id)
 
     async def add(self, venue: str, key: str, secret: str = "", label: str = "") -> dict:
         """Check the account (trading only, never withdrawals) and give it its own bot team."""

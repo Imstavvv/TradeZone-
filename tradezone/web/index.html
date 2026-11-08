@@ -1430,7 +1430,7 @@ var(--live)}
         <div class="muted note">No setting can promise profit. This is the path that loses least while you find out whether the bots make money on real markets: practise, start small, keep the settings that tested best, check each week, take profits out.</div></div>
       <div class="scard full" data-page="home money" id="sec-accounts"><h4>🏦 Your accounts <span class="muted small" id="accTotals"></span></h4>
         <div id="accList" class="acclist"></div>
-        <div class="btnrow"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
+        <div class="btnrow"><button id="accAdd" class="gopaper">+ Link another account</button><button id="accMeme">🐸 Start a Meme desk</button><button id="accStopAll" class="danger" style="display:none">Stop all accounts</button></div>
         <div class="muted note">Each account has its own bot team and trades only its own balance, all at the same time. A loss limit or a stop in one account never touches another. The bots can never withdraw from any of them.</div></div>
       <div class="scard full" data-page="money" id="sec-holdings" hidden><h4>🏦 Everything in your exchange account <a id="holdRefresh" href="#" role="button">Refresh</a></h4>
         <div id="holdings"></div>
@@ -2872,6 +2872,10 @@ function renderMeme(st){
     + (bad && !m.kill_switch ? `<div class="muted">⚠ ${esc(m.error || m.desk_error)}</div>` : '')
     + (!live && !bad ? `<div class="muted">${esc(m.status)}</div>` : '');
 }
+$('accMeme') && $('accMeme').addEventListener('click', async () => {
+  if (!await ask('Start a Meme desk?', "A bot team of its own that trades only meme coins, with the same rules as yours, on $1,000 of practice money (Kraken's live prices). It shows as its own account. For real money later, give it its own Kraken sub-account.", {ok: 'Start it'})) return;
+  try { await api('/api/accounts/meme-desk', {}); toast('🐸 Meme desk started (practice money)', 'ok'); } catch {}
+});
 $('setMemeBtn') && $('setMemeBtn').addEventListener('click', async () => {
   const attached = S.state && S.state.memedesk, url = attached ? '' : ($('setMemeUrl').value || '').trim();
   if (!attached && !url) { toast("Paste the MemeCoin desk's address first", 'warn'); return; }

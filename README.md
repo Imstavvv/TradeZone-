@@ -1080,6 +1080,12 @@ So these are now **off** (each can be switched back on): the trailing stop (on i
 
 What passed and stays: the profit-only rule for "change of mind" sales (without it −$387), pullbacks (−$92), OBV (−$84), the Big-Picture Trend (−$65), maker entries (−$62), the Levels bot (−$48), the comeback-close fee rule, MFI, and the other advisors. Rules you set aren't "ideas" and weren't killed: never selling at a loss, the −7% / +15% plan, stops in profit covering all costs (its own number: +$54 without it), the trade sizes and no withdrawals.
 
+### 🐸 The Meme desk (TradeZone's own bots, meme coins only)
+
+**Money → 🐸 Start a Meme desk** starts a second bot team of its own that trades **only meme coins**: DOGE, SHIB, PEPE, BONK, WIF, FLOKI and every credible meme coin Kraken lists (trading $250,000+ a day), with the same rules as your main team (the −7% stop, +15% after fees, the meme-coin sizing, the market-wide downtrend guard, every safety check). Any other coin is never bought there. It starts on **$1,000 of practice money** with Kraken's live prices and shows as its own account tab (its own balance, trades, buttons). One Meme desk at a time; remove it like any account.
+
+For real money later, give it **its own Kraken sub-account** (Kraken offers them) and link that: two bot teams on one balance would trip over each other's records, which is why every linked account needs its own key.
+
 ### 🐸 The MemeCoin desk, attached
 
 Your [MemeCoin desk](https://github.com/Imstavvv/MemeCoinz-) (on-chain memecoins found on DexScreener, its own scam filter, momentum entries and risk limits) can be attached in **Settings → MemeCoin desk**: paste its address (for example its Render web service, `https://….onrender.com`). Home then shows a 🐸 card with its balance, profit, record (won of closed) and open positions, read from its status page (`/api/state`) about every 30 seconds; a kill switch tripped there, or the desk being unreachable, is said on the card.

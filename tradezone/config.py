@@ -355,6 +355,9 @@ class Settings:
     # that sale has filled. Never-sell-at-a-loss and "profit-taking covers all costs" still hold. Replayed: about the
     # same as without (it rarely comes up: cash runs out while a trade is in profit after fees). On, as asked.
     rotate_for_buys: bool = True
+    # the Meme desk (asked for): a bot team that trades only meme coins - its watch list is the meme coins (Kraken's
+    # credible ones join as found) and any other coin is never bought there
+    meme_only: bool = False
     # a market-wide hourly downtrend: no new buys while more than this share of the watched coins have a falling
     # hourly trend (0 = off). Unlike the per-coin hourly filter, one coin dipping in a healthy market is still bought -
     # only a broad slide stops buying. Replayed (16 windows per market, tuning / unseen half), at 50% vs off: rising
