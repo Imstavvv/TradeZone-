@@ -628,6 +628,15 @@ The busiest that **your exchange lists** are plugged into the watchlist with the
 
 "Always sell before the price drops" isn't something any bot can promise: no one knows the next move. What the bots do is cut a meme coin early when momentum turns down on heavy volume, lock in profit once a trade is up, and stop for the day after a bad one.
 
+### DEX tokens on Kraken
+
+Kraken's own **DEX trading** (on-chain swaps from a built-in wallet in the Kraken app and Kraken Pro web) has no
+trading API, so no bot - TradeZone's or anyone's - can place those swaps through Kraken. What the bots *do* trade is
+every DEX-born token Kraken lists as a regular spot pair against USD: up to 1,000 coins, each with enough daily
+trading to be sold again ($250k+). Kraken's pair list is read again **every 30 minutes**, so a token Kraken lists
+after start-up joins the watch list on its own (an alert names it) - no restart needed. Nothing is ever sent
+on-chain, and no wallet key is ever held.
+
 ### Kraken's meme coins
 
 With a Kraken account (and `TZ_FEED=auto`, the default), prices come from **Kraken itself**, so every coin the bots can buy there has a price, and practice matches real money. At start-up TradeZone reads Kraken's list of USD pairs and:

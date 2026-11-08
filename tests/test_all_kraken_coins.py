@@ -13,10 +13,9 @@ from tradezone.market.kraken import KrakenFeed, fetch_quotes
 
 def kraken(coins: dict[str, float], calls: list | None = None):
     """A public Kraken listing these coins against USD, each trading this many dollars a day."""
-    pairs = {f"{c}USD": {"altname": f"{c}USD", "wsname": f"{c}/USD", "base": c} for c in coins}
-
     def handler(req):
-        if req.url.path.endswith("AssetPairs"):
+        if req.url.path.endswith("AssetPairs"):  # (read live: a coin added to ``coins`` is a new listing)
+            pairs = {f"{c}USD": {"altname": f"{c}USD", "wsname": f"{c}/USD", "base": c} for c in coins}
             return httpx.Response(200, json={"error": [], "result": pairs})
         if calls is not None:
             calls.append(req.url.params.get("pair", ""))
@@ -117,3 +116,33 @@ def test_small_caps_down_to_the_sell_checks_bar_are_traded_and_memes_keep_the_me
     assert symbols == ["BTC-USD", "SMALL-USD", "PNUT-USD"]  # (DUST trades too little to sell again)
     assert "PNUT" in memes and "SMALL" not in memes  # the meme coin is still treated as one
     run(feed.client.aclose())
+
+
+def test_tokens_kraken_lists_after_start_up_join_on_the_next_scan():
+    """New DEX-born tokens land on Kraken all the time: the pair list is read again every 30 minutes."""
+    coins = {"BTC": 9e9, "AAVE": 5e7}
+    symbols = ["BTC-USD"]
+    feed = KrakenFeed(symbols, client=kraken(coins), min_meme_volume_usd=1e6, all_coins=True)
+    run(feed.start())
+    assert symbols == ["BTC-USD", "AAVE-USD"]
+    coins.update({"NEWDEX": 4e6, "THINDEX": 5e3})  # (Kraken lists two more; one barely trades)
+    joined = run(feed.rescan())
+    assert joined == ["NEWDEX-USD"] and symbols[-1] == "NEWDEX-USD" and feed.new_listings == ["NEWDEX-USD"]
+    assert run(feed.rescan()) == []  # (nothing new: nothing added)
+    run(feed.client.aclose())
+
+
+def test_the_desk_says_when_new_listings_join():
+    from tradezone.market.simulated import SimulatedFeed
+    s = Settings(feed="sim", symbols=["BTC-USD"])
+    d = TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(":memory:"))
+    d.feed.new_listings = ["NEWDEX-USD"]
+    got = []
+    d.bus.subscribe("alert", lambda e: got.append(e.payload.message), owner="t")
+    run(d.step())
+    run(d.bus.drain())
+    assert any("Newly listed on Kraken" in m and "NEWDEX" in m for m in got) and d.feed.new_listings == []
+
+
+def test_up_to_a_thousand_kraken_coins():
+    assert Settings().max_kraken_coins == 1000

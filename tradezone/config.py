@@ -371,7 +371,7 @@ class Settings:
     market_down_share: float = 0.5
     rotate_max_share: float = 0.5
     consensus_bots: int = 6
-    max_kraken_coins: int = 600
+    max_kraken_coins: int = 1000  # (every coin Kraken lists against USD - newly listed DEX-born tokens included)
     # small caps too (asked for: "small cap coins and any coin"): a coin is listed once it trades this much a day - the
     # same bar the sell check uses (was $1M), so whatever is listed can be sold again. Every buy still has to pass
     # that check (bid/ask gap under 1.5%, $250k a day, a position at most 1% of a day's trading).

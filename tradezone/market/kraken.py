@@ -150,6 +150,7 @@ async def fetch_quotes(client: httpx.AsyncClient, pairs: dict[str, dict], symbol
 class KrakenFeed(MarketFeed):
     name = "kraken"
     POLL_EVERY_S = 2.0
+    RESCAN_EVERY_S = 1800.0  # Kraken's pair list read again: tokens listed since start-up join (DEX tokens too)
     HISTORY_GAP_S = 1.05  # between price-history requests
 
     async def last_prices(self, symbols: list[str]) -> dict[str, float]:
@@ -184,6 +185,9 @@ class KrakenFeed(MarketFeed):
         self._history_lock = asyncio.Lock()
         self._history_at = 0.0
         self._vol_today: dict[str, float] = {}
+        self._scanned_at = time.monotonic()
+        self._scan_task: asyncio.Task | None = None
+        self.new_listings: list[str] = []  # coins Kraken listed after start-up that joined the watch list
 
     async def start(self) -> None:
         try:
@@ -199,6 +203,28 @@ class KrakenFeed(MarketFeed):
         await self.discover_memes()
         await self.discover_small()
         await self.discover_all()
+
+    async def rescan(self) -> list[str]:
+        """Kraken's pair list again: tokens it listed since start-up (new DEX-born tokens land on Kraken often)
+        join the watch list - under the same rules as every coin (enough daily trading to be sold again)."""
+        try:
+            pairs = await fetch_pairs(self.client)
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            self.last_error = f"pairs: {type(exc).__name__}: {exc}"[:200]
+            return []
+        listed = [p for p in pairs if p not in self.pairs]
+        self.pairs.update(pairs)
+        if not listed:
+            return []
+        before = set(self.symbols)
+        await self.discover_memes()
+        await self.discover_small()
+        await self.discover_all()
+        joined = [x for x in self.symbols if x not in before]
+        self.new_listings.extend(joined)
+        if joined:
+            log.info("kraken: %d newly listed coins joined: %s", len(joined), ", ".join(joined[:10]))
+        return joined
 
     async def discover_small(self) -> list[str]:
         """Add smaller altcoins Kraken lists against USD that trade enough to be sold again (busiest first)."""
@@ -288,6 +314,9 @@ class KrakenFeed(MarketFeed):
             return []
         self.quotes.update(quotes)
         self.last_error = ""
+        if t - self._scanned_at >= self.RESCAN_EVERY_S and (self._scan_task is None or self._scan_task.done()):
+            self._scanned_at = t
+            self._scan_task = asyncio.ensure_future(self.rescan())  # (in the background: never slows prices)
         ticks = []
         for s, q in quotes.items():
             if q["last"] <= 0:
