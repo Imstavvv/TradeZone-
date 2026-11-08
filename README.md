@@ -528,6 +528,13 @@ Making money faster, replayed the same way: closing a trade that's in profit aft
 +$21.02 / -$33.93 - off. 6% risked a trade (was 4%): -$85.97 / -$85.90 (much more made in rising markets, much more
 lost in falling ones) - off. All of them together: -$70.46 / -$121.21.
 
+### ↩️ Never buy a falling coin with no turnaround (asked for)
+
+A coin in its own downtrend (the hourly trend down), and any falling-market buy at a buy area, is bought only once
+it turns up: back above its short-term average with its 5-minute candle rising (`TZ_FALLING_COIN_TURN`). Replayed
+(16 windows a market, $500): rising +$0.38 / +$0.52, falling **+$84.74 / +$26.29**, sideways +$8.62 / +$21.65 -
+**+$93.74 training / +$48.46 unseen**. On.
+
 ### ✅ Surer buys: conviction 0.5 and three voting families (asked for: "buy what will win")
 
 No setting wins every trade. Stricter buy rules were replayed on the +6% plan (16 windows a market, $500;
