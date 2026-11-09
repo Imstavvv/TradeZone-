@@ -308,6 +308,9 @@ class Settings:
     # replayed +$43.95 training / -$19.04 unseen (+$24.91 over both; the unseen loss was in sideways markets);
     # nudge +$1.93 / -$23.45; only -$507.68 / -$344.04 (the replays have one DEX-type coin, DOGE, standing in).
     dex_focus: str = "size"
+    # only coins a trade buys hundreds / thousands of (asked for): a buy that gets fewer coins than this is skipped
+    # (0 = off). On a $500 account 100 means coins under about $2.50 - DOGE, XRP, SHIB, PEPE, BONK, ...
+    min_coin_units: float = 0.0
     small_focus_nudge: float = 0.05
     small_focus_size: float = 1.25
     new_coin_days: float = 7.0

@@ -523,6 +523,10 @@ class RiskBot(Bot):
         qty = self._round_qty(qty, price)
         if qty <= 0:
             return self.reject(sig, "insufficient capital / exposure room")
+        if s.min_coin_units > 0 and sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s.is_crypto(sig.symbol) \
+                and qty < s.min_coin_units:  # (only coins a trade buys hundreds / thousands of: low-priced coins)
+            return self.reject(sig, f"{sig.symbol}: this trade buys only {qty:g} coins - only coins where it buys "
+                                    f"{s.min_coin_units:,.0f}+ are traded")
 
         # small accounts: a buy just under the venue's minimum order is rounded UP to it, if that stays inside
         # the position cap and risks at most 1.5x a normal trade (else it'd be unsellable dust: skipped below)
