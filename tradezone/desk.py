@@ -1301,7 +1301,8 @@ class TradingDesk:
         "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07,
         # (replayed since: +6% after fees, runners, stale winners closed after 6 h, the turnaround rule, Pump Sniper)
         "take_profit_pct": 0.06, "major_take_profit_pct": 0.06, "tp_step_pct": 0.06, "runners": True,
-        "max_hold_hours": 6.0, "meme_max_hold_hours": 3.0, "falling_coin_turn": True, "pump_sniper": True}
+        "max_hold_hours": 6.0, "meme_max_hold_hours": 3.0, "falling_coin_turn": True, "pump_sniper": True,
+        "mtf_filter": "weak", "entry_min_rsi": 60.0, "entry_min_adx": 15.0, "max_skims": 0}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()

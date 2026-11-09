@@ -336,7 +336,14 @@ class Settings:
     # -$829 / -$779 falling, -$136 / -$236 sideways): 1h +$689 / +$327, -$456 / -$531, -$203 / -$335; align
     # +$683 / +$286, -$527 / -$445, -$146 / -$293; 4h no change (too few 4h candles in a replay). Much less lost when
     # prices fall, less made when they rise and more lost sideways - so off (TZ_MTF_FILTER=1h to choose it).
-    mtf_filter: str = "off"
+    mtf_filter: str = "weak"  # (on: the losing-trade fixes below, replayed together)
+    mtf_weak_score: float = -0.3  # mtf_filter "weak": no buy while the timeframes lean this far down (more falling)
+    # where the losing trades came from (asked for: "locate and fix what is losing trades"): every loss was a -7%
+    # stop, and they bunched in buys made while the timeframes leaned down, with weak momentum, in trendless markets,
+    # and in skims. All four fixes together (no skims, mtf_filter weak, RSI 60+, ADX 15+) replayed +$263.26 training /
+    # +$110.14 unseen, and won more trades when prices fell (unseen: 71% vs 52%). 0 = off.
+    entry_min_rsi: float = 60.0
+    entry_min_adx: float = 15.0
     # the best buy area (asked for: "always look for the best buy area"): a buy idea waits - re-checked every bar while
     # the view holds - until the price is in it. off | range (lower half of the hourly range) | value (at or under the
     # 20-bar average / VWAP) | support (lower 40% of the last 20 bars) | cool (not overbought on 1h / 15m).
@@ -586,7 +593,7 @@ class Settings:
     skim_target_pct: float = 0.025  # skims aim for +2.5% (after ~0.6% fees a win still beats a loss)...
     skim_stop_pct: float = 0.012  # ...with a -1.2% stop
     skim_max_minutes: float = 120.0  # day trade: sold when time is up, if in profit after fees
-    max_skims: int = 2  # skims open at once
+    max_skims: int = 0  # skims open at once (off: in the losing-trade replay they lost - -$68 over 17 trades)
     skim_cooldown_min: float = 15.0  # wait this long before skimming the same coin again
     bank_at_share: float = 0.5  # bank a slice once a trade is this share of the way to its target
     bank_fraction: float = 0.25  # ...this much of it

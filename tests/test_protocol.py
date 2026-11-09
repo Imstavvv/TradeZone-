@@ -1,5 +1,7 @@
+
 """The make-me-money protocol: the safest proven path, and a one-tap reset to the tested-best settings."""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.helpers import run
@@ -15,11 +17,13 @@ def make(db=":memory:"):
     return TradingDesk(s, feed=SimulatedFeed(s.symbols), journal=Journal(db))
 
 
+@pytest.mark.entry_filters  # (the real defaults: the preset includes the entry filters)
 def test_a_new_install_is_already_on_the_tested_best_settings():
     st = make().protocol_status()
     assert st["off"] == [] and [x["key"] for x in st["steps"]] == ["practice", "link", "small", "best", "review", "cashout"]
 
 
+@pytest.mark.entry_filters  # (the real defaults: the preset includes the entry filters)
 def test_drifted_settings_are_listed_and_one_tap_puts_them_back(tmp_path):
     db = str(tmp_path / "tz.db")
     desk = make(db)

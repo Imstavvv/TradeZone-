@@ -559,6 +559,21 @@ the New Listings bot): nudge (+0.05 conviction) -$8.17, size (and 1.25x) -$2.85 
 falling), only (no large / mid-size buys) -$208.48 with far fewer trades - training half, 16 windows a market,
 $500. None won, so it's off; the replays hold one small coin, so real meme markets may differ.
 
+### 🔍 What was losing trades - found and fixed (asked for)
+
+All 184 trades of the training replays were recorded with what the market looked like when each was bought. Every
+loss was a -7% stop (43 trades, -$724.97 against +$1,693.79 won), and they bunched in four kinds of buy:
+
+* while most timeframes leaned down (multi-timeframe score -0.3 or lower): 23 trades, 39% won, **-$462.12**;
+* with weak momentum (RSI under 60): 21 trades, about -$110 (RSI 70+ made +$1,073);
+* in a trendless market (ADX under 15): 9 trades, 22% won, -$74.25;
+* skims (small dips, tight stop): 17 trades, 59% won, -$68.12.
+
+Each fix replayed (16 windows a market, $500; training / unseen): no buys while the timeframes lean down +$154.55 /
++$55.33; RSI 60+ +$139.22 / +$98.89; no skims +$144.05 / +$99.00; ADX 15+ +$46.94 / -$6.74; **all four together
++$263.26 / +$110.14 - on** (`TZ_MTF_FILTER=weak`, `TZ_ENTRY_MIN_RSI=60`, `TZ_ENTRY_MIN_ADX=15`, `TZ_MAX_SKIMS=0`).
+When prices fell, 71% of the trades won on the unseen half (was 52%). They hold back buys only - never a sale.
+
 ### ✂️ What hurt profit is off (asked for: "remove what hurts profit making")
 
 Each feature switched off on its own on the current plan (16 windows a market, $500; training / unseen half):

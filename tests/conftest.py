@@ -63,6 +63,29 @@ def _old_plan(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_entry_filters(request, monkeypatch):
+    """Tests prime a coin with neutral readings (RSI 50, no trend strength): the losing-trade entry filters (RSI 60+,
+    ADX 15+, the timeframes not leaning down, no skims) would block their buys. They're off in tests, except tests
+    marked entry_filters - the filters' own."""
+    if request.node.get_closest_marker("entry_filters") is not None:
+        return
+    from tradezone.config import Settings
+    real = Settings.__init__
+
+    def init(self, *a, **kw):
+        real(self, *a, **kw)
+        if "entry_min_rsi" not in kw:
+            self.entry_min_rsi = 0.0
+        if "entry_min_adx" not in kw:
+            self.entry_min_adx = 0.0
+        if "mtf_filter" not in kw:
+            self.mtf_filter = "off"
+        if "max_skims" not in kw:
+            self.max_skims = 2
+    monkeypatch.setattr(Settings, "__init__", init)
+
+
+@pytest.fixture(autouse=True)
 def _not_kraken_only(request, monkeypatch):
     """Tests written around the old fallback (no Kraken key: Coinbase / Alpaca prices and fees)."""
     if request.node.get_closest_marker("not_kraken_only") is None:

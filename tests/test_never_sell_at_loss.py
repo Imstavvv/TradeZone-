@@ -1,4 +1,7 @@
+
 """Never sell at a loss: a trade below break-even after fees is held until it recovers."""
+
+import pytest
 
 from tests.helpers import capture, run
 from tests.test_patient import bar
@@ -130,6 +133,7 @@ def test_the_loss_floor_sells_a_trade_20_percent_down_even_with_never_sell_on():
     assert trades[-1].pnl > -0.25 * trades[-1].qty * trades[-1].entry_price  # about a fifth lost, not more
 
 
+@pytest.mark.entry_filters  # (the real defaults: the preset includes the entry filters)
 def test_the_floor_is_on_by_default_and_part_of_the_tested_best_settings():
     from tradezone.config import Settings
     from tradezone.desk import TradingDesk

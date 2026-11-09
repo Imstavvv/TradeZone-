@@ -142,13 +142,22 @@ class RiskBot(Bot):
         """The higher timeframes say no (mtf_filter): the hourly / 4-hour trend is down, or more timeframes fall."""
         mode = self.settings.mtf_filter
         snap = self.snapshots.get(symbol)
-        if mode == "off" or snap is None:
+        s0 = self.settings
+        if snap is None or (mode == "off" and s0.entry_min_rsi <= 0 and s0.entry_min_adx <= 0):
             return None
         ind = snap.indicators
         if mode in ("1h", "4h") and ind.get(f"tf_{mode}_trend", 0) < 0:
             return f"{symbol}'s {mode} trend is down - no new buys until the higher timeframe turns"
         if mode == "align" and ind.get("mtf_ready", 0) >= 2 and ind.get("mtf_score", 0) < 0:
             return f"{symbol}: more timeframes falling than rising ({ind.get('mtf_down')} vs {ind.get('mtf_up')}) - not buying"
+        if mode == "weak" and ind.get("mtf_ready", 0) >= 2 and ind.get("mtf_score", 0) <= self.settings.mtf_weak_score:
+            return (f"{symbol}: the timeframes lean down ({ind.get('mtf_down')} falling vs {ind.get('mtf_up')} rising) - "
+                    "not buying until they turn")
+        s = self.settings
+        if s.entry_min_rsi > 0 and (r := ind.get("rsi")) is not None and r < s.entry_min_rsi:
+            return f"{symbol}: momentum too weak to buy (RSI {r:.0f}, needs {s.entry_min_rsi:.0f}+)"
+        if s.entry_min_adx > 0 and (a := ind.get("adx")) is not None and a < s.entry_min_adx:
+            return f"{symbol}: no trend to ride (ADX {a:.0f}, needs {s.entry_min_adx:.0f}+)"
         return None
 
     def falling_block(self, symbol: str) -> str | None:
