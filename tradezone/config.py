@@ -349,6 +349,7 @@ class Settings:
     # area - oversold, the bottom fifth of the daily range, or on support - is this much bigger, with a little more
     # conviction (1.0 = off). Nothing waits: buys elsewhere go ahead at their normal size.
     area_boost: float = 1.0
+    area_boost_uptrend_only: bool = True  # (only dips in a coin still trending up: in a downtrend 'oversold' kept falling)
     # the team vote (asked for: "6 bots needed to agree on buys / sells"): every strategy (all 21: MACD, Supertrend,
     # RSI-style oscillators, ...) and the Strategist vote on each strategy buy and sell, and at least consensus_bots
     # must say yes - more yes than no. ("families": the old vote of the 3 strategy families + the Strategist, 4 in

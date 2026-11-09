@@ -330,7 +330,8 @@ class RiskBot(Bot):
             nudge, advice_mult = nudge + ds, advice_mult * sm
         focus_mult = 1.0
         if sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s0.area_boost > 1.0 \
-                and buy_area(self.snapshots.get(sig.symbol)):
+                and buy_area(snap_a := self.snapshots.get(sig.symbol)) \
+                and not (s0.area_boost_uptrend_only and falling_coin(snap_a)):  # (a dip in an uptrend, not a fall)
             nudge += 0.05
             focus_mult *= s0.area_boost  # (a buy in a good buy area: more money where the return is best)
             self.bump("area_boosts")
