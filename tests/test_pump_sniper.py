@@ -6,6 +6,7 @@ import pytest
 
 from tests.helpers import capture, prime, run
 from tests.test_new_bots import make, snap
+from tradezone.core.models import Side, Signal
 
 
 def pump(desk, sym="DOGE-USD", start=0.2, step=0.012, vr5=4.0, t0=None):
@@ -71,3 +72,18 @@ def test_a_stalled_pump_in_profit_is_sold_after_45_minutes_of_market_time():
     snap(desk, "DOGE-USD", up, ts=t0 + 60 * 50)
     run(cycle())
     assert [e for e in exits if "stalled" in e.reason]
+
+
+def test_a_turned_down_snipe_never_times_out_another_strategys_trade():
+    desk = make(pump_sniper=True)
+    prime(desk, "DOGE-USD", 0.2, atr=0.001)
+    desk.bots["risk"].enabled = False  # (the snipe goes nowhere)
+    t0 = time.time()
+    pump(desk, t0=t0)
+    run(desk.bus.drain())
+    bot = desk.bots["pumpsniper"]
+    assert desk.portfolio.position("DOGE-USD").qty == 0 and not bot.opened
+    desk.bots["risk"].enabled = True
+    desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.BUY, 0.95, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("DOGE-USD").qty > 0 and not bot.opened  # (another strategy's trade: not timed)

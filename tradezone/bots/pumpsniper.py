@@ -32,7 +32,9 @@ class PumpSniperBot(Bot):
         super().__init__(desk)
         self.prices: dict[str, deque[float]] = {}
         self.wait: dict[str, int] = {}
-        self.opened: dict[str, float] = {}  # symbol -> when its snipe was bought (market time)
+        self.opened: dict[str, float] = {}  # symbol -> when its snipe's buy filled (market time)
+        self.proposed: dict[str, str] = {}  # signal id -> symbol (snipes sent to the Risk Manager)
+        self.orders: dict[str, str] = {}  # approved request id -> symbol
         self.clock = 0.0
 
     @property
@@ -40,7 +42,7 @@ class PumpSniperBot(Bot):
         return bool(getattr(self.settings, "pump_sniper", False))
 
     def subscriptions(self):
-        return {"market.snapshot": self.on_snapshot, "order.filled": self.on_fill}
+        return {"market.snapshot": self.on_snapshot, "order.filled": self.on_fill, "order.approved": self.on_approved}
 
     def pump_coin(self, symbol: str) -> bool:
         s = self.settings
@@ -51,8 +53,17 @@ class PumpSniperBot(Bot):
             return False  # (tokenized stocks don't pump like coins)
         return s.is_meme(symbol) or s.is_dex(symbol) or s.coin_size(symbol) == "small"
 
+    def on_approved(self, ev) -> None:
+        req = ev.payload
+        if getattr(req, "signal_id", None) in self.proposed:  # (the Risk Manager let a snipe through: its order)
+            self.orders[req.id] = req.symbol
+
     def on_fill(self, ev) -> None:
         f = ev.payload
+        if f.side is Side.BUY and (exe := self.desk.bots.get("execution")) is not None:
+            order = exe.orders.get(f.order_id)
+            if order is not None and self.orders.get(order.request_id) == f.symbol:
+                self.opened.setdefault(f.symbol, self.clock or now())  # (only a snipe's own buy starts the 45 min)
         if f.side is Side.SELL and f.symbol in self.opened and self.desk.portfolio.position(f.symbol).qty <= 1e-12:
             self.opened.pop(f.symbol, None)
 
@@ -90,11 +101,15 @@ class PumpSniperBot(Bot):
             return
         self.wait[sym] = s.pump_cooldown_bars
         self.bump("snipes")
-        self.publish("signal.proposed", Signal(
+        sig = Signal(
             sym, Side.BUY, round(min(1.0, 0.7 + 0.03 * min(vr5, 10.0)), 3),
             f"pump snipe: {sym} +{move:.1%} in 3 bars on {vr5:.1f}x volume, at a new high", self.name,
-            votes={"volume": "yes", "breakout": "yes", "momentum": "yes"}))
-        self.opened[sym] = self.clock or now()
+            votes={"volume": "yes", "breakout": "yes", "momentum": "yes"})
+        self.proposed[sig.id] = sym
+        if len(self.proposed) > 200:
+            for k in list(self.proposed)[:100]:
+                self.proposed.pop(k, None)
+        self.publish("signal.proposed", sig)
         self.act(f"PUMP SNIPE {sym} @ {snap.price:,.6g}: +{move:.1%} on {vr5:.1f}x volume")
 
     async def on_cycle(self) -> None:
@@ -104,8 +119,7 @@ class PumpSniperBot(Bot):
         for sym, at in list(self.opened.items()):
             pos = self.desk.portfolio.position(sym)
             if pos.qty <= 0:
-                if t - at > 600:  # (the buy never filled)
-                    self.opened.pop(sym, None)
+                self.opened.pop(sym, None)  # (sold - by its target, the Rug Guard or the stop)
                 continue
             px = self.desk.prices.get(sym) or pos.last_price
             if t - at >= s.pump_max_minutes * 60 and px and s.beats_fees(pos, px):
