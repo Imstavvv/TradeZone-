@@ -303,6 +303,11 @@ class Settings:
     # the last 7 days (the New Listings bot keeps the list). Replayed (training half): nudge -$8.17, size -$2.85
     # (more made rising, more lost falling), only -$208.48 (far fewer trades) - so off.
     small_focus: str = "off"
+    # DEX tokens on Kraken first for buys (asked for: "focus trade on all DEX tokens listed on Kraken"):
+    # off | nudge (+0.05 conviction) | size (that, and 1.25x) | only (no other crypto bought). "size" (on, asked for):
+    # replayed +$43.95 training / -$19.04 unseen (+$24.91 over both; the unseen loss was in sideways markets);
+    # nudge +$1.93 / -$23.45; only -$507.68 / -$344.04 (the replays have one DEX-type coin, DOGE, standing in).
+    dex_focus: str = "size"
     small_focus_nudge: float = 0.05
     small_focus_size: float = 1.25
     new_coin_days: float = 7.0
@@ -740,8 +745,10 @@ class Settings:
         return symbol.upper().replace("/", "-").split("-")[0] in self.stack_only_coins
 
     def is_dex(self, symbol: str) -> bool:
-        """A DEX-born token (see DEX_COINS), or one Kraken listed since start-up."""
-        return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.dex_coins
+        """A DEX-born token on Kraken: the DEX_COINS list, every meme coin (on Kraken they're nearly all DEX-born:
+        Solana / Ethereum / Base tokens), and any token Kraken listed since start-up."""
+        coin = symbol.upper().replace("/", "-").split("-")[0]
+        return self.is_crypto(symbol) and (coin in self.dex_coins or coin in self.meme_coins)
 
     def is_new_coin(self, symbol: str) -> bool:
         import time as _t
@@ -924,6 +931,8 @@ class Settings:
                 raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off" + (" (or show)" if f == "debate" else ""))
         if self.falling_buys not in ("block", "areas", "all"):
             raise ValueError("TZ_FALLING_BUYS must be block, areas or all")
+        if self.dex_focus not in ("off", "nudge", "size", "only"):
+            raise ValueError("TZ_DEX_FOCUS must be off, nudge, size or only")
         if self.small_focus not in ("off", "nudge", "size", "only"):
             raise ValueError("TZ_SMALL_FOCUS must be off, nudge, size or only")
         if self.chart_vision_frame not in ("15m", "1h", "4h", "1d"):

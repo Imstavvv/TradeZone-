@@ -41,3 +41,25 @@ def test_tokens_kraken_lists_later_become_dex_coins():
     assert not s.is_dex("NEWTOKEN-USD")
     s.dex_coins.append("NEWTOKEN")
     assert s.is_dex("NEWTOKEN-USD")
+
+
+def test_every_meme_coin_on_kraken_counts_as_a_dex_token():
+    s = Settings()
+    assert s.is_dex("PEPE-USD") and s.is_dex("DOGE-USD") and s.is_dex("TRUMP-USD")
+    assert not s.is_dex("BTC-USD")
+
+
+def test_dex_focus_only_buys_dex_tokens():
+    desk = make(dex_focus="only")
+    prime(desk, "BTC-USD", 60_000.0, atr=250.0)
+    desk.bus.publish("signal.proposed", Signal("BTC-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("BTC-USD").qty == 0
+    prime(desk, "DOGE-USD", 0.2, atr=0.001)
+    desk.bus.publish("signal.proposed", Signal("DOGE-USD", Side.BUY, 0.9, "t", "quant"))
+    run(desk.bus.drain())
+    assert desk.portfolio.position("DOGE-USD").qty > 0 and desk.bots["risk"].metrics["dex_focus_buys"] == 1
+
+
+def test_dex_focus_is_on_at_size():
+    assert Settings().dex_focus == "size"

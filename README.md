@@ -763,6 +763,15 @@ The busiest that **your exchange lists** are plugged into the watchlist with the
 
 "Always sell before the price drops" isn't something any bot can promise: no one knows the next move. What the bots do is cut a meme coin early when momentum turns down on heavy volume, lock in profit once a trade is up, and stop for the day after a bad one.
 
+### DEX tokens on Kraken first (asked for: "focus trade on all DEX tokens listed on Kraken")
+
+Every DEX token Kraken lists against USD that trades enough is watched (up to 1,000 coins; new listings within a
+minute). DEX tokens are the DEX_COINS list (BONK, WIF, PEPE, JUP, RAY, ...), every meme coin on Kraken (nearly all
+DEX-born) and every token Kraken lists after start-up. `TZ_DEX_FOCUS` puts them first for buys - **size, on**:
++0.05 conviction and 1.25x. Replayed (16 windows a market, $500; DOGE standing in for DEX tokens): size +$43.95
+training / -$19.04 unseen (+$24.91 over both; sideways markets cost it), nudge +$1.93 / -$23.45, only (no other
+crypto) -$507.68 / -$344.04. `TZ_DEX_FOCUS=off` turns it off.
+
 ### Kraken only (asked for: "only watch what Kraken has to offer")
 
 The bot team watches Kraken's own coin list and prices - every coin Kraken lists against USD that trades enough,

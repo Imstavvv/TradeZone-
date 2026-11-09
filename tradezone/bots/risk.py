@@ -351,6 +351,13 @@ class RiskBot(Bot):
                 self.bump("focus_buys")
             elif s0.small_focus == "only" and s0.is_crypto(sig.symbol):
                 return self.reject(sig, f"focus on small and new coins: {sig.symbol} is a large / mid-size coin")
+        if sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s0.dex_focus != "off":
+            if s0.is_dex(sig.symbol):  # (DEX tokens on Kraken first)
+                nudge += s0.small_focus_nudge
+                focus_mult *= s0.small_focus_size if s0.dex_focus in ("size", "only") else 1.0
+                self.bump("dex_focus_buys")
+            elif s0.dex_focus == "only" and s0.is_crypto(sig.symbol):
+                return self.reject(sig, f"focus on DEX tokens: {sig.symbol} isn't one")
         if sig.side is Side.BUY and s0.dex_flips and s0.is_dex(sig.symbol):
             nudge += s0.dex_focus_nudge  # (DEX coins are the focus for quick flips)
             self.bump("dex_flip_buys")
