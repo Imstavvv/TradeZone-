@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradezone"
-version = "2.0.0"
-description = "A 35-bot crypto trading desk with risk controls, learning bots and a real-time dashboard"
+version = "2.1.0"
+description = "A 42-bot crypto trading desk with risk controls, learning bots and a real-time dashboard"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["fastapi>=0.115", "uvicorn[standard]>=0.30", "httpx>=0.28", "websockets>=14", "tzdata>=2024.1"]
+dependencies = ["fastapi>=0.162", "uvicorn[standard]>=0.30", "httpx>=0.28", "websockets>=14", "tzdata>=2024.1"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.15"]
+dev = ["pytest>=8", "ruff>=0.17"]
 
 [project.scripts]
 tradezone = "tradezone.__main__:main"

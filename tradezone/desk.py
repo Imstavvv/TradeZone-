@@ -1295,7 +1295,10 @@ class TradingDesk:
         "maker_exits": False, "fee_rule_stops": True, "never_sell_at_loss": True, "dip_buy": False,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": False, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.0,
-        "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07}
+        "loser_cap_depth": 0.005, "wide_stop_pct": 0.07, "max_loss_pct": 0.07,
+        # (replayed since: +6% after fees, runners, stale winners closed after 6 h, the turnaround rule, Pump Sniper)
+        "take_profit_pct": 0.06, "major_take_profit_pct": 0.06, "tp_step_pct": 0.06, "runners": True,
+        "max_hold_hours": 6.0, "meme_max_hold_hours": 3.0, "falling_coin_turn": True, "pump_sniper": True}
 
     def protocol_status(self) -> dict:
         s, now_ = self.settings, time.time()

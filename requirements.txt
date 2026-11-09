@@ -1,7 +1,7 @@
-fastapi>=0.115
+fastapi>=0.162
 uvicorn[standard]>=0.30
 httpx>=0.28
 websockets>=14
 tzdata>=2024.1
 pytest>=8
-ruff>=0.15
+ruff>=0.17
