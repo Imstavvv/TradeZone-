@@ -298,6 +298,14 @@ class Settings:
     # history it lost money, and with never-sell-at-a-loss a short in a rising market had no loss ceiling.)
     # ---- growth ladder: small balances trade smaller coins; bigger coins join as the balance grows ----
     focus_small_coins: bool = True
+    # small market-cap and new coins first for buys (asked for), at any balance: off | nudge (a little more
+    # conviction) | size (that, and bigger) | only (no buys in large or mid-size coins). New = listed on Kraken in
+    # the last 7 days (the New Listings bot keeps the list).
+    small_focus: str = "off"
+    small_focus_nudge: float = 0.05
+    small_focus_size: float = 1.25
+    new_coin_days: float = 7.0
+    new_coins: dict[str, float] = field(default_factory=dict)  # coin -> when Kraken listed it (seen joining)
     focus_small_until: float = 250.0  # under this: smaller coins only (meme coins and small altcoins)
     focus_mid_until: float = 1_000.0  # under this: + mid-size coins (SOL, XRP, LINK, ...); above: all coins
     # coins the bots may trade at any balance (skipping the ladder above) - and always watched. They can be
@@ -715,6 +723,16 @@ class Settings:
         """A DEX-born token (see DEX_COINS), or one Kraken listed since start-up."""
         return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.dex_coins
 
+    def is_new_coin(self, symbol: str) -> bool:
+        import time as _t
+        at = self.new_coins.get(symbol.upper().replace("/", "-").split("-")[0])
+        return at is not None and _t.time() - at <= self.new_coin_days * 86_400
+
+    def is_focus_coin(self, symbol: str) -> bool:
+        """A small market-cap coin (not Bitcoin, Ether or the mid-size list) or one Kraken listed in the last week."""
+        return self.is_crypto(symbol) and not self.is_forex(symbol) and (
+            self.coin_size(symbol) == "small" or self.is_new_coin(symbol))
+
     def is_meme(self, symbol: str) -> bool:
         return self.is_crypto(symbol) and symbol.upper().replace("/", "-").split("-")[0] in self.meme_coins
 
@@ -884,6 +902,8 @@ class Settings:
                 raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off" + (" (or show)" if f == "debate" else ""))
         if self.falling_buys not in ("block", "areas", "all"):
             raise ValueError("TZ_FALLING_BUYS must be block, areas or all")
+        if self.small_focus not in ("off", "nudge", "size", "only"):
+            raise ValueError("TZ_SMALL_FOCUS must be off, nudge, size or only")
         if self.chart_vision_frame not in ("15m", "1h", "4h", "1d"):
             raise ValueError("TZ_CHART_VISION_FRAME must be 15m, 1h, 4h or 1d")
         if not 0 < self.runner_sell_fraction <= 1:

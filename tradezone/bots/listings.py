@@ -33,6 +33,11 @@ class ListingsBot(Bot):
         return hasattr(f, "rescan") and bool(getattr(f, "pairs", None)) and bool(getattr(self.settings, "kraken_all_coins", True))
 
     async def on_cycle(self) -> None:
+        if not self.__dict__.get("_loaded"):  # (the coins listed this week, kept across restarts)
+            self._loaded = True
+            store = getattr(self.desk, "store", None)
+            for coin, at in ((store.load("new_coins") if store is not None else None) or {}).items():
+                self.settings.new_coins.setdefault(coin, float(at))
         t = time.monotonic()
         if not self.ready() or t - self._at < float(getattr(self.settings, "listing_scan_s", 60.0)):
             return
@@ -65,9 +70,13 @@ class ListingsBot(Bot):
         for sym in joined:
             self.found.append({"symbol": sym, "ts": time.time()})
             coin = sym.split("-")[0]
+            self.settings.new_coins.setdefault(coin, time.time())  # (a new coin for a week: buys focus on it)
             if coin not in self.settings.dex_coins:  # (what Kraken lists now is mostly DEX-born: a quick-flip coin)
                 self.settings.dex_coins.append(coin)
         self.bump("joined", len(joined))
+        if (store := getattr(self.desk, "store", None)) is not None:
+            week = time.time() - 8 * 86_400
+            store.save("new_coins", {c: at for c, at in self.settings.new_coins.items() if at >= week})
         coins = ", ".join(x.split("-")[0] for x in joined[:8]) + (f" and {len(joined) - 8} more" if len(joined) > 8 else "")
         self.act(f"newly listed on Kraken, now watched: {coins}")
         self.publish("alert", Alert("info", f"🆕 Newly listed on Kraken, now watched and tradeable: {coins}", self.name))

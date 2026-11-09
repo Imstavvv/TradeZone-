@@ -328,6 +328,14 @@ class RiskBot(Bot):
                 self.bump("rejected_by_advisors")
                 return self.reject(sig, f"{adv.title}: {veto}")
             nudge, advice_mult = nudge + ds, advice_mult * sm
+        focus_mult = 1.0
+        if sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s0.small_focus != "off":
+            if s0.is_focus_coin(sig.symbol):  # (small market-cap and new coins first)
+                nudge += s0.small_focus_nudge
+                focus_mult = s0.small_focus_size if s0.small_focus in ("size", "only") else 1.0
+                self.bump("focus_buys")
+            elif s0.small_focus == "only" and s0.is_crypto(sig.symbol):
+                return self.reject(sig, f"focus on small and new coins: {sig.symbol} is a large / mid-size coin")
         if sig.side is Side.BUY and s0.dex_flips and s0.is_dex(sig.symbol):
             nudge += s0.dex_focus_nudge  # (DEX coins are the focus for quick flips)
             self.bump("dex_flip_buys")
@@ -441,6 +449,7 @@ class RiskBot(Bot):
             risk_budget *= flipper.size_mult()
         risk_budget *= advice_mult  # what the advisors made of it
         risk_budget *= falling_mult  # (a buy in a falling market: smaller)
+        risk_budget *= focus_mult  # (small / new coins first: a little bigger)
         if sig.source == "pumpsniper":
             risk_budget *= s.pump_size_mult  # (a pump snipe: smaller than a normal trade)
         if s.vol_target:  # equal risk across coins: calmer ones bigger, wilder ones smaller (research: vol targeting)
