@@ -27,6 +27,18 @@ CRASH, CRASH_VOL, SLIDE, SPREAD, BAN_S = -0.06, 2.5, -0.03, 0.03, 86_400.0
 WHALE_LEAN, WHALE_USD = -0.8, 25_000.0
 
 
+def risky_coin(desk, symbol: str) -> bool:
+    """A coin that can pump - and be rug-pulled: a meme coin, a DEX-born token or a smaller coin. Never Bitcoin,
+    Ether, the mid-size list, the hold stack, currency pairs or Kraken's tokenized stocks (AAPLx, ...: shares)."""
+    s = desk.settings
+    if not s.is_crypto(symbol) or s.is_stack_only(symbol) or s.is_forex(symbol):
+        return False
+    pair = (getattr(desk.feed, "pairs", {}) or {}).get(symbol) or {}
+    if pair.get("aclass", "currency") != "currency":
+        return False
+    return s.is_meme(symbol) or s.is_dex(symbol) or s.coin_size(symbol) == "small"
+
+
 class RugGuardBot(Bot):
     name = "rugguard"
     title = "Rug Guard"
@@ -54,13 +66,7 @@ class RugGuardBot(Bot):
         return {"market.snapshot": self.on_snapshot, "order.filled": self.on_fill}
 
     def watched(self, symbol: str) -> bool:
-        s = self.settings
-        if not s.is_crypto(symbol) or s.is_stack_only(symbol) or s.is_forex(symbol):
-            return False
-        pair = (getattr(self.desk.feed, "pairs", {}) or {}).get(symbol) or {}
-        if pair.get("aclass", "currency") != "currency":
-            return False  # (Kraken's tokenized stocks - AAPLx, ... - are shares: they can't be rug-pulled)
-        return s.is_meme(symbol) or s.is_dex(symbol) or s.coin_size(symbol) == "small"
+        return risky_coin(self.desk, symbol)
 
     def on_snapshot(self, ev) -> None:
         snap = ev.payload

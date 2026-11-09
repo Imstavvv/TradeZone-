@@ -35,10 +35,6 @@ coin right now. Weigh the quality of the evidence, not the number of points. Res
 {"winner": "bull" | "bear" | "draw", "confidence": <0..1>, "reason": "<max 25 words>"}"""
 
 
-def _trend_word(t: float) -> str:
-    return "up" if t > 0 else "down"
-
-
 def make_case(ind: dict, price: float, smart: dict | None = None, vision: dict | None = None) -> dict:
     """The two cases, from one set of evidence: {"bull": [(weight, point)], "bear": [...], "margin": bull - bear}."""
     bull: list[tuple[float, str]] = []

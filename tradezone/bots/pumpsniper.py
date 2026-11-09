@@ -17,6 +17,7 @@ from collections import deque
 
 from ..core.models import Side, Signal, SignalKind, now
 from .base import Bot
+from .rugguard import risky_coin
 
 
 class PumpSniperBot(Bot):
@@ -45,13 +46,7 @@ class PumpSniperBot(Bot):
         return {"market.snapshot": self.on_snapshot, "order.filled": self.on_fill, "order.approved": self.on_approved}
 
     def pump_coin(self, symbol: str) -> bool:
-        s = self.settings
-        if not s.is_crypto(symbol) or s.is_stack_only(symbol) or s.is_forex(symbol):
-            return False
-        pair = (getattr(self.desk.feed, "pairs", {}) or {}).get(symbol) or {}
-        if pair.get("aclass", "currency") != "currency":
-            return False  # (tokenized stocks don't pump like coins)
-        return s.is_meme(symbol) or s.is_dex(symbol) or s.coin_size(symbol) == "small"
+        return risky_coin(self.desk, symbol)  # (the coins that pump are the ones the Rug Guard watches)
 
     def on_approved(self, ev) -> None:
         req = ev.payload
