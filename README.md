@@ -552,6 +552,13 @@ lifted, training half: winners sold at 1x the fees -$57.65, at any profit -$236.
 Weather -$3.30 - they protect the money, so they stay. Only the Overextension Guard came out ahead: +$1.18
 training / +$13.81 unseen - **switched off** (it skipped good buys more often than bad ones).
 
+### Small market-cap and new coins first (asked for) - replayed, off
+
+`TZ_SMALL_FOCUS` (small = not BTC / ETH / the mid-size list; new = listed on Kraken in the last 7 days, kept by
+the New Listings bot): nudge (+0.05 conviction) -$8.17, size (and 1.25x) -$2.85 (+$26.97 rising, -$28.40
+falling), only (no large / mid-size buys) -$208.48 with far fewer trades - training half, 16 windows a market,
+$500. None won, so it's off; the replays hold one small coin, so real meme markets may differ.
+
 ### 🎯 Pump Sniper (asked for) - on
 
 Buys a meme / DEX / new / smaller coin as a pump starts (3%+ in 3 bars on 3x volume, at a new high, RSI under 85,

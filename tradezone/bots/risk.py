@@ -329,10 +329,15 @@ class RiskBot(Bot):
                 return self.reject(sig, f"{adv.title}: {veto}")
             nudge, advice_mult = nudge + ds, advice_mult * sm
         focus_mult = 1.0
+        if sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s0.area_boost > 1.0 \
+                and buy_area(self.snapshots.get(sig.symbol)):
+            nudge += 0.05
+            focus_mult *= s0.area_boost  # (a buy in a good buy area: more money where the return is best)
+            self.bump("area_boosts")
         if sig.side is Side.BUY and sig.kind is SignalKind.ENTRY and s0.small_focus != "off":
             if s0.is_focus_coin(sig.symbol):  # (small market-cap and new coins first)
                 nudge += s0.small_focus_nudge
-                focus_mult = s0.small_focus_size if s0.small_focus in ("size", "only") else 1.0
+                focus_mult *= s0.small_focus_size if s0.small_focus in ("size", "only") else 1.0
                 self.bump("focus_buys")
             elif s0.small_focus == "only" and s0.is_crypto(sig.symbol):
                 return self.reject(sig, f"focus on small and new coins: {sig.symbol} is a large / mid-size coin")

@@ -300,7 +300,8 @@ class Settings:
     focus_small_coins: bool = True
     # small market-cap and new coins first for buys (asked for), at any balance: off | nudge (a little more
     # conviction) | size (that, and bigger) | only (no buys in large or mid-size coins). New = listed on Kraken in
-    # the last 7 days (the New Listings bot keeps the list).
+    # the last 7 days (the New Listings bot keeps the list). Replayed (training half): nudge -$8.17, size -$2.85
+    # (more made rising, more lost falling), only -$208.48 (far fewer trades) - so off.
     small_focus: str = "off"
     small_focus_nudge: float = 0.05
     small_focus_size: float = 1.25
@@ -344,6 +345,10 @@ class Settings:
     # -$848 / -$786, -$155 / -$253. Every one made less when prices rose and saved nothing when they fell: the best
     # buys are moves already starting (breakouts, momentum), which waiting for a cheaper price misses. So off.
     buy_area: str = "off"
+    # put more money where the return is best (asked for: "focus best buy areas"): a buy that lands in a good buy
+    # area - oversold, the bottom fifth of the daily range, or on support - is this much bigger, with a little more
+    # conviction (1.0 = off). Nothing waits: buys elsewhere go ahead at their normal size.
+    area_boost: float = 1.0
     # the team vote (asked for: "6 bots needed to agree on buys / sells"): every strategy (all 21: MACD, Supertrend,
     # RSI-style oscillators, ...) and the Strategist vote on each strategy buy and sell, and at least consensus_bots
     # must say yes - more yes than no. ("families": the old vote of the 3 strategy families + the Strategist, 4 in

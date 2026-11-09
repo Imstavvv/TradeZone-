@@ -48,3 +48,18 @@ def test_the_new_coins_list_survives_a_restart():
     desk.store.save("new_coins", {"FRESH": time.time()})
     run(desk.bots["listings"].on_cycle())
     assert desk.settings.is_new_coin("FRESH-USD")
+
+
+def test_a_buy_in_a_good_buy_area_gets_more_money_when_the_boost_is_on():
+    from tests.test_new_bots import snap
+    sizes = {}
+    for boost in (1.0, 1.5):
+        desk = make(area_boost=boost)
+        desk.settings.risk.risk_per_trade = 0.001  # (small: the position cap mustn't bind)
+        prime(desk, "ETH-USD", 3000.0, atr=12.0)
+        snap(desk, "ETH-USD", 3000.0, rsi=30, atr=12.0)  # (oversold: a good buy area)
+        desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.BUY, 0.9, "t", "quant"))
+        run(desk.bus.drain())
+        sizes[boost] = desk.portfolio.position("ETH-USD").qty
+    assert sizes[1.5] > sizes[1.0] > 0
+    assert Settings().area_boost == 1.0  # (off until replayed)
