@@ -574,6 +574,14 @@ Each fix replayed (16 windows a market, $500; training / unseen): no buys while 
 +$263.26 / +$110.14 - on** (`TZ_MTF_FILTER=weak`, `TZ_ENTRY_MIN_RSI=60`, `TZ_ENTRY_MIN_ADX=15`, `TZ_MAX_SKIMS=0`).
 When prices fell, 71% of the trades won on the unseen half (was 52%). They hold back buys only - never a sale.
 
+### Improvements tried after the losing-trade fixes (asked for) - none kept
+
+With the fixes on, losses fell from -$724.97 to -$183.02 across the training replays (23 of 164 trades). Each
+idea replayed (16 windows a market, $500; training / unseen): bigger trades - 75% cap and 6% risk +$96.44 /
+-$19.40, 5% risk +$36.76 / -$2.44, 6% risk +$14.51 / -$3.98, 75% cap +$26.15 / -$7.91; buying only in the top half
+of the hourly range +$50.16 / -$62.15; ADX 20+ +$32.90 / -$14.86. Every one gained when prices rose and gave it
+back, and more, when they went sideways or fell on the unseen half - so the settings stay as they are.
+
 ### ✂️ What hurt profit is off (asked for: "remove what hurts profit making")
 
 Each feature switched off on its own on the current plan (16 windows a market, $500; training / unseen half):

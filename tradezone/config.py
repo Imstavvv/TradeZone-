@@ -353,6 +353,7 @@ class Settings:
     # +$110.14 unseen, and won more trades when prices fell (unseen: 71% vs 52%). 0 = off.
     entry_min_rsi: float = 60.0
     entry_min_adx: float = 15.0
+    entry_min_range_pos: float = 0.0  # buy only this high in the hourly range (0 = off: 0.5 replayed +$50.16 / -$62.15)
     # the best buy area (asked for: "always look for the best buy area"): a buy idea waits - re-checked every bar while
     # the view holds - until the price is in it. off | range (lower half of the hourly range) | value (at or under the
     # 20-bar average / VWAP) | support (lower 40% of the last 20 bars) | cool (not overbought on 1h / 15m).
@@ -939,6 +940,8 @@ class Settings:
             raise ValueError("TZ_MTF_FILTER must be off, 1h, 4h, align or weak")
         if not 0 <= self.entry_min_rsi <= 100:
             raise ValueError("TZ_ENTRY_MIN_RSI must be between 0 (off) and 100")
+        if not 0 <= self.entry_min_range_pos <= 1:
+            raise ValueError("TZ_ENTRY_MIN_RANGE_POS must be between 0 (off) and 1")
         if not 0 <= self.entry_min_adx <= 100:
             raise ValueError("TZ_ENTRY_MIN_ADX must be between 0 (off) and 100")
         if self.min_coin_units < 0 or self.max_skims < 0:

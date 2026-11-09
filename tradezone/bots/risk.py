@@ -143,7 +143,8 @@ class RiskBot(Bot):
         mode = self.settings.mtf_filter
         snap = self.snapshots.get(symbol)
         s0 = self.settings
-        if snap is None or (mode == "off" and s0.entry_min_rsi <= 0 and s0.entry_min_adx <= 0):
+        if snap is None or (mode == "off" and s0.entry_min_rsi <= 0 and s0.entry_min_adx <= 0
+                            and s0.entry_min_range_pos <= 0):
             return None
         ind = snap.indicators
         if mode in ("1h", "4h") and ind.get(f"tf_{mode}_trend", 0) < 0:
@@ -158,6 +159,8 @@ class RiskBot(Bot):
             return f"{symbol}: momentum too weak to buy (RSI {r:.0f}, needs {s.entry_min_rsi:.0f}+)"
         if s.entry_min_adx > 0 and (a := ind.get("adx")) is not None and a < s.entry_min_adx:
             return f"{symbol}: no trend to ride (ADX {a:.0f}, needs {s.entry_min_adx:.0f}+)"
+        if s.entry_min_range_pos > 0 and (rp := ind.get("tf_1h_range_pos")) is not None and rp < s.entry_min_range_pos:
+            return f"{symbol}: low in its hourly range ({rp:.0%}) - buys near the top of the range have won far more"
         return None
 
     def falling_block(self, symbol: str) -> str | None:
