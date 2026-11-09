@@ -49,3 +49,10 @@ def test_sells_are_never_held_back_by_them():
     desk.bus.publish("signal.proposed", Signal("ETH-USD", Side.SELL, 1.0, "close", "operator", SignalKind.EXIT, force=True))
     run(desk.bus.drain())
     assert qty > 0 and desk.portfolio.position("ETH-USD").qty == 0
+
+
+@pytest.mark.parametrize("bad", [{"mtf_filter": "week"}, {"entry_min_rsi": 600}, {"entry_min_adx": -1},
+                                 {"min_coin_units": -5}, {"mtf_weak_score": 0.5}])
+def test_a_mistyped_setting_stops_at_start_up_instead_of_silently_switching_a_fix_off(bad):
+    with pytest.raises(ValueError):
+        Settings(**bad).validate()

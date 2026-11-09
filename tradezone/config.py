@@ -309,7 +309,8 @@ class Settings:
     # nudge +$1.93 / -$23.45; only -$507.68 / -$344.04 (the replays have one DEX-type coin, DOGE, standing in).
     dex_focus: str = "size"
     # only coins a trade buys hundreds / thousands of (asked for): a buy that gets fewer coins than this is skipped
-    # (0 = off). On a $500 account 100 means coins under about $2.50 - DOGE, XRP, SHIB, PEPE, BONK, ...
+    # (0 = off). On a $500 account 100 means coins under about $2.50 - DOGE, XRP, SHIB, PEPE, BONK, ... Replayed
+    # (training half): 100 -$282.83 (Bitcoin, Ether and SOL made most of the profit), 1000 bought nothing - so off.
     min_coin_units: float = 0.0
     small_focus_nudge: float = 0.05
     small_focus_size: float = 1.25
@@ -934,6 +935,16 @@ class Settings:
                 raise ValueError(f"TZ_{f.upper()} must be nudge, veto or off" + (" (or show)" if f == "debate" else ""))
         if self.falling_buys not in ("block", "areas", "all"):
             raise ValueError("TZ_FALLING_BUYS must be block, areas or all")
+        if self.mtf_filter not in ("off", "1h", "4h", "align", "weak"):
+            raise ValueError("TZ_MTF_FILTER must be off, 1h, 4h, align or weak")
+        if not 0 <= self.entry_min_rsi <= 100:
+            raise ValueError("TZ_ENTRY_MIN_RSI must be between 0 (off) and 100")
+        if not 0 <= self.entry_min_adx <= 100:
+            raise ValueError("TZ_ENTRY_MIN_ADX must be between 0 (off) and 100")
+        if self.min_coin_units < 0 or self.max_skims < 0:
+            raise ValueError("TZ_MIN_COIN_UNITS and TZ_MAX_SKIMS can't be negative")
+        if not -1 <= self.mtf_weak_score <= 0:
+            raise ValueError("TZ_MTF_WEAK_SCORE must be between -1 and 0")
         if self.dex_focus not in ("off", "nudge", "size", "only"):
             raise ValueError("TZ_DEX_FOCUS must be off, nudge, size or only")
         if self.small_focus not in ("off", "nudge", "size", "only"):
