@@ -147,7 +147,7 @@ def test_big_picture_trend_trims_buys_against_the_15_minute_trend():
 
 
 def test_pullback_hunter_buys_the_retest_of_a_breakout():
-    desk = make()
+    desk = make(pullback=True)  # (off by default now: it hurt profit on replays)
     desk.set_bot_enabled("quant", False)
     desk.set_bot_enabled("skimmer", False)
     ideas = capture(desk, "signal.proposed")

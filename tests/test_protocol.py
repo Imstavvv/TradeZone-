@@ -24,7 +24,7 @@ def test_drifted_settings_are_listed_and_one_tap_puts_them_back(tmp_path):
     db = str(tmp_path / "tz.db")
     desk = make(db)
     desk.set_strategy("vwap", True)
-    desk.set_strategy("pullback", False)
+    desk.set_strategy("pullback", True)  # (best: off - it hurt profit on replays)
     desk.set_never_sell(False)
     desk.settings.flip_max_skims = 4
     off = {x["key"] for x in desk.protocol_status()["off"]}

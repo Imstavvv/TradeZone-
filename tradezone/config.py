@@ -396,7 +396,9 @@ class Settings:
     # daily range, on support - at 0.7x size) | all (every buy, at 0.7x size). "areas", as asked ("don't skip
     # falling markets, those could be good buy areas") - at a cost on replays (16 windows each, $500): falling
     # markets -$199 training / -$201 unseen, sideways -$24 / -$12, rising $0 / $0; "block" brings back the old way.
-    falling_buys: str = "areas"
+    # Back to block (asked for: "remove what hurts profit"): even with the turnaround rule, buying in falling markets
+    # cost +$171.04 training / +$99.55 unseen against block.
+    falling_buys: str = "block"
     # never buy a coin still falling with no turnaround (asked for): a coin in its own downtrend (the hourly trend
     # down) is bought only once it turns up - back above its short-term average with its 5-minute candle rising
     falling_coin_turn: bool = True
@@ -616,10 +618,12 @@ class Settings:
     # 50-bar average) | "both"; and the share of the vote mean reversion gets in a sideways market (was 0.7)
     mr_buy_filter: str = "off"
     mr_ranging_weight: float = 0.7
-    pullback: bool = True  # the Pullback Hunter: buy the retest of a breakout
+    # the Pullback Hunter: buy the retest of a breakout. Off: hurt profit on replays (+$41.05 training / +$245.47
+    # unseen without it - its buys lost when prices fell)
+    pullback: bool = False
     ema_fast_period: int = 12  # the fast and slow moving averages behind momentum and MACD
     ema_slow_period: int = 26
-    snipe: bool = True
+    snipe: bool = False  # (meme breakout snipes: off - +$11.37 / +$2.15 without them)
     # volume snipes: any crypto or meme coin whose bar trades several times its usual volume while the price
     # jumps up is bought on that bar (then the usual checks: Risk, the advisors, fees, the stop)
     surge_snipe: bool = False  # killed: failed on unseen data (see the README)

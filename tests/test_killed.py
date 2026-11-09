@@ -29,7 +29,7 @@ def test_saved_choices_from_before_lose_the_failed_ones_once_and_a_later_choice_
     store.save("finders", {"snipe": True, "surge_snipe": True, "pullback": True, "flipper": True})  # (saved before)
     store.save("strategies", {"on": ["macd", "obv", "mfi"], "mfi_offered": True})
     run(d.start())
-    assert not d.settings.surge_snipe and not d.settings.flipper and d.settings.snipe and d.settings.pullback
+    assert not d.settings.surge_snipe and not d.settings.flipper and not d.settings.snipe and not d.settings.pullback
     assert d.settings.strategies == ["obv", "mfi"]
     d.set_strategy("flipper", True)  # switched back on by you...
     d.set_strategy("macd", True)
@@ -37,4 +37,18 @@ def test_saved_choices_from_before_lose_the_failed_ones_once_and_a_later_choice_
     d2 = boot(db)
     run(d2.start())
     assert d2.settings.flipper and "macd" in d2.settings.strategies  # ...and kept
+    run(d2.shutdown())
+
+
+def test_a_finder_switched_back_on_by_you_stays_on_after_a_restart(tmp_path):
+    db = str(tmp_path / "tz.db")
+    d = boot(db)
+    StateStore(d.journal).save("finders", {"snipe": True, "pullback": True})  # (saved before)
+    run(d.start())
+    assert not d.settings.pullback  # (off once: it hurt profit on replays)
+    d.set_strategy("pullback", True)  # ...switched back on by you
+    run(d.shutdown())
+    d2 = boot(db)
+    run(d2.start())
+    assert d2.settings.pullback  # ...and kept
     run(d2.shutdown())

@@ -1111,6 +1111,9 @@ class TradingDesk:
         if finders and not finders.get("_killed_after_unseen"):  # (saved before: the finders that failed go off once)
             finders = {**finders, "surge_snipe": False, "flipper": False, "_killed_after_unseen": True}
             self.store.save("finders", finders)
+        if finders and not finders.get("_hurt_profit_off"):  # (replayed as hurting profit: off once)
+            finders = {**finders, "pullback": False, "snipe": False, "_hurt_profit_off": True}
+            self.store.save("finders", finders)
         for k, on in finders.items():
             if k in self.FINDERS and f"TZ_{self.FINDERS[k][0].upper()}" not in os.environ:
                 setattr(self.settings, self.FINDERS[k][0], bool(on))
@@ -1274,7 +1277,7 @@ class TradingDesk:
         from .bots.quant import STRATEGIES
         if key in self.FINDERS:
             setattr(self.settings, self.FINDERS[key][0], bool(on))
-            self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True})
+            self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True, "_hurt_profit_off": True})
             self.bus.publish("alert", Alert("info", f"{self.FINDERS[key][1]} {'on' if on else 'off'}", "operator"))
             return self.strategy_info()
         if key not in STRATEGIES:
@@ -1290,8 +1293,8 @@ class TradingDesk:
     # -- "make me money" protocol: the safest proven path, step by step -------------------------
     #: the combination that tested best together on real price history (each value tested both ways)
     BEST: ClassVar[dict[str, object]] = {
-        "strategies": ["obv", "mfi"], "snipe": True, "surge_snipe": False, "surge_volume_ratio": 4.0,
-        "pullback": True, "flipper": False, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
+        "strategies": ["obv", "mfi"], "snipe": False, "surge_snipe": False, "surge_volume_ratio": 4.0,
+        "pullback": False, "flipper": False, "accumulate": False, "flip_bank_fraction": 0.0, "flip_max_skims": 0,
         "maker_exits": False, "fee_rule_stops": True, "never_sell_at_loss": True, "dip_buy": False,
         "learn_targets": True, "learn_targets_raise_only": True, "learn_sources": False, "full_cash": True,
         "profit_over_fees": 1.0, "reentry_bars": 5, "flip_min_strength": 0.22, "loser_cap": 0.0,
@@ -1346,7 +1349,7 @@ class TradingDesk:
         for k, v in self.BEST.items():
             setattr(self.settings, k, list(v) if isinstance(v, list) else v)
         self.store.save("strategies", {"on": self.settings.strategies, "mfi_offered": True, "macd_killed": True})
-        self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True})
+        self.store.save("finders", {**{k: bool(getattr(self.settings, a)) for k, (a, _, _) in self.FINDERS.items()}, "_killed_after_unseen": True, "_hurt_profit_off": True})
         self.store.save("never_sell", {"on": self.settings.never_sell_at_loss})
         self.store.save("loser_cap", {"cap": self.settings.loser_cap, "chosen_after_off": True})
         self.store.save("loss_floor", {"pct": self.settings.max_loss_pct, "chosen_after_7": True})

@@ -559,6 +559,25 @@ the New Listings bot): nudge (+0.05 conviction) -$8.17, size (and 1.25x) -$2.85 
 falling), only (no large / mid-size buys) -$208.48 with far fewer trades - training half, 16 windows a market,
 $500. None won, so it's off; the replays hold one small coin, so real meme markets may differ.
 
+### ✂️ What hurt profit is off (asked for: "remove what hurts profit making")
+
+Each feature switched off on its own on the current plan (16 windows a market, $500; training / unseen half):
+
+| Switched off | Training | Unseen | |
+| --- | --- | --- | --- |
+| buying in falling markets (`TZ_FALLING_BUYS=areas`, back to `block`) | **+$171.04** | **+$99.55** | off |
+| the Pullback Hunter (`TZ_PULLBACK`) | **+$41.05** | **+$245.47** | off |
+| meme breakout snipes (`TZ_SNIPE`) | +$11.37 | +$2.15 | off |
+| the Pump Sniper | +$13.55 | -$5.30 | kept (it helped on unseen) |
+| Smart Money / selling part of a winner for a buy / learned targets / full cash / volatility sizing | -$3.81 / -$15.61 / -$14.06 / -$12.13 / -$76.42 | | kept (they make money) |
+
+All four together: +$150.42 / +$280.82. Saved choices from before switch the three off once; anything you switch
+back on yourself stays on.
+
+Also replayed and left off: a bigger buy in a good buy area (1.3x / 1.6x: +$57 / +$78 rising but -$125 / -$221
+falling; only in uptrending coins still -$37.03 / -$69.65 training), and waiting for the best buy area (-$212
+to -$254 training: it misses the moves already starting).
+
 ### 🎯 Pump Sniper (asked for) - on
 
 Buys a meme / DEX / new / smaller coin as a pump starts (3%+ in 3 bars on 3x volume, at a new high, RSI under 85,

@@ -57,3 +57,8 @@ def test_a_buy_needs_conviction_half_and_three_families():
 
 def test_runners_are_back_on_with_the_6_percent_plan():
     assert Settings().runners is True  # (replayed with +6%: +$28.28 training / +$74.89 unseen)
+
+
+def test_what_hurt_profit_is_off():
+    s = Settings()
+    assert s.falling_buys == "block" and not s.pullback and not s.snipe and s.pump_sniper

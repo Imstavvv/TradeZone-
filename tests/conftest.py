@@ -28,7 +28,7 @@ OLD_PLAN = {"wide_stop_pct": 0.20, "max_loss_pct": 0.20, "patient_meme_stop_pct"
 
 #: features switched off after failing on unseen data: tests of how they work turn them back on
 KILLED_ON = {"trailing_stop": True, "live_quick_flips": True, "flipper": True, "patient_exits": True, "coach_learning": True,
-             "surge_snipe": True, "runners": True, "dip_buy": True, "learn_sources": True,
+             "surge_snipe": True, "runners": True, "dip_buy": True, "learn_sources": True, "snipe": True, "pullback": True,
              "strategies": ["macd", "obv", "mfi"], "bots_off": []}
 
 

@@ -125,6 +125,7 @@ def _snap(desk, sym, price, high, fast, slow):
 
 @pytest.mark.old_entry  # (written around the 0.35 buy bar)
 def test_snipes_a_meme_breakout_on_the_tick(desk):
+    desk.settings.snipe = True  # (off by default now: it hurt profit on replays)
     sym = "PEPE-USD"
     desk.settings.symbols.append(sym)
     props = capture(desk, "signal.proposed")
