@@ -35,6 +35,7 @@ def skim(desk, sym="SOL-USD", price=100.0, **kw):
     return desk.portfolio.position(sym)
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_skims_a_dip_in_an_uptrend_with_a_small_target_and_tight_stop(desk):
     pos = skim(desk)
     assert pos.qty > 0 and desk.bots["skimmer"].owns("SOL-USD")
@@ -58,6 +59,7 @@ def test_no_skim_without_trend_and_dip_or_on_meme_coins(desk):
     assert skim(desk, "LINK-USD", 20.0, volatility=0.004).is_flat  # too wild for a tight stop
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_skim_time_limit_banks_profit_but_never_sells_a_loser(desk):
     sk = desk.bots["skimmer"]
     pos = skim(desk)
@@ -89,6 +91,7 @@ def buy(desk, sym, price):
 
 
 @pytest.mark.old_plan  # (a mechanism test, written around the stops / targets before -7% / +15%)
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_banks_a_slice_halfway_to_the_target(desk):
     pos = buy(desk, "BTC-USD", 50_000.0)  # -3% / +6% plan
     q0 = pos.qty

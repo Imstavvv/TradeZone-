@@ -63,6 +63,27 @@ def _old_plan(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _not_kraken_only(request, monkeypatch):
+    """Tests written around the old fallback (no Kraken key: Coinbase / Alpaca prices and fees)."""
+    if request.node.get_closest_marker("not_kraken_only") is None:
+        return
+    from tradezone.config import Settings
+    real = Settings.__init__
+
+    def init(self, *a, **kw):
+        kw.setdefault("kraken_only", False)
+        real(self, *a, **kw)
+    monkeypatch.setattr(Settings, "__init__", init)
+    real_env = Settings.from_env.__func__
+
+    def from_env(cls):
+        s = real_env(cls)
+        s.kraken_only = False
+        return s
+    monkeypatch.setattr(Settings, "from_env", classmethod(from_env))
+
+
+@pytest.fixture(autouse=True)
 def _old_entry(request, monkeypatch):
     """Tests written around the old buy bar (conviction 0.35, 2 voting families) - before 0.5 / 3 won its replays."""
     if request.node.get_closest_marker("old_entry") is None:

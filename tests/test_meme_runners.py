@@ -167,6 +167,7 @@ def test_coinbase_feed_skips_coins_it_doesnt_list():
     assert keep == ["BTC-USD", "BONK-USD"]  # unknown -> keep everything
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_flat_trade_in_profit_is_flipped_to_free_the_slot(desk):
     import time as _t
     pos = buy(desk, "SOL-USD", 100.0)

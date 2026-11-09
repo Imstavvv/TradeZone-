@@ -522,6 +522,9 @@ class Settings:
     debate_grok: bool = False  # also ask Grok to judge the debate (a paid request per buy)
     # 🔀 Rerouter: a buy the exchange refused for a passing reason, or one held back while cash was tied up, tries again
     rerouter: bool = True
+    # the bots watch only what Kraken has to offer (asked for): Kraken's own coin list and prices (and fees for
+    # practice), even before a Kraken key is saved. A linked Alpaca / Uphold account keeps its own venue's list.
+    kraken_only: bool = True
     # 🛡️ Rug Guard: a held meme / DEX / smaller coin showing rug-pull signs is sold at once, even below break-even
     rug_guard: bool = True
     # 🎯 Pump Sniper: buys a meme / DEX / new / small coin the moment it starts pumping (3%+ in 3 bars on 3x volume,
@@ -791,12 +794,14 @@ class Settings:
         return self.net_if_sold(pos, price) >= self.profit_over_fees * self.fees_if_sold(pos, price)
 
     def venue(self) -> str:
-        """The real-money venue in use: uphold, kraken or alpaca."""
+        """The real-money venue in use: uphold, kraken or alpaca (kraken_only: Kraken unless another one is set up)."""
         if self.live_venue in VENUES:
             return self.live_venue
         if self.uphold_token:
             return "uphold"
-        return "kraken" if self.kraken_key else "alpaca"
+        if self.kraken_key or (self.kraken_only and not self.alpaca_live_key):
+            return "kraken"
+        return "alpaca"
 
     def apply_venue_costs(self) -> None:
         """Practice with the real venue's costs (Uphold's spread ~1%, Kraken's fee 0.40%, Alpaca's 0.25%).

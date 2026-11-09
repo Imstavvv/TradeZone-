@@ -115,6 +115,7 @@ def test_drawdown_kill_switch_stays_down(desk):
     assert desk.halted
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_realistic_crypto_fees_and_fee_filter(desk):
     s = desk.settings
     assert s.fee_bps("BTC-USD") == 25 and s.fee_bps("AAPL") == 0

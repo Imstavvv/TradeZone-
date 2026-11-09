@@ -96,6 +96,7 @@ def test_open_paper_positions_block_going_live():
         run(desk.switch_mode("live"))
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_unconfigured_live_is_unavailable(desk):
     assert desk.live_broker is None
     with pytest.raises(ModeSwitchError, match="LIVE_KEY"):

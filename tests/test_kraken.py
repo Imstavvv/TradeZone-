@@ -307,6 +307,7 @@ def test_feed_finds_kraken_meme_coins_that_trade_enough():
     assert len(candles) == 3 and candles[0]["close"] == 1.5  # the still-forming candle is left out
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_linking_kraken_in_the_app_switches_to_krakens_prices():
     desk = TradingDesk(Settings(never_sell_at_loss=False), journal=Journal(":memory:"))  # feed=auto, nothing linked: Coinbase prices
     assert desk.feed.name == "coinbase" and desk.settings.feed_choice == "auto"

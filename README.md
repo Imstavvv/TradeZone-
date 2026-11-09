@@ -748,6 +748,15 @@ The busiest that **your exchange lists** are plugged into the watchlist with the
 
 "Always sell before the price drops" isn't something any bot can promise: no one knows the next move. What the bots do is cut a meme coin early when momentum turns down on heavy volume, lock in profit once a trade is up, and stop for the day after a bad one.
 
+### Kraken only (asked for: "only watch what Kraken has to offer")
+
+The bot team watches Kraken's own coin list and prices - every coin Kraken lists against USD that trades enough,
+its tokenized stocks, and new listings within a minute - even before a Kraken key is saved (practice is charged
+Kraken's fee, 0.40% a side). Nothing Kraken doesn't sell is watched: the Trend Scout only adds coins Kraken lists,
+and the stock finder works only on Alpaca's feed. A linked Alpaca or Uphold account keeps its own venue's list
+(it can only trade what it sells). `TZ_KRAKEN_ONLY=false` brings back the old fallback (Coinbase / Alpaca prices
+when no Kraken key is saved).
+
 ### DEX tokens on Kraken
 
 Kraken's own **DEX trading** (on-chain swaps from a built-in wallet in the Kraken app and Kraken Pro web) has no

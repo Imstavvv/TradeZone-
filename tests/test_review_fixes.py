@@ -24,6 +24,7 @@ def test_practice_fee_goes_back_to_normal_after_leaving_uphold(monkeypatch):
     assert s.crypto_fee_bps == 25  # back to Alpaca's normal fee
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_unlinking_resets_venue_and_fee(monkeypatch):
     monkeypatch.delenv("TZ_CRYPTO_FEE_BPS", raising=False)
     desk = TradingDesk(Settings(feed="coinbase", uphold_token="t" * 30), journal=Journal(":memory:"),

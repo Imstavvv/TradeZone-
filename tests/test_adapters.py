@@ -73,6 +73,7 @@ def test_coinbase_feed_parses_and_skips_failures():
     assert [(t.symbol, t.price) for t in ticks] == [("BTC-USD", 65000.5)]
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_live_mode_requires_explicit_confirmation():
     live = {"feed": "alpaca", "alpaca_live_key": "k", "alpaca_live_secret": "s"}
     s = Settings(mode="live", **live)
@@ -91,6 +92,7 @@ def test_live_availability_reported():
     assert Settings(feed="coinbase", alpaca_live_key="k", alpaca_live_secret="s").live_blockers() == []
 
 
+@pytest.mark.not_kraken_only  # (written around the old Coinbase / Alpaca fallback)
 def test_paper_defaults_to_real_market_data():
     s = Settings()
     s.validate()
